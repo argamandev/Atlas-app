@@ -1,0 +1,73 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
+import { isValidYouTubeUrl, generateTranscriptId } from '@/lib/utils'
+
+interface UrlInputBarProps {
+  size?: 'hero' | 'standard'
+}
+
+export function UrlInputBar({ size = 'standard' }: UrlInputBarProps) {
+  const router = useRouter()
+  const [url, setUrl] = useState('')
+  const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!isValidYouTubeUrl(url)) {
+      setError(true)
+      return
+    }
+    setError(false)
+    setLoading(true)
+    const id = generateTranscriptId(url)
+    router.push(`/processing/${id}`)
+  }
+
+  const isHero = size === 'hero'
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          {/* YouTube icon */}
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
+            <svg className={isHero ? 'w-4 h-4' : 'w-3.5 h-3.5'} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            dir="ltr"
+            value={url}
+            onChange={e => { setUrl(e.target.value); setError(false) }}
+            placeholder="הדבק קישור YouTube..."
+            className={`w-full bg-card border rounded pr-10 pl-4 text-sm text-text-primary placeholder:text-muted text-right
+              focus:outline-none focus:ring-1 transition-colors
+              ${isHero ? 'h-12' : 'h-10'}
+              ${error
+                ? 'border-error/60 focus:ring-error/30 focus:border-error/60'
+                : 'border-border hover:border-[#2a2a2a] focus:ring-accent/40 focus:border-accent/40'
+              }`}
+          />
+        </div>
+        <Button
+          type="submit"
+          size={isHero ? 'lg' : 'md'}
+          loading={loading}
+          className={`shrink-0 ${isHero ? 'h-12 px-6' : 'h-10 px-5'}`}
+        >
+          התחל תמלול
+        </Button>
+      </div>
+      {error && (
+        <p className="text-xs text-error mt-2">
+          קישור YouTube לא תקין. ודאו שהקישור מתחיל ב-youtube.com/watch או youtu.be
+        </p>
+      )}
+    </form>
+  )
+}

@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #050505;
+    color: #FFFFFF;
+    font-family: 'IBM Plex Sans Hebrew', Heebo, Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0B0B0B;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #FF6A00;
+  }
+
+  ::selection {
+    background: rgba(255, 106, 0, 0.25);
+    color: #FFFFFF;
+  }
+}
+
+@layer utilities {
+  .hero-grid {
+    background-image:
+      linear-gradient(rgba(255, 106, 0, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 106, 0, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .hero-grid-dense {
+    background-image:
+      linear-gradient(rgba(255, 106, 0, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 106, 0, 0.025) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .font-mono-num {
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  }
+
+  .border-subtle {
+    border-color: #1F1F1F;
+  }
+
+  .text-gradient-orange {
+    background: linear-gradient(135deg, #FF6A00, #D45500);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(255, 106, 0, 0.15);
+  }
+
+  .transcript-line:hover {
+    background-color: rgba(255, 255, 255, 0.015);
+  }
+
+  .ticker-track {
+    display: flex;
+    width: max-content;
+    animation: tickerScroll 40s linear infinite;
+  }
+
+  .ticker-track:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
