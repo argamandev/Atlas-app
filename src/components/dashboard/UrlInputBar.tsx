@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
-import { isValidYouTubeUrl, generateTranscriptId } from '@/lib/utils'
+import { isValidYouTubeUrl } from '@/lib/utils'
 
 interface UrlInputBarProps {
   size?: 'hero' | 'standard'
@@ -13,18 +13,34 @@ export function UrlInputBar({ size = 'standard' }: UrlInputBarProps) {
   const router = useRouter()
   const [url, setUrl] = useState('')
   const [error, setError] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!isValidYouTubeUrl(url)) {
       setError(true)
+      setErrorMsg(null)
       return
     }
     setError(false)
+    setErrorMsg(null)
     setLoading(true)
-    const id = generateTranscriptId(url)
-    router.push(`/processing/${id}`)
+
+    try {
+      const res = await fetch('/api/transcripts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `שגיאה ${res.status}`)
+      router.push(`/processing/${data.id}`)
+    } catch (e) {
+      setError(true)
+      setErrorMsg(e instanceof Error ? e.message : 'שגיאה לא ידועה')
+      setLoading(false)
+    }
   }
 
   const isHero = size === 'hero'
@@ -43,7 +59,7 @@ export function UrlInputBar({ size = 'standard' }: UrlInputBarProps) {
             type="text"
             dir="ltr"
             value={url}
-            onChange={e => { setUrl(e.target.value); setError(false) }}
+            onChange={e => { setUrl(e.target.value); setError(false); setErrorMsg(null) }}
             placeholder="הדבק קישור YouTube..."
             className={`w-full bg-card border rounded pr-10 pl-4 text-sm text-text-primary placeholder:text-muted text-right
               focus:outline-none focus:ring-1 transition-colors
@@ -64,8 +80,8 @@ export function UrlInputBar({ size = 'standard' }: UrlInputBarProps) {
         </Button>
       </div>
       {error && (
-        <p className="text-xs text-error mt-2">
-          קישור YouTube לא תקין. ודאו שהקישור מתחיל ב-youtube.com/watch או youtu.be
+        <p className="text-xs text-error mt-2" dir={errorMsg ? 'ltr' : 'rtl'}>
+          {errorMsg ?? 'קישור YouTube לא תקין. ודאו שהקישור מתחיל ב-youtube.com/watch או youtu.be'}
         </p>
       )}
     </form>

@@ -46,23 +46,13 @@ export function TranscriptBody({ transcript }: TranscriptBodyProps) {
           <div className="space-y-1">
             {section.lines.map((line) => {
               const speaker = speakerMap[line.speakerId]
-              const style = speaker ? roleStyles[speaker.role] : roleStyles.moderator
+              const style = (speaker ? roleStyles[speaker.role] : null) ?? roleStyles.moderator
 
               return (
                 <div
                   key={line.id}
-                  className="group flex gap-4 py-4 px-4 rounded -mx-4 transcript-line hover:bg-white/[0.015] transition-colors"
+                  className="group py-4 px-4 rounded -mx-4 transcript-line hover:bg-white/[0.015] transition-colors"
                 >
-                  {/* Timestamp */}
-                  <div className="flex-shrink-0 w-14 pt-0.5">
-                    <span
-                      className="text-2xs text-muted font-mono-num leading-none block"
-                      dir="ltr"
-                    >
-                      {line.timestamp}
-                    </span>
-                  </div>
-
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     {/* Speaker label */}

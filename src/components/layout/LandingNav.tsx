@@ -10,29 +10,17 @@ export function LandingNav() {
     <nav className="fixed top-0 right-0 left-0 z-50 border-b border-border bg-bg">
       <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
 
-        {/* Logo — right side in RTL */}
-        <div className="flex items-center gap-3">
-          {/* ICT square */}
-          <div className="w-9 h-9 bg-accent flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-mono-num font-bold text-xs tracking-widest">ICT</span>
-          </div>
-          {/* Text stack */}
-          <div className="flex flex-col leading-none">
-            <span className="font-mono-num text-2xs text-muted tracking-widest uppercase">INVESTOR CALL</span>
-            <span className="text-sm font-bold text-text-primary tracking-tight">תמלול.</span>
-          </div>
-        </div>
+        {/* Logo */}
+        <Link href="/home" className="flex items-center gap-3">
+          <span className="font-mono-num font-bold text-white tracking-tight text-base">
+            Sentiment<span className="text-accent">.</span>
+          </span>
+        </Link>
 
-        {/* Desktop Nav — left side in RTL */}
+        {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-6">
           <Link href="#features" className="font-mono-num text-xs text-text-secondary hover:text-text-primary transition-colors tracking-wide uppercase">
             מוצר
-          </Link>
-          <Link href="#pricing" className="font-mono-num text-xs text-text-secondary hover:text-text-primary transition-colors tracking-wide uppercase">
-            תמחור
-          </Link>
-          <Link href="/dashboard" className="font-mono-num text-xs text-text-secondary hover:text-text-primary transition-colors tracking-wide uppercase">
-            דשבורד
           </Link>
           <div className="w-px h-3 bg-border" />
           <Link href="/dashboard" className="font-mono-num text-xs font-bold text-text-primary hover:text-accent transition-colors tracking-wide uppercase">
@@ -59,8 +47,6 @@ export function LandingNav() {
       {mobileOpen && (
         <div className="md:hidden border-t border-border bg-bg px-6 py-4 flex flex-col gap-4">
           <Link href="#features" className="font-mono-num text-xs text-text-secondary uppercase tracking-wide">מוצר</Link>
-          <Link href="#pricing" className="font-mono-num text-xs text-text-secondary uppercase tracking-wide">תמחור</Link>
-          <Link href="/dashboard" className="font-mono-num text-xs text-text-secondary uppercase tracking-wide">דשבורד</Link>
           <Link href="/dashboard" className="font-mono-num text-xs font-bold text-accent uppercase tracking-wide">כניסה</Link>
         </div>
       )}

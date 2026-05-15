@@ -12,12 +12,20 @@ export interface ProcessingStep {
   progress: number
 }
 
-const STEP_DEFINITIONS = [
-  { label: 'מחלץ אודיו', sublabel: 'מוריד ומחלץ את האודיו מ-YouTube', duration: 1800 },
-  { label: 'מכין מנוע תמלול', sublabel: 'טוען מודל שפה ומנוע זיהוי דוברים', duration: 2000 },
-  { label: 'יוצר תמלול מקצועי', sublabel: 'מתמלל, מפריד דוברים ומסנן רעש', duration: 2500 },
-  { label: 'מסיים עיבוד', sublabel: 'מסמן זמנים ומייצר פלט מוסדי', duration: 1200 },
+const STEPS = [
+  { label: 'מוריד את האודיו', sublabel: 'מוריד ומחלץ את האודיו מ-YouTube' },
+  { label: 'מתמלל ומזהה דוברים', sublabel: 'מתמלל את השיחה ומזהה את הדוברים' },
+  { label: 'עורך ומסיים', sublabel: 'מתקן שגיאות, מסמן דוברים ומייצר תמלול סופי' },
 ]
+
+// Maps DB processing_step → UI step index
+function dbStepToIndex(step: string): number {
+  if (step === 'downloading') return 0
+  if (step === 'transcribing') return 1
+  if (step === 'formatting') return 2
+  if (step === 'completed') return 3
+  return 0
+}
 
 interface UseProcessingTimerProps {
   id: string
@@ -25,72 +33,107 @@ interface UseProcessingTimerProps {
 
 export function useProcessingTimer({ id }: UseProcessingTimerProps) {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(0)
-  const [progress, setProgress] = useState(0)
   const [steps, setSteps] = useState<ProcessingStep[]>(
-    STEP_DEFINITIONS.map((s, i) => ({
-      label: s.label,
-      sublabel: s.sublabel,
+    STEPS.map((s, i) => ({
+      ...s,
       status: i === 0 ? 'active' : 'pending',
       progress: 0,
     }))
   )
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [totalProgress, setTotalProgress] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+
+  const currentRealStep = useRef(-1)
+  const progressAnim = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function animateStep(stepIndex: number, targetPct: number) {
+    if (progressAnim.current) clearInterval(progressAnim.current)
+
+    progressAnim.current = setInterval(() => {
+      setSteps(prev => {
+        const current = prev[stepIndex]?.progress ?? 0
+        if (current >= targetPct) {
+          clearInterval(progressAnim.current!)
+          return prev
+        }
+        const next = Math.min(current + 0.5, targetPct)
+        const updated = prev.map((s, i) =>
+          i === stepIndex ? { ...s, progress: next } : s
+        )
+        const completed = updated.filter(s => s.status === 'complete').length
+        const activeProgress = next / 100
+        setTotalProgress(((completed + activeProgress) / STEPS.length) * 100)
+        return updated
+      })
+    }, 40)
+  }
+
+  function advanceTo(realStep: number) {
+    if (realStep <= currentRealStep.current && realStep < STEPS.length) return
+    currentRealStep.current = realStep
+
+    if (realStep >= STEPS.length) return // will redirect
+
+    setSteps(prev =>
+      prev.map((s, i) => ({
+        ...s,
+        status: i < realStep ? 'complete' : i === realStep ? 'active' : 'pending',
+        progress: i < realStep ? 100 : i === realStep ? 0 : 0,
+      }))
+    )
+    animateStep(realStep, 90)
+  }
 
   useEffect(() => {
-    let step = 0
+    advanceTo(0)
 
-    function runStep(stepIndex: number) {
-      if (stepIndex >= STEP_DEFINITIONS.length) {
-        // All done — redirect
-        setTimeout(() => {
-          router.push(`/transcript/${id}`)
-        }, 400)
-        return
+    async function poll() {
+      try {
+        const res = await fetch(`/api/transcripts/${id}?_t=${Date.now()}`, { cache: 'no-store' })
+        if (res.status === 404) {
+          // Row not yet visible — keep retrying silently
+          pollTimer.current = setTimeout(poll, 3000)
+          return
+        }
+        if (!res.ok) {
+          pollTimer.current = setTimeout(poll, 3000)
+          return
+        }
+        const data = await res.json()
+
+        if (data.status === 'failed') {
+          setError(data.error_message ?? 'שגיאה בעיבוד')
+          return
+        }
+
+        if (data.status === 'completed') {
+          if (progressAnim.current) clearInterval(progressAnim.current)
+          setSteps(prev => prev.map(s => ({ ...s, status: 'complete', progress: 100 })))
+          setTotalProgress(100)
+          setTimeout(() => router.push(`/transcript/${id}`), 600)
+          return
+        }
+
+        const realStep = dbStepToIndex(data.processing_step ?? 'downloading')
+        advanceTo(realStep)
+
+        pollTimer.current = setTimeout(poll, 3000)
+      } catch {
+        pollTimer.current = setTimeout(poll, 3000)
       }
-
-      const { duration } = STEP_DEFINITIONS[stepIndex]
-      const startTime = Date.now()
-
-      // Mark step as active
-      setCurrentStep(stepIndex)
-      setSteps(prev => prev.map((s, i) => ({
-        ...s,
-        status: i < stepIndex ? 'complete' : i === stepIndex ? 'active' : 'pending',
-        progress: i < stepIndex ? 100 : 0,
-      })))
-
-      // Animate progress for current step
-      progressRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTime
-        const pct = Math.min((elapsed / duration) * 100, 99)
-        setSteps(prev => prev.map((s, i) =>
-          i === stepIndex ? { ...s, progress: pct } : s
-        ))
-        setProgress(((stepIndex + pct / 100) / STEP_DEFINITIONS.length) * 100)
-      }, 30)
-
-      timerRef.current = setTimeout(() => {
-        if (progressRef.current) clearInterval(progressRef.current)
-        // Complete this step
-        setSteps(prev => prev.map((s, i) =>
-          i === stepIndex ? { ...s, status: 'complete', progress: 100 } : s
-        ))
-        step = stepIndex + 1
-        runStep(step)
-      }, duration)
     }
 
-    runStep(0)
+    poll()
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      if (progressRef.current) clearInterval(progressRef.current)
+      if (progressAnim.current) clearInterval(progressAnim.current)
+      if (pollTimer.current) clearTimeout(pollTimer.current)
+      // Reset so advanceTo(0) restarts the animation after Strict Mode remount
+      currentRealStep.current = -1
     }
-  }, [id, router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
-  const totalProgress = (steps.filter(s => s.status === 'complete').length / STEP_DEFINITIONS.length) * 100
-
-  return { steps, currentStep, totalProgress }
+  return { steps, totalProgress, error }
 }

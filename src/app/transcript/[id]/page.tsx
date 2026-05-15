@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { getMockTranscript } from '@/lib/mock-data'
+import { notFound } from 'next/navigation'
+import { supabaseAdmin } from '@/lib/supabase'
+import type { Transcript } from '@/lib/types'
 import { TranscriptHeader } from '@/components/transcript/TranscriptHeader'
 import { TranscriptActions } from '@/components/transcript/TranscriptActions'
 import { TranscriptBody } from '@/components/transcript/TranscriptBody'
@@ -9,8 +11,18 @@ interface Props {
   params: { id: string }
 }
 
-export default function TranscriptPage({ params }: Props) {
-  const transcript = getMockTranscript(params.id)
+export default async function TranscriptPage({ params }: Props) {
+  const { data, error } = await supabaseAdmin
+    .from('transcripts')
+    .select('formatted_data, status')
+    .eq('id', params.id)
+    .single()
+
+  if (error || !data || data.status !== 'completed' || !data.formatted_data) {
+    notFound()
+  }
+
+  const transcript = data.formatted_data as Transcript
 
   return (
     <div className="min-h-screen bg-bg">
@@ -32,39 +44,30 @@ export default function TranscriptPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Actions inline in top bar for desktop */}
         <div className="hidden md:block">
           <TranscriptActions transcript={transcript} />
         </div>
       </div>
 
-      {/* Page body */}
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Header */}
         <TranscriptHeader transcript={transcript} />
 
-        {/* Mobile actions */}
         <div className="md:hidden mb-6">
           <TranscriptActions transcript={transcript} />
         </div>
 
-        {/* Content: transcript + side nav */}
-        {/* In RTL flex: first child (transcript) goes to the right, second child (nav) goes to the left */}
         <div className="flex gap-8">
-          {/* Main transcript */}
           <div className="flex-1 min-w-0">
             <div className="bg-card border border-border rounded p-6 md:p-8">
               <TranscriptBody transcript={transcript} />
             </div>
           </div>
 
-          {/* Section nav — visual left side in RTL */}
           <div className="hidden lg:block w-44 flex-shrink-0">
             <SectionNav sections={transcript.sections} />
           </div>
         </div>
 
-        {/* Footer note */}
         <div className="mt-8 pt-5 border-t border-border flex items-center justify-between">
           <p className="text-xs text-muted">
             תמלול נוצר באמצעות תשתית תמלול מוסדית

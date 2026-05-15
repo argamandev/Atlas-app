@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { isValidYouTubeUrl, generateTranscriptId } from '@/lib/utils'
+import { isValidYouTubeUrl } from '@/lib/utils'
+import { DottedSurface } from '@/components/ui/dotted-surface'
 
 const STATS = [
   { value: '99.4%', label: 'ACCURACY' },
@@ -19,7 +20,7 @@ export function HeroSection() {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!isValidYouTubeUrl(url)) {
       setError(true)
@@ -27,7 +28,20 @@ export function HeroSection() {
     }
     setError(false)
     setLoading(true)
-    router.push(`/processing/${generateTranscriptId(url)}`)
+
+    try {
+      const res = await fetch('/api/transcripts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `שגיאה ${res.status}`)
+      router.push(`/processing/${data.id}`)
+    } catch {
+      setError(true)
+      setLoading(false)
+    }
   }
 
   // ⌘ + Enter shortcut
@@ -43,6 +57,8 @@ export function HeroSection() {
 
   return (
     <section className="relative pt-36 pb-20 overflow-hidden">
+      {/* Three.js animated particle field */}
+      <DottedSurface className="opacity-40" />
       {/* Subtle grid background */}
       <div className="absolute inset-0 hero-grid pointer-events-none opacity-60" />
       {/* Radial fade at center */}
@@ -55,8 +71,8 @@ export function HeroSection() {
 
         {/* Badge */}
         <div className="inline-flex items-center gap-2 border border-border px-3 py-1.5 mb-10 font-mono-num">
-          <span className="text-success text-xs">■</span>
-          <span className="text-xs text-text-secondary tracking-widest uppercase">פעיל · מנוע תמלול V4.2</span>
+          <span className="text-success text-xs animate-blink">■</span>
+          <span className="text-xs text-text-secondary tracking-widest uppercase">MODULE 01 // CALL INTELLIGENCE · ACTIVE</span>
         </div>
 
         {/* Headline */}
@@ -78,9 +94,7 @@ export function HeroSection() {
           {/* Header bar */}
           <div className="flex items-center justify-between border border-border border-b-0 bg-[#0d0d0d] px-4 py-2">
             <span className="font-mono-num text-2xs text-muted tracking-widest">
-              <span className="text-accent">// קלט</span>
-              {' · '}
-              <span className="uppercase">YOUTUBE_URL</span>
+              <span className="text-accent">// MODULE 01 · CALL_INTELLIGENCE_ENGINE</span>
             </span>
             <span className="font-mono-num text-2xs text-muted tracking-widest">⌘ + ENTER</span>
           </div>

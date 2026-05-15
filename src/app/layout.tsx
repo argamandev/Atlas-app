@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'תמלול שיחות משקיעים',
-  description: 'תמלול מקצועי לשיחות משקיעים — הדביקו קישור ליוטיוב וקבלו תמלול מלא ומדויק תוך דקות',
+  title: 'Sentiment.',
+  description: 'Institutional-grade investor call intelligence.',
 }
 
 export default function RootLayout({
