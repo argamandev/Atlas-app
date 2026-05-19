@@ -8,16 +8,22 @@ export function JoinForm() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [state, setState] = useState<State>('idle')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (password !== passwordConfirm) {
+      setState('error')
+      return
+    }
     setState('loading')
 
     const res = await fetch('/api/access-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName, lastName, email }),
+      body: JSON.stringify({ firstName, lastName, email, password }),
     })
 
     if (res.ok) {
@@ -78,11 +84,38 @@ export function JoinForm() {
           className="w-full bg-card border border-border px-4 py-3 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/60 font-mono-num transition-colors"
         />
       </div>
+      <div>
+        <label className="font-mono-num text-2xs text-muted tracking-widest block mb-2">// סיסמא</label>
+        <input
+          type="password"
+          required
+          minLength={8}
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          placeholder="לפחות 8 תווים"
+          dir="ltr"
+          className="w-full bg-card border border-border px-4 py-3 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/60 transition-colors"
+        />
+      </div>
+      <div>
+        <label className="font-mono-num text-2xs text-muted tracking-widest block mb-2">// אימות סיסמא</label>
+        <input
+          type="password"
+          required
+          value={passwordConfirm}
+          onChange={e => setPasswordConfirm(e.target.value)}
+          placeholder="הקלד שוב את הסיסמא"
+          dir="ltr"
+          className="w-full bg-card border border-border px-4 py-3 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/60 transition-colors"
+        />
+      </div>
       {state === 'duplicate' && (
         <p className="font-mono-num text-xs text-amber-400 tracking-wide">המייל הזה כבר הגיש בקשה.</p>
       )}
       {state === 'error' && (
-        <p className="font-mono-num text-xs text-error tracking-wide">שגיאה. נסה שוב.</p>
+        <p className="font-mono-num text-xs text-error tracking-wide">
+          {password !== passwordConfirm ? 'הסיסמאות אינן תואמות.' : 'שגיאה. נסה שוב.'}
+        </p>
       )}
       <button
         type="submit"
