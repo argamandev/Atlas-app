@@ -61,7 +61,6 @@ function commonFlags(): string[] {
     '--retries', '10',
     '--fragment-retries', '10',
     '--socket-timeout', '30',
-    '--extractor-args', 'youtube:player_client=android,ios,web_creator,web',
     '--no-check-certificate',
     '--no-warnings',
   ]
