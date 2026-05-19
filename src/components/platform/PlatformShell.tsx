@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { DottedSurface } from '@/components/ui/dotted-surface'
 import { UrlInputBar } from '@/components/dashboard/UrlInputBar'
 import { TranscriptsTable } from '@/components/dashboard/TranscriptsTable'
+import { InsiderView } from './InsiderView'
 import type { RecentTranscript } from '@/lib/types'
 
 type Tab = 'transcripts' | 'insider' | 'admin'
@@ -13,10 +14,6 @@ interface Message {
   role: 'user' | 'assistant'
   text: string
 }
-
-const TRACKED_DEFAULTS = ['TEVA', 'CHKP']
-const NOTIFY_METHODS = ['מייל', 'וואטסאפ'] as const
-type NotifyMethod = typeof NOTIFY_METHODS[number]
 
 interface Props {
   transcripts: RecentTranscript[]
@@ -250,181 +247,6 @@ function TranscriptsView({ transcripts }: { transcripts: RecentTranscript[] }) {
 
       {/* Table */}
       <TranscriptsTable transcripts={transcripts} />
-    </div>
-  )
-}
-
-/* ── INSIDER TRANSACTIONS VIEW ────────────────────────────────── */
-
-function InsiderView() {
-  const [tracked, setTracked] = useState<string[]>(TRACKED_DEFAULTS)
-  const [newTicker, setNewTicker] = useState('')
-  const [methods, setMethods] = useState<Set<NotifyMethod>>(new Set<NotifyMethod>(['מייל']))
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [saved, setSaved] = useState(false)
-
-  function addTicker() {
-    const t = newTicker.trim().toUpperCase()
-    if (t && !tracked.includes(t)) {
-      setTracked(prev => [...prev, t])
-    }
-    setNewTicker('')
-  }
-
-  function removeTicker(t: string) {
-    setTracked(prev => prev.filter(x => x !== t))
-  }
-
-  function toggleMethod(m: NotifyMethod) {
-    setMethods(prev => {
-      const next = new Set<NotifyMethod>(prev)
-      if (next.has(m)) next.delete(m)
-      else next.add(m)
-      return next
-    })
-  }
-
-  function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
-  }
-
-  return (
-    <div className="flex-1 overflow-y-auto px-6 py-8 max-w-3xl mx-auto w-full">
-      {/* Dev banner */}
-      <div className="flex items-center gap-3 border border-amber-400/30 bg-amber-400/5 px-4 py-3 mb-8">
-        <span className="font-mono-num text-xs text-amber-400 tracking-widest">DEV</span>
-        <div className="w-px h-4 bg-amber-400/30" />
-        <p className="font-mono-num text-xs text-amber-400/80 tracking-wide">
-          מודול זה בפיתוח ועדיין לא פעיל. הממשק שלהלן מראה כיצד הוא יעבוד בעתיד.
-        </p>
-      </div>
-
-      <div className="mb-8 opacity-70">
-        <p className="font-mono-num text-xs text-accent tracking-widest uppercase mb-1">// MODULE 02</p>
-        <h2 className="text-xl font-bold text-text-primary tracking-tight">עסקאות בעלי עניין</h2>
-        <p className="text-sm text-text-secondary mt-2 leading-relaxed">
-          סנטימנט תעקוב בזמן אמת אחרי עסקאות בעלי עניין ותעדכן אותך לפי ההעדפות שלך.
-        </p>
-      </div>
-
-      <form onSubmit={handleSave} className="flex flex-col gap-8">
-        {/* Securities watchlist */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-0.5 h-4 bg-accent" />
-            <h3 className="text-sm font-semibold text-text-primary">ניירות ערך במעקב</h3>
-          </div>
-
-          {/* Current tickers */}
-          <div className="flex flex-wrap gap-2 mb-3">
-            {tracked.map(t => (
-              <div key={t} className="flex items-center gap-2 bg-card border border-border px-3 py-1.5">
-                <span className="font-mono-num text-xs font-bold text-text-primary" dir="ltr">{t}</span>
-                <button
-                  type="button"
-                  onClick={() => removeTicker(t)}
-                  className="text-muted hover:text-error transition-colors font-mono-num text-xs"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Add ticker */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newTicker}
-              onChange={e => setNewTicker(e.target.value.toUpperCase())}
-              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTicker())}
-              placeholder="הוסף נייר ערך (TEVA, MSFT...)"
-              dir="ltr"
-              maxLength={8}
-              className="flex-1 bg-card border border-border px-4 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/40 transition-colors font-mono-num max-w-xs"
-            />
-            <button
-              type="button"
-              onClick={addTicker}
-              className="font-mono-num text-xs text-accent border border-accent/40 hover:bg-accent/10 px-4 py-2 transition-colors tracking-widest"
-            >
-              + הוסף
-            </button>
-          </div>
-        </section>
-
-        {/* Notification method */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-0.5 h-4 bg-accent" />
-            <h3 className="text-sm font-semibold text-text-primary">שיטת עדכון</h3>
-          </div>
-          <div className="flex gap-2 mb-5" dir="ltr">
-            {NOTIFY_METHODS.map(m => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => toggleMethod(m)}
-                className={`font-mono-num text-xs px-5 py-2 tracking-wide border transition-colors ${
-                  methods.has(m)
-                    ? 'bg-accent/10 border-accent/60 text-accent'
-                    : 'bg-card border-border text-muted hover:text-text-secondary hover:border-[#2a2a2a]'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-
-          {/* Conditional inputs */}
-          <div className="flex flex-col gap-3">
-            {methods.has('מייל') && (
-              <div>
-                <label className="font-mono-num text-2xs text-muted tracking-widest block mb-2">// EMAIL</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="email@company.com"
-                  dir="ltr"
-                  className="w-full max-w-sm bg-card border border-border px-4 py-2.5 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/40 transition-colors font-mono-num"
-                />
-              </div>
-            )}
-            {methods.has('וואטסאפ') && (
-              <div>
-                <label className="font-mono-num text-2xs text-muted tracking-widest block mb-2">// PHONE (WhatsApp)</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="+972-50-000-0000"
-                  dir="ltr"
-                  className="w-full max-w-sm bg-card border border-border px-4 py-2.5 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/40 transition-colors font-mono-num"
-                />
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Save */}
-        <div className="flex items-center gap-4">
-          <button
-            type="submit"
-            className="bg-accent hover:bg-accent-hover text-white font-mono-num font-bold text-xs tracking-widest uppercase px-8 py-3 transition-colors"
-          >
-            שמור הגדרות
-          </button>
-          {saved && (
-            <span className="font-mono-num text-xs text-success tracking-widest animate-pulse">
-              ■ ההגדרות נשמרו
-            </span>
-          )}
-        </div>
-      </form>
     </div>
   )
 }

@@ -42,12 +42,9 @@ export default function EntryGate() {
               className="font-bold text-white tracking-tighter leading-none mb-6"
               style={{ fontSize: 'clamp(40px, 5.5vw, 76px)' }}
             >
-              בינה מלאכותית<br />
-              <span className="text-accent">למשקיעים.</span>
+              תמלול שיחות<br />
+              <span className="text-accent">משקיעים.</span>
             </h1>
-            <p className="font-mono-num text-xs text-muted tracking-widest uppercase mb-12">
-              AI PLATFORM FOR INSTITUTIONAL INVESTORS
-            </p>
 
             {/* Capabilities list */}
             <div className="flex flex-col gap-5 text-right max-w-sm mx-auto lg:mx-0">
