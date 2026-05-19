@@ -38,14 +38,16 @@ async function runWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T,
 
 const MAX_WHISPER_BYTES = 24 * 1024 * 1024 // 24 MB
 
-export { getVideoInfo } from './ytdlp'
+export async function getVideoInfo(url: string) {
+  return withTimeout(ytGetInfo(url), 90 * 1000, 'yt-dlp metadata')
+}
 
 export async function downloadAudio(url: string): Promise<string> {
   // yt-dlp outputs to the path we give it, but adds the extension itself
   // We pass a path without extension and let yt-dlp add .mp3
   const base = path.join(os.tmpdir(), `inv_audio_${Date.now()}`)
   const finalPath = `${base}.mp3`
-  await ytDownload(url, `${base}.%(ext)s`)
+  await withTimeout(ytDownload(url, `${base}.%(ext)s`), 6 * 60 * 1000, 'yt-dlp download')
 
   // yt-dlp may have named it slightly differently — find it
   const tmpDir = os.tmpdir()
