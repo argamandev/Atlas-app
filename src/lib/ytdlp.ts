@@ -23,7 +23,11 @@ function getYtDlpBin(): string {
     }
     return winPath
   }
-  // Linux/Mac: installed via nixpacks (Railway) or system PATH
+  // Linux/Mac: check local bin (downloaded during Railway build), fallback to PATH
+  const localPath = path.join(process.cwd(), 'bin', 'yt-dlp')
+  if (fs.existsSync(localPath)) {
+    return localPath
+  }
   return 'yt-dlp'
 }
 
