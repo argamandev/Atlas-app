@@ -67,6 +67,11 @@ function commonFlags(): string[] {
   ]
   const cookies = getCookiesPath()
   if (cookies) flags.push('--cookies', cookies)
+  const proxy = process.env.YTDLP_PROXY
+  if (proxy) {
+    console.log('[ytdlp] proxy: enabled')
+    flags.push('--proxy', proxy)
+  }
   return flags
 }
 
