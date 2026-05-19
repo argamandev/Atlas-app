@@ -17,7 +17,13 @@ export function createServerSupabase(
 }
 
 // Admin client — server-side only, bypasses RLS
+// Explicit no-store fetch prevents Next.js data cache from serving stale rows
 export const supabaseAdmin = createClient(
   url,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    global: {
+      fetch: (input, init = {}) => fetch(input, { ...init, cache: 'no-store' }),
+    },
+  }
 )

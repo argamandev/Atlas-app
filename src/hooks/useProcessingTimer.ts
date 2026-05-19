@@ -123,7 +123,12 @@ export function useProcessingTimer({ id }: UseProcessingTimerProps) {
         }
 
         const realStep = dbStepToIndex(data.processing_step ?? 'downloading')
-        advanceTo(realStep)
+        // If Supabase step lags behind, advance based on elapsed time
+        const elapsedSec = (Date.now() - pollStartTime.current) / 1000
+        let displayStep = realStep
+        if (displayStep < 1 && elapsedSec > 90) displayStep = 1
+        if (displayStep < 2 && elapsedSec > 270) displayStep = 2
+        advanceTo(displayStep)
 
         pollTimer.current = setTimeout(poll, 3000)
       } catch {
