@@ -56,7 +56,7 @@ export default function ProcessingPage() {
             <div className="bg-card border border-error/30 rounded p-6">
               <p className="text-xs text-muted leading-relaxed mb-5 font-mono-num text-right" dir="ltr">{error}</p>
               <a
-                href="/home"
+                href="/dashboard"
                 className="block w-full text-center text-xs px-4 py-2.5 rounded border border-border text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors"
               >
                 חזור ונסה שנית
