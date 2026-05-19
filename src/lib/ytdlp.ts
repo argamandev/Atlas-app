@@ -63,6 +63,7 @@ function commonFlags(): string[] {
     '--socket-timeout', '30',
     '--no-check-certificate',
     '--no-warnings',
+    '--js-runtimes', 'node',
   ]
   const cookies = getCookiesPath()
   if (cookies) flags.push('--cookies', cookies)
