@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const { data: existingRows, error: selectErr } = await supabaseAdmin
     .from('transcripts')
-    .select('id, status')
+    .select('id, status, created_at')
     .eq('id', videoId)
     .limit(1)
   const existing = existingRows?.[0] ?? null
@@ -48,10 +48,32 @@ export async function POST(req: NextRequest) {
   }
 
   if (existing) {
-    if (existing.status === 'completed' || existing.status === 'processing') {
+    if (existing.status === 'completed') {
       return NextResponse.json({ id: videoId })
     }
-    // Only reset failed records
+    if (existing.status === 'processing') {
+      // If stuck >20 min, the background process was likely killed by a redeploy — restart it
+      const ageMs = Date.now() - new Date(existing.created_at as string).getTime()
+      if (ageMs < 10 * 60 * 1000) {
+        return NextResponse.json({ id: videoId })
+      }
+      console.log(`[POST] record ${videoId} stuck in processing for ${Math.round(ageMs / 60000)}m — restarting pipeline`)
+      await supabaseAdmin
+        .from('transcripts')
+        .update({ status: 'processing', processing_step: 'downloading', error_message: null })
+        .eq('id', videoId)
+      setImmediate(() => {
+        runPipeline(videoId, url).catch(async (err: Error) => {
+          console.error('[pipeline] FAILED:', err.message)
+          await supabaseAdmin
+            .from('transcripts')
+            .update({ status: 'failed', error_message: err.message })
+            .eq('id', videoId)
+        })
+      })
+      return NextResponse.json({ id: videoId })
+    }
+    // Reset failed records
     const { error: updateErr } = await supabaseAdmin
       .from('transcripts')
       .update({ status: 'processing', processing_step: 'downloading', error_message: null })

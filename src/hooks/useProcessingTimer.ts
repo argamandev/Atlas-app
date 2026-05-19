@@ -46,6 +46,7 @@ export function useProcessingTimer({ id }: UseProcessingTimerProps) {
   const currentRealStep = useRef(-1)
   const progressAnim = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pollStartTime = useRef(Date.now())
 
   function animateStep(stepIndex: number, targetPct: number) {
     if (progressAnim.current) clearInterval(progressAnim.current)
@@ -115,6 +116,12 @@ export function useProcessingTimer({ id }: UseProcessingTimerProps) {
           return
         }
 
+        // Stuck for >10 min — the server process was likely killed by a redeploy
+        if (Date.now() - pollStartTime.current > 10 * 60 * 1000) {
+          setError('העיבוד ארך זמן רב. ייתכן שהשרת עדכן. נסה שוב.')
+          return
+        }
+
         const realStep = dbStepToIndex(data.processing_step ?? 'downloading')
         advanceTo(realStep)
 
@@ -129,8 +136,8 @@ export function useProcessingTimer({ id }: UseProcessingTimerProps) {
     return () => {
       if (progressAnim.current) clearInterval(progressAnim.current)
       if (pollTimer.current) clearTimeout(pollTimer.current)
-      // Reset so advanceTo(0) restarts the animation after Strict Mode remount
       currentRealStep.current = -1
+      pollStartTime.current = Date.now()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
