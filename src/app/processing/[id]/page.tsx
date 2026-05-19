@@ -1,6 +1,7 @@
 'use client'
 
 import { useParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { useProcessingTimer } from '@/hooks/useProcessingTimer'
 import { ProcessingSteps } from '@/components/processing/ProcessingSteps'
 
@@ -8,6 +9,12 @@ export default function ProcessingPage() {
   const params = useParams()
   const id = typeof params.id === 'string' ? params.id : ''
   const { steps, totalProgress, error } = useProcessingTimer({ id })
+  const [showFallback, setShowFallback] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowFallback(true), 4 * 60 * 1000)
+    return () => clearTimeout(t)
+  }, [])
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
@@ -66,6 +73,18 @@ export default function ProcessingPage() {
             /* Processing steps */
             <div className="bg-card border border-border rounded p-6">
               <ProcessingSteps steps={steps} totalProgress={totalProgress} />
+            </div>
+          )}
+
+          {/* Fallback link — appears after 4 min if still processing */}
+          {!error && showFallback && (
+            <div className="mt-4 text-center">
+              <a
+                href={`/transcript/${id}`}
+                className="text-xs text-accent hover:text-accent-hover border border-accent/20 hover:border-accent/40 px-4 py-2 rounded transition-colors"
+              >
+                התמלול מוכן? לחץ לצפייה
+              </a>
             </div>
           )}
 

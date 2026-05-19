@@ -108,7 +108,7 @@ export function useProcessingTimer({ id }: UseProcessingTimerProps) {
           return
         }
 
-        if (data.status === 'completed') {
+        if (data.status === 'completed' || data.formatted_data != null) {
           if (progressAnim.current) clearInterval(progressAnim.current)
           setSteps(prev => prev.map(s => ({ ...s, status: 'complete', progress: 100 })))
           setTotalProgress(100)
