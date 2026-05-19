@@ -21,7 +21,7 @@ if (fs.existsSync(binPath)) {
 
 console.log('[install-yt-dlp] downloading yt-dlp for Linux...')
 execSync(
-  `curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o "${binPath}" && chmod +x "${binPath}"`,
+  `curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o "${binPath}" && chmod +x "${binPath}"`,
   { stdio: 'inherit' }
 )
 console.log('[install-yt-dlp] done')
