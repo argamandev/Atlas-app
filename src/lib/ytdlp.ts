@@ -7,24 +7,28 @@ const ffmpegBin: string = require('@ffmpeg-installer/ffmpeg').path
 
 const execFileAsync = promisify(execFile)
 
-const YTDLP_PATH = path.join(process.cwd(), 'bin', 'yt-dlp.exe')
 const EXEC_OPTS = {
-  maxBuffer: 50 * 1024 * 1024, // 50 MB — enough for long JSON + stderr
-  timeout: 30 * 60 * 1000,     // 30 min max
+  maxBuffer: 50 * 1024 * 1024,
+  timeout: 30 * 60 * 1000,
 }
 
-function ensureYtDlp(): string {
-  if (!fs.existsSync(YTDLP_PATH)) {
-    throw new Error(
-      `yt-dlp.exe not found at ${YTDLP_PATH}. ` +
-      `Download from https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe`
-    )
+function getYtDlpBin(): string {
+  if (process.platform === 'win32') {
+    const winPath = path.join(process.cwd(), 'bin', 'yt-dlp.exe')
+    if (!fs.existsSync(winPath)) {
+      throw new Error(
+        `yt-dlp.exe not found at ${winPath}. ` +
+        `Download from https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe`
+      )
+    }
+    return winPath
   }
-  return YTDLP_PATH
+  // Linux/Mac: installed via nixpacks (Railway) or system PATH
+  return 'yt-dlp'
 }
 
 export async function getVideoInfo(url: string) {
-  const bin = ensureYtDlp()
+  const bin = getYtDlpBin()
   const { stdout } = await execFileAsync(bin, [
     '--dump-json',
     '--no-playlist',
@@ -41,7 +45,7 @@ export async function getVideoInfo(url: string) {
 }
 
 export async function downloadAudio(url: string, outputTemplate: string): Promise<void> {
-  const bin = ensureYtDlp()
+  const bin = getYtDlpBin()
   await execFileAsync(bin, [
     url,
     '--no-playlist',
