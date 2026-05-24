@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { cookies } from 'next/headers'
+import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
 import { isValidYouTubeUrl, extractYouTubeId } from '@/lib/utils'
 import {
   getVideoInfo,
@@ -22,6 +23,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const cookieStore = cookies()
+  const supabase = createServerSupabase(cookieStore)
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = session.user.id
+
   const { url } = await req.json()
 
   if (!isValidYouTubeUrl(url)) {
@@ -88,6 +95,7 @@ export async function POST(req: NextRequest) {
       youtube_url: url,
       status: 'processing',
       processing_step: 'downloading',
+      user_id: userId,
     }).select()
     console.log(`[POST] insert result: data=${JSON.stringify(insertedRows)}, error=${JSON.stringify(insertErr)}`)
     if (insertErr) {

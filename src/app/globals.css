@@ -116,3 +116,24 @@
     rgba(0, 0, 0, 0.08) 4px
   );
 }
+
+@media print {
+  .no-print { display: none !important; }
+
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+
+  .max-w-6xl { max-width: 100% !important; padding: 0 !important; }
+
+  .sticky { position: static !important; }
+
+  .bg-card, [class*="bg-card"] { background: #ffffff !important; }
+  [class*="bg-bg"] { background: #ffffff !important; }
+
+  [class*="border-border"] { border-color: #d1d5db !important; }
+
+  [class*="text-text-primary"] { color: #111111 !important; }
+  [class*="text-muted"] { color: #555555 !important; }
+}

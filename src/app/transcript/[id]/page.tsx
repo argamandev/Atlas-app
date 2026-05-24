@@ -27,7 +27,7 @@ export default async function TranscriptPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-bg">
       {/* Top bar */}
-      <div className="sticky top-0 z-40 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex items-center justify-between px-6">
+      <div className="no-print sticky top-0 z-40 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="flex items-center gap-2 text-muted hover:text-text-secondary transition-colors">
             <svg className="w-4 h-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -44,7 +44,7 @@ export default async function TranscriptPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="hidden md:block">
+        <div className="hidden md:block no-print">
           <TranscriptActions transcript={transcript} />
         </div>
       </div>
@@ -52,7 +52,7 @@ export default async function TranscriptPage({ params }: Props) {
       <div className="max-w-6xl mx-auto px-6 py-8">
         <TranscriptHeader transcript={transcript} />
 
-        <div className="md:hidden mb-6">
+        <div className="md:hidden mb-6 no-print">
           <TranscriptActions transcript={transcript} />
         </div>
 
@@ -63,7 +63,7 @@ export default async function TranscriptPage({ params }: Props) {
             </div>
           </div>
 
-          <div className="hidden lg:block w-44 flex-shrink-0">
+          <div className="hidden lg:block w-44 flex-shrink-0 no-print">
             <SectionNav sections={transcript.sections} />
           </div>
         </div>

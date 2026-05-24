@@ -27,12 +27,18 @@ export default async function DashboardPage() {
     }
   }
 
-  // Fetch transcripts
-  const { data: rows } = await supabaseAdmin
+  // Fetch transcripts — admins see all, regular users see only their own
+  let query = supabaseAdmin
     .from('transcripts')
     .select('id, youtube_title, status, duration, created_at, formatted_data')
     .order('created_at', { ascending: false })
     .limit(50)
+
+  if (!isAdmin && session?.user) {
+    query = query.eq('user_id', session.user.id)
+  }
+
+  const { data: rows } = await query
 
   const transcripts: RecentTranscript[] = (rows ?? []).map((row) => {
     const fd = row.formatted_data as Record<string, string> | null
