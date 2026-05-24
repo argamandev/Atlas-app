@@ -136,4 +136,7 @@
 
   [class*="text-text-primary"] { color: #111111 !important; }
   [class*="text-muted"] { color: #555555 !important; }
+  [class*="text-white"] { color: #111111 !important; }
+  [class*="text-accent"] { color: #C04A00 !important; }
+  [class*="text-text-secondary"] { color: #333333 !important; }
 }
