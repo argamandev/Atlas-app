@@ -29,7 +29,7 @@ export function PlatformShell({ transcripts, isAdmin = false, userName = 'אנל
       <div className="scan-line pointer-events-none fixed inset-0 z-10" />
 
       {/* Top nav — dir=rtl: brand on right, user on left */}
-      <header className="relative z-20 flex items-center justify-between px-6 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex-shrink-0" dir="rtl">
+      <header className="relative z-30 flex items-center justify-between px-6 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex-shrink-0" dir="rtl">
         {/* Brand — top right */}
         <span className="font-mono-num font-bold text-white text-base tracking-tight" dir="rtl">
           תמלול<span className="text-accent">.</span>
