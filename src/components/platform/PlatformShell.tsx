@@ -1,11 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { DottedSurface } from '@/components/ui/dotted-surface'
 import { UrlInputBar } from '@/components/dashboard/UrlInputBar'
 import { TranscriptsTable } from '@/components/dashboard/TranscriptsTable'
-import { createBrowserSupabase } from '@/lib/supabase-browser'
 import type { RecentTranscript } from '@/lib/types'
 
 type Tab = 'transcripts' | 'admin'
@@ -77,7 +75,6 @@ function TabBtn({ label, active, onClick, accent }: { label: string; active: boo
 
 function UserMenu({ userName }: { userName: string }) {
   const [open, setOpen] = useState(false)
-  const router = useRouter()
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -88,13 +85,8 @@ function UserMenu({ userName }: { userName: string }) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
-  async function signOut() {
-    try {
-      const supabase = createBrowserSupabase()
-      await supabase.auth.signOut()
-    } finally {
-      window.location.replace('/')
-    }
+  function signOut() {
+    window.location.href = '/api/auth/signout'
   }
 
   return (
