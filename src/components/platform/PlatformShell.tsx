@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { DottedSurface } from '@/components/ui/dotted-surface'
 import { UrlInputBar } from '@/components/dashboard/UrlInputBar'
 import { TranscriptsTable } from '@/components/dashboard/TranscriptsTable'
+import { createBrowserSupabase } from '@/lib/supabase-browser'
 import type { RecentTranscript } from '@/lib/types'
 
 type Tab = 'transcripts' | 'admin'
@@ -28,10 +30,10 @@ export function PlatformShell({ transcripts, isAdmin = false, userName = 'אנל
       <DottedSurface className="opacity-20" />
       <div className="scan-line pointer-events-none fixed inset-0 z-10" />
 
-      {/* Top nav */}
-      <header className="relative z-20 flex items-center justify-between px-6 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex-shrink-0" dir="ltr">
-        {/* Brand */}
-        <span className="font-mono-num font-bold text-white text-base tracking-tight">
+      {/* Top nav — dir=rtl: brand on right, user on left */}
+      <header className="relative z-20 flex items-center justify-between px-6 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex-shrink-0" dir="rtl">
+        {/* Brand — top right */}
+        <span className="font-mono-num font-bold text-white text-base tracking-tight" dir="ltr">
           תמלול<span className="text-accent">.</span>
         </span>
 
@@ -41,13 +43,8 @@ export function PlatformShell({ transcripts, isAdmin = false, userName = 'אנל
           {isAdmin && <TabBtn label="Admin" active={tab === 'admin'} onClick={() => setTab('admin')} accent />}
         </div>
 
-        {/* User */}
-        <div className="flex items-center gap-3">
-          <span className="font-mono-num text-xs text-text-secondary hidden sm:block">{userName}</span>
-          <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center">
-            <span className="text-xs font-semibold text-accent">{userName[0]}</span>
-          </div>
-        </div>
+        {/* User — top left with sign out */}
+        <UserMenu userName={userName} />
       </header>
 
       {/* Content */}
@@ -73,6 +70,53 @@ function TabBtn({ label, active, onClick, accent }: { label: string; active: boo
     >
       {label}
     </button>
+  )
+}
+
+/* ── USER MENU ────────────────────────────────────────────────── */
+
+function UserMenu({ userName }: { userName: string }) {
+  const [open, setOpen] = useState(false)
+  const router = useRouter()
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  async function signOut() {
+    const supabase = createBrowserSupabase()
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  return (
+    <div className="relative" ref={ref} dir="ltr">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+      >
+        <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center">
+          <span className="text-xs font-semibold text-accent">{userName[0]}</span>
+        </div>
+        <span className="font-mono-num text-xs text-text-secondary hidden sm:block">{userName}</span>
+      </button>
+
+      {open && (
+        <div className="absolute top-10 left-0 w-36 border border-border bg-bg shadow-lg z-50">
+          <button
+            onClick={signOut}
+            className="w-full text-right px-4 py-2.5 font-mono-num text-xs text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+          >
+            יציאה
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
