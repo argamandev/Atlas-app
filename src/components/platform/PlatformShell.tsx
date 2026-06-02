@@ -33,7 +33,7 @@ export function PlatformShell({ transcripts, isAdmin = false, userName = 'אנל
       <header className="relative z-20 flex items-center justify-between px-6 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex-shrink-0" dir="ltr">
         {/* Brand */}
         <span className="font-mono-num font-bold text-white text-base tracking-tight">
-          Sentiment<span className="text-accent">.</span>
+          תמלול<span className="text-accent">.</span>
         </span>
 
         {/* Tabs — right to left: תמלולים | עסקאות | Admin */}

@@ -8,8 +8,7 @@ import { JoinForm } from '@/components/auth/JoinForm'
 type Mode = 'login' | 'join'
 
 const CAPABILITIES = [
-  { num: '01', text: 'תמלול שיחות משקיעים עם סוכן או קישור.', status: 'LIVE', color: 'text-success' },
-  { num: '02', text: 'סנטימנט אוספת בזמן אמת נתונים על עסקאות בעלי עניין ומעדכנת אותך אישית.', status: 'BETA', color: 'text-amber-400' },
+  { num: '01', text: 'תמלול שיחות משקיעים עם קישור.', status: 'LIVE', color: 'text-success' },
   { num: '03', text: 'בפיתוח.', status: 'DEV', color: 'text-muted' },
 ]
 
@@ -22,14 +21,14 @@ export default function EntryGate() {
       <div className="scan-line pointer-events-none fixed inset-0 z-10" />
 
       {/* Top bar */}
-      <header className="fixed top-0 right-0 left-0 z-20 flex items-center justify-between px-8 py-4 border-b border-border/40 bg-bg/80 backdrop-blur-sm" dir="ltr">
-        <span className="font-mono-num font-bold text-white text-base tracking-tight">
-          Sentiment<span className="text-accent">.</span>
-        </span>
+      <header className="fixed top-0 right-0 left-0 z-20 flex items-center justify-between px-8 py-4 border-b border-border/40 bg-bg/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-success animate-blink" />
           <span className="font-mono-num text-2xs text-muted tracking-widest uppercase">INVITATION-ONLY PLATFORM //</span>
         </div>
+        <span className="font-mono-num font-bold text-white text-base tracking-tight">
+          תמלול<span className="text-accent">.</span>
+        </span>
       </header>
 
       {/* Main layout: left = hero, right = auth panel */}

@@ -13,7 +13,7 @@ export function LandingNav() {
         {/* Logo */}
         <Link href="/home" className="flex items-center gap-3">
           <span className="font-mono-num font-bold text-white tracking-tight text-base">
-            Sentiment<span className="text-accent">.</span>
+            תמלול<span className="text-accent">.</span>
           </span>
         </Link>
 
