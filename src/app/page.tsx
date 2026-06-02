@@ -21,7 +21,7 @@ export default function EntryGate() {
       <div className="scan-line pointer-events-none fixed inset-0 z-10" />
 
       {/* Top bar */}
-      <header className="fixed top-0 right-0 left-0 z-20 flex items-center justify-between px-8 py-4 border-b border-border/40 bg-bg/80 backdrop-blur-sm">
+      <header className="fixed top-0 right-0 left-0 z-20 flex items-center justify-between px-8 py-4 border-b border-border/40 bg-bg/80 backdrop-blur-sm" dir="ltr">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-success animate-blink" />
           <span className="font-mono-num text-2xs text-muted tracking-widest uppercase">INVITATION-ONLY PLATFORM //</span>

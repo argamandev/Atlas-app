@@ -4,10 +4,9 @@ import { useState, useRef, useEffect } from 'react'
 import { DottedSurface } from '@/components/ui/dotted-surface'
 import { UrlInputBar } from '@/components/dashboard/UrlInputBar'
 import { TranscriptsTable } from '@/components/dashboard/TranscriptsTable'
-import { InsiderView } from './InsiderView'
 import type { RecentTranscript } from '@/lib/types'
 
-type Tab = 'transcripts' | 'insider' | 'admin'
+type Tab = 'transcripts' | 'admin'
 
 interface Message {
   id: number
@@ -36,9 +35,8 @@ export function PlatformShell({ transcripts, isAdmin = false, userName = 'אנל
           תמלול<span className="text-accent">.</span>
         </span>
 
-        {/* Tabs — right to left: תמלולים | עסקאות | Admin */}
+        {/* Tabs */}
         <div className="flex items-center gap-1">
-          <TabBtn label="עסקאות בעלי עניין" active={tab === 'insider'} onClick={() => setTab('insider')} />
           <TabBtn label="תמלולים" active={tab === 'transcripts'} onClick={() => setTab('transcripts')} />
           {isAdmin && <TabBtn label="Admin" active={tab === 'admin'} onClick={() => setTab('admin')} accent />}
         </div>
@@ -55,7 +53,6 @@ export function PlatformShell({ transcripts, isAdmin = false, userName = 'אנל
       {/* Content */}
       <main className="relative z-20 flex-1 flex flex-col overflow-hidden">
         {tab === 'transcripts' && <TranscriptsView transcripts={transcripts} />}
-        {tab === 'insider' && <InsiderView />}
         {tab === 'admin' && isAdmin && <AdminView />}
       </main>
     </div>
