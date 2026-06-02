@@ -42,7 +42,15 @@ export function PlatformShell({ transcripts, isAdmin = false, userName = 'אנל
         </div>
 
         {/* User — top left with sign out */}
-        <UserMenu userName={userName} />
+        <div className="flex items-center gap-4" dir="ltr">
+          <span className="font-mono-num text-xs text-text-secondary hidden sm:block">{userName}</span>
+          <a
+            href="/api/auth/signout"
+            className="font-mono-num text-xs text-muted hover:text-text-primary transition-colors tracking-widest uppercase"
+          >
+            יציאה
+          </a>
+        </div>
       </header>
 
       {/* Content */}
@@ -68,46 +76,6 @@ function TabBtn({ label, active, onClick, accent }: { label: string; active: boo
     >
       {label}
     </button>
-  )
-}
-
-/* ── USER MENU ────────────────────────────────────────────────── */
-
-function UserMenu({ userName }: { userName: string }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
-
-  return (
-    <div className="relative" ref={ref} dir="ltr">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-      >
-        <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center">
-          <span className="text-xs font-semibold text-accent">{userName[0]}</span>
-        </div>
-        <span className="font-mono-num text-xs text-text-secondary hidden sm:block">{userName}</span>
-      </button>
-
-      {open && (
-        <div className="absolute top-10 left-0 w-36 border border-border bg-bg shadow-lg z-50">
-          <a
-            href="/api/auth/signout"
-            className="block w-full text-right px-4 py-2.5 font-mono-num text-xs text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-          >
-            יציאה
-          </a>
-        </div>
-      )}
-    </div>
   )
 }
 
