@@ -89,9 +89,12 @@ function UserMenu({ userName }: { userName: string }) {
   }, [])
 
   async function signOut() {
-    const supabase = createBrowserSupabase()
-    await supabase.auth.signOut()
-    window.location.href = '/'
+    try {
+      const supabase = createBrowserSupabase()
+      await supabase.auth.signOut()
+    } finally {
+      window.location.replace('/')
+    }
   }
 
   return (
