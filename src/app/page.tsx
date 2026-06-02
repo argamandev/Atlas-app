@@ -26,7 +26,7 @@ export default function EntryGate() {
           <span className="w-1.5 h-1.5 rounded-full bg-success animate-blink" />
           <span className="font-mono-num text-2xs text-muted tracking-widest uppercase">INVITATION-ONLY PLATFORM //</span>
         </div>
-        <span className="font-mono-num font-bold text-white text-base tracking-tight" dir="ltr">
+        <span className="font-mono-num font-bold text-white text-base tracking-tight" dir="rtl">
           תמלול<span className="text-accent">.</span>
         </span>
       </header>

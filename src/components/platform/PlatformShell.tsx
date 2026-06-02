@@ -33,7 +33,7 @@ export function PlatformShell({ transcripts, isAdmin = false, userName = 'אנל
       {/* Top nav — dir=rtl: brand on right, user on left */}
       <header className="relative z-20 flex items-center justify-between px-6 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex-shrink-0" dir="rtl">
         {/* Brand — top right */}
-        <span className="font-mono-num font-bold text-white text-base tracking-tight" dir="ltr">
+        <span className="font-mono-num font-bold text-white text-base tracking-tight" dir="rtl">
           תמלול<span className="text-accent">.</span>
         </span>
 
@@ -91,7 +91,7 @@ function UserMenu({ userName }: { userName: string }) {
   async function signOut() {
     const supabase = createBrowserSupabase()
     await supabase.auth.signOut()
-    router.push('/')
+    window.location.href = '/'
   }
 
   return (
