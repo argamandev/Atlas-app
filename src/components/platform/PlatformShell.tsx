@@ -85,10 +85,6 @@ function UserMenu({ userName }: { userName: string }) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
-  function signOut() {
-    window.location.href = '/api/auth/signout'
-  }
-
   return (
     <div className="relative" ref={ref} dir="ltr">
       <button
@@ -103,12 +99,12 @@ function UserMenu({ userName }: { userName: string }) {
 
       {open && (
         <div className="absolute top-10 left-0 w-36 border border-border bg-bg shadow-lg z-50">
-          <button
-            onClick={signOut}
-            className="w-full text-right px-4 py-2.5 font-mono-num text-xs text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+          <a
+            href="/api/auth/signout"
+            className="block w-full text-right px-4 py-2.5 font-mono-num text-xs text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
           >
             יציאה
-          </button>
+          </a>
         </div>
       )}
     </div>
