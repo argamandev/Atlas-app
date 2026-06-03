@@ -16,19 +16,12 @@ export function DashboardHome({ transcripts, userName }: DashboardHomeProps) {
       {/* Greeting */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-          <span className="text-accent">// תמלול חדש.</span>
+          <span className="text-accent">// תמלול</span>
         </h1>
-        <p className="text-base text-text-secondary mt-2">
-          הדביקו קישור YouTube או Vimeo לשיחת משקיעים לקבלת תמלול מקצועי
-        </p>
       </div>
 
       {/* New transcription input */}
       <div className="bg-card border border-border rounded p-5 mb-8">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm font-semibold text-accent">// תמלול חדש.</span>
-        </div>
-        <p className="text-sm text-muted mb-3">תמלול מקצועי אורך כ5 דקות בממוצע.</p>
         <UrlInputBar size="hero" />
       </div>
 
