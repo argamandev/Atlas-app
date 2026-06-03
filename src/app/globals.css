@@ -60,7 +60,7 @@
   }
 
   .font-mono-num {
-    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-family: 'IBM Plex Sans Hebrew', Heebo, Inter, system-ui, sans-serif;
   }
 
   .border-subtle {

@@ -23,15 +23,6 @@ export function TranscriptHeader({
 
   return (
     <div className="border-b border-border pb-5 mb-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 mb-4 text-xs text-muted">
-        <span className="hover:text-text-secondary cursor-pointer transition-colors">תמלולים</span>
-        <svg className="w-3 h-3 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-        <span className="text-text-secondary">{transcript.company}</span>
-      </div>
-
       {/* Main header */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">

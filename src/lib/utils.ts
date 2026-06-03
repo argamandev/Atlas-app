@@ -64,6 +64,23 @@ export function generateTranscriptId(url: string): string {
   return id ?? Math.random().toString(36).slice(2, 11)
 }
 
+// Parse a quarter label like "Q1 2026" (or "רבעון 1 2026") into a sortable
+// number: year*10 + quarter. Higher = newer. Returns 0 when unparseable.
+export function quarterSortKey(quarter: string | undefined | null): number {
+  if (!quarter) return 0
+  const m = quarter.match(/(?:Q|רבעון)\s*([1-4]).*?(\d{4})/i) ?? quarter.match(/(\d{4}).*?(?:Q|רבעון)\s*([1-4])/i)
+  if (!m) {
+    const yearOnly = quarter.match(/(\d{4})/)
+    return yearOnly ? parseInt(yearOnly[1], 10) * 10 : 0
+  }
+  // Normalize: first capture group order differs between the two patterns
+  const a = parseInt(m[1], 10)
+  const b = parseInt(m[2], 10)
+  const year = a > 100 ? a : b
+  const q = a > 100 ? b : a
+  return year * 10 + q
+}
+
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleDateString('he-IL', {

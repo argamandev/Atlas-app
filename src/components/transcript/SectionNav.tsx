@@ -40,21 +40,21 @@ export function SectionNav({ sections }: SectionNavProps) {
 
   return (
     <nav className="sticky top-6 self-start">
-      <p className="text-2xs text-muted uppercase tracking-widest mb-3 font-medium">ניווט</p>
-      <div className="space-y-0.5">
+      <p className="text-xs text-muted uppercase tracking-wide mb-3 font-semibold">ניווט</p>
+      <div className="space-y-1">
         {sections.map((section) => (
           <button
             key={section.id}
             onClick={() => scrollTo(section.id)}
             className={cn(
-              'w-full flex items-center gap-2.5 text-right px-3 py-2 rounded text-xs transition-colors',
+              'w-full flex items-center gap-2.5 text-right px-3 py-2.5 rounded text-sm transition-colors',
               activeId === section.id
-                ? 'bg-accent/10 text-accent'
-                : 'text-muted hover:text-text-secondary hover:bg-white/5'
+                ? 'bg-accent/10 text-accent font-medium'
+                : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
             )}
           >
             <span className={cn(
-              'w-0.5 h-3.5 rounded-full flex-shrink-0 transition-colors',
+              'w-0.5 h-4 rounded-full flex-shrink-0 transition-colors',
               activeId === section.id ? 'bg-accent' : 'bg-border'
             )} />
             {section.title}
@@ -65,9 +65,9 @@ export function SectionNav({ sections }: SectionNavProps) {
       {/* Line count */}
       <div className="mt-5 pt-4 border-t border-border">
         {sections.map((section) => (
-          <div key={section.id} className="flex justify-between items-center py-0.5">
-            <span className="text-2xs text-muted">{section.title}</span>
-            <span className="text-2xs text-muted font-mono-num" dir="ltr">
+          <div key={section.id} className="flex justify-between items-center py-1">
+            <span className="text-xs text-muted">{section.title}</span>
+            <span className="text-xs text-muted" dir="ltr">
               {section.lines.length} שורות
             </span>
           </div>

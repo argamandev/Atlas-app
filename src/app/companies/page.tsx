@@ -1,20 +1,14 @@
 import { getCurrentUser } from '@/lib/auth'
 import { getUserTranscripts } from '@/lib/transcripts'
 import { AppNav } from '@/components/layout/AppNav'
-import { DashboardHome } from '@/components/dashboard/DashboardHome'
-import { AdminView } from '@/components/platform/AdminView'
+import { CompaniesView } from '@/components/companies/CompaniesView'
 import { DottedSurface } from '@/components/ui/dotted-surface'
 
 export const revalidate = 0
 
-interface Props {
-  searchParams: { view?: string }
-}
-
-export default async function DashboardPage({ searchParams }: Props) {
+export default async function CompaniesPage() {
   const { userId, userName, isAdmin } = await getCurrentUser()
   const transcripts = await getUserTranscripts(userId, isAdmin)
-  const showAdmin = isAdmin && searchParams.view === 'admin'
 
   return (
     <div className="relative min-h-screen bg-bg flex flex-col overflow-hidden" dir="rtl">
@@ -24,7 +18,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       <AppNav userName={userName} isAdmin={isAdmin} />
 
       <main className="relative z-20 flex-1 flex flex-col overflow-hidden">
-        {showAdmin ? <AdminView /> : <DashboardHome transcripts={transcripts} userName={userName} />}
+        <CompaniesView transcripts={transcripts} />
       </main>
     </div>
   )

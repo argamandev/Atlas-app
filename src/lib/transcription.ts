@@ -492,19 +492,34 @@ async function extractMeta(
       model: 'gpt-4o',
       messages: [{
         role: 'user',
-        content: `Extract metadata from this investor call transcript.
+        content: `You are extracting metadata for a Hebrew investor earnings call.
+
+PRIMARY SOURCE — the video title. For Israeli investor calls the company name and the quarter almost always appear in the title. Extract "company" and "quarter" from the title FIRST, then use the transcript opening only to confirm or fill gaps.
+
+Rules for "company":
+- Return ONLY the clean company name (in Hebrew, as commonly known).
+- REMOVE boilerplate: "שיחת משקיעים", "שיחת ועידה", "תוצאות", "סיכום", "מצגת", quarter/year text ("רבעון 3", "Q3 2025", "2025"), dates, and channel names.
+- Drop a trailing "בע״מ"/"בעמ" unless it is part of the well-known name.
+- Example: title "כלל תעשיות בע""מ - שיחת משקיעים סיכום רבעון 3 2025" → company "כלל תעשיות".
+- If the title has no company, infer it from the transcript opening. Never invent one.
+
+Rules for "quarter":
+- Normalize to EXACTLY "Q{n} {YYYY}" (e.g. "Q1 2026"). Map "רבעון 1 2026" → "Q1 2026". If only a year is found, use the most likely quarter from context; if truly unknown, return "".
+
 Return JSON only:
 {
-  "company": "company name in Hebrew",
+  "company": "clean company name in Hebrew",
   "ticker": "stock ticker or empty string",
-  "quarter": "e.g. Q3 2025",
+  "quarter": "Q{n} {YYYY} or empty string",
   "date": "YYYY-MM-DD",
   "speakers": [
     { "name": "full name", "role": "ceo|cfo|analyst|moderator", "title": "Hebrew job title" }
   ]
 }
 Use date ${today} if not found.
+
 Video title: "${videoTitle}"
+
 Transcript opening:
 ${opening}`,
       }],
