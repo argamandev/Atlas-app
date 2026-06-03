@@ -18,6 +18,9 @@ export function DashboardHome({ transcripts, userName }: DashboardHomeProps) {
         <h1 className="text-2xl font-bold text-text-primary tracking-tight">
           <span className="text-accent">// תמלול</span>
         </h1>
+        <p className="text-base text-text-secondary mt-2">
+          הדביקו קישור YouTube או Vimeo לקבלת תמלול מקצועי ומפורט.
+        </p>
       </div>
 
       {/* New transcription input */}
