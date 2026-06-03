@@ -10,11 +10,17 @@ export interface Speaker {
   affiliation?: string
 }
 
+export interface Highlight {
+  start: number
+  end: number
+}
+
 export interface TranscriptLine {
   id: string
   speakerId: string
   timestamp: string
   text: string
+  highlights?: Highlight[]
 }
 
 export interface TranscriptSection {

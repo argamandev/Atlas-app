@@ -19,13 +19,10 @@ export default function ProcessingPage() {
   return (
     <div className="min-h-screen bg-bg flex flex-col">
       {/* Top bar */}
-      <div className="h-14 border-b border-border flex items-center justify-between px-6">
-        <div className="flex items-center gap-2.5">
-          <div className="w-5 h-5 bg-accent rounded-sm flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-xs">T</span>
-          </div>
-          <span className="text-sm font-medium text-text-primary">תמלול שיחות משקיעים</span>
-        </div>
+      <div className="h-14 border-b border-border flex items-center justify-between px-6" dir="rtl">
+        <span className="font-mono-num font-bold text-white text-base tracking-tight" dir="rtl">
+          תמלול<span className="text-accent">.</span>
+        </span>
         {!error && (
           <div className="flex items-center gap-2 text-xs text-muted">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />

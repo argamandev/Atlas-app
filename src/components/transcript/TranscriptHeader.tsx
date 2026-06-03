@@ -1,10 +1,20 @@
+'use client'
+
 import type { Transcript } from '@/lib/types'
 
 interface TranscriptHeaderProps {
   transcript: Transcript
+  editing?: boolean
+  onFieldChange?: (field: 'company' | 'quarter' | 'ticker', value: string) => void
+  onSpeakerNameChange?: (speakerId: string, name: string) => void
 }
 
-export function TranscriptHeader({ transcript }: TranscriptHeaderProps) {
+export function TranscriptHeader({
+  transcript,
+  editing = false,
+  onFieldChange,
+  onSpeakerNameChange,
+}: TranscriptHeaderProps) {
   const formattedDate = new Date(transcript.date).toLocaleDateString('he-IL', {
     day: 'numeric',
     month: 'long',
@@ -24,25 +34,55 @@ export function TranscriptHeader({ transcript }: TranscriptHeaderProps) {
 
       {/* Main header */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight mb-1.5">
-            {transcript.company}
-          </h1>
+        <div className="min-w-0 flex-1">
+          {editing ? (
+            <input
+              value={transcript.company}
+              onChange={(e) => onFieldChange?.('company', e.target.value)}
+              className="text-2xl font-bold text-text-primary tracking-tight mb-1.5 bg-bg border border-border rounded px-2 py-1 w-full max-w-md focus:outline-none focus:border-accent/50"
+              dir="rtl"
+              placeholder="שם החברה"
+            />
+          ) : (
+            <h1 className="text-2xl font-bold text-text-primary tracking-tight mb-1.5">
+              {transcript.company}
+            </h1>
+          )}
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-medium text-accent font-mono-num" dir="ltr">
-              {transcript.quarter}
-            </span>
+            {editing ? (
+              <input
+                value={transcript.quarter}
+                onChange={(e) => onFieldChange?.('quarter', e.target.value)}
+                className="text-sm font-medium text-accent font-mono-num bg-bg border border-border rounded px-2 py-0.5 w-24 focus:outline-none focus:border-accent/50"
+                dir="ltr"
+                placeholder="Q1 2026"
+              />
+            ) : (
+              <span className="text-sm font-medium text-accent font-mono-num" dir="ltr">
+                {transcript.quarter}
+              </span>
+            )}
             <span className="text-muted">·</span>
             <span className="text-sm text-text-secondary">{formattedDate}</span>
             <span className="text-muted">·</span>
             <span className="text-sm text-muted font-mono-num" dir="ltr">{transcript.duration}</span>
-            {transcript.ticker && (
-              <>
-                <span className="text-muted">·</span>
-                <span className="text-xs font-mono-num font-medium text-muted bg-card border border-border px-2 py-0.5 rounded" dir="ltr">
-                  {transcript.ticker}
-                </span>
-              </>
+            {editing ? (
+              <input
+                value={transcript.ticker ?? ''}
+                onChange={(e) => onFieldChange?.('ticker', e.target.value)}
+                className="text-xs font-mono-num font-medium text-muted bg-card border border-border px-2 py-0.5 rounded w-24 focus:outline-none focus:border-accent/50"
+                dir="ltr"
+                placeholder="TICKER"
+              />
+            ) : (
+              transcript.ticker && (
+                <>
+                  <span className="text-muted">·</span>
+                  <span className="text-xs font-mono-num font-medium text-muted bg-card border border-border px-2 py-0.5 rounded" dir="ltr">
+                    {transcript.ticker}
+                  </span>
+                </>
+              )
             )}
           </div>
         </div>
@@ -58,13 +98,24 @@ export function TranscriptHeader({ transcript }: TranscriptHeaderProps) {
       <div className="mt-4 flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted">דוברים:</span>
         {transcript.speakers.map((s) => (
-          <span
-            key={s.id}
-            className="text-xs text-text-secondary bg-card border border-border px-2 py-0.5 rounded"
-          >
-            {s.name}
-            {s.affiliation && <span className="text-muted mr-1">({s.affiliation})</span>}
-          </span>
+          editing ? (
+            <input
+              key={s.id}
+              value={s.name}
+              onChange={(e) => onSpeakerNameChange?.(s.id, e.target.value)}
+              className="text-xs text-text-primary bg-bg border border-accent/40 px-2 py-0.5 rounded w-32 focus:outline-none focus:border-accent"
+              dir="rtl"
+              title="שינוי השם יתעדכן בכל מקום שהדובר מופיע"
+            />
+          ) : (
+            <span
+              key={s.id}
+              className="text-xs text-text-secondary bg-card border border-border px-2 py-0.5 rounded"
+            >
+              {s.name}
+              {s.affiliation && <span className="text-muted mr-1">({s.affiliation})</span>}
+            </span>
+          )
         ))}
       </div>
     </div>

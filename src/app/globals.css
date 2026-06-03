@@ -139,4 +139,17 @@
   [class*="text-white"] { color: #111111 !important; }
   [class*="text-accent"] { color: #C04A00 !important; }
   [class*="text-text-secondary"] { color: #333333 !important; }
+
+  /* If printed while editing, render inputs/textareas as plain readable text */
+  input, textarea {
+    border: none !important;
+    background: transparent !important;
+    color: #111111 !important;
+    padding: 0 !important;
+    resize: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+
+  mark { background: #ffe08a !important; color: #111111 !important; }
 }

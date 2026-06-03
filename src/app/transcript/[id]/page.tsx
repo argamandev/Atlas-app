@@ -1,11 +1,9 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { supabaseAdmin } from '@/lib/supabase'
+import { cookies } from 'next/headers'
+import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
 import type { Transcript } from '@/lib/types'
-import { TranscriptHeader } from '@/components/transcript/TranscriptHeader'
-import { TranscriptActions } from '@/components/transcript/TranscriptActions'
-import { TranscriptBody } from '@/components/transcript/TranscriptBody'
-import { SectionNav } from '@/components/transcript/SectionNav'
+import { TranscriptEditor } from '@/components/transcript/TranscriptEditor'
 
 interface Props {
   params: { id: string }
@@ -14,7 +12,7 @@ interface Props {
 export default async function TranscriptPage({ params }: Props) {
   const { data, error } = await supabaseAdmin
     .from('transcripts')
-    .select('formatted_data, status')
+    .select('formatted_data, status, user_id')
     .eq('id', params.id)
     .single()
 
@@ -24,59 +22,40 @@ export default async function TranscriptPage({ params }: Props) {
 
   const transcript = data.formatted_data as Transcript
 
+  // Determine if the current user may edit (owner or admin)
+  let canEdit = false
+  const cookieStore = cookies()
+  const supabase = createServerSupabase(cookieStore)
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) {
+    if (session.user.id === data.user_id) {
+      canEdit = true
+    } else {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+      canEdit = profile?.role === 'admin'
+    }
+  }
+
   return (
     <div className="min-h-screen bg-bg">
-      {/* Top bar */}
-      <div className="no-print sticky top-0 z-40 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex items-center justify-between px-6">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="flex items-center gap-2 text-muted hover:text-text-secondary transition-colors">
-            <svg className="w-4 h-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span className="text-xs">חזרה</span>
-          </Link>
-          <div className="w-px h-4 bg-border" />
-          <div className="flex items-center gap-2.5">
-            <div className="w-5 h-5 bg-accent rounded-sm flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-xs">T</span>
-            </div>
-            <span className="text-sm font-medium text-text-primary">תמלול שיחות משקיעים</span>
-          </div>
-        </div>
-
-        <div className="hidden md:block no-print">
-          <TranscriptActions transcript={transcript} />
-        </div>
+      {/* Top bar — dir=rtl: logo right, back/actions left */}
+      <div className="no-print sticky top-0 z-40 h-14 border-b border-border bg-bg/90 backdrop-blur-sm flex items-center justify-between px-6" dir="rtl">
+        <Link href="/dashboard" className="font-mono-num font-bold text-white text-base tracking-tight" dir="rtl">
+          תמלול<span className="text-accent">.</span>
+        </Link>
+        <Link href="/dashboard" className="flex items-center gap-2 text-muted hover:text-text-secondary transition-colors">
+          <span className="text-xs">חזרה</span>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </Link>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <TranscriptHeader transcript={transcript} />
-
-        <div className="md:hidden mb-6 no-print">
-          <TranscriptActions transcript={transcript} />
-        </div>
-
-        <div className="flex gap-8">
-          <div className="flex-1 min-w-0">
-            <div className="bg-card border border-border rounded p-6 md:p-8">
-              <TranscriptBody transcript={transcript} />
-            </div>
-          </div>
-
-          <div className="hidden lg:block w-44 flex-shrink-0 no-print">
-            <SectionNav sections={transcript.sections} />
-          </div>
-        </div>
-
-        <div className="mt-8 pt-5 border-t border-border flex items-center justify-between">
-          <p className="text-xs text-muted">
-            תמלול נוצר באמצעות תשתית תמלול מוסדית
-          </p>
-          <p className="text-xs text-muted font-mono-num" dir="ltr">
-            {new Date(transcript.createdAt).toLocaleString('he-IL')}
-          </p>
-        </div>
-      </div>
+      <TranscriptEditor transcript={transcript} id={params.id} canEdit={canEdit} />
     </div>
   )
 }
