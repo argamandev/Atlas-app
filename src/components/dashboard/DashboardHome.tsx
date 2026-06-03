@@ -16,7 +16,7 @@ export function DashboardHome({ transcripts, userName }: DashboardHomeProps) {
       {/* Greeting */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-          היי, <span className="text-accent">{userName}</span>
+          <span className="text-accent">// תמלול חדש.</span>
         </h1>
         <p className="text-base text-text-secondary mt-2">
           הדביקו קישור YouTube או Vimeo לשיחת משקיעים לקבלת תמלול מקצועי
