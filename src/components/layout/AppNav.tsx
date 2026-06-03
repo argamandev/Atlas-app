@@ -39,10 +39,10 @@ export function AppNav({ userName, isAdmin = false }: AppNavProps) {
 
       {/* User — top left with sign out */}
       <div className="flex items-center gap-4" dir="ltr">
-        <span className="font-mono-num text-xs text-text-secondary hidden sm:block">{userName}</span>
+        <span className="text-sm text-text-secondary hidden sm:block">{userName}</span>
         <a
           href="/api/auth/signout"
-          className="font-mono-num text-xs text-muted hover:text-text-primary transition-colors tracking-widest uppercase"
+          className="text-sm text-muted hover:text-text-primary transition-colors"
         >
           יציאה
         </a>
@@ -65,7 +65,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`font-mono-num text-xs px-4 py-1.5 tracking-wide transition-colors border-b-2 ${
+      className={`text-sm font-medium px-4 py-2 transition-colors border-b-2 ${
         active
           ? 'text-text-primary border-accent'
           : accent
