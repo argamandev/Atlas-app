@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
-import { isValidYouTubeUrl, extractYouTubeId } from '@/lib/utils'
+import { isValidVideoUrl, extractVideoId } from '@/lib/utils'
 import {
   getVideoInfo,
   downloadAudio,
@@ -12,6 +12,11 @@ import {
 import * as fs from 'fs'
 
 export async function GET() {
+  const cookieStore = cookies()
+  const supabase = createServerSupabase(cookieStore)
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { data, error } = await supabaseAdmin
     .from('transcripts')
     .select('id, youtube_title, status, processing_step, duration, created_at, formatted_data')
@@ -31,11 +36,11 @@ export async function POST(req: NextRequest) {
 
   const { url } = await req.json()
 
-  if (!isValidYouTubeUrl(url)) {
-    return NextResponse.json({ error: 'קישור YouTube לא תקין' }, { status: 400 })
+  if (!isValidVideoUrl(url)) {
+    return NextResponse.json({ error: 'קישור YouTube או Vimeo לא תקין' }, { status: 400 })
   }
 
-  const videoId = extractYouTubeId(url)
+  const videoId = extractVideoId(url)
   if (!videoId) {
     return NextResponse.json({ error: 'לא ניתן לחלץ מזהה וידאו' }, { status: 400 })
   }

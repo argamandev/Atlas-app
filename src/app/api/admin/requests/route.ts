@@ -51,23 +51,17 @@ export async function POST(req: NextRequest) {
   if (fetchErr || !accessReq) return NextResponse.json({ error: 'Request not found' }, { status: 404 })
 
   if (action === 'approve') {
-    const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
-      email: accessReq.email,
-      password: accessReq.password,
-      email_confirm: true,
-      user_metadata: {
-        first_name: accessReq.first_name,
-        last_name: accessReq.last_name,
-        role: 'user',
-      },
-    })
-    if (createErr) return NextResponse.json({ error: createErr.message }, { status: 500 })
-
-    // Clear stored password after use
-    await supabaseAdmin
-      .from('access_requests')
-      .update({ password: null })
-      .eq('id', requestId)
+    const { error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      accessReq.email,
+      {
+        data: {
+          first_name: accessReq.first_name,
+          last_name: accessReq.last_name,
+          role: 'user',
+        },
+      }
+    )
+    if (inviteErr) return NextResponse.json({ error: inviteErr.message }, { status: 500 })
   }
 
   // Update request status

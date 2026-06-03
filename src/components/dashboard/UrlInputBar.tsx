@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
-import { isValidYouTubeUrl } from '@/lib/utils'
+import { isValidVideoUrl } from '@/lib/utils'
 
 interface UrlInputBarProps {
   size?: 'hero' | 'standard'
@@ -18,7 +18,7 @@ export function UrlInputBar({ size = 'standard' }: UrlInputBarProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!isValidYouTubeUrl(url)) {
+    if (!isValidVideoUrl(url)) {
       setError(true)
       setErrorMsg(null)
       return
@@ -60,7 +60,7 @@ export function UrlInputBar({ size = 'standard' }: UrlInputBarProps) {
             dir="ltr"
             value={url}
             onChange={e => { setUrl(e.target.value); setError(false); setErrorMsg(null) }}
-            placeholder="הדבק קישור YouTube..."
+            placeholder="הדבק קישור YouTube או Vimeo..."
             className={`w-full bg-card border rounded pr-10 pl-4 text-sm text-text-primary placeholder:text-muted text-right
               focus:outline-none focus:ring-1 transition-colors
               ${isHero ? 'h-12' : 'h-10'}
@@ -81,7 +81,7 @@ export function UrlInputBar({ size = 'standard' }: UrlInputBarProps) {
       </div>
       {error && (
         <p className="text-xs text-error mt-2" dir={errorMsg ? 'ltr' : 'rtl'}>
-          {errorMsg ?? 'קישור YouTube לא תקין. ודאו שהקישור מתחיל ב-youtube.com/watch או youtu.be'}
+          {errorMsg ?? 'קישור לא תקין. ודאו שהקישור הוא מ-YouTube או Vimeo'}
         </p>
       )}
     </form>

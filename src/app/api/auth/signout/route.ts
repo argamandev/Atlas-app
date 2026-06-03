@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function GET(request: NextRequest) {
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? new URL(request.url).host
-  const proto = request.headers.get('x-forwarded-proto') ?? 'https'
-  const origin = `${proto}://${host}`
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  const origin = siteUrl ?? (() => {
+    const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? new URL(request.url).host
+    const proto = request.headers.get('x-forwarded-proto') ?? 'https'
+    return `${proto}://${host}`
+  })()
   const response = NextResponse.redirect(`${origin}/`)
 
   const supabase = createServerClient(

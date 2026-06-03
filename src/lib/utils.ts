@@ -15,6 +15,19 @@ export function isValidYouTubeUrl(url: string): boolean {
   ].some(p => p.test(trimmed))
 }
 
+export function isValidVimeoUrl(url: string): boolean {
+  const trimmed = url.trim()
+  return [
+    /^https?:\/\/(www\.)?vimeo\.com\/\d+/,
+    /^https?:\/\/player\.vimeo\.com\/video\/\d+/,
+    /^https?:\/\/(www\.)?vimeo\.com\/channels\/[\w-]+\/\d+/,
+  ].some(p => p.test(trimmed))
+}
+
+export function isValidVideoUrl(url: string): boolean {
+  return isValidYouTubeUrl(url) || isValidVimeoUrl(url)
+}
+
 export function extractYouTubeId(url: string): string | null {
   const patterns = [
     /[?&]v=([\w-]{11})/,
@@ -29,8 +42,25 @@ export function extractYouTubeId(url: string): string | null {
   return null
 }
 
+export function extractVimeoId(url: string): string | null {
+  const patterns = [
+    /vimeo\.com\/video\/(\d+)/,
+    /vimeo\.com\/channels\/[\w-]+\/(\d+)/,
+    /vimeo\.com\/(\d+)/,
+  ]
+  for (const p of patterns) {
+    const m = url.match(p)
+    if (m) return `vimeo-${m[1]}`
+  }
+  return null
+}
+
+export function extractVideoId(url: string): string | null {
+  return extractYouTubeId(url) ?? extractVimeoId(url)
+}
+
 export function generateTranscriptId(url: string): string {
-  const id = extractYouTubeId(url)
+  const id = extractVideoId(url)
   return id ?? Math.random().toString(36).slice(2, 11)
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { isValidYouTubeUrl } from '@/lib/utils'
+import { isValidVideoUrl } from '@/lib/utils'
 import { DottedSurface } from '@/components/ui/dotted-surface'
 
 const STATS = [
@@ -22,7 +22,7 @@ export function HeroSection() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!isValidYouTubeUrl(url)) {
+    if (!isValidVideoUrl(url)) {
       setError(true)
       return
     }
@@ -105,7 +105,7 @@ export function HeroSection() {
               dir="ltr"
               value={url}
               onChange={e => { setUrl(e.target.value); setError(false) }}
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder="https://www.youtube.com/watch?v=... או https://vimeo.com/..."
               className="flex-1 bg-card px-4 py-3 text-sm text-text-primary placeholder:text-muted focus:outline-none font-mono-num"
             />
             <button
@@ -119,7 +119,7 @@ export function HeroSection() {
           {error && (
             <div className="border border-t-0 border-error/40 bg-error/5 px-4 py-2">
               <p className="text-xs text-error font-mono-num">
-                // שגיאה: קישור YouTube לא תקין
+                // שגיאה: קישור YouTube או Vimeo לא תקין
               </p>
             </div>
           )}
