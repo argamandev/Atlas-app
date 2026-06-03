@@ -22,7 +22,7 @@ export function AppNav({ userName, isAdmin = false }: AppNavProps) {
       dir="rtl"
     >
       {/* Brand — top right */}
-      <Link href="/dashboard" className="font-bold text-white text-xl tracking-tight" dir="rtl">
+      <Link href="/dashboard" className="font-bold text-white text-base tracking-tight" dir="rtl">
         תמלול<span className="text-accent">.</span>
       </Link>
 
