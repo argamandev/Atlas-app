@@ -44,7 +44,7 @@ export default async function TranscriptPage({ params }: Props) {
         </Link>
       </div>
 
-      <TranscriptEditor transcript={transcript} id={params.id} canEdit={canEdit} />
+      <TranscriptEditor transcript={transcript} id={params.id} canEdit={canEdit} isAdmin={isAdmin} />
     </div>
   )
 }

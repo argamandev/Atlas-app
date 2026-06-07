@@ -12,9 +12,10 @@ interface TranscriptEditorProps {
   transcript: Transcript
   id: string
   canEdit: boolean
+  isAdmin?: boolean
 }
 
-export function TranscriptEditor({ transcript: initial, id, canEdit }: TranscriptEditorProps) {
+export function TranscriptEditor({ transcript: initial, id, canEdit, isAdmin = false }: TranscriptEditorProps) {
   const [transcript, setTranscript] = useState<Transcript>(initial)
   const [editing, setEditing] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -101,6 +102,14 @@ export function TranscriptEditor({ transcript: initial, id, canEdit }: Transcrip
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
+      {/* Admin diagnostics: which engine/model produced this transcript */}
+      {isAdmin && transcript.engine && (
+        <div className="no-print mb-4 inline-flex items-center gap-2 text-2xs text-muted border border-border rounded px-2.5 py-1" dir="ltr">
+          <span className={`w-1.5 h-1.5 rounded-full ${transcript.engine === 'ivrit' ? 'bg-success' : 'bg-amber-400'}`} />
+          {transcript.engine}{transcript.model ? ` · ${transcript.model}` : ''}{transcript.processingSecs ? ` · ${Math.floor(transcript.processingSecs / 60)}m${transcript.processingSecs % 60}s` : ''}
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="no-print flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-2">

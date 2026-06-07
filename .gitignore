@@ -10,8 +10,13 @@ out/
 .env.local
 .env.*.local
 
+# secrets & local binaries (never commit)
+.mcp.json
+bin/
+
 # debug
 npm-debug.log*
 
-# claude
-.claude/
+# claude — ignore local settings but keep shared project skills
+.claude/*
+!.claude/skills/

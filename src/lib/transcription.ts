@@ -14,6 +14,16 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY
 const RUNPOD_IVRIT_ENDPOINT_ID = process.env.RUNPOD_IVRIT_ENDPOINT_ID
 
+// IVRIT model sent to the RunPod endpoint. Override via env to A/B test the
+// full-accuracy build (ivrit-ai/whisper-large-v3-ct2) vs the faster turbo build.
+const IVRIT_MODEL = process.env.RUNPOD_IVRIT_MODEL || 'ivrit-ai/whisper-large-v3-turbo-ct2'
+
+export interface TranscriptionResult {
+  text: string
+  engine: 'ivrit' | 'whisper'
+  model: string
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
@@ -136,7 +146,7 @@ async function transcribeWithIvrit(audioPath: string): Promise<string> {
       },
       body: JSON.stringify({
         input: {
-          model: 'ivrit-ai/whisper-large-v3-turbo-ct2',
+          model: IVRIT_MODEL,
           streaming: false,
           transcribe_args: { url: publicUrl, language: 'he', transcription: 'plain_text' },
         },
@@ -191,28 +201,37 @@ async function transcribeWithIvrit(audioPath: string): Promise<string> {
   }
 }
 
-export async function transcribeAudio(audioPath: string): Promise<string> {
-  if (RUNPOD_API_KEY && RUNPOD_IVRIT_ENDPOINT_ID) {
-    console.log('[transcribe] using IVRIT/RunPod')
-    return transcribeWithIvrit(audioPath)
-  }
-
-  console.log('[transcribe] using OpenAI Whisper (no RunPod config)')
+async function whisperTranscribe(audioPath: string): Promise<string> {
   const { size } = fs.statSync(audioPath)
-
   if (size <= MAX_WHISPER_BYTES) {
     return whisperFile(audioPath)
   }
-
   const segments = await splitAudio(audioPath)
   const parts: string[] = []
-
   for (const seg of segments) {
     parts.push(await whisperFile(seg))
     fs.unlinkSync(seg)
   }
-
   return parts.join(' ')
+}
+
+export async function transcribeAudio(audioPath: string): Promise<TranscriptionResult> {
+  // Prefer IVRIT (Hebrew-specialized) when configured; fall back to Whisper on any error
+  // so a transient RunPod issue degrades gracefully instead of failing the whole job.
+  if (RUNPOD_API_KEY && RUNPOD_IVRIT_ENDPOINT_ID) {
+    try {
+      console.log(`[transcribe] using IVRIT/RunPod (model: ${IVRIT_MODEL})`)
+      const text = await transcribeWithIvrit(audioPath)
+      return { text, engine: 'ivrit', model: IVRIT_MODEL }
+    } catch (err) {
+      console.error('[transcribe] IVRIT failed — falling back to Whisper:', (err as Error).message)
+    }
+  } else {
+    console.log('[transcribe] using OpenAI Whisper (no RunPod config)')
+  }
+
+  const text = await whisperTranscribe(audioPath)
+  return { text, engine: 'whisper', model: 'whisper-1' }
 }
 
 interface Speaker { id: string; name: string; role: string; title: string; affiliation: string }
@@ -627,9 +646,20 @@ export async function formatWithGPT4o(
   rawText: string,
   videoId: string,
   videoTitle: string,
+  opts: { engine?: string; model?: string } = {},
 ): Promise<Transcript> {
   const now = new Date().toISOString()
   const today = now.split('T')[0]
+
+  // Step 0: fix recurring Hebrew speech-to-text errors (curated dict + a careful
+  // GPT proofreading pass that may only replace strings it explicitly names).
+  try {
+    const corrections = await buildCorrectionMap(rawText, videoTitle)
+    rawText = applyCorrections(rawText, corrections)
+  } catch (err) {
+    console.warn('[format] correction pass skipped:', (err as Error).message)
+    rawText = applyCorrections(rawText, KNOWN_CORRECTIONS)
+  }
 
   // Step 1: extract metadata
   console.log('[format] extracting metadata...')
@@ -642,7 +672,7 @@ export async function formatWithGPT4o(
     affiliation: '',
   }))
 
-  // Step 2: tag speakers — no spelling correction (IVRIT is Hebrew-specialized, corrections cause more harm than good)
+  // Step 2: tag speakers (rawText already corrected in step 0)
   const chunks = splitIntoChunks(rawText, 3000)
   console.log(`[format] ${chunks.length} chunks | ${rawText.length} chars total`)
 
@@ -675,7 +705,7 @@ export async function formatWithGPT4o(
       timestamp: '00:00:00',
       text: t,
     }))
-    return buildTranscript(videoId, meta, today, now, speakers, fallbackLines, [])
+    return buildTranscript(videoId, meta, today, now, speakers, fallbackLines, [], opts)
   }
 
   // Merge consecutive segments from the same speaker + section
@@ -725,7 +755,7 @@ export async function formatWithGPT4o(
   const totalOutputChars = [...mgmtLines, ...qaLines].reduce((s, l) => s + l.text.length, 0)
   console.log(`[format] done — ${lineCounter} lines (mgmt: ${mgmtLines.length}, qa: ${qaLines.length}) | coverage: ${Math.round(totalOutputChars / rawText.length * 100)}%`)
 
-  return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines)
+  return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, opts)
 }
 
 function buildTranscript(
@@ -736,6 +766,7 @@ function buildTranscript(
   speakers: Speaker[],
   mgmtLines: Line[],
   qaLines: Line[],
+  opts: { engine?: string; model?: string } = {},
 ): Transcript {
   return {
     id: videoId,
@@ -747,6 +778,8 @@ function buildTranscript(
     youtubeUrl: '',
     status: 'completed',
     createdAt: now,
+    engine: opts.engine,
+    model: opts.model,
     speakers,
     sections: [
       { id: 'sec_mgmt', title: 'דברי הנהלה', lines: mgmtLines },

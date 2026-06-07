@@ -39,6 +39,12 @@ export interface Transcript {
   youtubeUrl?: string
   status: TranscriptStatus
   createdAt: string
+  /** transcription engine that produced this transcript (admin diagnostics) */
+  engine?: string
+  /** transcription model string sent to the engine (admin diagnostics) */
+  model?: string
+  /** wall-clock processing time in seconds (admin diagnostics) */
+  processingSecs?: number
   speakers: Speaker[]
   sections: TranscriptSection[]
 }

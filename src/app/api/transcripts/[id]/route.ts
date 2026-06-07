@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
+import { getRequestUserId } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,13 +48,11 @@ const transcriptSchema = z.object({
 }).passthrough()
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabase(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = await getRequestUserId(req)
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   console.log(`[GET /api/transcripts/${params.id}] querying supabase...`)
   const { data: rows, error } = await supabaseAdmin
     .from('transcripts')

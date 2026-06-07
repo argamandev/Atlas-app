@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
+import { getRequestUserId } from '@/lib/auth'
 import { isValidVideoUrl, extractVideoId } from '@/lib/utils'
 import {
   getVideoInfo,
@@ -11,11 +11,9 @@ import {
 } from '@/lib/transcription'
 import * as fs from 'fs'
 
-export async function GET() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabase(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(req: NextRequest) {
+  const userId = await getRequestUserId(req)
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data, error } = await supabaseAdmin
     .from('transcripts')
@@ -28,11 +26,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const cookieStore = cookies()
-  const supabase = createServerSupabase(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const userId = session.user.id
+  const userId = await getRequestUserId(req)
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { url } = await req.json()
 
@@ -160,8 +155,8 @@ async function runPipeline(videoId: string, url: string) {
       .select()
     if (upd2err) console.error(`[pipeline:${videoId}] update2 error:`, upd2err)
 
-    const rawText = await transcribeAudio(audioPath)
-    console.log(`[pipeline:${videoId}] transcription OK (${elapsed()}) — ${rawText.length} chars`)
+    const { text: rawText, engine, model } = await transcribeAudio(audioPath)
+    console.log(`[pipeline:${videoId}] transcription OK (${elapsed()}) — ${rawText.length} chars via ${engine} (${model})`)
 
     const { error: upd3err } = await supabaseAdmin
       .from('transcripts')
@@ -170,7 +165,8 @@ async function runPipeline(videoId: string, url: string) {
       .select()
     if (upd3err) console.error(`[pipeline:${videoId}] update3 error:`, upd3err)
 
-    const formatted = await formatWithGPT4o(rawText, videoId, info.title)
+    const formatted = await formatWithGPT4o(rawText, videoId, info.title, { engine, model })
+    formatted.processingSecs = Math.round((Date.now() - t0) / 1000)
     console.log(`[pipeline:${videoId}] formatting OK (${elapsed()})`)
 
     const { error: upd4err } = await supabaseAdmin
