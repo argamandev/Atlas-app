@@ -74,10 +74,23 @@ export function isSafeCorrection(wrong: string, correct: string): boolean {
   return true
 }
 
-/** Confident, non-number, safe items get applied (longest original first). */
-function applyConfident(text: string, items: CorrectionItem[]): { text: string; applied: CorrectionItem[] } {
+/** Confident, non-number, safe items get applied (longest original first).
+ *  Hard guard: a `name` correction is applied ONLY if its target is a provided entity —
+ *  so without a list, names are never guessed (they fall through to flags). */
+function applyConfident(
+  text: string,
+  items: CorrectionItem[],
+  entities: string[],
+): { text: string; applied: CorrectionItem[] } {
+  const entitySet = new Set(entities)
   const appliable = items
-    .filter(i => i.certainty === 'confident' && i.kind !== 'number' && i.corrected && isSafeCorrection(i.original, i.corrected))
+    .filter(i =>
+      i.certainty === 'confident' &&
+      i.kind !== 'number' &&
+      i.corrected &&
+      isSafeCorrection(i.original, i.corrected) &&
+      (i.kind !== 'name' || entitySet.has(i.corrected)),   // names: only to a known entity
+    )
     .sort((a, b) => b.original.length - a.original.length)
   let result = text
   const applied: CorrectionItem[] = []
@@ -89,12 +102,13 @@ function applyConfident(text: string, items: CorrectionItem[]): { text: string; 
   return { text: result, applied }
 }
 
-/** Route every item: confident word fixes applied; uncertain (any kind) + every number flagged. */
-export function routeItems(text: string, items: CorrectionItem[]): CorrectionResult {
-  const r = applyConfident(text, items)
+/** Route every item: confident word fixes applied; uncertain (any kind), every number,
+ *  and every name not matched to the entity list are flagged (never guessed). */
+export function routeItems(text: string, items: CorrectionItem[], entities: string[] = []): CorrectionResult {
+  const r = applyConfident(text, items, entities)
   const appliedSet = new Set(r.applied)
   const flags: Flag[] = items
-    .filter(i => !appliedSet.has(i) && (i.kind === 'number' || i.certainty === 'uncertain'))
+    .filter(i => !appliedSet.has(i) && (i.kind === 'number' || i.certainty === 'uncertain' || i.kind === 'name'))
     .map(i => ({ text: i.original, reason: i.reason }))
   return { text: r.text, applied: r.applied, flags }
 }
@@ -111,12 +125,15 @@ export function buildCorrectionPrompt(profile: Profile, entities: string[], chun
 החזר אך ורק JSON בפורמט:
 {"items":[{"original":"<הטקסט המדויק כפי שמופיע>","corrected":"<התיקון, אם בטוח>","kind":"name|homophone|number","certainty":"confident|uncertain","reason":"<קצר>"}]}
 
-חוקים מחייבים:
+חוקים מחייבים — היה שמרן מאוד. עדיף לסמן (uncertain) מאשר לתקן בטעות:
 1. החזר רק רשימת שינויים נקודתיים. אל תשכתב, אל תנסח מחדש, אל תשנה פיסוק או סגנון.
-2. תקן רק שגיאות ASR ברורות: מילים חסרות-משמעות, מילים שלא ייתכנו בהקשר, ושמות שתואמים לרשימה. אל תיגע בניסוח ש"נשמע טוב יותר".
-3. סמן certainty לכל פריט: אם אתה בטוח במילה הנכונה -> "confident" (תיושם). אם משהו ברור שגוי אך אינך בטוח מה הנכון -> "uncertain" (יסומן למשתמש, לא ישונה). אם שום דבר לא שגוי — אל תכלול אותו.
-4. לעולם אל תשנה ספרה. מספר יכול להיות לכל היותר "uncertain" עם kind="number" (למשל ערך לא הגיוני כמו מעל 100% מההכנסות) — סמן, אל תתקן.
-5. "original" חייב להופיע מילה במילה בטקסט שלמטה.
+2. סמן "confident" רק כשאתה בטוח מעבר לכל ספק במילה הנכונה. בכל ספק — "uncertain" (לא ישונה, רק יסומן).
+3. שמות (אנשים/חברות/מקומות/בניינים, kind="name"): תקן רק אם השם תואם בבירור לערך ברשימת השמות שסופקה. אם אין רשימה, או אין התאמה ברורה — סמן "uncertain". לעולם אל תנחש שם ואל תמציא שם (למשל אל תהפוך "שייקס רובר" ל"שייקספיר").
+4. אל תשנה איות של מילה רק כי וריאציה אחרת קיימת. תקן אך ורק את המופע השגוי המדויק; אל תכליל איות למילים אחרות (למשל אל תיגע ב"אמפה טאואר").
+5. שמור על מספר המילים — אל תוסיף ואל תשמיט מילים (אל תשמיט שם פרטי כמו "ראול" מ"ראול סרוגו").
+6. אם מילה תקינה ובעלת משמעות סבירה בהקשר — אל תיגע בה, גם אם מילה אחרת אפשרית.
+7. לעולם אל תשנה ספרה. מספר חשוד -> kind="number", סמן בלבד (למשל ערך לא הגיוני כמו מעל 100% מההכנסות).
+8. "original" חייב להופיע מילה במילה בטקסט שלמטה.
 
 הטקסט:
 ${chunk}`
@@ -142,7 +159,7 @@ export async function correctTranscript(
   // De-dupe identical originals (keep the first), then apply to the full text.
   const seen = new Set<string>()
   const deduped = all.filter(i => (seen.has(i.original) ? false : (seen.add(i.original), true)))
-  return routeItems(rawText, deduped)
+  return routeItems(rawText, deduped, entities)
 }
 
 /** Attach each flag to the first line whose text contains the flag's span. */

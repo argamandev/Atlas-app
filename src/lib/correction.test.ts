@@ -41,6 +41,17 @@ test('routeItems applies confident word fixes, flags uncertain + all numbers', (
   assert.ok(r.flags.some(f => f.text === '180%'))
 })
 
+test('confident name is applied ONLY when it matches a provided entity (else flagged)', () => {
+  const items = [
+    { original: 'אמפתי', corrected: 'אמפא TLV', kind: 'name', certainty: 'confident', reason: '' },
+    { original: 'שייקס רובר', corrected: 'שייקספיר', kind: 'name', certainty: 'confident', reason: '' },
+  ] as any
+  const r = routeItems('דיברנו על אמפתי ועל שייקס רובר', items, ['אמפא TLV'])
+  assert.ok(r.text.includes('אמפא TLV'), 'name matching the entity list is applied')
+  assert.ok(r.text.includes('שייקס רובר'), 'name NOT in the list is left unchanged (never guessed)')
+  assert.ok(r.flags.some(f => f.text === 'שייקס רובר'), 'unmatched name is flagged instead')
+})
+
 import { correctTranscript, buildCorrectionPrompt, attachFlags } from './correction'
 
 test('buildCorrectionPrompt includes profile, entities, chunk and the JSON contract', () => {
