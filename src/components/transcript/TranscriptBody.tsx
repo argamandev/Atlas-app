@@ -50,32 +50,51 @@ function getOffsetsWithin(el: HTMLElement): Highlight | null {
 function renderText(
   text: string,
   highlights: Highlight[] | undefined,
+  flags: { text: string; reason: string }[] | undefined,
   onRemove?: (index: number) => void,
 ) {
-  if (!highlights || highlights.length === 0) return text
-  const indexed = highlights
-    .map((h, i) => ({ ...h, _i: i }))
-    .sort((a, b) => a.start - b.start)
+  type Mark = { start: number; end: number; kind: 'hl' | 'flag'; title?: string; hi?: number }
+  const marks: Mark[] = []
+  ;(highlights ?? []).forEach((h, i) => marks.push({ start: h.start, end: h.end, kind: 'hl', hi: i }))
+  ;(flags ?? []).forEach((f) => {
+    const idx = text.indexOf(f.text)
+    if (idx >= 0) marks.push({ start: idx, end: idx + f.text.length, kind: 'flag', title: 'מומלץ לשמוע את ההקלטה כדי לוודא את התמלול.' })
+  })
+  if (marks.length === 0) return text
+  marks.sort((a, b) => a.start - b.start)
 
   const out: React.ReactNode[] = []
   let cursor = 0
-  indexed.forEach((h) => {
-    const start = Math.max(0, Math.min(h.start, text.length))
-    const end = Math.max(start, Math.min(h.end, text.length))
+  marks.forEach((m, k) => {
+    const start = Math.max(cursor, Math.min(m.start, text.length))
+    const end = Math.max(start, Math.min(m.end, text.length))
     if (start > cursor) out.push(<span key={`t${cursor}`}>{text.slice(cursor, start)}</span>)
-    out.push(
-      <mark
-        key={`h${h._i}`}
-        onClick={onRemove ? () => onRemove(h._i) : undefined}
-        className={cn(
-          'bg-accent/25 text-text-primary rounded-sm px-0.5',
-          onRemove && 'cursor-pointer hover:bg-accent/40',
-        )}
-        title={onRemove ? 'הסר סימון' : undefined}
-      >
-        {text.slice(start, end)}
-      </mark>,
-    )
+    if (end <= start) return
+    if (m.kind === 'flag') {
+      out.push(
+        <mark
+          key={`f${k}`}
+          title={m.title}
+          className="bg-amber-400/25 text-text-primary rounded-sm px-0.5 underline decoration-dotted decoration-amber-400/70 cursor-help"
+        >
+          {text.slice(start, end)}
+        </mark>,
+      )
+    } else {
+      out.push(
+        <mark
+          key={`h${m.hi}`}
+          onClick={onRemove ? () => onRemove(m.hi as number) : undefined}
+          className={cn(
+            'bg-accent/25 text-text-primary rounded-sm px-0.5',
+            onRemove && 'cursor-pointer hover:bg-accent/40',
+          )}
+          title={onRemove ? 'הסר סימון' : undefined}
+        >
+          {text.slice(start, end)}
+        </mark>,
+      )
+    }
     cursor = end
   })
   if (cursor < text.length) out.push(<span key="tail">{text.slice(cursor)}</span>)
@@ -198,6 +217,7 @@ export function TranscriptBody({
                         {renderText(
                           line.text,
                           line.highlights,
+                          line.flags,
                           onRemoveHighlight
                             ? (i) => onRemoveHighlight(section.id, line.id, i)
                             : undefined,

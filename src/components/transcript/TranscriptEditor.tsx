@@ -13,9 +13,10 @@ interface TranscriptEditorProps {
   id: string
   canEdit: boolean
   isAdmin?: boolean
+  youtubeUrl?: string
 }
 
-export function TranscriptEditor({ transcript: initial, id, canEdit, isAdmin = false }: TranscriptEditorProps) {
+export function TranscriptEditor({ transcript: initial, id, canEdit, isAdmin = false, youtubeUrl }: TranscriptEditorProps) {
   const [transcript, setTranscript] = useState<Transcript>(initial)
   const [editing, setEditing] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -110,6 +111,22 @@ export function TranscriptEditor({ transcript: initial, id, canEdit, isAdmin = f
         </div>
       )}
 
+      {/* Admin diagnostics: auto-corrections applied by the Step 0 corrector */}
+      {isAdmin && transcript.corrections && transcript.corrections.length > 0 && (
+        <details className="no-print mb-4 text-2xs text-muted border border-border rounded px-2.5 py-1.5" dir="rtl">
+          <summary className="cursor-pointer">תיקונים אוטומטיים: {transcript.corrections.length}</summary>
+          <ul className="mt-2 space-y-1">
+            {transcript.corrections.map((c, i) => (
+              <li key={i} className="font-mono-num" dir="ltr">
+                <span className="text-amber-400">{c.original}</span>
+                {c.corrected ? <> → <span className="text-success">{c.corrected}</span></> : null}
+                <span className="opacity-60"> · {c.kind}/{c.certainty}{c.reason ? ` · ${c.reason}` : ''}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {/* Toolbar */}
       <div className="no-print flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-2">
@@ -148,7 +165,7 @@ export function TranscriptEditor({ transcript: initial, id, canEdit, isAdmin = f
         </div>
 
         <div className="no-print">
-          <TranscriptActions transcript={transcript} />
+          <TranscriptActions transcript={transcript} isAdmin={isAdmin} transcriptId={id} youtubeUrl={youtubeUrl} />
         </div>
       </div>
 
