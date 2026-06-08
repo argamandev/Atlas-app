@@ -52,6 +52,13 @@ test('confident name is applied ONLY when it matches a provided entity (else fla
   assert.ok(r.flags.some(f => f.text === 'שייקס רובר'), 'unmatched name is flagged instead')
 })
 
+test('flags spanning a whole clause (>8 words) are dropped (kept precise)', () => {
+  const long = Array.from({ length: 11 }, (_, i) => `מ${i}`).join(' ')
+  const items = [{ original: long, kind: 'homophone', certainty: 'uncertain', reason: '' }] as any
+  const r = routeItems(`לפני ${long} אחרי`, items, [])
+  assert.equal(r.flags.length, 0)
+})
+
 test('a name correction may not reduce word count (never drops "ראול")', () => {
   const items = [
     { original: 'ראול סרוגו', corrected: 'סרוגו', kind: 'name', certainty: 'confident', reason: '' },
