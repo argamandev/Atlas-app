@@ -6,7 +6,8 @@ import * as path from 'path'
 import * as os from 'os'
 import { getVideoInfo as ytGetInfo, downloadAudio as ytDownload } from './ytdlp'
 import { supabaseAdmin } from './supabase'
-import type { Transcript } from './types'
+import type { Transcript, CorrectionDiag } from './types'
+import { correctTranscript, attachFlags, type Profile } from './correction'
 
 ffmpeg.setFfmpegPath(ffmpegPath.path)
 
@@ -505,7 +506,7 @@ async function extractMeta(
   opening: string,
   videoTitle: string,
   today: string,
-): Promise<{ company: string; ticker: string; quarter: string; date: string; speakers: Array<{ name: string; role: string; title: string }> }> {
+): Promise<{ company: string; business: string; ticker: string; quarter: string; date: string; speakers: Array<{ name: string; role: string; title: string }> }> {
   const response = await withTimeout(
     openai.chat.completions.create({
       model: 'gpt-4o',
@@ -528,6 +529,7 @@ Rules for "quarter":
 Return JSON only:
 {
   "company": "clean company name in Hebrew",
+  "business": "תחום הפעילות של החברה בעברית בקצרה (למשל: נדל\"ן מניב, בנקאות, אנרגיה). אם לא ברור, החזר מחרוזת ריקה.",
   "ticker": "stock ticker or empty string",
   "quarter": "Q{n} {YYYY} or empty string",
   "date": "YYYY-MM-DD",
@@ -651,19 +653,45 @@ export async function formatWithGPT4o(
   const now = new Date().toISOString()
   const today = now.split('T')[0]
 
-  // Step 0: fix recurring Hebrew speech-to-text errors (curated dict + a careful
-  // GPT proofreading pass that may only replace strings it explicitly names).
-  try {
-    const corrections = await buildCorrectionMap(rawText, videoTitle)
-    rawText = applyCorrections(rawText, corrections)
-  } catch (err) {
-    console.warn('[format] correction pass skipped:', (err as Error).message)
-    rawText = applyCorrections(rawText, KNOWN_CORRECTIONS)
-  }
-
-  // Step 1: extract metadata
+  // Step 1: metadata FIRST — the raw opening already carries the correct company name.
   console.log('[format] extracting metadata...')
   const meta = await extractMeta(rawText.slice(0, 2500), videoTitle, today)
+
+  // Step 0: correction — runs on the full raw text, before speaker tagging.
+  // V1 ships with NO entity list (sense-only). Flags + applied corrections are kept for UI + diagnostics.
+  let flags: { text: string; reason: string }[] = []
+  let corrections: CorrectionDiag[] = []
+  try {
+    const profile: Profile = {
+      company: meta.company ?? '',
+      business: meta.business ?? '',
+      quarter: meta.quarter ?? '',
+      speakers: (meta.speakers ?? []).map(s => `${s.name} (${s.role})`).join(', '),
+    }
+    const gptChunk = (prompt: string) =>
+      withTimeout(
+        openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+          max_tokens: 2000,
+          temperature: 0,
+        }),
+        90 * 1000,
+        'correction chunk',
+      ).then(r => r.choices[0].message.content ?? '{}')
+
+    const result = await correctTranscript(rawText, profile, [], gptChunk)
+    rawText = result.text
+    flags = result.flags
+    corrections = result.applied.map(a => ({
+      original: a.original, corrected: a.corrected, kind: a.kind, certainty: a.certainty, reason: a.reason,
+    }))
+    console.log(`[format] correction: ${corrections.length} applied, ${flags.length} flagged`)
+  } catch (err) {
+    console.warn('[format] correction pass skipped:', (err as Error).message)
+  }
+
   const speakers: Speaker[] = (meta.speakers ?? []).map((s, i) => ({
     id: `sp${i + 1}`,
     name: s.name,
@@ -705,7 +733,8 @@ export async function formatWithGPT4o(
       timestamp: '00:00:00',
       text: t,
     }))
-    return buildTranscript(videoId, meta, today, now, speakers, fallbackLines, [], opts)
+    attachFlags(fallbackLines, flags)
+    return buildTranscript(videoId, meta, today, now, speakers, fallbackLines, [], { ...opts, corrections })
   }
 
   // Merge consecutive segments from the same speaker + section
@@ -755,7 +784,9 @@ export async function formatWithGPT4o(
   const totalOutputChars = [...mgmtLines, ...qaLines].reduce((s, l) => s + l.text.length, 0)
   console.log(`[format] done — ${lineCounter} lines (mgmt: ${mgmtLines.length}, qa: ${qaLines.length}) | coverage: ${Math.round(totalOutputChars / rawText.length * 100)}%`)
 
-  return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, opts)
+  attachFlags(mgmtLines, flags)
+  attachFlags(qaLines, flags)
+  return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, { ...opts, corrections })
 }
 
 function buildTranscript(
@@ -766,7 +797,7 @@ function buildTranscript(
   speakers: Speaker[],
   mgmtLines: Line[],
   qaLines: Line[],
-  opts: { engine?: string; model?: string } = {},
+  opts: { engine?: string; model?: string; corrections?: CorrectionDiag[] } = {},
 ): Transcript {
   return {
     id: videoId,
@@ -780,6 +811,7 @@ function buildTranscript(
     createdAt: now,
     engine: opts.engine,
     model: opts.model,
+    corrections: opts.corrections,
     speakers,
     sections: [
       { id: 'sec_mgmt', title: 'דברי הנהלה', lines: mgmtLines },
