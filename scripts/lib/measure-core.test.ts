@@ -15,6 +15,18 @@ test('tokenize splits on whitespace, drops empties', () => {
   assert.deepEqual(tokenize('  שלום   לכולם '), ['שלום', 'לכולם'])
 })
 
+test('normalize drops the metadata header before the first timestamp', () => {
+  const withHeader = 'שיחת משקיעים — אמפא\nQ1 2026 | 2026-06-07\n\n## דברי הנהלה\n[00:00:00] מנחה:\nשלום לכולם'
+  const out = normalize(withHeader)
+  assert.ok(!out.includes('2026'), 'header date dropped')
+  assert.ok(!out.includes('דברי'), 'section heading dropped')
+  assert.ok(out.startsWith('שלום'), 'body kept')
+})
+
+test('normalize leaves header-less raw text intact (no timestamps)', () => {
+  assert.equal(normalize('שלום לכולם וברוכים הבאים'), 'שלום לכולם וברוכים הבאים')
+})
+
 import { lcsGoldMatched, score } from './measure-core'
 
 test('lcsGoldMatched marks which gold tokens the candidate reproduced', () => {

@@ -4,6 +4,9 @@
  *  the divider line, markdown headings, punctuation, ניקוד; collapse whitespace. */
 export function normalize(text: string): string {
   return text
+    // Drop the metadata header (title / quarter / date / "## דברי הנהלה") that precedes the
+    // first [timestamp]. Raw IVRIT text has no timestamps, so it is left untouched.
+    .replace(/^[\s\S]*?(?=\[\d{2}:\d{2}:\d{2}\])/, '')
     .replace(/\[\d{2}:\d{2}:\d{2}\]/g, ' ')        // [00:00:00]
     .replace(/^#{1,6}.*$/gm, ' ')                   // ## headings
     .replace(/^=+$/gm, ' ')                          // ====== divider
