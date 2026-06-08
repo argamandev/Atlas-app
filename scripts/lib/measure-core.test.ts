@@ -14,3 +14,27 @@ test('normalize strips speaker headers, timestamps, punctuation', () => {
 test('tokenize splits on whitespace, drops empties', () => {
   assert.deepEqual(tokenize('  שלום   לכולם '), ['שלום', 'לכולם'])
 })
+
+import { lcsGoldMatched, score } from './measure-core'
+
+test('lcsGoldMatched marks which gold tokens the candidate reproduced', () => {
+  const gold = ['א', 'ב', 'ג', 'ד']
+  const cand = ['א', 'X', 'ג', 'ד']  // "ב" missing/substituted
+  assert.deepEqual(lcsGoldMatched(cand, gold), [true, false, true, true])
+})
+
+test('score computes fixed / introduced / remaining vs gold', () => {
+  const gold = 'שיעור התפוסה נותר תקין'
+  const baseline = 'קישור התפוסה נותר תקין'   // 1 error: שיעור→קישור
+  const fixedCand = 'שיעור התפוסה נותר תקין'   // corrected
+  const brokeCand = 'שיעור התפוסה נותר שבור'   // fixed שיעור but broke תקין→שבור
+
+  const good = score(baseline, fixedCand, gold)
+  assert.equal(good.fixed, 1)
+  assert.equal(good.introduced, 0)
+  assert.equal(good.remaining, 0)
+
+  const bad = score(baseline, brokeCand, gold)
+  assert.equal(bad.fixed, 1)
+  assert.equal(bad.introduced, 1)   // תקין was right in baseline, now wrong
+})

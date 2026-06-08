@@ -17,3 +17,49 @@ export function normalize(text: string): string {
 export function tokenize(text: string): string[] {
   return normalize(text).split(' ').filter(Boolean)
 }
+
+/** For each gold token, true if the candidate reproduced it (in order), via LCS backtrace. */
+export function lcsGoldMatched(cand: string[], gold: string[]): boolean[] {
+  const n = cand.length, m = gold.length
+  const dp: Int32Array[] = Array.from({ length: n + 1 }, () => new Int32Array(m + 1))
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = cand[i] === gold[j]
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1])
+
+  const matched = new Array<boolean>(m).fill(false)
+  let i = 0, j = 0
+  while (i < n && j < m) {
+    if (cand[i] === gold[j]) { matched[j] = true; i++; j++ }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++
+    else j++
+  }
+  return matched
+}
+
+export interface Score {
+  fixed: number; introduced: number; remaining: number
+  goldTokens: number; baselineErrors: number; candidateErrors: number
+  errorRateBaseline: number; errorRateCandidate: number
+}
+
+/** Compare candidate to gold, using baseline (uncorrected) to attribute fixed vs introduced. */
+export function score(baseline: string, candidate: string, gold: string): Score {
+  const g = tokenize(gold)
+  const gb = lcsGoldMatched(tokenize(baseline), g)
+  const gc = lcsGoldMatched(tokenize(candidate), g)
+  let fixed = 0, introduced = 0, remaining = 0, baselineErrors = 0, candidateErrors = 0
+  for (let k = 0; k < g.length; k++) {
+    if (!gb[k]) baselineErrors++
+    if (!gc[k]) { candidateErrors++; remaining++ }
+    if (!gb[k] && gc[k]) fixed++
+    if (gb[k] && !gc[k]) introduced++
+  }
+  return {
+    fixed, introduced, remaining,
+    goldTokens: g.length, baselineErrors, candidateErrors,
+    errorRateBaseline: baselineErrors / g.length,
+    errorRateCandidate: candidateErrors / g.length,
+  }
+}
