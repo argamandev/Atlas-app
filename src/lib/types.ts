@@ -21,6 +21,17 @@ export interface TranscriptLine {
   timestamp: string
   text: string
   highlights?: Highlight[]
+  /** verify flags — uncertain words and numbers; UI shows a yellow "check the recording" badge */
+  flags?: { text: string; reason: string }[]
+}
+
+/** Admin diagnostics: every correction the corrector applied (and flagged). */
+export interface CorrectionDiag {
+  original: string
+  corrected?: string
+  kind: 'name' | 'homophone' | 'number'
+  certainty: 'confident' | 'uncertain'
+  reason: string
 }
 
 export interface TranscriptSection {
@@ -45,6 +56,8 @@ export interface Transcript {
   model?: string
   /** wall-clock processing time in seconds (admin diagnostics) */
   processingSecs?: number
+  /** corrections applied + flags raised by the Step 0 corrector (admin diagnostics) */
+  corrections?: CorrectionDiag[]
   speakers: Speaker[]
   sections: TranscriptSection[]
 }
