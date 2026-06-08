@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/install-yt-dlp.js && next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --import tsx --test src/lib/correction.test.ts scripts/lib/measure-core.test.ts"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
@@ -32,6 +33,7 @@
     "autoprefixer": "^10.0.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   },
   "optionalDependencies": {
