@@ -451,10 +451,12 @@ export async function formatWithGPT4o(
   console.log('[format] extracting metadata...')
   const meta = await extractMeta(rawText.slice(0, 2500), videoTitle, today)
 
-  // Step 0: correction — runs on the full raw text, before speaker tagging.
-  // V1 ships with NO entity list (sense-only). Flags + applied corrections are kept for UI + diagnostics.
+  // Step 0: compute corrections — does NOT modify rawText. Speaker tagging must run on the RAW
+  // text: correcting first changes word lengths, which shifts the chunk boundaries the tagger
+  // splits on and degrades attribution. Corrections are applied to the line texts AFTER tagging.
   let flags: { text: string; reason: string }[] = []
   let corrections: CorrectionDiag[] = []
+  let appliedItems: { original: string; corrected?: string }[] = []
   try {
     const profile: Profile = {
       company: meta.company ?? '',
@@ -476,7 +478,7 @@ export async function formatWithGPT4o(
       ).then(r => r.choices[0].message.content ?? '{}')
 
     const result = await correctTranscript(rawText, profile, [], gptChunk)
-    rawText = result.text
+    appliedItems = result.applied
     flags = result.flags
     corrections = result.applied.map(a => ({
       original: a.original, corrected: a.corrected, kind: a.kind, certainty: a.certainty, reason: a.reason,
@@ -484,6 +486,13 @@ export async function formatWithGPT4o(
     console.log(`[format] correction: ${corrections.length} applied, ${flags.length} flagged`)
   } catch (err) {
     console.warn('[format] correction pass skipped:', (err as Error).message)
+  }
+
+  // Apply confident corrections to a single line's text (exact replacement), AFTER speaker tagging.
+  const applyCorrectionsToLine = (t: string): string => {
+    let r = t
+    for (const a of appliedItems) if (a.corrected) r = r.split(a.original).join(a.corrected)
+    return r
   }
 
   const speakers: Speaker[] = (meta.speakers ?? []).map((s, i) => ({
@@ -494,7 +503,7 @@ export async function formatWithGPT4o(
     affiliation: '',
   }))
 
-  // Step 2: tag speakers (rawText already corrected in step 0)
+  // Step 2: tag speakers on the RAW text (corrections are applied per-line afterward)
   const chunks = splitIntoChunks(rawText, 3000)
   console.log(`[format] ${chunks.length} chunks | ${rawText.length} chars total`)
 
@@ -527,6 +536,7 @@ export async function formatWithGPT4o(
       timestamp: '00:00:00',
       text: t,
     }))
+    fallbackLines.forEach(l => { l.text = applyCorrectionsToLine(l.text) })
     attachFlags(fallbackLines, flags)
     return buildTranscript(videoId, meta, today, now, speakers, fallbackLines, [], { ...opts, corrections })
   }
@@ -578,6 +588,8 @@ export async function formatWithGPT4o(
   const totalOutputChars = [...mgmtLines, ...qaLines].reduce((s, l) => s + l.text.length, 0)
   console.log(`[format] done — ${lineCounter} lines (mgmt: ${mgmtLines.length}, qa: ${qaLines.length}) | coverage: ${Math.round(totalOutputChars / rawText.length * 100)}%`)
 
+  mgmtLines.forEach(l => { l.text = applyCorrectionsToLine(l.text) })
+  qaLines.forEach(l => { l.text = applyCorrectionsToLine(l.text) })
   attachFlags(mgmtLines, flags)
   attachFlags(qaLines, flags)
   return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, { ...opts, corrections })

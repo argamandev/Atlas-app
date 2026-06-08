@@ -53,19 +53,19 @@ const main = async () => {
   const gToks = tokenize(gold)
   const gbRaw = lcsGoldMatched(tokenize(raw), gToks)
 
-  const show = (label: string, candidate: string, applied: { original: string; corrected?: string }[], flags: number) => {
+  const show = (label: string, candidate: string, applied: { original: string; corrected?: string }[], flagList: { text: string }[]) => {
     const s = score(raw, candidate, gold)
     console.log(`\n=== ${label} ===`)
-    console.log(`applied: ${applied.length}  flagged: ${flags}`)
+    console.log(`applied: ${applied.length}  flagged: ${flagList.length}  [${flagList.map(f => f.text).join(' | ')}]`)
     console.log(`errors: baseline ${s.baselineErrors} -> candidate ${s.candidateErrors}  | FIXED ${s.fixed}  INTRODUCED ${s.introduced} ${s.introduced === 0 ? '✅' : '❌'}  remaining ${s.remaining}`)
     const gc = lcsGoldMatched(tokenize(candidate), gToks)
     const introduced = gToks.map((t, i) => (gbRaw[i] && !gc[i]) ? `${gToks[i - 1] ?? ''} [${t}] ${gToks[i + 1] ?? ''}`.trim() : null).filter(Boolean)
     if (introduced.length) { console.log('  INTRODUCED (broke a correct gold word):'); introduced.forEach(m => console.log('    ' + m)) }
     console.log('  applied corrections:'); applied.forEach(c => console.log(`    "${c.original}" -> "${c.corrected}"`))
   }
-  show('RAW baseline', raw, [], 0)
-  show('Run A (no list, = shipped)', a.text, a.applied, a.flags.length)
-  show('Run B (+ list, measurement)', b.text, b.applied, b.flags.length)
+  show('RAW baseline', raw, [], [])
+  show('Run A (no list, = shipped)', a.text, a.applied, a.flags)
+  show('Run B (+ list, measurement)', b.text, b.applied, b.flags)
   console.log('\nOutputs: scripts/out/runA.txt, runB.txt, *.corrections.json')
 }
 main().catch(e => { console.error(e); process.exit(1) })
