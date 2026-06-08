@@ -40,3 +40,37 @@ test('routeItems applies confident word fixes, flags uncertain + all numbers', (
   assert.equal(r.flags.length, 2) // the number + the uncertain name
   assert.ok(r.flags.some(f => f.text === '180%'))
 })
+
+import { correctTranscript, buildCorrectionPrompt, attachFlags } from './correction'
+
+test('buildCorrectionPrompt includes profile, entities, chunk and the JSON contract', () => {
+  const p = buildCorrectionPrompt(
+    { company: 'אמפא', business: 'נדל"ן מניב', quarter: 'Q1 2026', speakers: 'זוהר רדי (ceo)' },
+    ['ToHa', 'אמפא TLV'],
+    'דרך אישר משקיעים',
+  )
+  assert.ok(p.includes('אמפא'))
+  assert.ok(p.includes('ToHa'))
+  assert.ok(p.includes('דרך אישר משקיעים'))
+  assert.ok(/items/.test(p) && /certainty/.test(p))
+})
+
+test('correctTranscript applies confident fixes from a fake GPT and collects flags', async () => {
+  const fakeGpt = async () => JSON.stringify({ items: [
+    { original: 'אישר משקיעים', corrected: 'קשרי משקיעים', kind: 'homophone', certainty: 'confident', reason: '' },
+    { original: '180%', kind: 'number', certainty: 'confident', reason: 'מעל 100%' },
+  ] })
+  const profile = { company: 'אמפא', business: '', quarter: '', speakers: '' }
+  const r = await correctTranscript('דרך אישר משקיעים ל180% מההכנסות', profile, [], fakeGpt)
+  assert.ok(r.text.includes('קשרי משקיעים'))
+  assert.ok(r.text.includes('180%'))
+  assert.equal(r.flags.length, 1)
+})
+
+test('attachFlags puts each flag on the first line containing its text', () => {
+  const lines = [{ id: 'L1', text: 'שורה אחת' }, { id: 'L2', text: 'יש כאן 180% מההכנסות' }] as any
+  attachFlags(lines, [{ text: '180%', reason: 'בדיקה' }])
+  assert.equal(lines[0].flags, undefined)
+  assert.equal(lines[1].flags.length, 1)
+  assert.equal(lines[1].flags[0].text, '180%')
+})

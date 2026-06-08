@@ -98,3 +98,57 @@ export function routeItems(text: string, items: CorrectionItem[]): CorrectionRes
     .map(i => ({ text: i.original, reason: i.reason }))
   return { text: r.text, applied: r.applied, flags }
 }
+
+export function buildCorrectionPrompt(profile: Profile, entities: string[], chunk: string): string {
+  const entityBlock = entities.length
+    ? `\nרשימת שמות נכונים של החברה (השתמש בה לתיקון שמות בלבד, בהקשר):\n${entities.map(e => `- ${e}`).join('\n')}\n`
+    : ''
+  return `אתה מתקן שגיאות תמלול אוטומטי (ASR) של שיחת משקיעים בעברית. תמלול גולמי, ללא הקשר חיצוני.
+
+חברה: ${profile.company || 'לא ידוע'} | תחום: ${profile.business || 'לא ידוע'} | רבעון: ${profile.quarter || 'לא ידוע'}
+דוברים: ${profile.speakers || 'לא ידוע'}${entityBlock}
+
+החזר אך ורק JSON בפורמט:
+{"items":[{"original":"<הטקסט המדויק כפי שמופיע>","corrected":"<התיקון, אם בטוח>","kind":"name|homophone|number","certainty":"confident|uncertain","reason":"<קצר>"}]}
+
+חוקים מחייבים:
+1. החזר רק רשימת שינויים נקודתיים. אל תשכתב, אל תנסח מחדש, אל תשנה פיסוק או סגנון.
+2. תקן רק שגיאות ASR ברורות: מילים חסרות-משמעות, מילים שלא ייתכנו בהקשר, ושמות שתואמים לרשימה. אל תיגע בניסוח ש"נשמע טוב יותר".
+3. סמן certainty לכל פריט: אם אתה בטוח במילה הנכונה -> "confident" (תיושם). אם משהו ברור שגוי אך אינך בטוח מה הנכון -> "uncertain" (יסומן למשתמש, לא ישונה). אם שום דבר לא שגוי — אל תכלול אותו.
+4. לעולם אל תשנה ספרה. מספר יכול להיות לכל היותר "uncertain" עם kind="number" (למשל ערך לא הגיוני כמו מעל 100% מההכנסות) — סמן, אל תתקן.
+5. "original" חייב להופיע מילה במילה בטקסט שלמטה.
+
+הטקסט:
+${chunk}`
+}
+
+export async function correctTranscript(
+  rawText: string,
+  profile: Profile,
+  entities: string[],
+  gpt: GptChunkFn,
+  wordsPerChunk = 400,
+): Promise<CorrectionResult> {
+  const chunks = chunkByWords(rawText, wordsPerChunk)
+  const all: CorrectionItem[] = []
+  for (const chunk of chunks) {
+    try {
+      const raw = await gpt(buildCorrectionPrompt(profile, entities, chunk))
+      all.push(...parseCorrectionItems(raw))
+    } catch (err) {
+      console.warn('[correction] chunk skipped:', (err as Error).message)
+    }
+  }
+  // De-dupe identical originals (keep the first), then apply to the full text.
+  const seen = new Set<string>()
+  const deduped = all.filter(i => (seen.has(i.original) ? false : (seen.add(i.original), true)))
+  return routeItems(rawText, deduped)
+}
+
+/** Attach each flag to the first line whose text contains the flag's span. */
+export function attachFlags(lines: { text: string; flags?: Flag[] }[], flags: Flag[]): void {
+  for (const flag of flags) {
+    const line = lines.find(l => l.text.includes(flag.text))
+    if (line) (line.flags ??= []).push(flag)
+  }
+}
