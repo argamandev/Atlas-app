@@ -27,6 +27,12 @@ test('normalize leaves header-less raw text intact (no timestamps)', () => {
   assert.equal(normalize('שלום לכולם וברוכים הבאים'), 'שלום לכולם וברוכים הבאים')
 })
 
+test('normalize joins intra-word gershayim/quotes so האג"ח == האגח (one token)', () => {
+  assert.equal(normalize('האג"ח'), normalize('האגח'))
+  assert.deepEqual(tokenize('דירוג האג"ח נותר'), tokenize('דירוג האגח נותר'))
+  assert.equal(normalize("הבורג'"), 'הבורג')
+})
+
 import { lcsGoldMatched, score } from './measure-core'
 
 test('lcsGoldMatched marks which gold tokens the candidate reproduced', () => {

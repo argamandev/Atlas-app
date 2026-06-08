@@ -12,7 +12,8 @@ export function normalize(text: string): string {
     .replace(/^=+$/gm, ' ')                          // ====== divider
     .replace(/^[^\n:]{1,40}:\s*$/gm, ' ')           // a line that is just "Name:" (speaker header)
     .replace(/[֑-ׇ]/g, '')                // Hebrew ניקוד / cantillation
-    .replace(/[.,!?;:"'״׳()\[\]{}<>\-–—…]/g, ' ')   // punctuation
+    .replace(/["'״׳’”]/g, '')                        // intra-word quotes/gershayim -> REMOVE (האג"ח == האגח, הבורג' == הבורג)
+    .replace(/[.,!?;:()\[\]{}<>\-–—…]/g, ' ')        // sentence punctuation -> space
     .replace(/\s+/g, ' ')
     .trim()
 }

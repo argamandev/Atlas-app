@@ -31,6 +31,8 @@ export type GptChunkFn = (prompt: string) => Promise<string>
 
 const KINDS: CorrectionKind[] = ['name', 'homophone', 'number']
 
+const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length
+
 export function chunkByWords(text: string, wordsPerChunk = 400): string[] {
   const words = text.trim().split(/\s+/).filter(Boolean)
   const chunks: string[] = []
@@ -89,7 +91,8 @@ function applyConfident(
       i.kind !== 'number' &&
       i.corrected &&
       isSafeCorrection(i.original, i.corrected) &&
-      (i.kind !== 'name' || entitySet.has(i.corrected)),   // names: only to a known entity
+      // names: only to a known entity, and never by DROPPING a word (no "ראול סרוגו"->"סרוגו")
+      (i.kind !== 'name' || (entitySet.has(i.corrected) && wordCount(i.corrected) >= wordCount(i.original))),
     )
     .sort((a, b) => b.original.length - a.original.length)
   let result = text
@@ -125,13 +128,13 @@ export function buildCorrectionPrompt(profile: Profile, entities: string[], chun
 החזר אך ורק JSON בפורמט:
 {"items":[{"original":"<הטקסט המדויק כפי שמופיע>","corrected":"<התיקון, אם בטוח>","kind":"name|homophone|number","certainty":"confident|uncertain","reason":"<קצר>"}]}
 
-חוקים מחייבים — היה שמרן מאוד. עדיף לסמן (uncertain) מאשר לתקן בטעות:
+חוקים מחייבים:
 1. החזר רק רשימת שינויים נקודתיים. אל תשכתב, אל תנסח מחדש, אל תשנה פיסוק או סגנון.
-2. סמן "confident" רק כשאתה בטוח מעבר לכל ספק במילה הנכונה. בכל ספק — "uncertain" (לא ישונה, רק יסומן).
-3. שמות (אנשים/חברות/מקומות/בניינים, kind="name"): תקן רק אם השם תואם בבירור לערך ברשימת השמות שסופקה. אם אין רשימה, או אין התאמה ברורה — סמן "uncertain". לעולם אל תנחש שם ואל תמציא שם (למשל אל תהפוך "שייקס רובר" ל"שייקספיר").
-4. אל תשנה איות של מילה רק כי וריאציה אחרת קיימת. תקן אך ורק את המופע השגוי המדויק; אל תכליל איות למילים אחרות (למשל אל תיגע ב"אמפה טאואר").
-5. שמור על מספר המילים — אל תוסיף ואל תשמיט מילים (אל תשמיט שם פרטי כמו "ראול" מ"ראול סרוגו").
-6. אם מילה תקינה ובעלת משמעות סבירה בהקשר — אל תיגע בה, גם אם מילה אחרת אפשרית.
+2. הומופונים (kind="homophone"): אם מילה עברית תקנית נשמעת נכון אך שגויה בהקשר, והמילה הנכונה ברורה מהמשמעות — תקן (confident). דוגמאות: "אישר משקיעים"->"קשרי משקיעים", "קישור התפוסה"->"שיעור התפוסה", "האגף"->"האג\"ח", "המניינו"->"היינו".
+3. שמות (אנשים/חברות/מקומות/בניינים, kind="name"): תקן רק אם השם תואם בבירור לערך ברשימת השמות שסופקה. אם אין רשימה או אין התאמה ברורה — סמן "uncertain". לעולם אל תנחש ואל תמציא שם (למשל אל תהפוך "שייקס רובר" ל"שייקספיר", ואל תהפוך שם מקום ל"בתל אביב").
+4. אם המילה הנכונה אינה ברורה מעבר לספק — סמן "uncertain", אל תשנה.
+5. אל תשנה איות רק כי וריאציה אחרת קיימת; תקן אך ורק את המופע השגוי המדויק (אל תיגע ב"אמפה טאואר"). שמור על מספר המילים — אל תשמיט/תוסיף מילים (אל תשמיט "ראול" מ"ראול סרוגו").
+6. אם מילה תקינה והגיונית בהקשר — אל תיגע בה.
 7. לעולם אל תשנה ספרה. מספר חשוד -> kind="number", סמן בלבד (למשל ערך לא הגיוני כמו מעל 100% מההכנסות).
 8. "original" חייב להופיע מילה במילה בטקסט שלמטה.
 

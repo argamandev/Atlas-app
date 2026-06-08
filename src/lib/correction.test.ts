@@ -52,6 +52,15 @@ test('confident name is applied ONLY when it matches a provided entity (else fla
   assert.ok(r.flags.some(f => f.text === 'שייקס רובר'), 'unmatched name is flagged instead')
 })
 
+test('a name correction may not reduce word count (never drops "ראול")', () => {
+  const items = [
+    { original: 'ראול סרוגו', corrected: 'סרוגו', kind: 'name', certainty: 'confident', reason: '' },
+  ] as any
+  const r = routeItems('עובד עם ראול סרוגו שנים', items, ['סרוגו'])
+  assert.ok(r.text.includes('ראול סרוגו'), 'word-dropping name fix is NOT applied')
+  assert.ok(r.flags.some(f => f.text === 'ראול סרוגו'), 'it is flagged instead')
+})
+
 import { correctTranscript, buildCorrectionPrompt, attachFlags } from './correction'
 
 test('buildCorrectionPrompt includes profile, entities, chunk and the JSON contract', () => {
