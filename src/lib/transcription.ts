@@ -7,7 +7,7 @@ import * as os from 'os'
 import { getVideoInfo as ytGetInfo, downloadAudio as ytDownload } from './ytdlp'
 import { supabaseAdmin } from './supabase'
 import type { Transcript, CorrectionDiag } from './types'
-import { correctTranscript, attachFlags, type Profile } from './correction'
+import { correctTranscript, generateEntities, attachFlags, type Profile } from './correction'
 
 ffmpeg.setFfmpegPath(ffmpegPath.path)
 
@@ -457,6 +457,7 @@ export async function formatWithGPT4o(
   let flags: { text: string; reason: string }[] = []
   let corrections: CorrectionDiag[] = []
   let appliedItems: { original: string; corrected?: string }[] = []
+  let autoEntities: string[] = []
   try {
     const profile: Profile = {
       company: meta.company ?? '',
@@ -477,7 +478,11 @@ export async function formatWithGPT4o(
         'correction chunk',
       ).then(r => r.choices[0].message.content ?? '{}')
 
-    const result = await correctTranscript(rawText, profile, [], gptChunk)
+    // Stage 1 (V2): auto-build the company's canonical entity list from the whole transcript.
+    autoEntities = await generateEntities(rawText, profile, gptChunk)
+    console.log(`[format] auto-entities: ${autoEntities.length} (${autoEntities.slice(0, 8).join(', ')})`)
+    // Stage 2: correct, grounded by those entities.
+    const result = await correctTranscript(rawText, profile, autoEntities, gptChunk)
     appliedItems = result.applied
     flags = result.flags
     corrections = result.applied.map(a => ({
@@ -538,7 +543,7 @@ export async function formatWithGPT4o(
     }))
     fallbackLines.forEach(l => { l.text = applyCorrectionsToLine(l.text) })
     attachFlags(fallbackLines, flags)
-    return buildTranscript(videoId, meta, today, now, speakers, fallbackLines, [], { ...opts, corrections })
+    return buildTranscript(videoId, meta, today, now, speakers, fallbackLines, [], { ...opts, corrections, entities: autoEntities })
   }
 
   // Merge consecutive segments from the same speaker + section
@@ -592,7 +597,7 @@ export async function formatWithGPT4o(
   qaLines.forEach(l => { l.text = applyCorrectionsToLine(l.text) })
   attachFlags(mgmtLines, flags)
   attachFlags(qaLines, flags)
-  return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, { ...opts, corrections })
+  return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, { ...opts, corrections, entities: autoEntities })
 }
 
 function buildTranscript(
@@ -603,7 +608,7 @@ function buildTranscript(
   speakers: Speaker[],
   mgmtLines: Line[],
   qaLines: Line[],
-  opts: { engine?: string; model?: string; corrections?: CorrectionDiag[] } = {},
+  opts: { engine?: string; model?: string; corrections?: CorrectionDiag[]; entities?: string[] } = {},
 ): Transcript {
   return {
     id: videoId,
@@ -618,6 +623,7 @@ function buildTranscript(
     engine: opts.engine,
     model: opts.model,
     corrections: opts.corrections,
+    entities: opts.entities,
     speakers,
     sections: [
       { id: 'sec_mgmt', title: 'דברי הנהלה', lines: mgmtLines },

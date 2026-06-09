@@ -111,6 +111,18 @@ export function TranscriptEditor({ transcript: initial, id, canEdit, isAdmin = f
         </div>
       )}
 
+      {/* Admin diagnostics: auto-generated entity list (V2) used to ground name corrections */}
+      {isAdmin && transcript.entities && transcript.entities.length > 0 && (
+        <details className="no-print mb-4 text-2xs text-muted border border-border rounded px-2.5 py-1.5" dir="rtl">
+          <summary className="cursor-pointer">ישויות שזוהו אוטומטית: {transcript.entities.length}</summary>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {transcript.entities.map((e, i) => (
+              <span key={i} className="border border-border rounded px-1.5 py-0.5 font-mono-num" dir="ltr">{e}</span>
+            ))}
+          </div>
+        </details>
+      )}
+
       {/* Admin diagnostics: auto-corrections applied by the Step 0 corrector */}
       {isAdmin && transcript.corrections && transcript.corrections.length > 0 && (
         <details className="no-print mb-4 text-2xs text-muted border border-border rounded px-2.5 py-1.5" dir="rtl">

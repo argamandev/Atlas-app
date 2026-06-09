@@ -58,6 +58,8 @@ export interface Transcript {
   processingSecs?: number
   /** corrections applied + flags raised by the Step 0 corrector (admin diagnostics) */
   corrections?: CorrectionDiag[]
+  /** auto-generated per-company entity list used to ground name corrections (admin diagnostics) */
+  entities?: string[]
   speakers: Speaker[]
   sections: TranscriptSection[]
 }
