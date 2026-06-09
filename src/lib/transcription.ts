@@ -226,56 +226,46 @@ export async function transcribeAudio(audioPath: string): Promise<TranscriptionR
 interface Speaker { id: string; name: string; role: string; title: string; affiliation: string }
 interface Line { id: string; speakerId: string; timestamp: string; text: string }
 
-// Extract company/quarter/speakers from the transcript opening via GPT-4o
-async function extractMeta(
-  opening: string,
-  videoTitle: string,
-  today: string,
-): Promise<{ company: string; business: string; ticker: string; quarter: string; date: string; speakers: Array<{ name: string; role: string; title: string }> }> {
-  const response = await withTimeout(
-    openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{
-        role: 'user',
-        content: `You are extracting metadata for a Hebrew investor earnings call.
+// Parse company name and quarter directly from the YouTube video title — no LLM needed
+function parseTitleMeta(videoTitle: string, today: string): {
+  company: string; business: string; ticker: string; quarter: string; date: string
+  speakers: Array<{ name: string; role: string; title: string }>
+} {
+  let title = videoTitle
 
-PRIMARY SOURCE — the video title. For Israeli investor calls the company name and the quarter almost always appear in the title. Extract "company" and "quarter" from the title FIRST, then use the transcript opening only to confirm or fill gaps.
+  // Extract quarter — try English format first, then Hebrew
+  let quarter = ''
+  const qEn = title.match(/\bQ([1-4])\s*[-–]?\s*(20\d{2})\b/i)
+  if (qEn) {
+    quarter = `Q${qEn[1]} ${qEn[2]}`
+    title = title.replace(qEn[0], '')
+  } else {
+    const heOrdinal: Record<string, string> = { ראשון: '1', שני: '2', שלישי: '3', רביעי: '4' }
+    const qHe = title.match(/רבעון\s+([1-4]|ראשון|שני|שלישי|רביעי)\s+(20\d{2})/)
+    if (qHe) {
+      quarter = `Q${heOrdinal[qHe[1]] ?? qHe[1]} ${qHe[2]}`
+      title = title.replace(qHe[0], '')
+    } else {
+      const yr = title.match(/\b(20\d{2})\b/)
+      if (yr) { quarter = yr[1]; title = title.replace(yr[0], '') }
+    }
+  }
 
-Rules for "company":
-- Return ONLY the clean company name (in Hebrew, as commonly known).
-- REMOVE boilerplate: "שיחת משקיעים", "שיחת ועידה", "תוצאות", "סיכום", "מצגת", quarter/year text ("רבעון 3", "Q3 2025", "2025"), dates, and channel names.
-- Drop a trailing "בע״מ"/"בעמ" unless it is part of the well-known name.
-- Example: title "כלל תעשיות בע""מ - שיחת משקיעים סיכום רבעון 3 2025" → company "כלל תעשיות".
-- If the title has no company, infer it from the transcript opening. Never invent one.
+  // Strip boilerplate
+  for (const b of ['שיחת משקיעים', 'שיחת ועידה', 'תוצאות', 'סיכום', 'מצגת', 'דוח רבעוני',
+    'investor call', 'earnings call', 'conference call']) {
+    title = title.replace(new RegExp(b, 'gi'), '')
+  }
+  title = title
+    .replace(/\bQ[1-4]\b/gi, '')
+    .replace(/\b20\d{2}\b/g, '')
+    .replace(/\bבע["״]מ\b/g, '')
+    .replace(/\bבעמ\b/g, '')
+    .replace(/[-–—|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 
-Rules for "quarter":
-- Normalize to EXACTLY "Q{n} {YYYY}" (e.g. "Q1 2026"). Map "רבעון 1 2026" → "Q1 2026". If only a year is found, use the most likely quarter from context; if truly unknown, return "".
-
-Return JSON only:
-{
-  "company": "clean company name in Hebrew",
-  "business": "תחום הפעילות של החברה בעברית בקצרה (למשל: נדל\"ן מניב, בנקאות, אנרגיה). אם לא ברור, החזר מחרוזת ריקה.",
-  "ticker": "stock ticker or empty string",
-  "quarter": "Q{n} {YYYY} or empty string",
-  "date": "YYYY-MM-DD",
-  "speakers": [
-    { "name": "full name", "role": "ceo|cfo|analyst|moderator", "title": "Hebrew job title" }
-  ]
-}
-Use date ${today} if not found.
-
-Video title: "${videoTitle}"
-
-Transcript opening:
-${opening}`,
-      }],
-      response_format: { type: 'json_object' },
-      max_tokens: 800,
-    }),
-    60 * 1000,
-    'extractMeta'
-  )
-  return JSON.parse(response.choices[0].message.content ?? '{}')
+  return { company: title, business: '', ticker: '', quarter, date: today, speakers: [] }
 }
 
 // Call Gemini 3.5 Flash with the company-aware formatting prompt (2 attempts)
@@ -422,9 +412,10 @@ export async function formatWithGPT4o(
   const now = new Date().toISOString()
   const today = now.split('T')[0]
 
-  // Step 1: extract company/quarter/speakers from the opening
-  console.log('[format] extracting metadata...')
-  const meta = await extractMeta(rawText.slice(0, 2500), videoTitle, today)
+  // Step 1: parse company and quarter from the video title
+  const meta = parseTitleMeta(videoTitle, today)
+  console.log(`[format] meta — company: "${meta.company}"  quarter: "${meta.quarter}"`)
+
 
   // Step 2: format and organize with Gemini 3.5 Flash
   console.log('[format] formatting with Gemini 3.5 Flash...')
