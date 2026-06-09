@@ -17,6 +17,9 @@ bin/
 # debug
 npm-debug.log*
 
+# large test-fixture source PDFs (keep the extracted .txt the harness reads)
+scripts/fixtures/*.pdf
+
 # claude — ignore local settings but keep shared project skills
 .claude/*
 !.claude/skills/

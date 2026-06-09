@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getRequestUserId } from '@/lib/auth'
 import { isValidVideoUrl, extractVideoId } from '@/lib/utils'
+
+async function isAdminUser(userId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).single()
+  return data?.role === 'admin'
+}
 import {
   getVideoInfo,
   downloadAudio,
@@ -29,7 +34,8 @@ export async function POST(req: NextRequest) {
   const userId = await getRequestUserId(req)
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { url } = await req.json()
+  const body = await req.json()
+  const { url, force } = body
 
   if (!isValidVideoUrl(url)) {
     return NextResponse.json({ error: 'קישור YouTube או Vimeo לא תקין' }, { status: 400 })
@@ -52,6 +58,30 @@ export async function POST(req: NextRequest) {
   if (selectErr) {
     console.error('[POST] select failed:', selectErr)
     return NextResponse.json({ error: `Supabase select failed: ${selectErr.message}` }, { status: 500 })
+  }
+
+  // Admin force re-transcribe — inserts a NEW row (suffix _r<timestamp>) so the
+  // original is preserved for side-by-side comparison in the dashboard.
+  if (existing && force) {
+    const admin = await isAdminUser(userId)
+    if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const retryId = `${videoId}_r${Date.now().toString(36)}`
+    console.log(`[POST] admin force re-transcribe → new id=${retryId}`)
+    const { error: insertErr } = await supabaseAdmin.from('transcripts').insert({
+      id: retryId,
+      youtube_url: url,
+      status: 'processing',
+      processing_step: 'downloading',
+      user_id: userId,
+    })
+    if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
+    setImmediate(() => {
+      runPipeline(retryId, url).catch(async (err: Error) => {
+        console.error('[pipeline] FAILED:', err.message)
+        await supabaseAdmin.from('transcripts').update({ status: 'failed', error_message: err.message }).eq('id', retryId)
+      })
+    })
+    return NextResponse.json({ id: retryId })
   }
 
   if (existing) {

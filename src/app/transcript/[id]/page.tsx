@@ -13,7 +13,7 @@ interface Props {
 export default async function TranscriptPage({ params }: Props) {
   const { data, error } = await supabaseAdmin
     .from('transcripts')
-    .select('formatted_data, status, user_id')
+    .select('formatted_data, status, user_id, youtube_url')
     .eq('id', params.id)
     .single()
 
@@ -22,6 +22,7 @@ export default async function TranscriptPage({ params }: Props) {
   }
 
   const transcript = data.formatted_data as Transcript
+  const youtubeUrl = (data.youtube_url as string | null) ?? ''
 
   // Determine if the current user may edit (owner or admin)
   const { userId, userName, isAdmin } = await getCurrentUser()
@@ -44,7 +45,7 @@ export default async function TranscriptPage({ params }: Props) {
         </Link>
       </div>
 
-      <TranscriptEditor transcript={transcript} id={params.id} canEdit={canEdit} isAdmin={isAdmin} />
+      <TranscriptEditor transcript={transcript} id={params.id} canEdit={canEdit} isAdmin={isAdmin} youtubeUrl={youtubeUrl} />
     </div>
   )
 }

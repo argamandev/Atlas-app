@@ -2,7 +2,7 @@
 import fs from 'fs'
 import path from 'path'
 import OpenAI from 'openai'
-import { correctTranscript, generateEntities, type Profile, type GptChunkFn } from '../src/lib/correction'
+import { correctTranscript, generateEntities, generateEntitiesFromReport, type Profile, type GptChunkFn } from '../src/lib/correction'
 import { score, tokenize, lcsGoldMatched } from './lib/measure-core'
 
 const ROOT = process.cwd()
@@ -12,14 +12,15 @@ function env(k: string): string {
   return m ? m[1].trim().replace(/^["']|["']$/g, '') : ''
 }
 const openai = new OpenAI({ apiKey: env('OPENAI_API_KEY') })
+const MODEL = process.env.EXP_MODEL || 'gpt-5.5'
+const isGpt5 = /^(gpt-5|o\d)/.test(MODEL)   // newer models: max_completion_tokens, no temperature
 const gptChunk: GptChunkFn = (prompt) =>
   openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: MODEL,
     messages: [{ role: 'user', content: prompt }],
     response_format: { type: 'json_object' },
-    max_tokens: 2000,
-    temperature: 0,
-  }).then(r => r.choices[0].message.content ?? '{}')
+    ...(isGpt5 ? { max_completion_tokens: 8000 } : { max_tokens: 2000, temperature: 0 }),
+  } as Parameters<typeof openai.chat.completions.create>[0]).then((r: { choices: { message: { content?: string | null } }[] }) => r.choices[0].message.content ?? '{}')
 
 // Raw IVRIT plain text out of the captured RunPod response.
 function rawFromJson(): string {
@@ -52,18 +53,24 @@ const main = async () => {
     console.log('  flags: [' + flagList.map(f => f.text).join(' | ') + ']')
   }
 
-  console.log('Stage 1: generating auto-entities (V2)…')
+  console.log(`MODEL = ${MODEL}`)
+  console.log('Stage 1a: auto-entities from transcript (GPT memory)…')
   const autoEntities = await generateEntities(raw, PROFILE, gptChunk)
-  console.log('AUTO-ENTITIES:', JSON.stringify(autoEntities))
+  console.log('AUTO (memory):', JSON.stringify(autoEntities))
   fs.writeFileSync(path.join(out, 'auto-entities.json'), JSON.stringify(autoEntities, null, 2))
+
+  console.log('Stage 1b: entities from the REPORT…')
+  const reportText = fs.readFileSync(path.join(ROOT, 'scripts/fixtures/ampa-q1-2026.report.txt'), 'utf8')
+  const reportEntities = await generateEntitiesFromReport(reportText, PROFILE, gptChunk)
+  console.log('REPORT entities:', JSON.stringify(reportEntities))
+  fs.writeFileSync(path.join(out, 'report-entities.json'), JSON.stringify(reportEntities, null, 2))
 
   show('RAW baseline', raw, [], [])
 
   const conds: Array<[string, string[], number, number]> = [
-    ['400w / no-list (shipped)', [], 400, 0],
-    ['400w / AUTO entities (V2)', autoEntities, 400, 0],
-    ['400w / curated (ceiling)', AMPA_ENTITIES, 400, 0],
-    ['200w / AUTO entities', autoEntities, 200, 30],
+    [`${MODEL} / auto (memory)`, autoEntities, 400, 0],
+    [`${MODEL} / REPORT`, reportEntities, 400, 0],
+    [`${MODEL} / curated (ceiling)`, AMPA_ENTITIES, 400, 0],
   ]
   for (const [label, ents, ws, ov] of conds) {
     console.log(`\nRunning: ${label} …`)

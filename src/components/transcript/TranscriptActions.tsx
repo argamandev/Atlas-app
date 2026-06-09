@@ -6,6 +6,9 @@ import type { Transcript } from '@/lib/types'
 
 interface TranscriptActionsProps {
   transcript: Transcript
+  isAdmin?: boolean
+  transcriptId?: string
+  youtubeUrl?: string
 }
 
 function buildPlainText(transcript: Transcript): string {
@@ -34,8 +37,28 @@ function buildPlainText(transcript: Transcript): string {
   return lines.join('\n')
 }
 
-export function TranscriptActions({ transcript }: TranscriptActionsProps) {
+export function TranscriptActions({ transcript, isAdmin, transcriptId, youtubeUrl }: TranscriptActionsProps) {
   const [copied, setCopied] = useState(false)
+  const [retranscribing, setRetranscribing] = useState(false)
+
+  async function handleRetranscribe() {
+    if (!youtubeUrl) return
+    if (!confirm('תמלל מחדש? יווצר תמלול חדש — הקיים יישמר.')) return
+    setRetranscribing(true)
+    try {
+      const res = await fetch('/api/transcripts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: youtubeUrl, force: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'שגיאה')
+      window.location.href = `/processing/${data.id}`
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'שגיאה')
+      setRetranscribing(false)
+    }
+  }
 
   function handleCopy() {
     const text = buildPlainText(transcript)
@@ -65,6 +88,20 @@ export function TranscriptActions({ transcript }: TranscriptActionsProps) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
+      {isAdmin && youtubeUrl && (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleRetranscribe}
+          disabled={retranscribing}
+          title="תמלל מחדש (אדמין בלבד)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {retranscribing ? 'מתמלל...' : 'תמלל מחדש'}
+        </Button>
+      )}
       <Button
         variant="secondary"
         size="sm"

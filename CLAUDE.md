@@ -35,9 +35,16 @@ The UI is **RTL Hebrew**. The audience is professional (funds, analysts), so qua
   `supabaseAdmin`, renders `TranscriptEditor` (inline edit of company/quarter/speakers/lines +
   highlights, saved via `PUT /api/transcripts/[id]`).
 - **Transcription internals** (`src/lib/transcription.ts`): `transcribeAudio`, `transcribeWithIvrit`
-  (uses `IVRIT_MODEL`, overridable via `RUNPOD_IVRIT_MODEL`), `formatWithGPT4o`, and the correction
-  system — `KNOWN_CORRECTIONS` (curated exact-phrase Hebrew fixes), `buildCorrectionMap` (GPT
-  proposes more), `isSafeCorrection` (guards against risky multi-word changes), `applyCorrections`.
+  (uses `IVRIT_MODEL`, overridable via `RUNPOD_IVRIT_MODEL`), `formatWithGPT4o` — which runs the
+  correction layer at Step 0, then speaker-tags the **raw** text and applies corrections per line
+  (decoupled, so corrections never shift speaker boundaries).
+- **Correction layer** (`src/lib/correction.ts`, gold-measured): `generateEntities` (knowledge-first
+  auto entity list, GPT-4o) → `correctTranscript` (per-chunk, **diff-only** — proposes
+  `{original,corrected?,kind,certainty,reason}`, never rewrites/summarizes). `routeItems` applies only
+  `confident` name/homophone fixes whose target is in the entity set (`applyConfident`'s entity guard —
+  the thing that stops over-reach); `uncertain` words + all numbers + incoherent phrases become
+  **yellow flags** (`attachFlags`), never auto-changed. `generateEntitiesFromReport` is an optional
+  report-grounded variant (tested; the report didn't beat memory — see PROGRESS).
 - **Types**: `src/lib/types.ts` — `Transcript` is the shape of `formatted_data`
   (`sections[].lines[].text` is the transcript body; `speakers[]`; admin diagnostics `engine`/`model`/
   `processingSecs`).
@@ -66,23 +73,29 @@ The UI is **RTL Hebrew**. The audience is professional (funds, analysts), so qua
 
 ## Transcript-quality gate (the workflow that matters)
 
-"Perfect transcripts" (Feature 1) is **not** done on code changes alone. It's validated by the
-**`/transcript-review`** skill: a batch run of real YouTube links through the live local product
-(`scripts/transcribe-batch.mjs`), followed by an audit of every line for Hebrew typos, proper-noun
-errors, speaker mislabeling, and bidi issues. The reviewer reports proposed `KNOWN_CORRECTIONS`
-additions; the main agent vets + applies them and re-runs until the report is clean. Only a clean
-report unlocks Feature 2. The batch script authenticates via a **Bearer token** (reviewer account in
-`REVIEWER_EMAIL`/`REVIEWER_PASSWORD`) against the same API the browser uses.
+Correction quality is **measured, not guessed**: `scripts/run-experiment.ts` + `scripts/lib/measure-core.ts`
+diff a candidate against a human **gold** (`scripts/fixtures/ampa-q1-2026.gold.txt`) over the saved IVRIT
+raw, reporting *fixed / introduced / remaining* token-errors. **The gate is 0 introduced** — a pass that
+corrupts a good word is rejected. Best baseline: אמפא 46→31 with GPT-4o auto-entities, 0 introduced. The
+**`/transcript-review`** skill is the live-product complement (batch real links via
+`scripts/transcribe-batch.mjs`, Bearer-token auth with `REVIEWER_EMAIL`/`REVIEWER_PASSWORD`, audit every
+line for typos/proper-nouns/speaker/bidi). Source-side IVRIT biasing is closed (initial_prompt/hotwords
+proven no-op — byte-identical output).
 
 ## Roadmap
 
-1. **Feature 1 — Perfect transcripts** (in progress). IVRIT confirmed as engine (admin badge);
-   corrections wired. Iterate via `/transcript-review`. Also lay the audio/timing foundation
-   (persist call audio + per-line `startSec`) needed by Feature 3.
+1. **Feature 1 — Perfect transcripts** ✅ *good-enough baseline (2026-06-09).* Locked the constrained,
+   gold-measured correction pipeline (GPT-4o auto-entities + diff-only + yellow flagging; אמפא 46→31, 0
+   introduced). **Not perfect — revisit later** (deliberate, agreed): per-company canonical entity DB +
+   cross-company learning loop (biggest lever); IVRIT per-word confidence + audio for the ambiguous
+   residual; a Claude pass with a Claude-tuned prompt (its flagging was excellent — see PROGRESS for the
+   Sonnet-4.6 experiment). Still owe the audio/timing foundation (per-line `startSec`) for Feature 3.
 2. **Feature 2 — Real PDF download**. Rename current export to "הדפסה"; add "הורד PDF" via
    server-side Playwright route `POST /api/transcripts/[id]/pdf` with a "נוצר על ידי תמלול." footer.
 3. **Feature 3 — Highlight actions / share**. Selection popover: סימון (mark), שיתוף כציטוט
    (WhatsApp/email/native share), לשמוע בהקלטה (sticky audio player seeking to a line's `startSec`).
+4. **Feature 4 — Live transcripts**. Stream a live call's transcript on-platform via the **recall.ai**
+   API; evaluate its Hebrew quality, fall back to the IVRIT pipeline (~5s latency) if weak.
 
 ## Reviewing code
 

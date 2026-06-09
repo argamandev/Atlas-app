@@ -220,6 +220,36 @@ ${sample}`
   }
 }
 
+/** STAGE 0 (report-grounded V2): extract canonical entity names from the company's official
+ *  quarterly report (authoritative written Hebrew — includes the niche names GPT's memory lacks). */
+export async function generateEntitiesFromReport(reportText: string, profile: Profile, gpt: GptChunkFn): Promise<string[]> {
+  const sample = reportText.slice(0, 55000)   // entity-dense first half; also fits a 30k TPM cap
+  const prompt = `הטקסט שלהלן הוא דוח רבעוני רשמי של החברה הציבורית "${profile.company}" (תחום: ${profile.business || 'לא ידוע'}).
+
+המטרה: רשימה ממוקדת של שמות שסביר שיוזכרו בעל-פה בשיחת משקיעים — חברת האם, חברות-בנות עיקריות, בניינים/פרויקטים מרכזיים, ומנהלים בכירים.
+
+חוקים (חשוב מאוד):
+- החזר את הצורה ה**מדוברת/המקובלת** של השם — כפי שאומרים אותו בשיחה — ולא את השם המשפטי המלא. הסר סיומות משפטיות: "בע"מ", "(חברה כלולה)", "בע\"מ", וכו'. דוגמאות: "אמצור בע"מ" → "בית אמצור"; "אמפא קפיטל בע"מ" → "אמפא קפיטל"; אם בניין ממותג כ-"ToHa" החזר "ToHa".
+- כלול רק ישויות **מרכזיות** המוזכרות בגוף הדוח (תיאור הפעילות/המגזרים/ההחזקות) — לא כל SPV או פרויקט נקודתי, לא רואי חשבון, לא נאמנים, לא יועצים.
+- בלי מילים גנריות, מונחים פיננסיים, מקומות גיאוגרפיים כלליים (תל אביב/חיפה), או מספרים.
+- הגבל ל-25 השמות החשובים ביותר.
+
+החזר JSON בלבד: {"entities":["שם מדובר 1","שם מדובר 2"]}
+
+הדוח:
+${sample}`
+  try {
+    const parsed = JSON.parse(await gpt(prompt)) as { entities?: unknown }
+    const ents = Array.isArray(parsed.entities)
+      ? parsed.entities.filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
+      : []
+    return Array.from(new Set(ents.map(e => e.trim())))
+  } catch (err) {
+    console.warn('[entities/report] generation failed:', (err as Error).message)
+    return []
+  }
+}
+
 /** Attach each flag to the first line whose text contains the flag's span. */
 export function attachFlags(lines: { text: string; flags?: Flag[] }[], flags: Flag[]): void {
   for (const flag of flags) {
