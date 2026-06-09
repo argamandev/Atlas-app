@@ -7,7 +7,6 @@ import * as os from 'os'
 import { getVideoInfo as ytGetInfo, downloadAudio as ytDownload } from './ytdlp'
 import { supabaseAdmin } from './supabase'
 import type { Transcript, CorrectionDiag } from './types'
-import { correctTranscript, generateEntities, attachFlags, type Profile } from './correction'
 
 ffmpeg.setFfmpegPath(ffmpegPath.path)
 
@@ -15,8 +14,6 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY
 const RUNPOD_IVRIT_ENDPOINT_ID = process.env.RUNPOD_IVRIT_ENDPOINT_ID
 
-// IVRIT model sent to the RunPod endpoint. Override via env to A/B test the
-// full-accuracy build (ivrit-ai/whisper-large-v3-ct2) vs the faster turbo build.
 const IVRIT_MODEL = process.env.RUNPOD_IVRIT_MODEL || 'ivrit-ai/whisper-large-v3-turbo-ct2'
 
 export interface TranscriptionResult {
@@ -47,27 +44,23 @@ async function runWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T,
   return results
 }
 
-const MAX_WHISPER_BYTES = 24 * 1024 * 1024 // 24 MB
+const MAX_WHISPER_BYTES = 24 * 1024 * 1024
 
 export async function getVideoInfo(url: string) {
   return withTimeout(ytGetInfo(url), 90 * 1000, 'yt-dlp metadata')
 }
 
 export async function downloadAudio(url: string): Promise<string> {
-  // yt-dlp outputs to the path we give it, but adds the extension itself
-  // We pass a path without extension and let yt-dlp add .mp3
   const base = path.join(os.tmpdir(), `inv_audio_${Date.now()}`)
   const finalPath = `${base}.mp3`
   await withTimeout(ytDownload(url, `${base}.%(ext)s`), 6 * 60 * 1000, 'yt-dlp download')
 
-  // yt-dlp may have named it slightly differently — find it
   const tmpDir = os.tmpdir()
   const prefix = path.basename(base)
   const files = fs.readdirSync(tmpDir).filter(f => f.startsWith(prefix))
   if (files.length === 0) throw new Error('Audio download produced no file')
 
   const actualPath = path.join(tmpDir, files[0])
-  // Rename to consistent .mp3 if needed
   if (actualPath !== finalPath) fs.renameSync(actualPath, finalPath)
   return finalPath
 }
@@ -160,7 +153,6 @@ async function transcribeWithIvrit(audioPath: string): Promise<string> {
     const { id: jobId } = (await runRes.json()) as { id: string }
     console.log(`[ivrit] job submitted: ${jobId}`)
 
-    // Poll every 5s, up to 30 minutes
     const maxWaitMs = 30 * 60 * 1000
     const start = Date.now()
     while (Date.now() - start < maxWaitMs) {
@@ -175,7 +167,6 @@ async function transcribeWithIvrit(audioPath: string): Promise<string> {
 
       if (status.status === 'COMPLETED') {
         console.log(`[ivrit] raw output: ${JSON.stringify(status.output).slice(0, 500)}`)
-        // output may be wrapped in an array: [{result:[[...]]}] or just {result:[[...]]}
         const outputData = Array.isArray(status.output) ? (status.output as unknown[])[0] : status.output
         const result = (outputData as { result?: unknown } | undefined)?.result
         let text = ''
@@ -184,7 +175,6 @@ async function transcribeWithIvrit(audioPath: string): Promise<string> {
         } else if (result && typeof result === 'object' && 'text' in result) {
           text = String(result.text).trim()
         } else if (Array.isArray(result)) {
-          // result may be [[seg1,seg2,...]] (nested) or [seg1,seg2,...] — flatten first
           const segments = (result as unknown[]).flat()
           text = segments.map((s) => (s as { text?: string }).text ?? '').join(' ').trim()
         }
@@ -217,8 +207,6 @@ async function whisperTranscribe(audioPath: string): Promise<string> {
 }
 
 export async function transcribeAudio(audioPath: string): Promise<TranscriptionResult> {
-  // Prefer IVRIT (Hebrew-specialized) when configured; fall back to Whisper on any error
-  // so a transient RunPod issue degrades gracefully instead of failing the whole job.
   if (RUNPOD_API_KEY && RUNPOD_IVRIT_ENDPOINT_ID) {
     try {
       console.log(`[transcribe] using IVRIT/RunPod (model: ${IVRIT_MODEL})`)
@@ -238,64 +226,7 @@ export async function transcribeAudio(audioPath: string): Promise<TranscriptionR
 interface Speaker { id: string; name: string; role: string; title: string; affiliation: string }
 interface Line { id: string; speakerId: string; timestamp: string; text: string }
 
-// Split raw text into chunks at sentence boundaries
-function splitIntoChunks(text: string, maxChars = 3000): string[] {
-  if (text.length <= maxChars) return [text]
-  const chunks: string[] = []
-  let remaining = text
-  while (remaining.length > 0) {
-    if (remaining.length <= maxChars) { chunks.push(remaining); break }
-    const slice = remaining.slice(0, maxChars)
-    const cutAt = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('? '), slice.lastIndexOf('! '))
-    const end = cutAt > maxChars * 0.5 ? cutAt + 2 : maxChars
-    chunks.push(remaining.slice(0, end).trim())
-    remaining = remaining.slice(end).trim()
-  }
-  return chunks
-}
-
-// Split a speaker's long turn into readable ~300-char sentence groups
-function splitIntoSentenceGroups(text: string, maxChars = 320): string[] {
-  if (text.length <= maxChars) return [text]
-  // Try sentence endings first
-  const sentences = text.match(/[^.!?,]+[.!?,]+\s*/g)
-  if (sentences) {
-    const groups: string[] = []
-    let current = ''
-    for (const s of sentences) {
-      if (current.length + s.length > maxChars && current.length > 0) {
-        groups.push(current.trim())
-        current = s
-      } else {
-        current += s
-      }
-    }
-    if (current.trim()) groups.push(current.trim())
-    if (groups.length > 0) return groups
-  }
-  // Fallback: split by word boundaries
-  const words = text.split(' ')
-  const groups: string[] = []
-  let current = ''
-  for (const w of words) {
-    if (current.length + w.length + 1 > maxChars && current.length > 0) {
-      groups.push(current.trim())
-      current = w
-    } else {
-      current += (current ? ' ' : '') + w
-    }
-  }
-  if (current.trim()) groups.push(current.trim())
-  return groups.length > 0 ? groups : [text]
-}
-
-// Strip [Name] tags to compare lengths for coverage check
-function stripSpeakerTags(text: string): string {
-  return text.replace(/\[[^\]]+\]/g, '').replace(/\s+/g, ' ').trim()
-}
-
-
-// Step 1: extract metadata from the opening of the transcript
+// Extract company/quarter/speakers from the transcript opening via GPT-4o
 async function extractMeta(
   opening: string,
   videoTitle: string,
@@ -347,95 +278,139 @@ ${opening}`,
   return JSON.parse(response.choices[0].message.content ?? '{}')
 }
 
-// Step 2: add [Speaker Name] tags + fix typos — plain text output, no JSON
-async function tagChunk(
-  chunkText: string,
-  speakers: Array<{ name: string; role: string }>,
-): Promise<string> {
-  const speakerList = speakers.map(s => `${s.name} (${s.role})`).join(', ')
+// Call Gemini 3.5 Flash with the company-aware formatting prompt (2 attempts)
+async function formatWithGeminiFlash(rawText: string, company: string, business: string): Promise<string> {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY
+  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not set')
+  const businessDesc = business ? `${business} company` : 'Israeli public company'
+  const prompt = `The text below is a raw IVRIT speech-to-text with no speaker labels. The speaker names are already in the text.
 
-  const response = await withTimeout(
-    openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a transcript editor for Hebrew investor calls. You follow instructions exactly.',
-        },
-        {
-          role: 'user',
-          content: `You will receive a chunk of a Hebrew investor call transcript. Spelling has already been corrected.
+your mission is to understand the context of the call, organize it beautifully with speaker names, paragraphs of each speaker and fix specific typos or wrong words based on the context you understand.
 
-Known speakers: ${speakerList}
+This is an investors call transcript -of a company called "${company}" which is an Israeli ${businessDesc}. It's very important you dont "guess" the fix to a typo and you don't change the number of words in the raw transcript.
 
-Your task — do EXACTLY these two things and nothing else:
-1. Insert [Speaker Name] at the start of each speaker's turn, where Speaker Name is:
-   - The exact name from the Known Speakers list if you can identify the speaker
-   - [מנחה] if they are the moderator or host asking questions
-   - [אנליסט] if they appear to be an external analyst from an investment firm
-   Do NOT write the literal text "[Speaker Full Name]".
-2. Insert the special marker [Q&A_START] on its own line exactly once — at the moment the call transitions from the management presentation to the Q&A section. If this chunk does not contain the transition, do not add this marker.
+Don't rephrase and dont summorize!
 
-STRICT RULES:
-- Keep EVERY word exactly as written. Do NOT change, fix, or remove any word for any reason.
-- Do NOT rephrase, correct spelling, or add words.
-- Return plain text only — no JSON, no markdown, no explanations.
+Just organize everything, fix specific words you are confident they are wrong based on the context!
 
-Transcript chunk:
-${chunkText}`,
-        },
-      ],
-      max_tokens: 4000,
-    }),
-    60 * 1000,
-    'tagChunk'
-  )
+${rawText}`
 
-  return response.choices[0].message.content ?? chunkText
+  let lastErr: Error | undefined
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await withTimeout(
+        fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { maxOutputTokens: 65536, temperature: 1 },
+            }),
+          }
+        ),
+        3 * 60 * 1000,
+        'Gemini format'
+      )
+      const json = await res.json() as {
+        candidates?: Array<{ content: { parts: Array<{ text?: string }> } }>
+        error?: unknown
+      }
+      if (!res.ok) throw new Error(`Gemini ${res.status}: ${JSON.stringify(json.error ?? json)}`)
+      const text = (json.candidates?.[0]?.content?.parts ?? []).map(p => p.text ?? '').join('')
+      if (!text) throw new Error('Gemini returned empty response')
+      console.log(`[format] Gemini output: ${text.length} chars`)
+      return text
+    } catch (err) {
+      lastErr = err as Error
+      if (attempt < 2) {
+        console.warn(`[format] Gemini attempt ${attempt} failed — retrying: ${lastErr.message}`)
+        await new Promise(r => setTimeout(r, 3000))
+      }
+    }
+  }
+  throw lastErr!
 }
 
-// Step 3: parse tagged plain text into structured lines
-function parseTaggedText(
+// Parse Gemini's markdown output (bold "**Name:**" or "## Name" headers) into structured lines
+function parseGeminiOutput(
   text: string,
-  speakers: Speaker[],
-): Array<{ speakerId: string; text: string; section: 'mgmt' | 'qa' }> {
-  const results: Array<{ speakerId: string; text: string; section: 'mgmt' | 'qa' }> = []
+  metaSpeakers: Array<{ name: string; role: string; title: string }>,
+): { mgmtLines: Line[]; qaLines: Line[]; speakers: Speaker[] } {
+  const registry: Record<string, Speaker> = {}
+  const speakers: Speaker[] = (metaSpeakers ?? []).map((s, i) => {
+    const sp: Speaker = { id: `sp${i + 1}`, name: s.name, role: s.role, title: s.title ?? s.name, affiliation: '' }
+    registry[s.name] = sp
+    return sp
+  })
+
+  function getSpeaker(displayName: string): Speaker {
+    if (registry[displayName]) return registry[displayName]
+    const tok = displayName.split(' ')[0]
+    const partial = speakers.find(s => s.name.startsWith(tok) || displayName.startsWith(s.name.split(' ')[0]))
+    if (partial) return partial
+    const id = `sp${speakers.length + 1}`
+    let role = 'analyst'
+    if (/מנכ/.test(displayName)) role = 'ceo'
+    else if (/כספ|cfo/i.test(displayName)) role = 'cfo'
+    else if (/שירן|מנח|מארח/.test(displayName)) role = 'moderator'
+    const sp: Speaker = { id, name: displayName, role, title: displayName, affiliation: '' }
+    registry[displayName] = sp
+    speakers.push(sp)
+    return sp
+  }
+
+  // Split on "## Name" or "**Name:**" speaker headers
+  const parts = text.split(/(?=^(?:#{2,3}\s|\*\*[^\n*]+\*\*:?\s*$))/m)
+
+  const mgmtLines: Line[] = []
+  const qaLines: Line[] = []
+  let lineCounter = 0
   let qaStarted = false
 
-  // Check if GPT-4o placed a [Q&A_START] marker anywhere
-  if (text.includes('[Q&A_START]')) {
-    // Split at the marker — everything after is Q&A
-    text = text // marker will be stripped in the split below
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (!trimmed) continue
+    const headerMatch = trimmed.match(/^(?:#{2,3}\s+\*{0,2}([^*\n#]+)\*{0,2}|\*\*([^*\n]+?)\*\*:?)/)
+    if (!headerMatch) continue
+    const speakerName = (headerMatch[1] ?? headerMatch[2])?.trim().replace(/:$/, '')
+    if (!speakerName) continue
+
+    const speaker = getSpeaker(speakerName)
+    const afterHeader = trimmed.slice(headerMatch[0].length)
+    const paragraphs = afterHeader
+      .replace(/\n---+\n/g, '\n\n')
+      .split(/\n\n+/)
+      .map(p => p.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim())
+      .filter(p => p && !/^\*{3}/.test(p) && !/^---/.test(p) && !/^#{1,3}/.test(p))
+
+    for (const para of paragraphs) {
+      lineCounter++
+      const line: Line = {
+        id: `L${String(lineCounter).padStart(4, '0')}`,
+        speakerId: speaker.id,
+        timestamp: '00:00:00',
+        text: para,
+      }
+      if (qaStarted) qaLines.push(line)
+      else mgmtLines.push(line)
+    }
   }
 
-  // Split on [Name] and [Q&A_START] markers
-  const parts = text.split(/\[([^\]]+)\]/)
-  // parts = [ignored-prefix, tag1, content1, tag2, content2, ...]
-  for (let i = 1; i < parts.length; i += 2) {
-    const tag = (parts[i] ?? '').trim()
-    const content = (parts[i + 1] ?? '').trim()
-
-    // Q&A_START is a control marker, not a speaker
-    if (tag === 'Q&A_START') {
-      qaStarted = true
-      continue
+  // Fallback Q&A section detection
+  if (qaLines.length === 0) {
+    const QA_PATTERNS = ['ונעבור כרגע לשאלות', 'נעבור לשאלות', 'נפתח לשאלות', 'נשמח לקבל שאלות', 'שאלות ותשובות']
+    const splitIdx = mgmtLines.findIndex(l => QA_PATTERNS.some(p => l.text.includes(p)))
+    if (splitIdx !== -1) {
+      console.log(`[format] Q&A fallback — splitting at line ${splitIdx + 1}`)
+      qaLines.push(...mgmtLines.splice(splitIdx))
+      ;[...mgmtLines, ...qaLines].forEach((l, i) => { l.id = `L${String(i + 1).padStart(4, '0')}` })
     }
-
-    const rawName = tag
-    if (!content) continue
-
-    // Match speaker — exact name, then first-name match, then create new
-    let speaker = speakers.find(s => s.name === rawName)
-    if (!speaker) speaker = speakers.find(s => rawName.startsWith(s.name.split(' ')[0]))
-    if (!speaker) {
-      speaker = { id: `sp${speakers.length + 1}`, name: rawName, role: 'unknown', title: rawName, affiliation: '' }
-      speakers.push(speaker)
-    }
-
-    results.push({ speakerId: speaker.id, text: content, section: qaStarted ? 'qa' : 'mgmt' })
   }
 
-  return results
+  console.log(`[format] parsed ${lineCounter} lines (mgmt: ${mgmtLines.length}, qa: ${qaLines.length})`)
+  return { mgmtLines, qaLines, speakers }
 }
 
 export async function formatWithGPT4o(
@@ -447,157 +422,18 @@ export async function formatWithGPT4o(
   const now = new Date().toISOString()
   const today = now.split('T')[0]
 
-  // Step 1: metadata FIRST — the raw opening already carries the correct company name.
+  // Step 1: extract company/quarter/speakers from the opening
   console.log('[format] extracting metadata...')
   const meta = await extractMeta(rawText.slice(0, 2500), videoTitle, today)
 
-  // Step 0: compute corrections — does NOT modify rawText. Speaker tagging must run on the RAW
-  // text: correcting first changes word lengths, which shifts the chunk boundaries the tagger
-  // splits on and degrades attribution. Corrections are applied to the line texts AFTER tagging.
-  let flags: { text: string; reason: string }[] = []
-  let corrections: CorrectionDiag[] = []
-  let appliedItems: { original: string; corrected?: string }[] = []
-  let autoEntities: string[] = []
-  try {
-    const profile: Profile = {
-      company: meta.company ?? '',
-      business: meta.business ?? '',
-      quarter: meta.quarter ?? '',
-      speakers: (meta.speakers ?? []).map(s => `${s.name} (${s.role})`).join(', '),
-    }
-    const gptChunk = (prompt: string) =>
-      withTimeout(
-        openai.chat.completions.create({
-          model: 'gpt-4o',
-          messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' },
-          max_tokens: 2000,
-          temperature: 0,
-        }),
-        90 * 1000,
-        'correction chunk',
-      ).then(r => r.choices[0].message.content ?? '{}')
+  // Step 2: format and organize with Gemini 3.5 Flash
+  console.log('[format] formatting with Gemini 3.5 Flash...')
+  const geminiOutput = await formatWithGeminiFlash(rawText, meta.company ?? '', meta.business ?? '')
 
-    // Stage 1 (V2): auto-build the company's canonical entity list from the whole transcript.
-    autoEntities = await generateEntities(rawText, profile, gptChunk)
-    console.log(`[format] auto-entities: ${autoEntities.length} (${autoEntities.slice(0, 8).join(', ')})`)
-    // Stage 2: correct, grounded by those entities.
-    const result = await correctTranscript(rawText, profile, autoEntities, gptChunk)
-    appliedItems = result.applied
-    flags = result.flags
-    corrections = result.applied.map(a => ({
-      original: a.original, corrected: a.corrected, kind: a.kind, certainty: a.certainty, reason: a.reason,
-    }))
-    console.log(`[format] correction: ${corrections.length} applied, ${flags.length} flagged`)
-  } catch (err) {
-    console.warn('[format] correction pass skipped:', (err as Error).message)
-  }
+  // Step 3: parse into structured sections
+  const { mgmtLines, qaLines, speakers } = parseGeminiOutput(geminiOutput, meta.speakers ?? [])
 
-  // Apply confident corrections to a single line's text (exact replacement), AFTER speaker tagging.
-  const applyCorrectionsToLine = (t: string): string => {
-    let r = t
-    for (const a of appliedItems) if (a.corrected) r = r.split(a.original).join(a.corrected)
-    return r
-  }
-
-  const speakers: Speaker[] = (meta.speakers ?? []).map((s, i) => ({
-    id: `sp${i + 1}`,
-    name: s.name,
-    role: s.role,
-    title: s.title ?? s.name,
-    affiliation: '',
-  }))
-
-  // Step 2: tag speakers on the RAW text (corrections are applied per-line afterward)
-  const chunks = splitIntoChunks(rawText, 3000)
-  console.log(`[format] ${chunks.length} chunks | ${rawText.length} chars total`)
-
-  const processedParts = await runWithConcurrency(chunks, 4, async (chunk, i) => {
-    console.log(`[format] chunk ${i + 1}/${chunks.length}`)
-    const tagged = await tagChunk(chunk, meta.speakers ?? [])
-
-    // Coverage check: stripped output should be ≥ 85% of input
-    const coverage = stripSpeakerTags(tagged).length / chunk.length
-    console.log(`[format]   chunk ${i + 1} coverage: ${Math.round(coverage * 100)}%`)
-
-    if (coverage < 0.85) {
-      console.warn(`[format]   LOW COVERAGE — falling back to raw text for chunk ${i + 1}`)
-      return chunk
-    }
-    return tagged
-  })
-
-  // Step 4: parse tagged text into speaker segments
-  const fullTagged = processedParts.join(' ')
-  const segments = parseTaggedText(fullTagged, speakers)
-
-  // Fallback: if no tags found at all, show raw text under first speaker
-  if (segments.length === 0) {
-    console.warn('[format] no speaker tags found — using raw text fallback')
-    const groups = splitIntoSentenceGroups(rawText)
-    const fallbackLines: Line[] = groups.map((t, i) => ({
-      id: `L${String(i + 1).padStart(4, '0')}`,
-      speakerId: speakers[0]?.id ?? 'sp1',
-      timestamp: '00:00:00',
-      text: t,
-    }))
-    fallbackLines.forEach(l => { l.text = applyCorrectionsToLine(l.text) })
-    attachFlags(fallbackLines, flags)
-    return buildTranscript(videoId, meta, today, now, speakers, fallbackLines, [], { ...opts, corrections, entities: autoEntities })
-  }
-
-  // Merge consecutive segments from the same speaker + section
-  const mergedSegments: typeof segments = []
-  for (const seg of segments) {
-    const prev = mergedSegments[mergedSegments.length - 1]
-    if (prev && prev.speakerId === seg.speakerId && prev.section === seg.section) {
-      prev.text = prev.text + ' ' + seg.text
-    } else {
-      mergedSegments.push({ ...seg })
-    }
-  }
-
-  // Step 4: split long turns into sentence groups and build final lines
-  const mgmtLines: Line[] = []
-  const qaLines: Line[] = []
-  let lineCounter = 0
-
-  for (const seg of mergedSegments) {
-    const groups = splitIntoSentenceGroups(seg.text, 600)
-    for (const groupText of groups) {
-      lineCounter++
-      const line: Line = {
-        id: `L${String(lineCounter).padStart(4, '0')}`,
-        speakerId: seg.speakerId,
-        timestamp: '00:00:00',
-        text: groupText,
-      }
-      if (seg.section === 'qa') qaLines.push(line)
-      else mgmtLines.push(line)
-    }
-  }
-
-  // Fallback Q&A detection: if GPT-4o never placed [Q&A_START],
-  // scan lines for known transition phrases and split there
-  if (qaLines.length === 0) {
-    const QA_PATTERNS = ['ונעבור כרגע לשאלות', 'נעבור לשאלות', 'נפתח לשאלות', 'נשמח לקבל שאלות']
-    const splitIdx = mgmtLines.findIndex(l => QA_PATTERNS.some(p => l.text.includes(p)))
-    if (splitIdx !== -1) {
-      console.log(`[format] Q&A fallback detection — splitting at line ${splitIdx + 1}`)
-      qaLines.push(...mgmtLines.splice(splitIdx))
-      // Re-number lines for consistency
-      ;[...mgmtLines, ...qaLines].forEach((l, i) => { l.id = `L${String(i + 1).padStart(4, '0')}` })
-    }
-  }
-
-  const totalOutputChars = [...mgmtLines, ...qaLines].reduce((s, l) => s + l.text.length, 0)
-  console.log(`[format] done — ${lineCounter} lines (mgmt: ${mgmtLines.length}, qa: ${qaLines.length}) | coverage: ${Math.round(totalOutputChars / rawText.length * 100)}%`)
-
-  mgmtLines.forEach(l => { l.text = applyCorrectionsToLine(l.text) })
-  qaLines.forEach(l => { l.text = applyCorrectionsToLine(l.text) })
-  attachFlags(mgmtLines, flags)
-  attachFlags(qaLines, flags)
-  return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, { ...opts, corrections, entities: autoEntities })
+  return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, opts)
 }
 
 function buildTranscript(

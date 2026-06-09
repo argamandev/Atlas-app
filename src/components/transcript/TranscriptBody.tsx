@@ -166,28 +166,31 @@ export function TranscriptBody({
       {transcript.sections.map((section) => (
         <div key={section.id} id={section.id}>
           {/* Section heading */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs font-medium text-muted tracking-widest uppercase px-2">
+          <div className="mb-6 pb-3 border-b border-border">
+            <h3 className="text-sm font-semibold text-text-primary" dir="rtl">
               {section.title}
-            </span>
-            <div className="h-px flex-1 bg-border" />
+            </h3>
           </div>
 
-          {/* Lines */}
-          <div className="space-y-1">
-            {section.lines.map((line) => {
+          {/* Lines — speaker label shown only when speaker changes */}
+          <div className="space-y-0">
+            {section.lines.map((line, lineIdx) => {
               const speaker = speakerMap[line.speakerId]
               const style = (speaker ? roleStyles[speaker.role] : null) ?? roleStyles.moderator
+              const prevLine = section.lines[lineIdx - 1]
+              const speakerChanged = lineIdx === 0 || line.speakerId !== prevLine?.speakerId
 
               return (
                 <div
                   key={line.id}
-                  className="group py-4 px-4 rounded -mx-4 transcript-line hover:bg-white/[0.015] transition-colors"
+                  className={cn(
+                    'transcript-line',
+                    speakerChanged && lineIdx > 0 ? 'mt-8' : 'mt-0',
+                  )}
                 >
-                  <div className="flex-1 min-w-0">
-                    {/* Speaker label */}
-                    <div className="flex items-center gap-2 mb-2">
+                  {/* Speaker label — only on first paragraph of a speaking block */}
+                  {speakerChanged && (
+                    <div className="flex items-center gap-2 mb-3">
                       <span className={cn('w-0.5 h-4 rounded-full flex-shrink-0', style.bar)} />
                       <span className={cn('text-xs', style.name)}>
                         {speaker?.name ?? line.speakerId}
@@ -199,32 +202,32 @@ export function TranscriptBody({
                         <span className="text-2xs text-muted">| {speaker.affiliation}</span>
                       )}
                     </div>
+                  )}
 
-                    {/* Text */}
-                    {editing ? (
-                      <textarea
-                        value={line.text}
-                        onChange={(e) => onLineChange?.(section.id, line.id, e.target.value)}
-                        rows={Math.max(2, Math.ceil(line.text.length / 90))}
-                        className="w-full bg-bg border border-border rounded px-3 py-2 text-sm text-text-primary leading-7 focus:outline-none focus:border-accent/50 resize-y"
-                        dir="rtl"
-                      />
-                    ) : (
-                      <p
-                        className="text-sm text-text-secondary leading-7"
-                        onMouseUp={(e) => handleMouseUp(section.id, line.id, e.currentTarget)}
-                      >
-                        {renderText(
-                          line.text,
-                          line.highlights,
-                          line.flags,
-                          onRemoveHighlight
-                            ? (i) => onRemoveHighlight(section.id, line.id, i)
-                            : undefined,
-                        )}
-                      </p>
-                    )}
-                  </div>
+                  {/* Text */}
+                  {editing ? (
+                    <textarea
+                      value={line.text}
+                      onChange={(e) => onLineChange?.(section.id, line.id, e.target.value)}
+                      rows={Math.max(2, Math.ceil(line.text.length / 90))}
+                      className="w-full bg-bg border border-border rounded px-3 py-2 text-sm text-text-primary leading-7 focus:outline-none focus:border-accent/50 resize-y mb-2"
+                      dir="rtl"
+                    />
+                  ) : (
+                    <p
+                      className="text-sm text-text-secondary leading-7 mb-1.5 px-4 -mx-4 rounded hover:bg-white/[0.015] transition-colors cursor-default"
+                      onMouseUp={(e) => handleMouseUp(section.id, line.id, e.currentTarget)}
+                    >
+                      {renderText(
+                        line.text,
+                        line.highlights,
+                        line.flags,
+                        onRemoveHighlight
+                          ? (i) => onRemoveHighlight(section.id, line.id, i)
+                          : undefined,
+                      )}
+                    </p>
+                  )}
                 </div>
               )
             })}

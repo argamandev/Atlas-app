@@ -94,8 +94,17 @@ proven no-op — byte-identical output).
    server-side Playwright route `POST /api/transcripts/[id]/pdf` with a "נוצר על ידי תמלול." footer.
 3. **Feature 3 — Highlight actions / share**. Selection popover: סימון (mark), שיתוף כציטוט
    (WhatsApp/email/native share), לשמוע בהקלטה (sticky audio player seeking to a line's `startSec`).
-4. **Feature 4 — Live transcripts**. Stream a live call's transcript on-platform via the **recall.ai**
-   API; evaluate its Hebrew quality, fall back to the IVRIT pipeline (~5s latency) if weak.
+4. **Feature 4 — Live transcripts**. Stream a live Zoom call's transcript on-platform via
+   **recall.ai**. Quality spike done (2026-06-09): bot config `recallai_streaming` /
+   `prioritize_accuracy` / `language_code: auto` → excellent Hebrew quality confirmed, per-word
+   timestamps (relative float seconds + absolute ISO) in hand. See `scripts/recall-spike.mjs`
+   (spike CLI) and `scripts/fixtures/recall-spike.transcript.json` (live test output).
+   Recall transcript schema: `[{ participant: { name, is_host }, words: [{ text,
+   start_timestamp: { relative, absolute }, end_timestamp }], language_code }]`.
+   **Next step:** `POST /api/live` (create Recall bot + Supabase row) + `/live/[botId]` page
+   (RTL Hebrew, speaker labels, real-time updates via Recall webhook → Supabase → SSE/Realtime).
+   Note: `prioritize_accuracy` is 3–10 min post-call — evaluate `low_latency` for in-call Hebrew
+   if acceptable quality, or poll Recall's partial transcript endpoint during the call.
 
 ## Reviewing code
 

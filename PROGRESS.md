@@ -5,6 +5,64 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-09 — Feature 4 / Live Zoom Transcription — Recall.ai quality spike
+
+**Goal:** Validate Recall.ai as the live-transcription engine before building the UI — confirm
+Hebrew quality, per-word timing, and the participant/data schema.
+
+**What was built:**
+- `scripts/recall-spike.mjs` — a Node.js spike script (no Railway/webhook needed). Three commands:
+  `start "<zoom_url>"` (creates bot, saves id to `.recall-spike-bot.json`), `status`, `fetch`
+  (polls until transcript ready, writes `fixtures/recall-spike.{transcript.json,.he.txt}`).
+- Bot config: `recallai_streaming` provider, `prioritize_accuracy` mode (the only Recall mode that
+  supports Hebrew — `low_latency` is English-only), `language_code: "auto"` (handles Hebrew+English
+  code-switching in financial terms).
+- Bot name: "Timlul". Reads `RECALL_API_KEY` (and optional `RECALL_REGION`, default `us-west-2`) from `.env.local`.
+
+**Live test result (bot `f46700bf`, 2026-06-09T15:43Z):**
+- Hebrew quality: **excellent** — clean recognition, natural financial vocabulary preserved.
+- Transcript JSON schema: `[{ participant: { name, id, is_host, platform, email }, words: [{ text,
+  start_timestamp: { relative (float seconds from call start), absolute (ISO) }, end_timestamp }], language_code }]`
+- Per-word timestamps available — both relative and absolute ISO. This is also the audio-sync
+  foundation for Feature 3's `startSec` line timestamps.
+- Participant identified by Zoom display name. `is_host` flag available.
+- `prioritize_accuracy` transcript is ready 3–10 min after call ends (not real-time streaming).
+
+**Status:** Spike complete. Quality proven. **Next: build the live-transcript page in the website.**
+Target UX: user sends a Zoom link → bot joins → `/live/[botId]` page shows transcript building
+in real-time with RTL Hebrew, speaker labels, and audio sync. Need: Recall webhook → Supabase →
+SSE/Realtime → the page. Or: poll Recall API directly from the page during the call.
+
+---
+
+## 2026-06-09 — Manual model comparison experiment (in progress)
+
+**Goal:** Find out which model produces the best Hebrew investor-call transcript from raw IVRIT output,
+so we can decide how to improve the pipeline.
+
+**Protocol:**
+1. User sends a YouTube link → Claude extracts the raw IVRIT transcript text and pastes it back.
+2. User takes that raw text and submits it with a free-form "fix + organize" prompt to three model
+   chat UIs simultaneously: **ChatGPT (GPT-5.5)**, **Claude Sonnet 4.6**, **Gemini Flash 3.1**.
+3. User listens to the full audio recording and manually produces a **perfect gold transcript**.
+4. Compare all three model outputs to the gold → count errors fixed / introduced / remaining.
+5. Brainstorm findings: which model/approach wins, what the gap tells us about the pipeline.
+
+**Why:** The manual Gemini test (2026-06-09) on the אמפא Q1 2026 transcript showed Gemini's
+free-form approach fixed ~8 critical domain errors that our constrained GPT-4o pipeline missed
+(היוון, שיעור התפוסה, זרוע הפיננסים, האגירה, TLV, אמפא ישראל). But Gemini hallucinated the
+CEO name (רדי → לוי). This test will give us a clean multi-model comparison on a fresh transcript
+with a new gold standard.
+
+**Status:** Waiting for user to send a YouTube link. Claude will run the IVRIT pipeline and return
+the raw text in-chat. No API calls needed from the user side — pure manual chat-UI test.
+
+**Expected learning:** Which model's context understanding is strongest for Hebrew IR calls;
+whether the hallucination risk is a Gemini-only issue or universal; what prompt engineering
+(entity list, stricter instructions) closes the gap to perfect.
+
+---
+
 ## 2026-06-09 — Locked the correction pipeline (Feature 1 baseline) + Claude experiment
 
 - **Locked the constrained, gold-measured correction layer** (`src/lib/correction.ts`) as the product's
