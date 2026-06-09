@@ -403,7 +403,7 @@ function parseGeminiOutput(
   return { mgmtLines, qaLines, speakers }
 }
 
-export async function formatWithGPT4o(
+export async function formatTranscript(
   rawText: string,
   videoId: string,
   videoTitle: string,

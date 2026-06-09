@@ -11,7 +11,7 @@ import {
   getVideoInfo,
   downloadAudio,
   transcribeAudio,
-  formatWithGPT4o,
+  formatTranscript,
   formatDuration,
 } from '@/lib/transcription'
 import * as fs from 'fs'
@@ -195,7 +195,7 @@ async function runPipeline(videoId: string, url: string) {
       .select()
     if (upd3err) console.error(`[pipeline:${videoId}] update3 error:`, upd3err)
 
-    const formatted = await formatWithGPT4o(rawText, videoId, info.title, { engine, model })
+    const formatted = await formatTranscript(rawText, videoId, info.title, { engine, model })
     formatted.processingSecs = Math.round((Date.now() - t0) / 1000)
     console.log(`[pipeline:${videoId}] formatting OK (${elapsed()})`)
 
