@@ -2,7 +2,7 @@
 import fs from 'fs'
 import path from 'path'
 import OpenAI from 'openai'
-import { correctTranscript, type Profile, type GptChunkFn } from '../src/lib/correction'
+import { correctTranscript, generateEntities, type Profile, type GptChunkFn } from '../src/lib/correction'
 import { score, tokenize, lcsGoldMatched } from './lib/measure-core'
 
 const ROOT = process.cwd()
@@ -39,33 +39,39 @@ const main = async () => {
   const raw = rawFromJson()
   const out = path.join(ROOT, 'scripts', 'out'); fs.mkdirSync(out, { recursive: true })
 
-  console.log('Running Run A (no list)…')
-  const a = await correctTranscript(raw, PROFILE, [], gptChunk)
-  fs.writeFileSync(path.join(out, 'runA.txt'), a.text)
-
-  console.log('Running Run B (+ hand-built list)…')
-  const b = await correctTranscript(raw, PROFILE, AMPA_ENTITIES, gptChunk)
-  fs.writeFileSync(path.join(out, 'runB.txt'), b.text)
-
-  fs.writeFileSync(path.join(out, 'runA.corrections.json'), JSON.stringify(a.applied, null, 2))
-  fs.writeFileSync(path.join(out, 'runB.corrections.json'), JSON.stringify(b.applied, null, 2))
-
   const gToks = tokenize(gold)
   const gbRaw = lcsGoldMatched(tokenize(raw), gToks)
 
   const show = (label: string, candidate: string, applied: { original: string; corrected?: string }[], flagList: { text: string }[]) => {
     const s = score(raw, candidate, gold)
-    console.log(`\n=== ${label} ===`)
-    console.log(`applied: ${applied.length}  flagged: ${flagList.length}  [${flagList.map(f => f.text).join(' | ')}]`)
-    console.log(`errors: baseline ${s.baselineErrors} -> candidate ${s.candidateErrors}  | FIXED ${s.fixed}  INTRODUCED ${s.introduced} ${s.introduced === 0 ? '✅' : '❌'}  remaining ${s.remaining}`)
     const gc = lcsGoldMatched(tokenize(candidate), gToks)
     const introduced = gToks.map((t, i) => (gbRaw[i] && !gc[i]) ? `${gToks[i - 1] ?? ''} [${t}] ${gToks[i + 1] ?? ''}`.trim() : null).filter(Boolean)
-    if (introduced.length) { console.log('  INTRODUCED (broke a correct gold word):'); introduced.forEach(m => console.log('    ' + m)) }
-    console.log('  applied corrections:'); applied.forEach(c => console.log(`    "${c.original}" -> "${c.corrected}"`))
+    console.log(`\n=== ${label} ===`)
+    console.log(`applied ${applied.length} | flagged ${flagList.length} | FIXED ${s.fixed}  INTRODUCED ${s.introduced} ${s.introduced === 0 ? '✅' : '❌'}  remaining ${s.remaining}`)
+    if (introduced.length) console.log('  INTRODUCED: ' + introduced.join(' ; '))
+    console.log('  flags: [' + flagList.map(f => f.text).join(' | ') + ']')
   }
+
+  console.log('Stage 1: generating auto-entities (V2)…')
+  const autoEntities = await generateEntities(raw, PROFILE, gptChunk)
+  console.log('AUTO-ENTITIES:', JSON.stringify(autoEntities))
+  fs.writeFileSync(path.join(out, 'auto-entities.json'), JSON.stringify(autoEntities, null, 2))
+
   show('RAW baseline', raw, [], [])
-  show('Run A (no list, = shipped)', a.text, a.applied, a.flags)
-  show('Run B (+ list, measurement)', b.text, b.applied, b.flags)
-  console.log('\nOutputs: scripts/out/runA.txt, runB.txt, *.corrections.json')
+
+  const conds: Array<[string, string[], number, number]> = [
+    ['400w / no-list (shipped)', [], 400, 0],
+    ['400w / AUTO entities (V2)', autoEntities, 400, 0],
+    ['400w / curated (ceiling)', AMPA_ENTITIES, 400, 0],
+    ['200w / AUTO entities', autoEntities, 200, 30],
+  ]
+  for (const [label, ents, ws, ov] of conds) {
+    console.log(`\nRunning: ${label} …`)
+    const r = await correctTranscript(raw, PROFILE, ents, gptChunk, ws, ov)
+    show(label, r.text, r.applied, r.flags)
+    fs.writeFileSync(path.join(out, 'run_' + label.replace(/[^a-zA-Z0-9]/g, '_') + '.txt'), r.text)
+    fs.writeFileSync(path.join(out, 'run_' + label.replace(/[^a-zA-Z0-9]/g, '_') + '.json'), JSON.stringify({ applied: r.applied, flags: r.flags }, null, 2))
+  }
+  console.log('\nOutputs in scripts/out/')
 }
 main().catch(e => { console.error(e); process.exit(1) })

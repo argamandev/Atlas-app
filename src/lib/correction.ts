@@ -33,11 +33,30 @@ const KINDS: CorrectionKind[] = ['name', 'homophone', 'number']
 
 const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length
 
-export function chunkByWords(text: string, wordsPerChunk = 400): string[] {
+/** Run async `fn` over items with bounded concurrency (keeps order). */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+  async function worker() {
+    while (next < items.length) {
+      const i = next++
+      results[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
+/** Split into word windows. `overlap` repeats words across boundaries so a word near a
+ *  segment edge still has neighbours for context (duplicate proposals are de-duped later). */
+export function chunkByWords(text: string, wordsPerChunk = 400, overlap = 0): string[] {
   const words = text.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return []
+  const step = Math.max(1, wordsPerChunk - overlap)
   const chunks: string[] = []
-  for (let i = 0; i < words.length; i += wordsPerChunk) {
+  for (let i = 0; i < words.length; i += step) {
     chunks.push(words.slice(i, i + wordsPerChunk).join(' '))
+    if (i + wordsPerChunk >= words.length) break
   }
   return chunks
 }
@@ -152,21 +171,53 @@ export async function correctTranscript(
   entities: string[],
   gpt: GptChunkFn,
   wordsPerChunk = 400,
+  overlap = 0,
 ): Promise<CorrectionResult> {
-  const chunks = chunkByWords(rawText, wordsPerChunk)
-  const all: CorrectionItem[] = []
-  for (const chunk of chunks) {
+  const chunks = chunkByWords(rawText, wordsPerChunk, overlap)
+  const perChunk = await mapLimit(chunks, 6, async (chunk) => {
     try {
-      const raw = await gpt(buildCorrectionPrompt(profile, entities, chunk))
-      all.push(...parseCorrectionItems(raw))
+      return parseCorrectionItems(await gpt(buildCorrectionPrompt(profile, entities, chunk)))
     } catch (err) {
       console.warn('[correction] chunk skipped:', (err as Error).message)
+      return [] as CorrectionItem[]
     }
-  }
+  })
+  const all = perChunk.flat()
   // De-dupe identical originals (keep the first), then apply to the full text.
   const seen = new Set<string>()
   const deduped = all.filter(i => (seen.has(i.original) ? false : (seen.add(i.original), true)))
   return routeItems(rawText, deduped, entities)
+}
+
+/** STAGE 1 (V2): read the whole transcript + use world knowledge of the company to produce the
+ *  canonical correct spellings of its entities (subsidiaries, buildings, people, products).
+ *  Conservative: omit a name when unsure of its correct spelling rather than invent one. */
+export async function generateEntities(rawText: string, profile: Profile, gpt: GptChunkFn): Promise<string[]> {
+  const sample = rawText.split(/\s+/).slice(0, 4000).join(' ')
+  const prompt = `אתה מומחה לחברה הציבורית הישראלית "${profile.company}" (תחום: ${profile.business || 'לא ידוע'}).
+לפניך תמלול גולמי (מ-ASR, עם שגיאות תעתיק) של שיחת משקיעים שלה — הוא נועד רק כדי לדעת אילו ישויות מוזכרות.
+
+המשימה: החזר את האיות הרשמי והנכון של הישויות הקשורות לחברה — חברות-בנות וחברות קשורות, מותגים, נכסים/בניינים/פרויקטים ידועים, מנהלים בכירים, ומוצרים.
+
+חוקים קריטיים:
+- את **האיות** קח מהידע שלך (training), לא מהתמלול. התמלול שגוי — אל תעתיק ממנו שמות. אם בתמלול כתוב "תוהר" ואתה יודע שהבניין הוא "ToHa" — החזר "ToHa"; "מיטאום"->"מיטאון"; "אמפתי"->"אמפא".
+- כלול שם רק אם אתה מכיר בוודאות את האיות הרשמי הנכון שלו. אם אינך בטוח — השמט אותו (עדיף להחסיר מאשר להחזיר איות שגוי).
+- אל תכלול מילים גנריות, מונחים פיננסיים, מקומות גיאוגרפיים כלליים (תל אביב, חיפה), מספרים או ראשי תיבות.
+
+החזר JSON בלבד: {"entities":["שם רשמי נכון 1","שם רשמי נכון 2"]}
+
+התמלול (להקשר בלבד):
+${sample}`
+  try {
+    const parsed = JSON.parse(await gpt(prompt)) as { entities?: unknown }
+    const ents = Array.isArray(parsed.entities)
+      ? parsed.entities.filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
+      : []
+    return Array.from(new Set(ents.map(e => e.trim())))
+  } catch (err) {
+    console.warn('[entities] generation failed:', (err as Error).message)
+    return []
+  }
 }
 
 /** Attach each flag to the first line whose text contains the flag's span. */

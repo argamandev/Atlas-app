@@ -68,7 +68,25 @@ test('a name correction may not reduce word count (never drops "ראול")', () 
   assert.ok(r.flags.some(f => f.text === 'ראול סרוגו'), 'it is flagged instead')
 })
 
-import { correctTranscript, buildCorrectionPrompt, attachFlags } from './correction'
+import { correctTranscript, buildCorrectionPrompt, attachFlags, generateEntities, chunkByWords } from './correction'
+
+test('chunkByWords overlaps windows so segment edges keep context', () => {
+  const text = Array.from({ length: 10 }, (_, i) => `w${i}`).join(' ')
+  const chunks = chunkByWords(text, 4, 2)
+  assert.equal(chunks[0], 'w0 w1 w2 w3')
+  assert.equal(chunks[1], 'w2 w3 w4 w5')
+})
+
+test('generateEntities parses, trims, de-dupes, drops non-strings', async () => {
+  const fake = async () => JSON.stringify({ entities: ['ToHa', 'מיטאון', 'ToHa', 123, '  אמפא קפיטל  '] })
+  const ents = await generateEntities('raw', { company: 'אמפא', business: '', quarter: '', speakers: '' }, fake)
+  assert.deepEqual(ents, ['ToHa', 'מיטאון', 'אמפא קפיטל'])
+})
+
+test('generateEntities returns [] on bad JSON (never throws)', async () => {
+  const ents = await generateEntities('raw', { company: 'X', business: '', quarter: '', speakers: '' }, async () => 'not json')
+  assert.deepEqual(ents, [])
+})
 
 test('buildCorrectionPrompt includes profile, entities, chunk and the JSON contract', () => {
   const p = buildCorrectionPrompt(
