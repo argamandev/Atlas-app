@@ -24,8 +24,33 @@ Origin story (why we're confident): started as a tool for the founder's brother 
 his fund manager's feedback was so strong they partnered up. Adoption strategy is prestige,
 high-end users only. The UI is **RTL Hebrew**; quality and polish matter.
 
-A full frontend description (+ possibly a skeleton to connect to) is arriving from the partner;
-it will define more backend functions. Until then, backend core features lead.
+## V1 product (frontend + design system incoming, ~2026-06-13)
+
+Three-layer RTL sidebar (icon rail → expanded panel → content). Pages:
+- **Home** — greeting, company search (company = the atomic unit of the product), "Live Now"
+  panel, upcoming calls by date.
+- **Calendar** — month view of all upcoming calls (logos + times); "All calls" vs "My Calendar"
+  (drag to follow).
+- **Chat** — LLM chat over the transcript DB; `/company` slash commands set context; history
+  panel; "My Agents" (standing quote-capture rules) + "My Skills" (agents/skills = post-launch,
+  stub the UI). `@anthropic-ai/sdk` already a dependency; V1 = context-stuffing, no vector DB.
+- **Company page** — header (name/logo/sector), Overview tab (latest call, upcoming, My Quotes
+  by quarter/timeline), Investor Calls tab (full backlog by quarter), "Add Investor Call"
+  (YouTube link → existing pipeline), "Open in Chat" per call/company.
+- **Live Transcript page (the crown jewel)** — karaoke transcript synced to audio (live =
+  Core 1 broadcast w/ delay; ended = replay); click-word-to-seek; quote-save icon → My Quotes.
+- Profile & settings at sidebar bottom.
+
+**V1 data layer (LIVE in Supabase, migration `20260611_006`)**: `companies` (4 real seeded:
+תיגבור 1105022, תמיס 1097229 נדל"ן, רג"א, קווליטאו 1083955; logos in `public/logos/`, תמיס logo
+pending manual) + `scheduled_calls` (4 mock Q2-2026 calls: תיגבור+רג"א both 19.6 — deliberate
+simultaneous-calls test, תמיס 20.6, קווליטאו 29.6; `source='mock'` until MAYA) +
+`transcripts.company_id` FK. **MayaClient interface plan**: downstream code talks to the
+interface; mock impl reads seeds, real impl polls the TASE Data Hub API (10 req/2s limit) for
+call announcements → upserts `scheduled_calls` with `source='maya'`. Known gap: click-word-to-
+seek needs per-word timestamps — Recall calls have them; YouTube/IVRIT path doesn't yet
+(IVRIT supports word timestamps, never requested). New backend to build with frontend: quotes
+table, chat endpoints, live productionization (see Core 1).
 
 ## Stack
 

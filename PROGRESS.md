@@ -5,7 +5,24 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
-## 2026-06-11 — Core 1 PROVEN: live broadcast pipeline works end-to-end on a real call
+## 2026-06-11 — V1 scoped + data layer seeded (4 real companies, mock MAYA)
+
+- **V1 product description received** (full page map now in CLAUDE.md): Home/Calendar/Chat/
+  Company/Live-Transcript pages, RTL 3-layer sidebar. Partner is building the design system
+  (~2 days); frontend lands then and we wire it to the backend. Until then: backend fitting only.
+- **Data layer shipped** (migration `20260611_006`, live in Supabase): `companies` +
+  `scheduled_calls` + `transcripts.company_id`. Seeded 4 real companies — תיגבור (1105022,
+  שירותים), תמיס (1097229, נדל"ן — identified via Globes/Bizportal after MAYA blocked scraping),
+  רג"א (ניקיון עירוני), קווליטאו (1083955, שבבים) — with descriptions + 3 logos in
+  `public/logos/` (תמיס logo: manual add pending). 4 mock Q2-2026 calls; תיגבור+רג"א
+  deliberately simultaneous (19.6) to test multi-call UX.
+- **Core 3 decision locked**: live calls' finished transcripts = Recall raw text (speaker names
+  + per-word timestamps) straight into Gemini — no IVRIT re-transcription (measured tie on
+  quality, Recall adds speakers/timing for free). IVRIT remains for the YouTube path.
+- **Flagged**: leftover foreign tables in Supabase (patients/sessions/documents/products);
+  `products` has RLS disabled (critical advisory) — user to clean up/decide.
+- **Next**: frontend + design system arrive → integration plan (quotes table, chat endpoints,
+  Core 1 productionization, ingest the 2 seed YouTube calls linked to companies).
 
 - **The full product loop ran live**: real 2-person Zoom call → Recall bot (audio websocket +
   transcript webhook) → Gemini 3.5 Flash live correction → viewer page playing audio ~5 min
