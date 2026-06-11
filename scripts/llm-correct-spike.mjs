@@ -63,11 +63,33 @@ const CLAUDE_KEY = process.env.CLAUDE_API_KEY
 const OPENAI_KEY = process.env.OPENAI_API_KEY
 
 // Pass --v2 as last arg to use PROMPT_V2
+// Pass --company "name" and --business "desc" to override company context in PROMPT_V2
 const USE_V2 = process.argv.includes('--v2')
-const PROMPT = USE_V2 ? PROMPT_V2 : PROMPT_V1
+
+function getFlag(name) {
+  const idx = process.argv.indexOf(name)
+  return idx >= 0 ? process.argv[idx + 1] : null
+}
+const COMPANY_OVERRIDE = getFlag('--company')
+const BUSINESS_OVERRIDE = getFlag('--business')
+
+function buildPrompt() {
+  if (!USE_V2) return PROMPT_V1
+  const company = COMPANY_OVERRIDE || 'אמפא'
+  const business = BUSINESS_OVERRIDE || 'Real Estate'
+  return `The text below is a raw IVRIT speech-to-text with no speaker labels. The speaker names are already in the text.
+
+your mission is to understand the context of the call, organize it beautifully with speaker names, paragraphs of each speaker and fix specific typos or wrong words based on the context you understand.
+
+This is an investors call transcript -of a company called "${company}" which is an Israeli ${business} company. It's very important you dont "guess" the fix to a typo and you don't change the number of words in the raw transcript.
+
+Don't rephrase and dont summorize!
+
+Just organize everything, fix specific words you are confident they are wrong based on the context!`
+}
 
 function buildUserContent(rawText) {
-  return `${PROMPT}\n\n${rawText}`
+  return `${buildPrompt()}\n\n${rawText}`
 }
 
 // Slug a model ID into a safe filename prefix
@@ -278,10 +300,10 @@ async function measure(candidateFile, goldFile, baselineFile) {
 async function pushToSite(label, inputFile, goldFile) {
   const text = readFileSync(inputFile, 'utf8')
 
-  // Auto-detect company metadata from filename
+  // Auto-detect company metadata from filename; --company flag overrides the display name
   const isAmpa = basename(inputFile).includes('ampa')
   const videoId = isAmpa ? 'hYaQQaDe5CU' : 'BkBi6pGLyUc'
-  const company = isAmpa ? 'אמפא' : 'קוואליטו'
+  const company = COMPANY_OVERRIDE || (isAmpa ? 'אמפא' : 'קוואליטו')
   const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`
 
   const supa = createClient(

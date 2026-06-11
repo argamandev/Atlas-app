@@ -2,22 +2,39 @@
 
 Project memory for Claude. Read this first every session.
 
-## What this is
+## What this is — the big vision
 
-**תמלול** is a Hebrew-language investor-call transcription platform for Israeli financial
-analysts. A user pastes a YouTube/Vimeo link to a company's quarterly investor call; the product
-downloads the audio, transcribes it (Hebrew-specialized speech-to-text), and produces a clean,
-structured, editable transcript — speakers identified, sections, highlights, export.
+**תמלול** is building the best product for the Israeli public market and its financial
+institutions — think **Quartr, but Hebrew-native and institutional-only** (no retail). The core
+problem: during report season every hedge fund drowns in 200+ investor calls in a few weeks.
+The product lets institutional investors track, consume, and extract insights from **every**
+Israeli public company's investor calls — live and after the fact — so they can outperform.
 
-The UI is **RTL Hebrew**. The audience is professional (funds, analysts), so quality and polish matter.
+What that means concretely:
+- **A profile for every Israeli public company** (pulled from the TASE/MAYA API), with its
+  quarterly-call Zoom links collected automatically.
+- **Live transcripts**: a Recall.ai bot joins every call; users watch the call live on the
+  platform — audio + Hebrew captions in sync (a ~5 min buffer delay is acceptable).
+- **Finished transcripts**: when a call ends, the raw text/audio runs through the existing
+  high-quality pipeline (IVRIT → Gemini formatting) and the polished transcript is published.
+- **Many calls simultaneously** — report-season days mean dozens of concurrent calls; the
+  architecture must handle them all in harmony.
+
+Origin story (why we're confident): started as a tool for the founder's brother at a hedge fund;
+his fund manager's feedback was so strong they partnered up. Adoption strategy is prestige,
+high-end users only. The UI is **RTL Hebrew**; quality and polish matter.
+
+A full frontend description (+ possibly a skeleton to connect to) is arriving from the partner;
+it will define more backend functions. Until then, backend core features lead.
 
 ## Stack
 
 - **Next.js 14 (App Router)** — server components + route handlers; TypeScript; deployed on **Railway**.
 - **Supabase** — Postgres, Auth (SSR cookies), Storage (`audio-temp` bucket), RLS on `transcripts`.
 - **Transcription**: **IVRIT on RunPod** is the primary engine (`ivrit-ai/whisper-large-v3-turbo-ct2`,
-  HTTP polling), with **OpenAI Whisper** as fallback if IVRIT errors. **GPT-4o** does formatting,
-  metadata extraction, speaker tagging, and a correction pass.
+  HTTP polling), with **OpenAI Whisper** as fallback if IVRIT errors. **Gemini 3.5 Flash** does
+  formatting, speaker tagging, and light contextual correction via a holistic company-aware prompt.
+  GPT-4o is no longer in the pipeline.
 - **Audio**: `yt-dlp` + `ffmpeg` download to 32 kbps mono MP3 @ 16 kHz. On Windows uses `bin/yt-dlp.exe`.
 - **Styling**: Tailwind. Brand font **IBM Plex Sans Hebrew**. Dark theme, accent `#C04A00`.
 
@@ -27,24 +44,24 @@ The UI is **RTL Hebrew**. The audience is professional (funds, analysts), so qua
   `transcripts` row keyed by videoId, then fires `runPipeline()` fire-and-forget via `setImmediate`.
   A direct DB insert does **not** run the pipeline — only this handler does.
 - **Pipeline** (`runPipeline` in the same file): `getVideoInfo` → `downloadAudio` →
-  `transcribeAudio` (returns `{ text, engine, model }`) → `formatWithGPT4o` → store `formatted_data`,
+  `transcribeAudio` (returns `{ text, engine, model }`) → `formatTranscript` → store `formatted_data`,
   `status='completed'`. Writes `processing_step` at each stage for the UI to poll.
 - **Poll**: `GET /api/transcripts/[id]` returns the full row (incl. `status`, `processing_step`,
   `formatted_data`). Frontend `useProcessingTimer` polls every ~3s.
 - **View/Edit**: `src/app/transcript/[id]/page.tsx` reads `formatted_data` directly via
   `supabaseAdmin`, renders `TranscriptEditor` (inline edit of company/quarter/speakers/lines +
   highlights, saved via `PUT /api/transcripts/[id]`).
-- **Transcription internals** (`src/lib/transcription.ts`): `transcribeAudio`, `transcribeWithIvrit`
-  (uses `IVRIT_MODEL`, overridable via `RUNPOD_IVRIT_MODEL`), `formatWithGPT4o` — which runs the
-  correction layer at Step 0, then speaker-tags the **raw** text and applies corrections per line
-  (decoupled, so corrections never shift speaker boundaries).
-- **Correction layer** (`src/lib/correction.ts`, gold-measured): `generateEntities` (knowledge-first
-  auto entity list, GPT-4o) → `correctTranscript` (per-chunk, **diff-only** — proposes
-  `{original,corrected?,kind,certainty,reason}`, never rewrites/summarizes). `routeItems` applies only
-  `confident` name/homophone fixes whose target is in the entity set (`applyConfident`'s entity guard —
-  the thing that stops over-reach); `uncertain` words + all numbers + incoherent phrases become
-  **yellow flags** (`attachFlags`), never auto-changed. `generateEntitiesFromReport` is an optional
-  report-grounded variant (tested; the report didn't beat memory — see PROGRESS).
+- **Transcription internals** (`src/lib/transcription.ts`):
+  - `transcribeAudio` → IVRIT/RunPod primary, Whisper fallback.
+  - `parseTitleMeta(videoTitle, today)` — synchronous regex: extracts company name + quarter from the
+    YouTube title; no LLM needed.
+  - `formatWithGeminiFlash(rawText, company, business)` — single Gemini 3.5 Flash call. Prompt gives
+    Gemini the company name + "Israeli public company" context; instructs it to organize by speaker,
+    fix confident typos, never rephrase/summarize. 2-attempt retry, 3 min timeout.
+  - `parseGeminiOutput(text, metaSpeakers)` — splits on `## Name` or `**Name:**` headers; builds
+    speaker registry with partial-name matching; role detection (מנכ→ceo, כספ→cfo, שירן/מנח→moderator);
+    Q&A fallback detection via keyword patterns.
+  - `formatTranscript` (the exported entry point): orchestrates the three steps above → `buildTranscript`.
 - **Types**: `src/lib/types.ts` — `Transcript` is the shape of `formatted_data`
   (`sections[].lines[].text` is the transcript body; `speakers[]`; admin diagnostics `engine`/`model`/
   `processingSecs`).
@@ -73,38 +90,55 @@ The UI is **RTL Hebrew**. The audience is professional (funds, analysts), so qua
 
 ## Transcript-quality gate (the workflow that matters)
 
-Correction quality is **measured, not guessed**: `scripts/run-experiment.ts` + `scripts/lib/measure-core.ts`
-diff a candidate against a human **gold** (`scripts/fixtures/ampa-q1-2026.gold.txt`) over the saved IVRIT
-raw, reporting *fixed / introduced / remaining* token-errors. **The gate is 0 introduced** — a pass that
-corrupts a good word is rejected. Best baseline: אמפא 46→31 with GPT-4o auto-entities, 0 introduced. The
-**`/transcript-review`** skill is the live-product complement (batch real links via
+The **`/transcript-review`** skill audits live transcripts (batch real links via
 `scripts/transcribe-batch.mjs`, Bearer-token auth with `REVIEWER_EMAIL`/`REVIEWER_PASSWORD`, audit every
-line for typos/proper-nouns/speaker/bidi). Source-side IVRIT biasing is closed (initial_prompt/hotwords
-proven no-op — byte-identical output).
+line for typos/proper-nouns/speaker/bidi). The gold-measurement tooling (`scripts/run-experiment.ts` +
+`scripts/lib/measure-core.ts`) diffs a candidate against a human gold (`scripts/fixtures/ampa-q1-2026.gold.txt`)
+and reports *fixed / introduced / remaining* token-errors — used for offline model experiments.
+Current pipeline (Gemini 3.5 Flash) produces visually excellent transcripts; formal gold measurement
+score: ~40 token-errors on אמפא. Source-side IVRIT biasing is closed (proven no-op).
 
-## Roadmap
+## Roadmap — backend core missions (in order)
 
-1. **Feature 1 — Perfect transcripts** ✅ *good-enough baseline (2026-06-09).* Locked the constrained,
-   gold-measured correction pipeline (GPT-4o auto-entities + diff-only + yellow flagging; אמפא 46→31, 0
-   introduced). **Not perfect — revisit later** (deliberate, agreed): per-company canonical entity DB +
-   cross-company learning loop (biggest lever); IVRIT per-word confidence + audio for the ambiguous
-   residual; a Claude pass with a Claude-tuned prompt (its flagging was excellent — see PROGRESS for the
-   Sonnet-4.6 experiment). Still owe the audio/timing foundation (per-line `startSec`) for Feature 3.
-2. **Feature 2 — Real PDF download**. Rename current export to "הדפסה"; add "הורד PDF" via
-   server-side Playwright route `POST /api/transcripts/[id]/pdf` with a "נוצר על ידי תמלול." footer.
-3. **Feature 3 — Highlight actions / share**. Selection popover: סימון (mark), שיתוף כציטוט
-   (WhatsApp/email/native share), לשמוע בהקלטה (sticky audio player seeking to a line's `startSec`).
-4. **Feature 4 — Live transcripts**. Stream a live Zoom call's transcript on-platform via
-   **recall.ai**. Quality spike done (2026-06-09): bot config `recallai_streaming` /
-   `prioritize_accuracy` / `language_code: auto` → excellent Hebrew quality confirmed, per-word
-   timestamps (relative float seconds + absolute ISO) in hand. See `scripts/recall-spike.mjs`
-   (spike CLI) and `scripts/fixtures/recall-spike.transcript.json` (live test output).
-   Recall transcript schema: `[{ participant: { name, is_host }, words: [{ text,
-   start_timestamp: { relative, absolute }, end_timestamp }], language_code }]`.
-   **Next step:** `POST /api/live` (create Recall bot + Supabase row) + `/live/[botId]` page
-   (RTL Hebrew, speaker labels, real-time updates via Recall webhook → Supabase → SSE/Realtime).
-   Note: `prioritize_accuracy` is 3–10 min post-call — evaluate `low_latency` for in-call Hebrew
-   if acceptable quality, or poll Recall's partial transcript endpoint during the call.
+The product process: MAYA API → company profiles + call Zoom links → Recall.ai bots join calls →
+live transcript hosted on-platform (audio + captions in sync) → call ends → existing pipeline
+produces the polished transcript → stored forever in our DB.
+
+1. **Core 1 — Live Transcript of an investor call** ✅ *ARCHITECTURE PROVEN END-TO-END
+   (2026-06-11, real two-person Zoom test)*. The locked pipeline: **Recall bot
+   (`recallai_streaming`/`prioritize_accuracy`/`auto`) → realtime endpoints (webhook:
+   `transcript.data`, websocket: `audio_mixed_raw.data` — requires `audio_mixed_raw: {}`
+   artifact in recording_config) → Gemini 3.5 Flash live correction (company-context prompt,
+   constrained fix-words-only, `thinkingBudget: 0` — thinking MUST be off or reasoning leaks
+   into captions; 1.5–6s/chunk on paid tier) → buffered broadcast: audio + karaoke captions
+   synced, playing ~5 min behind live.** Spike servers: `scripts/live-broadcast.mjs` (the full
+   loop incl. viewer page), `scripts/live-player.mjs` (replay player), `scripts/live-bakeoff.mjs`
+   (engine A/B harness). **Engine bake-off verdict (measured)**: Recall-accuracy = best Hebrew,
+   chunks arrive rolling 72–188s — fits the buffer; Gladia = 2.7s median but error-dense
+   (fallback/"instant mode" option); ElevenLabs = no-show ×3, disqualified; IVRIT 45s-chunks =
+   close 2nd on quality (~62s delay) but needs audio infra we don't want to run. Post-Gemini,
+   Recall-raw and IVRIT-raw converge to near-equal final transcripts.
+   **Production to-build (from live-test lessons):** sentence-level correction with anchor
+   alignment (350-word chunks break word-count preservation → caption/timestamp misalignment;
+   safe fallback = show raw); copy recording+transcript to our storage post-call (Recall
+   retention deletes); permanent webhook URL on Railway (spike used throwaway cloudflared
+   tunnels — they expire); `live_calls` table + `/live/[id]` page + multi-call concurrency.
+   Karaoke caption UX (decided): spoken word **white** on black, upcoming subtle gray, Gemini
+   fixes accented `#C04A00`. Paid Gemini tier required (free tier 429s under live load).
+2. **Core 2 — Automatic bot fleet from MAYA**. Pull quarterly-call announcements (Zoom links +
+   timestamps) from the MAYA/TASE API for every Israeli public company → automatically create
+   Recall bots per call → feed Core 1. Must handle many simultaneous calls (report season).
+   TASE Data Hub onboarding guide: `MAYA/maya_api-guide.pdf` (registration → app → API key;
+   rate limit **10 req / 2 sec**; paid products need Data Sales approval — connection starts
+   in the coming days).
+3. **Core 3 — Finished transcript** ✅ *pipeline COMPLETE (2026-06-10)*: IVRIT → Gemini 3.5
+   Flash (company-aware holistic prompt) → structured transcript. Speakers identified, sections,
+   confident typo fixes, yellow flags on uncertain words. Remaining wiring: accept raw text/audio
+   from a finished live call (Core 1 output) as input, not just YouTube links. Deliberate
+   leftovers: per-company entity DB; IVRIT confidence scores; per-line `startSec`.
+4. **Later — full frontend + UX features** (from the partner's incoming product description):
+   PDF download (server-side Playwright), share-as-quote, audio playback on click, and more.
+   These are valuable but small; they'll be specced with the frontend guide.
 
 ## Reviewing code
 

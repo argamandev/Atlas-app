@@ -5,6 +5,80 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-11 — Core 1 PROVEN: live broadcast pipeline works end-to-end on a real call
+
+- **The full product loop ran live**: real 2-person Zoom call → Recall bot (audio websocket +
+  transcript webhook) → Gemini 3.5 Flash live correction → viewer page playing audio ~5 min
+  behind with synced karaoke captions → call ended → broadcast drained gracefully. Spike:
+  `scripts/live-broadcast.mjs` (+ `live-player.mjs` replay, `live-bakeoff.mjs` A/B harness).
+- **Engine bake-off (measured on live reads of `fixtures/live-bakeoff-script.he.txt`)**:
+  Recall-accuracy = best Hebrew quality, rolling 72–188s chunk delay (fits 5-min buffer);
+  Gladia = 2.7s median lag but ~25 errors/3min (kept as possible "instant mode"); ElevenLabs
+  disqualified (no live events, no transcript, 3 attempts); IVRIT 45s-chunks = close 2nd
+  quality at ~62s but requires audio infra. **Decision: Recall-accuracy + Gemini live
+  correction; delay embraced as the buffer.** Post-Gemini, Recall-raw ≈ IVRIT-raw on final
+  transcript quality — engine choice driven by live experience, not final output.
+- **Gemini live-correction validated**: company-context constrained prompt fixed האגירה/EBITDA/
+  NOI/מח"מ/מט"ח live in 1.5–6s/chunk. Gotchas burned in: `thinkingBudget: 0` mandatory
+  (reasoning leaked into captions); paid tier mandatory (free tier 429s); 350-word chunks break
+  word-count preservation → production needs sentence-level correction + anchor alignment.
+- **Post-call assets confirmed**: full recording (mp4→mp3) + final transcript downloadable —
+  must be copied to our storage before Recall retention deletes them. Audio + polished
+  transcript both shown on platform.
+- **Next**: Core 1 design doc → production build (`live_calls` table, `/live/[id]`, Railway
+  webhook URL, multi-call concurrency), then Core 2 (MAYA → automatic bot fleet). User V1
+  product description incoming.
+
+---
+
+## 2026-06-10 — VISION LEVEL-UP: from "paste a link" to the Israeli institutional platform
+
+- **New big vision** (partnership formed after strong hedge-fund feedback): the Quartr-equivalent
+  for the Israeli market — institutional-only, prestige adoption. Solve report-season drowning
+  (200+ calls/season): track + produce insights from **every** Israeli public company's investor
+  call, live and post-call.
+- **New product process**: MAYA/TASE API (company profiles + call Zoom links, automated) →
+  Recall.ai bot fleet joins calls → **live transcripts hosted on-platform** (audio + captions in
+  sync, ~5 min buffer OK) → post-call, raw text/audio runs through the existing pipeline →
+  polished transcript stored in our DB.
+- **Roadmap reordered to backend core missions**: Core 1 = live transcript of one call (NOW);
+  Core 2 = automatic bot fleet from MAYA; Core 3 = finished-transcript pipeline (done, needs
+  input rewiring). PDF/share/audio-click demoted to "later, with the frontend guide" — a full
+  frontend description (maybe a skeleton) is arriving from the partner.
+- **MAYA groundwork**: `MAYA/maya_api-guide.pdf` scanned — TASE Data Hub portal: register → app →
+  API key; REST + `apikey` header; rate limit 10 req/2s (HTTP 429); call-announcement product is
+  paid and needs Data Sales approval (starting in days). Design the integration behind a clean
+  interface until the real schema is visible.
+
+---
+
+## 2026-06-10 — Feature 1 COMPLETE: IVRIT → Gemini 3.5 Flash pipeline live in production
+
+**What shipped:**
+- **New pipeline**: IVRIT (RunPod) → `parseTitleMeta` (company/quarter from YT title, no LLM) →
+  `formatWithGeminiFlash` (Gemini 3.5 Flash, company-aware holistic prompt) → `parseGeminiOutput`
+  (structured speaker blocks) → user. GPT-4o fully removed.
+- **Prompt** (in `formatWithGeminiFlash`): gives Gemini the company name + "Israeli public company"
+  context; instructs organize by speaker, fix confident typos only, never rephrase/summarize.
+- **UI**: tighter same-speaker paragraph spacing (`mb-1.5`); yellow flag rendering for uncertain words
+  already wired via `TranscriptBody` `renderText`.
+- **Proxy**: Decodo residential proxy (`YTDLP_PROXY` on Railway) added to bypass YouTube bot-detection.
+- **Quality**: transcripts are visually excellent — confirmed on קוואליטאו Q1 2026 live test.
+  Gold-measurement score ~40 token-errors on אמפא (vs 31 with old GPT-4o+entities pipeline), but
+  visual quality and speaker organization are significantly better. Deliberate trade-off accepted.
+
+**Why Gemini over GPT-4o:**
+GPT-4o's constrained diff-only approach scored better on the gold metric (31 errors, 0 introduced)
+but produced robotic, hard-to-read output. Gemini's holistic approach produces natural, well-organized
+transcripts the analysts actually want to read. Quality-over-measurement was the deliberate call.
+
+**Remaining gaps (not blocking, revisit later):**
+Per-company entity DB; IVRIT per-word confidence scores; per-line `startSec` for audio playback.
+
+**Next feature: Feature 2 — PDF download + Share.**
+
+---
+
 ## 2026-06-09 — Feature 4 / Live Zoom Transcription — Recall.ai quality spike
 
 **Goal:** Validate Recall.ai as the live-transcription engine before building the UI — confirm

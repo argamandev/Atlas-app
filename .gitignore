@@ -17,6 +17,11 @@ bin/
 # debug
 npm-debug.log*
 
+# live-spike runtime state (bot ids + expired meeting urls)
+scripts/.recall-spike-bot.json
+scripts/.live-bakeoff.json
+scripts/.live-broadcast.json
+
 # large test-fixture source PDFs (keep the extracted .txt the harness reads)
 scripts/fixtures/*.pdf
 

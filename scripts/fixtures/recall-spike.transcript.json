@@ -1,0 +1,2036 @@
+[
+  {
+    "participant": {
+      "id": 100,
+      "name": "Sagi Argaman",
+      "extra_data": {
+        "zoom": {
+          "conf_user_id": "eic275L1Qk6ra4HQWDlfVw",
+          "user_guid": "C662C80B-B50B-07AA-F00F-BA69B7902E42",
+          "guest": false,
+          "os": 4,
+          "audio": "app"
+        }
+      },
+      "is_host": true,
+      "platform": "mobile_app",
+      "email": null
+    },
+    "words": [
+      {
+        "text": "אוקיי,",
+        "start_timestamp": {
+          "relative": 2.4854717,
+          "absolute": "2026-06-09T15:44:04.805Z"
+        },
+        "end_timestamp": {
+          "relative": 3.6854718,
+          "absolute": "2026-06-09T15:44:06.005Z"
+        }
+      },
+      {
+        "text": "אנחנו",
+        "start_timestamp": {
+          "relative": 3.6854718,
+          "absolute": "2026-06-09T15:44:06.005Z"
+        },
+        "end_timestamp": {
+          "relative": 3.7054718,
+          "absolute": "2026-06-09T15:44:06.025Z"
+        }
+      },
+      {
+        "text": "הולכים",
+        "start_timestamp": {
+          "relative": 3.7054718,
+          "absolute": "2026-06-09T15:44:06.025Z"
+        },
+        "end_timestamp": {
+          "relative": 3.8854718,
+          "absolute": "2026-06-09T15:44:06.205Z"
+        }
+      },
+      {
+        "text": "לדבר",
+        "start_timestamp": {
+          "relative": 3.8854718,
+          "absolute": "2026-06-09T15:44:06.205Z"
+        },
+        "end_timestamp": {
+          "relative": 4.365472,
+          "absolute": "2026-06-09T15:44:06.685Z"
+        }
+      },
+      {
+        "text": "ברבעון",
+        "start_timestamp": {
+          "relative": 4.365472,
+          "absolute": "2026-06-09T15:44:06.685Z"
+        },
+        "end_timestamp": {
+          "relative": 5.045472,
+          "absolute": "2026-06-09T15:44:07.365Z"
+        }
+      },
+      {
+        "text": "הקרוב",
+        "start_timestamp": {
+          "relative": 5.045472,
+          "absolute": "2026-06-09T15:44:07.365Z"
+        },
+        "end_timestamp": {
+          "relative": 5.345472,
+          "absolute": "2026-06-09T15:44:07.665Z"
+        }
+      },
+      {
+        "text": "על",
+        "start_timestamp": {
+          "relative": 5.345472,
+          "absolute": "2026-06-09T15:44:07.665Z"
+        },
+        "end_timestamp": {
+          "relative": 5.585472,
+          "absolute": "2026-06-09T15:44:07.905Z"
+        }
+      },
+      {
+        "text": "הנתונים",
+        "start_timestamp": {
+          "relative": 5.585472,
+          "absolute": "2026-06-09T15:44:07.905Z"
+        },
+        "end_timestamp": {
+          "relative": 5.844472,
+          "absolute": "2026-06-09T15:44:08.164Z"
+        }
+      },
+      {
+        "text": "הפיננסיים",
+        "start_timestamp": {
+          "relative": 5.844472,
+          "absolute": "2026-06-09T15:44:08.164Z"
+        },
+        "end_timestamp": {
+          "relative": 7.1054716,
+          "absolute": "2026-06-09T15:44:09.425Z"
+        }
+      },
+      {
+        "text": "של",
+        "start_timestamp": {
+          "relative": 7.1054716,
+          "absolute": "2026-06-09T15:44:09.425Z"
+        },
+        "end_timestamp": {
+          "relative": 7.905472,
+          "absolute": "2026-06-09T15:44:10.225Z"
+        }
+      },
+      {
+        "text": "החברה",
+        "start_timestamp": {
+          "relative": 7.905472,
+          "absolute": "2026-06-09T15:44:10.225Z"
+        },
+        "end_timestamp": {
+          "relative": 8.645472,
+          "absolute": "2026-06-09T15:44:10.965Z"
+        }
+      },
+      {
+        "text": "שקרתה",
+        "start_timestamp": {
+          "relative": 8.645472,
+          "absolute": "2026-06-09T15:44:10.965Z"
+        },
+        "end_timestamp": {
+          "relative": 9.445472,
+          "absolute": "2026-06-09T15:44:11.765Z"
+        }
+      },
+      {
+        "text": "לנו.",
+        "start_timestamp": {
+          "relative": 9.445472,
+          "absolute": "2026-06-09T15:44:11.765Z"
+        },
+        "end_timestamp": {
+          "relative": 11.444471,
+          "absolute": "2026-06-09T15:44:13.764Z"
+        }
+      },
+      {
+        "text": "אנחנו",
+        "start_timestamp": {
+          "relative": 12.825472,
+          "absolute": "2026-06-09T15:44:15.145Z"
+        },
+        "end_timestamp": {
+          "relative": 13.364471,
+          "absolute": "2026-06-09T15:44:15.684Z"
+        }
+      },
+      {
+        "text": "הולכים",
+        "start_timestamp": {
+          "relative": 13.364471,
+          "absolute": "2026-06-09T15:44:15.684Z"
+        },
+        "end_timestamp": {
+          "relative": 13.565472,
+          "absolute": "2026-06-09T15:44:15.885Z"
+        }
+      },
+      {
+        "text": "לדבר",
+        "start_timestamp": {
+          "relative": 13.565472,
+          "absolute": "2026-06-09T15:44:15.885Z"
+        },
+        "end_timestamp": {
+          "relative": 13.845471,
+          "absolute": "2026-06-09T15:44:16.165Z"
+        }
+      },
+      {
+        "text": "ברבעון",
+        "start_timestamp": {
+          "relative": 13.845471,
+          "absolute": "2026-06-09T15:44:16.165Z"
+        },
+        "end_timestamp": {
+          "relative": 14.2254715,
+          "absolute": "2026-06-09T15:44:16.545Z"
+        }
+      },
+      {
+        "text": "הנוכחי",
+        "start_timestamp": {
+          "relative": 14.2254715,
+          "absolute": "2026-06-09T15:44:16.545Z"
+        },
+        "end_timestamp": {
+          "relative": 15.024471,
+          "absolute": "2026-06-09T15:44:17.344Z"
+        }
+      },
+      {
+        "text": "על",
+        "start_timestamp": {
+          "relative": 15.024471,
+          "absolute": "2026-06-09T15:44:17.344Z"
+        },
+        "end_timestamp": {
+          "relative": 15.565472,
+          "absolute": "2026-06-09T15:44:17.885Z"
+        }
+      },
+      {
+        "text": "הכיוון",
+        "start_timestamp": {
+          "relative": 15.565472,
+          "absolute": "2026-06-09T15:44:17.885Z"
+        },
+        "end_timestamp": {
+          "relative": 16.345472,
+          "absolute": "2026-06-09T15:44:18.665Z"
+        }
+      },
+      {
+        "text": "שהעסק",
+        "start_timestamp": {
+          "relative": 16.345472,
+          "absolute": "2026-06-09T15:44:18.665Z"
+        },
+        "end_timestamp": {
+          "relative": 16.745472,
+          "absolute": "2026-06-09T15:44:19.065Z"
+        }
+      },
+      {
+        "text": "שלנו",
+        "start_timestamp": {
+          "relative": 16.745472,
+          "absolute": "2026-06-09T15:44:19.065Z"
+        },
+        "end_timestamp": {
+          "relative": 17.065472,
+          "absolute": "2026-06-09T15:44:19.385Z"
+        }
+      },
+      {
+        "text": "לקח.",
+        "start_timestamp": {
+          "relative": 17.065472,
+          "absolute": "2026-06-09T15:44:19.385Z"
+        },
+        "end_timestamp": {
+          "relative": 18.125471,
+          "absolute": "2026-06-09T15:44:20.445Z"
+        }
+      },
+      {
+        "text": "התחלנו",
+        "start_timestamp": {
+          "relative": 18.125471,
+          "absolute": "2026-06-09T15:44:20.445Z"
+        },
+        "end_timestamp": {
+          "relative": 18.44547,
+          "absolute": "2026-06-09T15:44:20.765Z"
+        }
+      },
+      {
+        "text": "לפתח",
+        "start_timestamp": {
+          "relative": 18.44547,
+          "absolute": "2026-06-09T15:44:20.765Z"
+        },
+        "end_timestamp": {
+          "relative": 18.825472,
+          "absolute": "2026-06-09T15:44:21.145Z"
+        }
+      },
+      {
+        "text": "מוצר",
+        "start_timestamp": {
+          "relative": 18.825472,
+          "absolute": "2026-06-09T15:44:21.145Z"
+        },
+        "end_timestamp": {
+          "relative": 19.305471,
+          "absolute": "2026-06-09T15:44:21.625Z"
+        }
+      },
+      {
+        "text": "חדש",
+        "start_timestamp": {
+          "relative": 19.305471,
+          "absolute": "2026-06-09T15:44:21.625Z"
+        },
+        "end_timestamp": {
+          "relative": 19.86547,
+          "absolute": "2026-06-09T15:44:22.185Z"
+        }
+      },
+      {
+        "text": "שקוראים",
+        "start_timestamp": {
+          "relative": 19.86547,
+          "absolute": "2026-06-09T15:44:22.185Z"
+        },
+        "end_timestamp": {
+          "relative": 20.185472,
+          "absolute": "2026-06-09T15:44:22.505Z"
+        }
+      },
+      {
+        "text": "לו",
+        "start_timestamp": {
+          "relative": 20.185472,
+          "absolute": "2026-06-09T15:44:22.505Z"
+        },
+        "end_timestamp": {
+          "relative": 20.265472,
+          "absolute": "2026-06-09T15:44:22.585Z"
+        }
+      },
+      {
+        "text": "תמלול,",
+        "start_timestamp": {
+          "relative": 20.265472,
+          "absolute": "2026-06-09T15:44:22.585Z"
+        },
+        "end_timestamp": {
+          "relative": 21.215471,
+          "absolute": "2026-06-09T15:44:23.535Z"
+        }
+      },
+      {
+        "text": "מה",
+        "start_timestamp": {
+          "relative": 21.345472,
+          "absolute": "2026-06-09T15:44:23.665Z"
+        },
+        "end_timestamp": {
+          "relative": 21.44547,
+          "absolute": "2026-06-09T15:44:23.765Z"
+        }
+      },
+      {
+        "text": "שהמוצר",
+        "start_timestamp": {
+          "relative": 21.44547,
+          "absolute": "2026-06-09T15:44:23.765Z"
+        },
+        "end_timestamp": {
+          "relative": 21.765472,
+          "absolute": "2026-06-09T15:44:24.085Z"
+        }
+      },
+      {
+        "text": "עושה,",
+        "start_timestamp": {
+          "relative": 21.765472,
+          "absolute": "2026-06-09T15:44:24.085Z"
+        },
+        "end_timestamp": {
+          "relative": 22.325472,
+          "absolute": "2026-06-09T15:44:24.645Z"
+        }
+      },
+      {
+        "text": "הוא",
+        "start_timestamp": {
+          "relative": 22.325472,
+          "absolute": "2026-06-09T15:44:24.645Z"
+        },
+        "end_timestamp": {
+          "relative": 22.405472,
+          "absolute": "2026-06-09T15:44:24.725Z"
+        }
+      },
+      {
+        "text": "מתמלל",
+        "start_timestamp": {
+          "relative": 22.405472,
+          "absolute": "2026-06-09T15:44:24.725Z"
+        },
+        "end_timestamp": {
+          "relative": 23.205471,
+          "absolute": "2026-06-09T15:44:25.525Z"
+        }
+      },
+      {
+        "text": "שיחות",
+        "start_timestamp": {
+          "relative": 23.205471,
+          "absolute": "2026-06-09T15:44:25.525Z"
+        },
+        "end_timestamp": {
+          "relative": 24.185472,
+          "absolute": "2026-06-09T15:44:26.505Z"
+        }
+      },
+      {
+        "text": "משקיעים",
+        "start_timestamp": {
+          "relative": 24.185472,
+          "absolute": "2026-06-09T15:44:26.505Z"
+        },
+        "end_timestamp": {
+          "relative": 25.52547,
+          "absolute": "2026-06-09T15:44:27.845Z"
+        }
+      },
+      {
+        "text": "של",
+        "start_timestamp": {
+          "relative": 25.52547,
+          "absolute": "2026-06-09T15:44:27.845Z"
+        },
+        "end_timestamp": {
+          "relative": 26.205471,
+          "absolute": "2026-06-09T15:44:28.525Z"
+        }
+      },
+      {
+        "text": "חברות",
+        "start_timestamp": {
+          "relative": 26.205471,
+          "absolute": "2026-06-09T15:44:28.525Z"
+        },
+        "end_timestamp": {
+          "relative": 26.485472,
+          "absolute": "2026-06-09T15:44:28.805Z"
+        }
+      },
+      {
+        "text": "ציבוריות",
+        "start_timestamp": {
+          "relative": 26.485472,
+          "absolute": "2026-06-09T15:44:28.805Z"
+        },
+        "end_timestamp": {
+          "relative": 26.845472,
+          "absolute": "2026-06-09T15:44:29.165Z"
+        }
+      },
+      {
+        "text": "בישראל.",
+        "start_timestamp": {
+          "relative": 26.845472,
+          "absolute": "2026-06-09T15:44:29.165Z"
+        },
+        "end_timestamp": {
+          "relative": 27.685472,
+          "absolute": "2026-06-09T15:44:30.005Z"
+        }
+      },
+      {
+        "text": "מוצר",
+        "start_timestamp": {
+          "relative": 27.845472,
+          "absolute": "2026-06-09T15:44:30.165Z"
+        },
+        "end_timestamp": {
+          "relative": 28.245472,
+          "absolute": "2026-06-09T15:44:30.565Z"
+        }
+      },
+      {
+        "text": "ראשון",
+        "start_timestamp": {
+          "relative": 28.245472,
+          "absolute": "2026-06-09T15:44:30.565Z"
+        },
+        "end_timestamp": {
+          "relative": 28.544472,
+          "absolute": "2026-06-09T15:44:30.864Z"
+        }
+      },
+      {
+        "text": "מסוגו",
+        "start_timestamp": {
+          "relative": 28.544472,
+          "absolute": "2026-06-09T15:44:30.864Z"
+        },
+        "end_timestamp": {
+          "relative": 29.005472,
+          "absolute": "2026-06-09T15:44:31.325Z"
+        }
+      },
+      {
+        "text": "ברמה",
+        "start_timestamp": {
+          "relative": 29.005472,
+          "absolute": "2026-06-09T15:44:31.325Z"
+        },
+        "end_timestamp": {
+          "relative": 29.425472,
+          "absolute": "2026-06-09T15:44:31.745Z"
+        }
+      },
+      {
+        "text": "שלו,",
+        "start_timestamp": {
+          "relative": 29.425472,
+          "absolute": "2026-06-09T15:44:31.745Z"
+        },
+        "end_timestamp": {
+          "relative": 30.475471,
+          "absolute": "2026-06-09T15:44:32.795Z"
+        }
+      },
+      {
+        "text": "פיתחנו",
+        "start_timestamp": {
+          "relative": 31.065472,
+          "absolute": "2026-06-09T15:44:33.385Z"
+        },
+        "end_timestamp": {
+          "relative": 31.345472,
+          "absolute": "2026-06-09T15:44:33.665Z"
+        }
+      },
+      {
+        "text": "את",
+        "start_timestamp": {
+          "relative": 31.345472,
+          "absolute": "2026-06-09T15:44:33.665Z"
+        },
+        "end_timestamp": {
+          "relative": 31.44547,
+          "absolute": "2026-06-09T15:44:33.765Z"
+        }
+      },
+      {
+        "text": "המוצר",
+        "start_timestamp": {
+          "relative": 31.44547,
+          "absolute": "2026-06-09T15:44:33.765Z"
+        },
+        "end_timestamp": {
+          "relative": 31.885471,
+          "absolute": "2026-06-09T15:44:34.205Z"
+        }
+      },
+      {
+        "text": "דרך",
+        "start_timestamp": {
+          "relative": 31.885471,
+          "absolute": "2026-06-09T15:44:34.205Z"
+        },
+        "end_timestamp": {
+          "relative": 32.104473,
+          "absolute": "2026-06-09T15:44:34.424Z"
+        }
+      },
+      {
+        "text": "שיתוף",
+        "start_timestamp": {
+          "relative": 32.104473,
+          "absolute": "2026-06-09T15:44:34.424Z"
+        },
+        "end_timestamp": {
+          "relative": 32.38547,
+          "absolute": "2026-06-09T15:44:34.705Z"
+        }
+      },
+      {
+        "text": "פעולה",
+        "start_timestamp": {
+          "relative": 32.38547,
+          "absolute": "2026-06-09T15:44:34.705Z"
+        },
+        "end_timestamp": {
+          "relative": 32.68447,
+          "absolute": "2026-06-09T15:44:35.004Z"
+        }
+      },
+      {
+        "text": "עם",
+        "start_timestamp": {
+          "relative": 32.68447,
+          "absolute": "2026-06-09T15:44:35.004Z"
+        },
+        "end_timestamp": {
+          "relative": 32.765472,
+          "absolute": "2026-06-09T15:44:35.085Z"
+        }
+      },
+      {
+        "text": "משקיעים",
+        "start_timestamp": {
+          "relative": 32.765472,
+          "absolute": "2026-06-09T15:44:35.085Z"
+        },
+        "end_timestamp": {
+          "relative": 33.165474,
+          "absolute": "2026-06-09T15:44:35.485Z"
+        }
+      },
+      {
+        "text": "ואנשי",
+        "start_timestamp": {
+          "relative": 33.165474,
+          "absolute": "2026-06-09T15:44:35.485Z"
+        },
+        "end_timestamp": {
+          "relative": 33.484474,
+          "absolute": "2026-06-09T15:44:35.804Z"
+        }
+      },
+      {
+        "text": "פיננסים",
+        "start_timestamp": {
+          "relative": 33.484474,
+          "absolute": "2026-06-09T15:44:35.804Z"
+        },
+        "end_timestamp": {
+          "relative": 34.005474,
+          "absolute": "2026-06-09T15:44:36.325Z"
+        }
+      },
+      {
+        "text": "שנמצאים",
+        "start_timestamp": {
+          "relative": 34.005474,
+          "absolute": "2026-06-09T15:44:36.325Z"
+        },
+        "end_timestamp": {
+          "relative": 34.465473,
+          "absolute": "2026-06-09T15:44:36.785Z"
+        }
+      },
+      {
+        "text": "בתחום",
+        "start_timestamp": {
+          "relative": 34.465473,
+          "absolute": "2026-06-09T15:44:36.785Z"
+        },
+        "end_timestamp": {
+          "relative": 34.705475,
+          "absolute": "2026-06-09T15:44:37.025Z"
+        }
+      },
+      {
+        "text": "הזה",
+        "start_timestamp": {
+          "relative": 34.705475,
+          "absolute": "2026-06-09T15:44:37.025Z"
+        },
+        "end_timestamp": {
+          "relative": 34.965473,
+          "absolute": "2026-06-09T15:44:37.285Z"
+        }
+      },
+      {
+        "text": "ושחוו",
+        "start_timestamp": {
+          "relative": 34.965473,
+          "absolute": "2026-06-09T15:44:37.285Z"
+        },
+        "end_timestamp": {
+          "relative": 35.385475,
+          "absolute": "2026-06-09T15:44:37.705Z"
+        }
+      },
+      {
+        "text": "את",
+        "start_timestamp": {
+          "relative": 35.385475,
+          "absolute": "2026-06-09T15:44:37.705Z"
+        },
+        "end_timestamp": {
+          "relative": 35.484474,
+          "absolute": "2026-06-09T15:44:37.804Z"
+        }
+      },
+      {
+        "text": "הבעיה",
+        "start_timestamp": {
+          "relative": 35.484474,
+          "absolute": "2026-06-09T15:44:37.804Z"
+        },
+        "end_timestamp": {
+          "relative": 35.845474,
+          "absolute": "2026-06-09T15:44:38.165Z"
+        }
+      },
+      {
+        "text": "הזו",
+        "start_timestamp": {
+          "relative": 35.845474,
+          "absolute": "2026-06-09T15:44:38.165Z"
+        },
+        "end_timestamp": {
+          "relative": 36.04447,
+          "absolute": "2026-06-09T15:44:38.364Z"
+        }
+      },
+      {
+        "text": "במשך",
+        "start_timestamp": {
+          "relative": 36.04447,
+          "absolute": "2026-06-09T15:44:38.364Z"
+        },
+        "end_timestamp": {
+          "relative": 36.38447,
+          "absolute": "2026-06-09T15:44:38.704Z"
+        }
+      },
+      {
+        "text": "שנים",
+        "start_timestamp": {
+          "relative": 36.38447,
+          "absolute": "2026-06-09T15:44:38.704Z"
+        },
+        "end_timestamp": {
+          "relative": 36.685474,
+          "absolute": "2026-06-09T15:44:39.005Z"
+        }
+      },
+      {
+        "text": "עוד",
+        "start_timestamp": {
+          "relative": 36.685474,
+          "absolute": "2026-06-09T15:44:39.005Z"
+        },
+        "end_timestamp": {
+          "relative": 36.745472,
+          "absolute": "2026-06-09T15:44:39.065Z"
+        }
+      },
+      {
+        "text": "שנים",
+        "start_timestamp": {
+          "relative": 36.745472,
+          "absolute": "2026-06-09T15:44:39.065Z"
+        },
+        "end_timestamp": {
+          "relative": 36.964474,
+          "absolute": "2026-06-09T15:44:39.284Z"
+        }
+      },
+      {
+        "text": "עוד",
+        "start_timestamp": {
+          "relative": 36.964474,
+          "absolute": "2026-06-09T15:44:39.284Z"
+        },
+        "end_timestamp": {
+          "relative": 37.085472,
+          "absolute": "2026-06-09T15:44:39.405Z"
+        }
+      },
+      {
+        "text": "שנים,",
+        "start_timestamp": {
+          "relative": 37.085472,
+          "absolute": "2026-06-09T15:44:39.405Z"
+        },
+        "end_timestamp": {
+          "relative": 37.735474,
+          "absolute": "2026-06-09T15:44:40.055Z"
+        }
+      },
+      {
+        "text": "המוצר",
+        "start_timestamp": {
+          "relative": 38.225475,
+          "absolute": "2026-06-09T15:44:40.545Z"
+        },
+        "end_timestamp": {
+          "relative": 38.70447,
+          "absolute": "2026-06-09T15:44:41.024Z"
+        }
+      },
+      {
+        "text": "כרגע",
+        "start_timestamp": {
+          "relative": 38.70447,
+          "absolute": "2026-06-09T15:44:41.024Z"
+        },
+        "end_timestamp": {
+          "relative": 38.985474,
+          "absolute": "2026-06-09T15:44:41.305Z"
+        }
+      },
+      {
+        "text": "נמצא",
+        "start_timestamp": {
+          "relative": 38.985474,
+          "absolute": "2026-06-09T15:44:41.305Z"
+        },
+        "end_timestamp": {
+          "relative": 39.38447,
+          "absolute": "2026-06-09T15:44:41.704Z"
+        }
+      },
+      {
+        "text": "בשלב",
+        "start_timestamp": {
+          "relative": 39.38447,
+          "absolute": "2026-06-09T15:44:41.704Z"
+        },
+        "end_timestamp": {
+          "relative": 40.005474,
+          "absolute": "2026-06-09T15:44:42.325Z"
+        }
+      },
+      {
+        "text": "בטא",
+        "start_timestamp": {
+          "relative": 40.005474,
+          "absolute": "2026-06-09T15:44:42.325Z"
+        },
+        "end_timestamp": {
+          "relative": 40.345474,
+          "absolute": "2026-06-09T15:44:42.665Z"
+        }
+      },
+      {
+        "text": "מאוד",
+        "start_timestamp": {
+          "relative": 40.345474,
+          "absolute": "2026-06-09T15:44:42.665Z"
+        },
+        "end_timestamp": {
+          "relative": 40.685474,
+          "absolute": "2026-06-09T15:44:43.005Z"
+        }
+      },
+      {
+        "text": "מאוד",
+        "start_timestamp": {
+          "relative": 40.685474,
+          "absolute": "2026-06-09T15:44:43.005Z"
+        },
+        "end_timestamp": {
+          "relative": 40.825474,
+          "absolute": "2026-06-09T15:44:43.145Z"
+        }
+      },
+      {
+        "text": "מאוד",
+        "start_timestamp": {
+          "relative": 40.825474,
+          "absolute": "2026-06-09T15:44:43.145Z"
+        },
+        "end_timestamp": {
+          "relative": 40.88447,
+          "absolute": "2026-06-09T15:44:43.204Z"
+        }
+      },
+      {
+        "text": "התחלתי",
+        "start_timestamp": {
+          "relative": 40.88447,
+          "absolute": "2026-06-09T15:44:43.204Z"
+        },
+        "end_timestamp": {
+          "relative": 41.425472,
+          "absolute": "2026-06-09T15:44:43.745Z"
+        }
+      },
+      {
+        "text": "ודברים",
+        "start_timestamp": {
+          "relative": 41.425472,
+          "absolute": "2026-06-09T15:44:43.745Z"
+        },
+        "end_timestamp": {
+          "relative": 42.325474,
+          "absolute": "2026-06-09T15:44:44.645Z"
+        }
+      },
+      {
+        "text": "נראים",
+        "start_timestamp": {
+          "relative": 42.325474,
+          "absolute": "2026-06-09T15:44:44.645Z"
+        },
+        "end_timestamp": {
+          "relative": 42.70447,
+          "absolute": "2026-06-09T15:44:45.024Z"
+        }
+      },
+      {
+        "text": "שהם",
+        "start_timestamp": {
+          "relative": 42.70447,
+          "absolute": "2026-06-09T15:44:45.024Z"
+        },
+        "end_timestamp": {
+          "relative": 42.925472,
+          "absolute": "2026-06-09T15:44:45.245Z"
+        }
+      },
+      {
+        "text": "הולכים",
+        "start_timestamp": {
+          "relative": 42.925472,
+          "absolute": "2026-06-09T15:44:45.245Z"
+        },
+        "end_timestamp": {
+          "relative": 43.06547,
+          "absolute": "2026-06-09T15:44:45.385Z"
+        }
+      },
+      {
+        "text": "לכיוון",
+        "start_timestamp": {
+          "relative": 43.06547,
+          "absolute": "2026-06-09T15:44:45.385Z"
+        },
+        "end_timestamp": {
+          "relative": 43.425472,
+          "absolute": "2026-06-09T15:44:45.745Z"
+        }
+      },
+      {
+        "text": "יחסית",
+        "start_timestamp": {
+          "relative": 43.425472,
+          "absolute": "2026-06-09T15:44:45.745Z"
+        },
+        "end_timestamp": {
+          "relative": 43.985474,
+          "absolute": "2026-06-09T15:44:46.305Z"
+        }
+      },
+      {
+        "text": "טוב,",
+        "start_timestamp": {
+          "relative": 43.985474,
+          "absolute": "2026-06-09T15:44:46.305Z"
+        },
+        "end_timestamp": {
+          "relative": 44.935474,
+          "absolute": "2026-06-09T15:44:47.255Z"
+        }
+      },
+      {
+        "text": "אני",
+        "start_timestamp": {
+          "relative": 45.925472,
+          "absolute": "2026-06-09T15:44:48.245Z"
+        },
+        "end_timestamp": {
+          "relative": 46.06547,
+          "absolute": "2026-06-09T15:44:48.385Z"
+        }
+      },
+      {
+        "text": "חושב",
+        "start_timestamp": {
+          "relative": 46.06547,
+          "absolute": "2026-06-09T15:44:48.385Z"
+        },
+        "end_timestamp": {
+          "relative": 46.585472,
+          "absolute": "2026-06-09T15:44:48.905Z"
+        }
+      },
+      {
+        "text": "שאנחנו",
+        "start_timestamp": {
+          "relative": 46.585472,
+          "absolute": "2026-06-09T15:44:48.905Z"
+        },
+        "end_timestamp": {
+          "relative": 46.825474,
+          "absolute": "2026-06-09T15:44:49.145Z"
+        }
+      },
+      {
+        "text": "צריכים",
+        "start_timestamp": {
+          "relative": 46.825474,
+          "absolute": "2026-06-09T15:44:49.145Z"
+        },
+        "end_timestamp": {
+          "relative": 47.06547,
+          "absolute": "2026-06-09T15:44:49.385Z"
+        }
+      },
+      {
+        "text": "שנייה",
+        "start_timestamp": {
+          "relative": 47.06547,
+          "absolute": "2026-06-09T15:44:49.385Z"
+        },
+        "end_timestamp": {
+          "relative": 47.365475,
+          "absolute": "2026-06-09T15:44:49.685Z"
+        }
+      },
+      {
+        "text": "להתחיל",
+        "start_timestamp": {
+          "relative": 47.365475,
+          "absolute": "2026-06-09T15:44:49.685Z"
+        },
+        "end_timestamp": {
+          "relative": 47.685474,
+          "absolute": "2026-06-09T15:44:50.005Z"
+        }
+      },
+      {
+        "text": "להתרכז",
+        "start_timestamp": {
+          "relative": 47.685474,
+          "absolute": "2026-06-09T15:44:50.005Z"
+        },
+        "end_timestamp": {
+          "relative": 48.40547,
+          "absolute": "2026-06-09T15:44:50.725Z"
+        }
+      },
+      {
+        "text": "במה",
+        "start_timestamp": {
+          "relative": 48.40547,
+          "absolute": "2026-06-09T15:44:50.725Z"
+        },
+        "end_timestamp": {
+          "relative": 49.205475,
+          "absolute": "2026-06-09T15:44:51.525Z"
+        }
+      },
+      {
+        "text": "אנחנו",
+        "start_timestamp": {
+          "relative": 49.825474,
+          "absolute": "2026-06-09T15:44:52.145Z"
+        },
+        "end_timestamp": {
+          "relative": 50.06547,
+          "absolute": "2026-06-09T15:44:52.385Z"
+        }
+      },
+      {
+        "text": "הולכים",
+        "start_timestamp": {
+          "relative": 50.06547,
+          "absolute": "2026-06-09T15:44:52.385Z"
+        },
+        "end_timestamp": {
+          "relative": 50.205475,
+          "absolute": "2026-06-09T15:44:52.525Z"
+        }
+      },
+      {
+        "text": "לעשות",
+        "start_timestamp": {
+          "relative": 50.205475,
+          "absolute": "2026-06-09T15:44:52.525Z"
+        },
+        "end_timestamp": {
+          "relative": 50.56547,
+          "absolute": "2026-06-09T15:44:52.885Z"
+        }
+      },
+      {
+        "text": "בהמשך",
+        "start_timestamp": {
+          "relative": 50.56547,
+          "absolute": "2026-06-09T15:44:52.885Z"
+        },
+        "end_timestamp": {
+          "relative": 51.06547,
+          "absolute": "2026-06-09T15:44:53.385Z"
+        }
+      },
+      {
+        "text": "ובאיך",
+        "start_timestamp": {
+          "relative": 51.06547,
+          "absolute": "2026-06-09T15:44:53.385Z"
+        },
+        "end_timestamp": {
+          "relative": 51.40547,
+          "absolute": "2026-06-09T15:44:53.725Z"
+        }
+      },
+      {
+        "text": "דברים",
+        "start_timestamp": {
+          "relative": 51.40547,
+          "absolute": "2026-06-09T15:44:53.725Z"
+        },
+        "end_timestamp": {
+          "relative": 51.725475,
+          "absolute": "2026-06-09T15:44:54.045Z"
+        }
+      },
+      {
+        "text": "ייראו",
+        "start_timestamp": {
+          "relative": 51.725475,
+          "absolute": "2026-06-09T15:44:54.045Z"
+        },
+        "end_timestamp": {
+          "relative": 52.025475,
+          "absolute": "2026-06-09T15:44:54.345Z"
+        }
+      },
+      {
+        "text": "להמשך",
+        "start_timestamp": {
+          "relative": 52.025475,
+          "absolute": "2026-06-09T15:44:54.345Z"
+        },
+        "end_timestamp": {
+          "relative": 52.545475,
+          "absolute": "2026-06-09T15:44:54.865Z"
+        }
+      },
+      {
+        "text": "אנחנו",
+        "start_timestamp": {
+          "relative": 52.805473,
+          "absolute": "2026-06-09T15:44:55.125Z"
+        },
+        "end_timestamp": {
+          "relative": 53.325474,
+          "absolute": "2026-06-09T15:44:55.645Z"
+        }
+      },
+      {
+        "text": "באמת",
+        "start_timestamp": {
+          "relative": 53.325474,
+          "absolute": "2026-06-09T15:44:55.645Z"
+        },
+        "end_timestamp": {
+          "relative": 53.645473,
+          "absolute": "2026-06-09T15:44:55.965Z"
+        }
+      },
+      {
+        "text": "מנסים",
+        "start_timestamp": {
+          "relative": 53.645473,
+          "absolute": "2026-06-09T15:44:55.965Z"
+        },
+        "end_timestamp": {
+          "relative": 54.145473,
+          "absolute": "2026-06-09T15:44:56.465Z"
+        }
+      },
+      {
+        "text": "להשתפר",
+        "start_timestamp": {
+          "relative": 54.145473,
+          "absolute": "2026-06-09T15:44:56.465Z"
+        },
+        "end_timestamp": {
+          "relative": 55.06547,
+          "absolute": "2026-06-09T15:44:57.385Z"
+        }
+      },
+      {
+        "text": "ולעשות",
+        "start_timestamp": {
+          "relative": 55.06547,
+          "absolute": "2026-06-09T15:44:57.385Z"
+        },
+        "end_timestamp": {
+          "relative": 56.045475,
+          "absolute": "2026-06-09T15:44:58.365Z"
+        }
+      },
+      {
+        "text": "עבודה",
+        "start_timestamp": {
+          "relative": 56.045475,
+          "absolute": "2026-06-09T15:44:58.365Z"
+        },
+        "end_timestamp": {
+          "relative": 56.345474,
+          "absolute": "2026-06-09T15:44:58.665Z"
+        }
+      },
+      {
+        "text": "כמה",
+        "start_timestamp": {
+          "relative": 56.345474,
+          "absolute": "2026-06-09T15:44:58.665Z"
+        },
+        "end_timestamp": {
+          "relative": 56.585472,
+          "absolute": "2026-06-09T15:44:58.905Z"
+        }
+      },
+      {
+        "text": "שיותר",
+        "start_timestamp": {
+          "relative": 56.585472,
+          "absolute": "2026-06-09T15:44:58.905Z"
+        },
+        "end_timestamp": {
+          "relative": 56.925472,
+          "absolute": "2026-06-09T15:44:59.245Z"
+        }
+      },
+      {
+        "text": "טובה",
+        "start_timestamp": {
+          "relative": 56.925472,
+          "absolute": "2026-06-09T15:44:59.245Z"
+        },
+        "end_timestamp": {
+          "relative": 57.465473,
+          "absolute": "2026-06-09T15:44:59.785Z"
+        }
+      },
+      {
+        "text": "ומקצועית.",
+        "start_timestamp": {
+          "relative": 57.465473,
+          "absolute": "2026-06-09T15:44:59.785Z"
+        },
+        "end_timestamp": {
+          "relative": 58.765472,
+          "absolute": "2026-06-09T15:45:01.085Z"
+        }
+      },
+      {
+        "text": "אני",
+        "start_timestamp": {
+          "relative": 59.364475,
+          "absolute": "2026-06-09T15:45:01.684Z"
+        },
+        "end_timestamp": {
+          "relative": 59.425472,
+          "absolute": "2026-06-09T15:45:01.745Z"
+        }
+      },
+      {
+        "text": "חושב",
+        "start_timestamp": {
+          "relative": 59.425472,
+          "absolute": "2026-06-09T15:45:01.745Z"
+        },
+        "end_timestamp": {
+          "relative": 59.465473,
+          "absolute": "2026-06-09T15:45:01.785Z"
+        }
+      },
+      {
+        "text": "שהאבידה",
+        "start_timestamp": {
+          "relative": 59.465473,
+          "absolute": "2026-06-09T15:45:01.785Z"
+        },
+        "end_timestamp": {
+          "relative": 60.225475,
+          "absolute": "2026-06-09T15:45:02.545Z"
+        }
+      },
+      {
+        "text": "שלנו",
+        "start_timestamp": {
+          "relative": 60.225475,
+          "absolute": "2026-06-09T15:45:02.545Z"
+        },
+        "end_timestamp": {
+          "relative": 60.705475,
+          "absolute": "2026-06-09T15:45:03.025Z"
+        }
+      },
+      {
+        "text": "בחצי",
+        "start_timestamp": {
+          "relative": 60.705475,
+          "absolute": "2026-06-09T15:45:03.025Z"
+        },
+        "end_timestamp": {
+          "relative": 63.265472,
+          "absolute": "2026-06-09T15:45:05.585Z"
+        }
+      },
+      {
+        "text": "שנה",
+        "start_timestamp": {
+          "relative": 63.265472,
+          "absolute": "2026-06-09T15:45:05.585Z"
+        },
+        "end_timestamp": {
+          "relative": 63.485474,
+          "absolute": "2026-06-09T15:45:05.805Z"
+        }
+      },
+      {
+        "text": "האחרונה",
+        "start_timestamp": {
+          "relative": 63.485474,
+          "absolute": "2026-06-09T15:45:05.805Z"
+        },
+        "end_timestamp": {
+          "relative": 63.924473,
+          "absolute": "2026-06-09T15:45:06.244Z"
+        }
+      },
+      {
+        "text": "עלתה",
+        "start_timestamp": {
+          "relative": 63.924473,
+          "absolute": "2026-06-09T15:45:06.244Z"
+        },
+        "end_timestamp": {
+          "relative": 64.42447,
+          "absolute": "2026-06-09T15:45:06.744Z"
+        }
+      },
+      {
+        "text": "ב-10%.",
+        "start_timestamp": {
+          "relative": 64.42447,
+          "absolute": "2026-06-09T15:45:06.744Z"
+        },
+        "end_timestamp": {
+          "relative": 65.62547,
+          "absolute": "2026-06-09T15:45:07.945Z"
+        }
+      },
+      {
+        "text": "ההכנסות",
+        "start_timestamp": {
+          "relative": 66.20547,
+          "absolute": "2026-06-09T15:45:08.525Z"
+        },
+        "end_timestamp": {
+          "relative": 66.68547,
+          "absolute": "2026-06-09T15:45:09.005Z"
+        }
+      },
+      {
+        "text": "שלנו",
+        "start_timestamp": {
+          "relative": 66.68547,
+          "absolute": "2026-06-09T15:45:09.005Z"
+        },
+        "end_timestamp": {
+          "relative": 66.985466,
+          "absolute": "2026-06-09T15:45:09.305Z"
+        }
+      },
+      {
+        "text": "ירדו",
+        "start_timestamp": {
+          "relative": 66.985466,
+          "absolute": "2026-06-09T15:45:09.305Z"
+        },
+        "end_timestamp": {
+          "relative": 67.20547,
+          "absolute": "2026-06-09T15:45:09.525Z"
+        }
+      },
+      {
+        "text": "ב-50%,",
+        "start_timestamp": {
+          "relative": 67.20547,
+          "absolute": "2026-06-09T15:45:09.525Z"
+        },
+        "end_timestamp": {
+          "relative": 67.90547,
+          "absolute": "2026-06-09T15:45:10.225Z"
+        }
+      },
+      {
+        "text": "60%,",
+        "start_timestamp": {
+          "relative": 67.90547,
+          "absolute": "2026-06-09T15:45:10.225Z"
+        },
+        "end_timestamp": {
+          "relative": 68.60547,
+          "absolute": "2026-06-09T15:45:10.925Z"
+        }
+      },
+      {
+        "text": "אנחנו",
+        "start_timestamp": {
+          "relative": 68.60547,
+          "absolute": "2026-06-09T15:45:10.925Z"
+        },
+        "end_timestamp": {
+          "relative": 68.88547,
+          "absolute": "2026-06-09T15:45:11.205Z"
+        }
+      },
+      {
+        "text": "מצפים",
+        "start_timestamp": {
+          "relative": 68.88547,
+          "absolute": "2026-06-09T15:45:11.205Z"
+        },
+        "end_timestamp": {
+          "relative": 69.20547,
+          "absolute": "2026-06-09T15:45:11.525Z"
+        }
+      },
+      {
+        "text": "שנה",
+        "start_timestamp": {
+          "relative": 69.20547,
+          "absolute": "2026-06-09T15:45:11.525Z"
+        },
+        "end_timestamp": {
+          "relative": 69.485466,
+          "absolute": "2026-06-09T15:45:11.805Z"
+        }
+      },
+      {
+        "text": "הבאה",
+        "start_timestamp": {
+          "relative": 69.485466,
+          "absolute": "2026-06-09T15:45:11.805Z"
+        },
+        "end_timestamp": {
+          "relative": 69.72547,
+          "absolute": "2026-06-09T15:45:12.045Z"
+        }
+      },
+      {
+        "text": "להגיע",
+        "start_timestamp": {
+          "relative": 69.72547,
+          "absolute": "2026-06-09T15:45:12.045Z"
+        },
+        "end_timestamp": {
+          "relative": 69.92547,
+          "absolute": "2026-06-09T15:45:12.245Z"
+        }
+      },
+      {
+        "text": "ל-10",
+        "start_timestamp": {
+          "relative": 69.92547,
+          "absolute": "2026-06-09T15:45:12.245Z"
+        },
+        "end_timestamp": {
+          "relative": 70.38547,
+          "absolute": "2026-06-09T15:45:12.705Z"
+        }
+      },
+      {
+        "text": "מיליון",
+        "start_timestamp": {
+          "relative": 70.38547,
+          "absolute": "2026-06-09T15:45:12.705Z"
+        },
+        "end_timestamp": {
+          "relative": 70.985466,
+          "absolute": "2026-06-09T15:45:13.305Z"
+        }
+      },
+      {
+        "text": "דולר",
+        "start_timestamp": {
+          "relative": 70.985466,
+          "absolute": "2026-06-09T15:45:13.305Z"
+        },
+        "end_timestamp": {
+          "relative": 71.52547,
+          "absolute": "2026-06-09T15:45:13.845Z"
+        }
+      },
+      {
+        "text": "הכנסות.",
+        "start_timestamp": {
+          "relative": 71.52547,
+          "absolute": "2026-06-09T15:45:13.845Z"
+        },
+        "end_timestamp": {
+          "relative": 72.32547,
+          "absolute": "2026-06-09T15:45:14.645Z"
+        }
+      },
+      {
+        "text": "אני",
+        "start_timestamp": {
+          "relative": 72.80547,
+          "absolute": "2026-06-09T15:45:15.125Z"
+        },
+        "end_timestamp": {
+          "relative": 72.92547,
+          "absolute": "2026-06-09T15:45:15.245Z"
+        }
+      },
+      {
+        "text": "חושב",
+        "start_timestamp": {
+          "relative": 72.92547,
+          "absolute": "2026-06-09T15:45:15.245Z"
+        },
+        "end_timestamp": {
+          "relative": 73.12547,
+          "absolute": "2026-06-09T15:45:15.445Z"
+        }
+      },
+      {
+        "text": "שהשולי",
+        "start_timestamp": {
+          "relative": 73.12547,
+          "absolute": "2026-06-09T15:45:15.445Z"
+        },
+        "end_timestamp": {
+          "relative": 73.84547,
+          "absolute": "2026-06-09T15:45:16.165Z"
+        }
+      },
+      {
+        "text": "רווח",
+        "start_timestamp": {
+          "relative": 73.84547,
+          "absolute": "2026-06-09T15:45:16.165Z"
+        },
+        "end_timestamp": {
+          "relative": 74.06547,
+          "absolute": "2026-06-09T15:45:16.385Z"
+        }
+      },
+      {
+        "text": "הגולמיים",
+        "start_timestamp": {
+          "relative": 74.06547,
+          "absolute": "2026-06-09T15:45:16.385Z"
+        },
+        "end_timestamp": {
+          "relative": 74.52547,
+          "absolute": "2026-06-09T15:45:16.845Z"
+        }
+      },
+      {
+        "text": "שלנו",
+        "start_timestamp": {
+          "relative": 74.52547,
+          "absolute": "2026-06-09T15:45:16.845Z"
+        },
+        "end_timestamp": {
+          "relative": 75.24547,
+          "absolute": "2026-06-09T15:45:17.565Z"
+        }
+      },
+      {
+        "text": "מתחילים",
+        "start_timestamp": {
+          "relative": 75.24547,
+          "absolute": "2026-06-09T15:45:17.565Z"
+        },
+        "end_timestamp": {
+          "relative": 75.76547,
+          "absolute": "2026-06-09T15:45:18.085Z"
+        }
+      },
+      {
+        "text": "לרדת.",
+        "start_timestamp": {
+          "relative": 75.76547,
+          "absolute": "2026-06-09T15:45:18.085Z"
+        },
+        "end_timestamp": {
+          "relative": 76.56547,
+          "absolute": "2026-06-09T15:45:18.885Z"
+        }
+      },
+      {
+        "text": "יש",
+        "start_timestamp": {
+          "relative": 76.83547,
+          "absolute": "2026-06-09T15:45:19.155Z"
+        },
+        "end_timestamp": {
+          "relative": 77.21547,
+          "absolute": "2026-06-09T15:45:19.535Z"
+        }
+      },
+      {
+        "text": "לנו",
+        "start_timestamp": {
+          "relative": 77.21547,
+          "absolute": "2026-06-09T15:45:19.535Z"
+        },
+        "end_timestamp": {
+          "relative": 77.41447,
+          "absolute": "2026-06-09T15:45:19.734Z"
+        }
+      },
+      {
+        "text": "המון",
+        "start_timestamp": {
+          "relative": 77.41447,
+          "absolute": "2026-06-09T15:45:19.734Z"
+        },
+        "end_timestamp": {
+          "relative": 77.63547,
+          "absolute": "2026-06-09T15:45:19.955Z"
+        }
+      },
+      {
+        "text": "שיעורי",
+        "start_timestamp": {
+          "relative": 77.63547,
+          "absolute": "2026-06-09T15:45:19.955Z"
+        },
+        "end_timestamp": {
+          "relative": 78.99547,
+          "absolute": "2026-06-09T15:45:21.315Z"
+        }
+      },
+      {
+        "text": "פיטורים,",
+        "start_timestamp": {
+          "relative": 78.99547,
+          "absolute": "2026-06-09T15:45:21.315Z"
+        },
+        "end_timestamp": {
+          "relative": 79.93547,
+          "absolute": "2026-06-09T15:45:22.255Z"
+        }
+      },
+      {
+        "text": "יש",
+        "start_timestamp": {
+          "relative": 79.93547,
+          "absolute": "2026-06-09T15:45:22.255Z"
+        },
+        "end_timestamp": {
+          "relative": 79.93547,
+          "absolute": "2026-06-09T15:45:22.255Z"
+        }
+      },
+      {
+        "text": "לנו",
+        "start_timestamp": {
+          "relative": 79.93547,
+          "absolute": "2026-06-09T15:45:22.255Z"
+        },
+        "end_timestamp": {
+          "relative": 80.17547,
+          "absolute": "2026-06-09T15:45:22.495Z"
+        }
+      },
+      {
+        "text": "כמה",
+        "start_timestamp": {
+          "relative": 80.17547,
+          "absolute": "2026-06-09T15:45:22.495Z"
+        },
+        "end_timestamp": {
+          "relative": 80.31547,
+          "absolute": "2026-06-09T15:45:22.635Z"
+        }
+      },
+      {
+        "text": "פרויקטים",
+        "start_timestamp": {
+          "relative": 80.31547,
+          "absolute": "2026-06-09T15:45:22.635Z"
+        },
+        "end_timestamp": {
+          "relative": 80.83547,
+          "absolute": "2026-06-09T15:45:23.155Z"
+        }
+      },
+      {
+        "text": "מעניינים",
+        "start_timestamp": {
+          "relative": 80.83547,
+          "absolute": "2026-06-09T15:45:23.155Z"
+        },
+        "end_timestamp": {
+          "relative": 81.19547,
+          "absolute": "2026-06-09T15:45:23.515Z"
+        }
+      },
+      {
+        "text": "שיוצאים",
+        "start_timestamp": {
+          "relative": 81.19547,
+          "absolute": "2026-06-09T15:45:23.515Z"
+        },
+        "end_timestamp": {
+          "relative": 81.61547,
+          "absolute": "2026-06-09T15:45:23.935Z"
+        }
+      },
+      {
+        "text": "ב-TLV,",
+        "start_timestamp": {
+          "relative": 81.61547,
+          "absolute": "2026-06-09T15:45:23.935Z"
+        },
+        "end_timestamp": {
+          "relative": 82.41547,
+          "absolute": "2026-06-09T15:45:24.735Z"
+        }
+      },
+      {
+        "text": "בניו",
+        "start_timestamp": {
+          "relative": 82.41547,
+          "absolute": "2026-06-09T15:45:24.735Z"
+        },
+        "end_timestamp": {
+          "relative": 82.63447,
+          "absolute": "2026-06-09T15:45:24.954Z"
+        }
+      },
+      {
+        "text": "יורק,",
+        "start_timestamp": {
+          "relative": 82.63447,
+          "absolute": "2026-06-09T15:45:24.954Z"
+        },
+        "end_timestamp": {
+          "relative": 82.99547,
+          "absolute": "2026-06-09T15:45:25.315Z"
+        }
+      },
+      {
+        "text": "במיאמי.",
+        "start_timestamp": {
+          "relative": 82.99547,
+          "absolute": "2026-06-09T15:45:25.315Z"
+        },
+        "end_timestamp": {
+          "relative": 84.49547,
+          "absolute": "2026-06-09T15:45:26.815Z"
+        }
+      },
+      {
+        "text": "פרויקט",
+        "start_timestamp": {
+          "relative": 84.49547,
+          "absolute": "2026-06-09T15:45:26.815Z"
+        },
+        "end_timestamp": {
+          "relative": 84.83547,
+          "absolute": "2026-06-09T15:45:27.155Z"
+        }
+      },
+      {
+        "text": "ראשון",
+        "start_timestamp": {
+          "relative": 84.83547,
+          "absolute": "2026-06-09T15:45:27.155Z"
+        },
+        "end_timestamp": {
+          "relative": 85.25547,
+          "absolute": "2026-06-09T15:45:27.575Z"
+        }
+      },
+      {
+        "text": "זה",
+        "start_timestamp": {
+          "relative": 85.25547,
+          "absolute": "2026-06-09T15:45:27.575Z"
+        },
+        "end_timestamp": {
+          "relative": 85.45447,
+          "absolute": "2026-06-09T15:45:27.774Z"
+        }
+      },
+      {
+        "text": "בנייני",
+        "start_timestamp": {
+          "relative": 85.45447,
+          "absolute": "2026-06-09T15:45:27.774Z"
+        },
+        "end_timestamp": {
+          "relative": 85.79547,
+          "absolute": "2026-06-09T15:45:28.115Z"
+        }
+      },
+      {
+        "text": "נדל\"ן",
+        "start_timestamp": {
+          "relative": 85.79547,
+          "absolute": "2026-06-09T15:45:28.115Z"
+        },
+        "end_timestamp": {
+          "relative": 86.47547,
+          "absolute": "2026-06-09T15:45:28.795Z"
+        }
+      },
+      {
+        "text": "בשורות",
+        "start_timestamp": {
+          "relative": 86.47547,
+          "absolute": "2026-06-09T15:45:28.795Z"
+        },
+        "end_timestamp": {
+          "relative": 88.01547,
+          "absolute": "2026-06-09T15:45:30.335Z"
+        }
+      },
+      {
+        "text": "מרכזיות,",
+        "start_timestamp": {
+          "relative": 88.01547,
+          "absolute": "2026-06-09T15:45:30.335Z"
+        },
+        "end_timestamp": {
+          "relative": 89.06547,
+          "absolute": "2026-06-09T15:45:31.385Z"
+        }
+      },
+      {
+        "text": "בשדרות",
+        "start_timestamp": {
+          "relative": 89.51547,
+          "absolute": "2026-06-09T15:45:31.835Z"
+        },
+        "end_timestamp": {
+          "relative": 89.95447,
+          "absolute": "2026-06-09T15:45:32.274Z"
+        }
+      },
+      {
+        "text": "מרכזיות,",
+        "start_timestamp": {
+          "relative": 89.95447,
+          "absolute": "2026-06-09T15:45:32.274Z"
+        },
+        "end_timestamp": {
+          "relative": 90.59547,
+          "absolute": "2026-06-09T15:45:32.915Z"
+        }
+      },
+      {
+        "text": "סליחה.",
+        "start_timestamp": {
+          "relative": 90.59547,
+          "absolute": "2026-06-09T15:45:32.915Z"
+        },
+        "end_timestamp": {
+          "relative": 91.95447,
+          "absolute": "2026-06-09T15:45:34.274Z"
+        }
+      },
+      {
+        "text": "התחלנו",
+        "start_timestamp": {
+          "relative": 91.95447,
+          "absolute": "2026-06-09T15:45:34.274Z"
+        },
+        "end_timestamp": {
+          "relative": 92.21547,
+          "absolute": "2026-06-09T15:45:34.535Z"
+        }
+      },
+      {
+        "text": "לאחרונה",
+        "start_timestamp": {
+          "relative": 92.21547,
+          "absolute": "2026-06-09T15:45:34.535Z"
+        },
+        "end_timestamp": {
+          "relative": 92.55547,
+          "absolute": "2026-06-09T15:45:34.875Z"
+        }
+      },
+      {
+        "text": "לעבוד",
+        "start_timestamp": {
+          "relative": 92.55547,
+          "absolute": "2026-06-09T15:45:34.875Z"
+        },
+        "end_timestamp": {
+          "relative": 92.93547,
+          "absolute": "2026-06-09T15:45:35.255Z"
+        }
+      },
+      {
+        "text": "גם",
+        "start_timestamp": {
+          "relative": 92.93547,
+          "absolute": "2026-06-09T15:45:35.255Z"
+        },
+        "end_timestamp": {
+          "relative": 93.39547,
+          "absolute": "2026-06-09T15:45:35.715Z"
+        }
+      },
+      {
+        "text": "עם",
+        "start_timestamp": {
+          "relative": 93.39547,
+          "absolute": "2026-06-09T15:45:35.715Z"
+        },
+        "end_timestamp": {
+          "relative": 93.99547,
+          "absolute": "2026-06-09T15:45:36.315Z"
+        }
+      },
+      {
+        "text": "חברת",
+        "start_timestamp": {
+          "relative": 93.99547,
+          "absolute": "2026-06-09T15:45:36.315Z"
+        },
+        "end_timestamp": {
+          "relative": 94.61547,
+          "absolute": "2026-06-09T15:45:36.935Z"
+        }
+      },
+      {
+        "text": "סאמית",
+        "start_timestamp": {
+          "relative": 94.61547,
+          "absolute": "2026-06-09T15:45:36.935Z"
+        },
+        "end_timestamp": {
+          "relative": 95.15547,
+          "absolute": "2026-06-09T15:45:37.475Z"
+        }
+      },
+      {
+        "text": "הציבורית,",
+        "start_timestamp": {
+          "relative": 95.15547,
+          "absolute": "2026-06-09T15:45:37.475Z"
+        },
+        "end_timestamp": {
+          "relative": 95.87547,
+          "absolute": "2026-06-09T15:45:38.195Z"
+        }
+      },
+      {
+        "text": "שפועלת",
+        "start_timestamp": {
+          "relative": 95.87547,
+          "absolute": "2026-06-09T15:45:38.195Z"
+        },
+        "end_timestamp": {
+          "relative": 96.49547,
+          "absolute": "2026-06-09T15:45:38.815Z"
+        }
+      },
+      {
+        "text": "ועושה",
+        "start_timestamp": {
+          "relative": 96.49547,
+          "absolute": "2026-06-09T15:45:38.815Z"
+        },
+        "end_timestamp": {
+          "relative": 97.45547,
+          "absolute": "2026-06-09T15:45:39.775Z"
+        }
+      },
+      {
+        "text": "פרויקטים",
+        "start_timestamp": {
+          "relative": 97.45547,
+          "absolute": "2026-06-09T15:45:39.775Z"
+        },
+        "end_timestamp": {
+          "relative": 97.99547,
+          "absolute": "2026-06-09T15:45:40.315Z"
+        }
+      },
+      {
+        "text": "של",
+        "start_timestamp": {
+          "relative": 97.99547,
+          "absolute": "2026-06-09T15:45:40.315Z"
+        },
+        "end_timestamp": {
+          "relative": 98.17547,
+          "absolute": "2026-06-09T15:45:40.495Z"
+        }
+      },
+      {
+        "text": "קונסטרוקשן",
+        "start_timestamp": {
+          "relative": 98.17547,
+          "absolute": "2026-06-09T15:45:40.495Z"
+        },
+        "end_timestamp": {
+          "relative": 98.97547,
+          "absolute": "2026-06-09T15:45:41.295Z"
+        }
+      },
+      {
+        "text": "בארצות",
+        "start_timestamp": {
+          "relative": 98.97547,
+          "absolute": "2026-06-09T15:45:41.295Z"
+        },
+        "end_timestamp": {
+          "relative": 99.77547,
+          "absolute": "2026-06-09T15:45:42.095Z"
+        }
+      },
+      {
+        "text": "הברית.",
+        "start_timestamp": {
+          "relative": 99.77547,
+          "absolute": "2026-06-09T15:45:42.095Z"
+        },
+        "end_timestamp": {
+          "relative": 100.735466,
+          "absolute": "2026-06-09T15:45:43.055Z"
+        }
+      },
+      {
+        "text": "וזהו",
+        "start_timestamp": {
+          "relative": 101.10547,
+          "absolute": "2026-06-09T15:45:43.425Z"
+        },
+        "end_timestamp": {
+          "relative": 102.52547,
+          "absolute": "2026-06-09T15:45:44.845Z"
+        }
+      }
+    ],
+    "language_code": "he"
+  }
+]
