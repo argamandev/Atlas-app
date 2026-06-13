@@ -6,10 +6,17 @@ import type { Quote } from '@/lib/api/types'
 // Quotes + followed-calls use the DB when their tables exist (migration 20260613_007),
 // and fall back to an in-process store when they don't — so the UI and the live-transcript
 // self-test work even before the migration is applied. (Dev fallback is per-process only.)
-const quoteMem = new Map<string, Quote[]>()
-const followMem = new Map<string, Set<string>>()
-let quotesUseMemory = false
-let followsUseMemory = false
+// Backed by globalThis so the SAME store is shared across Next's separate RSC and
+// route-handler module layers in dev (otherwise a quote POSTed via a route handler is
+// invisible to a server-component read). No-op once the real tables exist.
+const g = globalThis as unknown as {
+  __timlulQuoteMem?: Map<string, Quote[]>
+  __timlulFollowMem?: Map<string, Set<string>>
+  __timlulDbFlags?: { quotes: boolean; follows: boolean }
+}
+const quoteMem = (g.__timlulQuoteMem ??= new Map<string, Quote[]>())
+const followMem = (g.__timlulFollowMem ??= new Map<string, Set<string>>())
+const flags = (g.__timlulDbFlags ??= { quotes: false, follows: false })
 
 function missingTable(err: { code?: string; message?: string } | null): boolean {
   if (!err) return false
@@ -49,7 +56,7 @@ export interface NewQuote {
 }
 
 export async function listQuotes(userId: string, companyId?: string): Promise<Quote[]> {
-  if (!quotesUseMemory) {
+  if (!flags.quotes) {
     let q = supabaseAdmin
       .from('quotes')
       .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, created_at')
@@ -59,14 +66,14 @@ export async function listQuotes(userId: string, companyId?: string): Promise<Qu
     const { data, error } = await q
     if (!error) return (data ?? []).map(mapQuote)
     if (!missingTable(error)) throw new Error(error.message)
-    quotesUseMemory = true
+    flags.quotes = true
   }
   const all = quoteMem.get(userId) ?? []
   return companyId ? all.filter((x) => x.companyId === companyId) : all
 }
 
 export async function createQuote(userId: string, input: NewQuote): Promise<Quote> {
-  if (!quotesUseMemory) {
+  if (!flags.quotes) {
     const { data, error } = await supabaseAdmin
       .from('quotes')
       .insert({
@@ -82,7 +89,7 @@ export async function createQuote(userId: string, input: NewQuote): Promise<Quot
       .single()
     if (!error && data) return mapQuote(data)
     if (error && !missingTable(error)) throw new Error(error.message)
-    quotesUseMemory = true
+    flags.quotes = true
   }
   const quote: Quote = {
     id: randomUUID(),
@@ -102,27 +109,27 @@ export async function createQuote(userId: string, input: NewQuote): Promise<Quot
 
 // ── followed calls ("My Calendar") ──
 export async function listFollowedCallIds(userId: string): Promise<string[]> {
-  if (!followsUseMemory) {
+  if (!flags.follows) {
     const { data, error } = await supabaseAdmin.from('followed_calls').select('call_id').eq('user_id', userId)
     if (!error) return (data ?? []).map((r) => String((r as Row).call_id))
     if (!missingTable(error)) throw new Error(error.message)
-    followsUseMemory = true
+    flags.follows = true
   }
   return Array.from(followMem.get(userId) ?? [])
 }
 
 export async function followCall(userId: string, callId: string, follow: boolean): Promise<void> {
-  if (!followsUseMemory) {
+  if (!flags.follows) {
     if (follow) {
       const { error } = await supabaseAdmin.from('followed_calls').upsert({ user_id: userId, call_id: callId })
       if (!error) return
       if (!missingTable(error)) throw new Error(error.message)
-      followsUseMemory = true
+      flags.follows = true
     } else {
       const { error } = await supabaseAdmin.from('followed_calls').delete().eq('user_id', userId).eq('call_id', callId)
       if (!error) return
       if (!missingTable(error)) throw new Error(error.message)
-      followsUseMemory = true
+      flags.follows = true
     }
   }
   const set = followMem.get(userId) ?? new Set<string>()
