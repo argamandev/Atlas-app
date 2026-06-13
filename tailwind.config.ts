@@ -26,6 +26,14 @@ const config: Config = {
           'system-ui',
           'sans-serif',
         ],
+        // Latin/English UI font. Falls back to the Hebrew face so mixed-script
+        // content (Hebrew company names inside an English UI) still renders.
+        latin: [
+          'Inter',
+          '"IBM Plex Sans Hebrew"',
+          'system-ui',
+          'sans-serif',
+        ],
       },
       borderRadius: {
         none: '0',
