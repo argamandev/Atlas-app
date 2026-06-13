@@ -52,6 +52,18 @@ seek needs per-word timestamps — Recall calls have them; YouTube/IVRIT path do
 (IVRIT supports word timestamps, never requested). New backend to build with frontend: quotes
 table, chat endpoints, live productionization (see Core 1).
 
+**V1 status (2026-06-13):** Frontend is at an OK-and-improving baseline (full-screen shell,
+slim nav, bilingual EN/HE). Current focus = **Spec 1: transcript experience + chat**
+(`docs/superpowers/specs/2026-06-13-transcript-experience-and-chat-design.md`): a YouTube→text
+transcript with no audio/sync is poor UX; the product's value is the **synced audio + caption**
+experience. The submit pipeline now persists `audio_url` + IVRIT `word_segments` (so the
+"YouTube/IVRIT path doesn't have word timestamps" gap above is closed for new transcripts);
+legacy rows (e.g. Tigbur Q4) predate that and are re-processed in place via
+`scripts/reprocess-audio.mjs`. Next milestone = the **live Zoom test** (Spec 2), with locked
+decisions: **raw-live + polish-after** (Recall raw captions live, Gemini only after the call —
+scales to many concurrent calls), **Railway** as host (provides the permanent webhook URL), and
+**Zoom Webinars** handled by Recall (bot joins as attendee; pass registration link + passcode).
+
 ## Stack
 
 - **Next.js 14 (App Router)** — server components + route handlers; TypeScript; deployed on **Railway**.

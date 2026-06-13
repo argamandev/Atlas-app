@@ -5,6 +5,24 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-13 — Spec 1 (transcript experience + chat) + live-pipeline direction
+
+- Diagnosed: finished YouTube transcripts show no audio / no word-sync because legacy rows
+  predate the `audio_url` + `word_segments` pipeline (which already persists both). Fix =
+  re-process in place (`scripts/reprocess-audio.mjs`), not a pipeline rewrite.
+- Scoped Spec 1 (`docs/superpowers/specs/2026-06-13-transcript-experience-and-chat-design.md`):
+  9 transcript/chat fixes — audio karaoke on finished calls, always-RTL, go-to-line+highlight,
+  real refresh, paragraph-correct quote speaker, editable speaker names, working search,
+  "Open with LLM" (replaces PDF), transcript-scoped chat context, persisted conversations.
+- Core-tech review of the live pipeline. Locked: **raw-live + polish-after** (no LLM in the live
+  path — scales to many concurrent calls; Gemini polishes only the finished transcript),
+  **Railway** host (= permanent webhook URL for free), Recall supports **Zoom Webinars** (bot as
+  attendee; registration link + passcode). Spec 2 productionizes the live broadcast; the finished
+  live call reuses Spec 1's audio-synced replay.
+- PDF dropped in favour of "Open with LLM" (ChatGPT/Claude/Gemini hand-off).
+
+---
+
 ## 2026-06-11 — V1 scoped + data layer seeded (4 real companies, mock MAYA)
 
 - **V1 product description received** (full page map now in CLAUDE.md): Home/Calendar/Chat/
