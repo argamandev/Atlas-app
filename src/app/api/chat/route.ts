@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { getChatContext } from '@/lib/chat/context'
 
-// Chat over the transcript DB (brief §5.3). Anthropic SDK, claude-opus-4-8, transcript
+// Chat over the transcript DB (brief §5.3). Anthropic SDK, claude-sonnet-4-6, transcript
 // context-stuffed into the system prompt. The project stores its key as CLAUDE_API_KEY,
 // so pass it explicitly (the SDK otherwise looks for ANTHROPIC_API_KEY).
+const CHAT_MODEL = 'claude-sonnet-4-6'
 const apiKey = process.env.CLAUDE_API_KEY ?? process.env.ANTHROPIC_API_KEY
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
     ]
 
     const resp = await client.messages.create({
-      model: 'claude-opus-4-8',
+      model: CHAT_MODEL,
       max_tokens: 4096,
       system,
       messages,
