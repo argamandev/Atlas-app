@@ -10,7 +10,10 @@ import { ChevronLeftIcon, ChevronRightIcon, CheckIcon, PlusIcon } from '@/compon
 import { cn } from '@/lib/utils'
 
 function dayKey(iso: string): string {
-  return iso.slice(0, 10)
+  // Use LOCAL date components so a call buckets onto the same grid cell the user sees
+  // (slicing the ISO string would use UTC and misplace calls near midnight).
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 function localKey(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`

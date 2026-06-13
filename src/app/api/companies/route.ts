@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
     const companies = q ? await searchCompanies(q) : await listCompanies()
     return NextResponse.json(companies)
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    console.error('[GET /api/companies]', (err as Error).message)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

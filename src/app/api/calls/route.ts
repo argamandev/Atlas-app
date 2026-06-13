@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const calls = await listCalls({ scope, companyId })
     return NextResponse.json(calls)
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    console.error('[GET /api/calls]', (err as Error).message)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -45,6 +45,7 @@ export function MediaPlayer(props: MediaPlayerProps) {
   function seekFromEvent(e: React.MouseEvent) {
     const el = trackRef.current
     if (!el || duration <= 0) return
+    if (e.detail === 0) return // keyboard-activated click (Enter/Space) has clientX 0 — ignore
     const rect = el.getBoundingClientRect()
     let ratio = (e.clientX - rect.left) / rect.width
     if (dir === 'rtl') ratio = 1 - ratio // scrubber follows reading direction

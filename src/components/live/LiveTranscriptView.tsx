@@ -100,6 +100,10 @@ export function LiveTranscriptView({ call }: { call: LiveCall }) {
       setToast(dict.live.selectToSave)
       return
     }
+    if (!call.companyId) {
+      setToast(dict.common.error)
+      return
+    }
     const speaker = call.transcript.segments[flat[activeIndex]?.segmentIndex ?? 0]?.speakerName ?? null
     try {
       await createQuote({
@@ -201,7 +205,13 @@ export function LiveTranscriptView({ call }: { call: LiveCall }) {
             {!call.transcript.hasWordTimings && (
               <p className="mb-4 rounded-md bg-subtle px-3 py-2 text-xs text-ink-muted">{dict.live.noWordTimings}</p>
             )}
-            <TranscriptBody transcript={call.transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} />
+            <TranscriptBody
+              transcript={call.transcript}
+              activeIndex={activeIndex}
+              autoScroll={autoScroll}
+              onWordClick={seek}
+              karaoke={call.transcript.hasWordTimings}
+            />
           </>
         ) : (
           <div className="grid h-full place-items-center text-sm text-ink-faint">{dict.common.comingSoon}</div>

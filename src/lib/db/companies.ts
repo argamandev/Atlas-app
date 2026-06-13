@@ -62,7 +62,10 @@ export async function getCompanyByTicker(ticker: string): Promise<Company | null
 }
 
 export async function searchCompanies(q: string): Promise<Company[]> {
-  const term = q.trim()
+  // Strip characters that are syntactically meaningful inside a PostgREST `.or()` filter
+  // (comma = clause separator, parens = grouping, `*`/`%` = wildcards) so user input can't
+  // break or alter the query.
+  const term = q.trim().replace(/[,()*%]/g, ' ').trim()
   if (!term) return listCompanies()
   const like = `%${term}%`
   const { data, error } = await supabaseAdmin

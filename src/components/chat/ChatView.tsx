@@ -32,14 +32,14 @@ export function ChatView({
 
   function onChange(v: string) {
     setInput(v)
-    const m = v.match(/@(\w*)$/)
+    const m = v.match(/@([^\s@]*)$/)
     setMentionQuery(m ? m[1] : null)
   }
 
   function onSelectMention(c: Company) {
     setCompanyId(c.id)
     setCompanyName(companyDisplayName(c, locale))
-    setInput((v) => v.replace(/@(\w*)$/, `@${companyDisplayName(c, locale)} `))
+    setInput((v) => v.replace(/@([^\s@]*)$/, `@${companyDisplayName(c, locale)} `))
     setMentionQuery(null)
     inputRef.current?.focus()
   }

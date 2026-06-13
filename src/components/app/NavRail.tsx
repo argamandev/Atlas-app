@@ -53,8 +53,9 @@ export function NavRail() {
 
   const renderItem = (item: NavItem) => {
     const Icon = item.icon
-    // Search shares Home's route as a shortcut; don't let it claim the active state.
-    const active = item.key !== 'search' && isActive(item.href)
+    // Search shares Home's route, and Profile shares Settings' route — don't let those
+    // shortcuts claim the active state (avoids double-highlighting the rail).
+    const active = item.key !== 'search' && item.key !== 'profile' && isActive(item.href)
     const content = (
       <>
         <Icon size={18} className={cn(active ? 'text-ink' : 'text-ink-muted')} />

@@ -12,11 +12,14 @@ export function TranscriptBody({
   activeIndex,
   autoScroll,
   onWordClick,
+  karaoke = true,
 }: {
   transcript: WordTimedTranscript
   activeIndex: number
   autoScroll: boolean
   onWordClick: (start: number) => void
+  /** false for line-level (no word timings) transcripts — render as a plain read view */
+  karaoke?: boolean
 }) {
   const activeWordRef = useRef<HTMLSpanElement>(null)
 
@@ -53,8 +56,10 @@ export function TranscriptBody({
             <p dir="auto" className="mt-1.5 text-[15px] leading-[1.9] text-ink">
               {seg.words.map((w, wi) => {
                 const gi = offsets[si] + wi
-                const isActive = gi === activeIndex
-                const spoken = gi <= activeIndex
+                // Without word timings, render every word as plain spoken text (no advancing
+                // highlight / fade) — a clean read view rather than a stuck cursor.
+                const isActive = karaoke && gi === activeIndex
+                const spoken = !karaoke || gi <= activeIndex
                 return (
                   <span
                     key={wi}

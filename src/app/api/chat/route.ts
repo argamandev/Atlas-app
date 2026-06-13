@@ -36,8 +36,12 @@ export async function POST(req: NextRequest) {
       'Respond with only your final answer — no exploratory reasoning or meta-commentary.' +
       (ctx.text ? `\n\n=== TRANSCRIPT CONTEXT ===\n${ctx.text}` : '\n\n(No transcript context is available.)')
 
+    // Keep the last few turns, but the Anthropic API requires the first message to be
+    // a user turn — drop any leading assistant message after slicing.
+    let recent = history.slice(-8)
+    while (recent.length > 0 && recent[0].role !== 'user') recent = recent.slice(1)
     const messages = [
-      ...history.slice(-8).map((m) => ({ role: m.role, content: m.content })),
+      ...recent.map((m) => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: message },
     ]
 
@@ -60,6 +64,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ reply, source: ctx.source })
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    console.error('[POST /api/chat]', (err as Error).message)
+    return NextResponse.json({ error: 'Chat is temporarily unavailable.' }, { status: 500 })
   }
 }
