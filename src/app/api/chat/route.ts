@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { getChatContext } from '@/lib/chat/context'
 
-// Chat over the transcript DB (brief §5.3). Anthropic SDK, claude-sonnet-4-6, transcript
-// context-stuffed into the system prompt. The project stores its key as CLAUDE_API_KEY,
-// so pass it explicitly (the SDK otherwise looks for ANTHROPIC_API_KEY).
-const CHAT_MODEL = 'claude-sonnet-4-6'
-const apiKey = process.env.CLAUDE_API_KEY ?? process.env.ANTHROPIC_API_KEY
+// Chat over the transcript DB (brief §5.3). Gemini 3.5 Flash — same engine as the formatting
+// pipeline, so it shares GEMINI_API_KEY and works wherever the pipeline does. Transcript
+// context is stuffed into the system instruction (no vector DB — per CLAUDE.md).
+const CHAT_MODEL = 'gemini-3.5-flash'
+const apiKey = process.env.GEMINI_API_KEY
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
@@ -20,14 +19,13 @@ export async function POST(req: NextRequest) {
 
   if (!apiKey) {
     return NextResponse.json({
-      reply: 'The chat model isn’t configured yet (missing CLAUDE_API_KEY).',
+      reply: 'The chat model isn’t configured yet (missing GEMINI_API_KEY).',
       source: null,
     })
   }
 
   try {
     const ctx = await getChatContext(companyId, transcriptId)
-    const client = new Anthropic({ apiKey })
 
     const system =
       'You are Timlul, a research assistant for Israeli public-company investor calls. ' +
@@ -38,33 +36,42 @@ export async function POST(req: NextRequest) {
       'Respond with only your final answer — no exploratory reasoning or meta-commentary.' +
       (ctx.text ? `\n\n=== TRANSCRIPT CONTEXT ===\n${ctx.text}` : '\n\n(No transcript context is available.)')
 
-    // Keep the last few turns, but the Anthropic API requires the first message to be
-    // a user turn — drop any leading assistant message after slicing.
+    // Keep the last few turns. Gemini requires the first turn to be 'user' and uses the role
+    // name 'model' for the assistant.
     let recent = history.slice(-8)
     while (recent.length > 0 && recent[0].role !== 'user') recent = recent.slice(1)
-    const messages = [
-      ...recent.map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user' as const, content: message },
+    const contents = [
+      ...recent.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+      { role: 'user', parts: [{ text: message }] },
     ]
 
-    const resp = await client.messages.create({
-      model: CHAT_MODEL,
-      max_tokens: 4096,
-      system,
-      messages,
-    })
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${CHAT_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents,
+          // thinkingBudget: 0 — CLAUDE.md gotcha: leaving thinking on lets it eat the output
+          // budget (truncated answers) and leak reasoning into the reply.
+          generationConfig: { maxOutputTokens: 4096, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } },
+        }),
+      },
+    )
 
-    if (resp.stop_reason === 'refusal') {
-      return NextResponse.json({ reply: 'I’m not able to help with that request.', source: null })
+    const json = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+      error?: unknown
     }
+    if (!res.ok) throw new Error(`Gemini ${res.status}: ${JSON.stringify(json.error ?? json)}`)
 
-    const reply = resp.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
+    const reply = (json.candidates?.[0]?.content?.parts ?? [])
+      .map((p) => p.text ?? '')
       .join('')
       .trim()
 
-    return NextResponse.json({ reply, source: ctx.source })
+    return NextResponse.json({ reply: reply || 'לא הצלחתי להפיק תשובה לשאלה הזו.', source: ctx.source })
   } catch (err) {
     console.error('[POST /api/chat]', (err as Error).message)
     return NextResponse.json({ error: 'Chat is temporarily unavailable.' }, { status: 500 })
