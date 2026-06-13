@@ -10,30 +10,19 @@ import { HomeSearch } from '@/components/app/HomeSearch'
 import { SectionHeader } from '@/components/ds/SectionHeader'
 import { EntityRow } from '@/components/ds/EntityRow'
 import { CalendarIcon } from '@/components/ds/icons'
-import { DEMO_LIVE_CALL } from '@/data/demo/liveCall'
+import { LiveNowPanel } from '@/components/app/LiveNowPanel'
+import { getCompanyByTicker } from '@/lib/db/companies'
 
 export default async function HomePage() {
   const locale = getLocale()
   const dict = getDictionary(locale)
   const { userId, userName } = await getCurrentUser()
   const upcoming = await listCalls({ scope: 'upcoming' })
+  const tamis = await getCompanyByTicker('1097229').catch(() => null) // תמיס — the live demo company
 
-  // Live Now: DB live calls (none in mock) + the demo live call for the crown-jewel flow.
-  // Lives in a collapsible side panel so the main search recenters when collapsed.
-  const panel = (
-    <EntityRow
-      href={DEMO_LIVE_CALL.href}
-      logoSrc={DEMO_LIVE_CALL.logoUrl}
-      name={locale === 'en' ? DEMO_LIVE_CALL.companyNameEn : DEMO_LIVE_CALL.companyName}
-      secondary={
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-live" />
-          <span className="font-medium text-live">{dict.live.liveBadge}</span>
-          <span className="text-ink-faint">· {DEMO_LIVE_CALL.quarter}</span>
-        </span>
-      }
-    />
-  )
+  // Live Now: auto-appears when the live engine reports a call in progress (LiveNowPanel polls
+  // /api/live/state). In a collapsible side panel so the main search recenters when collapsed.
+  const panel = <LiveNowPanel companyName={tamis?.displayName ?? 'תמיס'} logoUrl={tamis?.logoUrl ?? null} />
 
   return (
     <CollapsiblePanel title={dict.home.liveNow} panel={panel}>

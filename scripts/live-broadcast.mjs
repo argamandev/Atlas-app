@@ -75,7 +75,7 @@ async function startBot(meetingUrl, tunnelBase) {
 }
 
 // ============ Gemini live correction (same as live-pipeline) ============
-const COMPANY_CONTEXT = `"אור-ים אנרגיה" is an Israeli public renewable-energy company: solar projects (מגה-וואט, ג'יגה-וואט), energy storage (אגירה, מגה-וואט שעה), and a yielding real-estate arm (נכסים מניבים, שיעור תפוסה, NOI, שיעור היוון). This is its quarterly investor-relations call. Common terms: רבעון, EBITDA מתואם, FFO, CAPEX, תזרים מזומנים, אג"ח, מח"מ, ערך נקוב, LTV, מינוף, גידור, מט"ח, צבר פרויקטים, התחדשות עירונית, הנפקה, אנליסטים.`
+const COMPANY_CONTEXT = `"תמיס" (Themis) is an Israeli public real-estate company (נדל"ן). This is its quarterly investor-relations call. Common terms: נכסים מניבים, שיעור תפוסה, NOI, שיעור היוון, שווי הוגן, שערוך, נדל"ן להשקעה, ייזום, דמי שכירות, FFO, LTV, מינוף, אג"ח, ריבית, מימון, רבעון, EBITDA, תזרים מזומנים, אנליסטים.`
 
 async function geminiCorrect(context, utterance) {
   const t0 = Date.now()
@@ -259,13 +259,13 @@ const PAGE = `<!doctype html>
 </style></head><body>
 <div id="overlay">
   <span class="live"><span class="dot"></span>שידור חי</span>
-  <h2>אור-ים אנרגיה — שיחת משקיעים</h2>
+  <h2>תמיס — שיחת משקיעים</h2>
   <p id="ovMsg">מתחבר לשידור…</p>
   <button id="joinBtn" disabled>▶ הצטרפו לשידור</button>
 </div>
 <header>
   <span class="live"><span class="dot"></span>LIVE</span>
-  <h1>אור-ים אנרגיה — שיחת משקיעים · <b>תמלול.</b></h1>
+  <h1>תמיס — שיחת משקיעים · <b>תמלול.</b></h1>
   <span id="behind"></span>
 </header>
 <main><div id="words"></div></main>

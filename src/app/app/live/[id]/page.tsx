@@ -1,15 +1,35 @@
 import { notFound } from 'next/navigation'
 import { AppPage } from '@/components/app/AppPage'
 import { LiveTranscriptView } from '@/components/live/LiveTranscriptView'
+import { LiveBroadcastView } from '@/components/live/LiveBroadcastView'
 import { loadDemoCall, loadCompletedCall } from '@/lib/live/loadCall'
+import { getCompanyByTicker } from '@/lib/db/companies'
+
+export const dynamic = 'force-dynamic'
 
 export default async function LivePage({
   params,
   searchParams,
 }: {
   params: { id: string }
-  searchParams: { t?: string; seg?: string }
+  searchParams: { t?: string; seg?: string; delay?: string }
 }) {
+  // Live broadcast (Core 1 on the platform) — streams from the live engine via /api/live/*.
+  if (params.id === 'live') {
+    const company = await getCompanyByTicker('1097229').catch(() => null) // תמיס
+    const d = searchParams.delay ? Number(searchParams.delay) : 300
+    return (
+      <AppPage>
+        <LiveBroadcastView
+          companyName={company?.displayName ?? 'תמיס'}
+          quarter="Q2 2026"
+          logoUrl={company?.logoUrl ?? null}
+          delaySec={Number.isFinite(d) && d > 0 ? d : 300}
+        />
+      </AppPage>
+    )
+  }
+
   const call = params.id === 'demo' ? await loadDemoCall() : await loadCompletedCall(params.id)
   if (!call) notFound()
 
