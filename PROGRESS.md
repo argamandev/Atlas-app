@@ -5,6 +5,35 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-14 — Deployed to Railway + Core 1 live-on-platform (built, first test, rebuilt)
+
+- **Shipped Spec 1 + deployed**: merged the 9 transcript/chat fixes to `main`, deployed on
+  **Railway → `timlul-ai.com`**. Fixed post-login redirect (`/dashboard` → `/app/home`; the old
+  product still lives at root routes). **Chat switched Claude Sonnet → Gemini 3.5 Flash**
+  (`thinkingBudget:0`) — shares `GEMINI_API_KEY`, works on the deploy.
+- **Finished-transcript polish**: speaker names now come from Gemini's `formatted_data` (relabel
+  IVRIT timed words, karaoke untouched) instead of "Speaker N"; "Open with LLM" replaced by
+  **Share-as-PDF** (clean `/print/[id]` route → browser Save-as-PDF); quote→chat passes company +
+  quote + specific call.
+- **Core 1 on the platform (built)**: home "Live Now" + company Overview **auto-detect** a live
+  call (poll `/api/live/state`); `/app/live/live` streams the broadcast. Data flows browser →
+  same-origin proxy routes (`/api/live/state`, `/pcm`) → live engine (`LIVE_ENGINE_URL`, default
+  the local spike, tunnelled for the deploy). The live engine = the spike (`live-broadcast.mjs`).
+- **First real live test (תמיס Zoom)** ✅ proved the loop end-to-end: Zoom → Recall bot → platform
+  → karaoke, **audio↔text sync good**, live auto-appears on home when the bot is admitted, closing
+  Zoom ended the call. Bugs surfaced → **rebuilt the live view to BE the V1 page** (same header,
+  tabs, `TranscriptBody`, **`MediaPlayer` audio bar**) and **fixed join-at-live-point** (was
+  playing from call start; now drops in at `liveEdge − buffer`), buffer countdown, play/pause/
+  seek/volume (Web Audio). Verified against a **replay of the recorded session**
+  (`scripts/live-replay-engine.mjs`, serves `out/broadcast-audio.pcm` + `broadcast-lines.jsonl`).
+- **Known / next (re-test tomorrow on a real call)**: live captions render as **one block** (no
+  speaker turns — the spike captures word+timestamp but not Recall's per-word speaker; production
+  fix = capture speaker → real speaker segments). Accuracy-mode captions arrive in ~72–188s chunks
+  (**why the buffer must be the full 5 min** so captions are ready when audio plays). Big chunks
+  fall back to **raw** (Gemini changed word count) → production fix = sentence-level correction.
+
+---
+
 ## 2026-06-13 — Spec 1 (transcript experience + chat) + live-pipeline direction
 
 - Diagnosed: finished YouTube transcripts show no audio / no word-sync because legacy rows

@@ -60,10 +60,23 @@ transcript with no audio/sync is poor UX; the product's value is the **synced au
 experience. The submit pipeline now persists `audio_url` + IVRIT `word_segments` (so the
 "YouTube/IVRIT path doesn't have word timestamps" gap above is closed for new transcripts);
 legacy rows (e.g. Tigbur Q4) predate that and are re-processed in place via
-`scripts/reprocess-audio.mjs`. Next milestone = the **live Zoom test** (Spec 2), with locked
-decisions: **raw-live + polish-after** (Recall raw captions live, Gemini only after the call —
-scales to many concurrent calls), **Railway** as host (provides the permanent webhook URL), and
-**Zoom Webinars** handled by Recall (bot joins as attendee; pass registration link + passcode).
+`scripts/reprocess-audio.mjs`. Locked Spec-2 decisions: **raw-live + polish-after** (Recall raw
+captions live, Gemini only after the call), **Railway** as host (permanent webhook URL),
+**Zoom Webinars** via Recall (attendee join; registration link + passcode).
+
+**Update (2026-06-14):** Spec 1 shipped and **deployed on Railway → `timlul-ai.com`** (old
+product still lives at root routes; new V1 is under `/app/*`, login lands at `/app/home`). Chat
+now runs on **Gemini 3.5 Flash**. **Core 1 live-broadcast is integrated into the platform**: the
+home "Live Now" + company Overview **auto-detect** a live call (poll `/api/live/state`), and
+`/app/live/live` is the V1 transcript page in a streaming "live mode" (`LiveBroadcastView` — real
+header/tabs/`TranscriptBody`/`MediaPlayer`, Web-Audio scheduled, buffered, **joins at the live
+edge** `liveEdge − buffer`). Data flows via same-origin proxy routes (`/api/live/state`, `/pcm`)
+to the live engine (`LIVE_ENGINE_URL`, default the local spike `live-broadcast.mjs`; tunnelled for
+the deploy). **First real תמיס Zoom test passed** — full loop + audio↔text sync proven. Test the
+rebuilt page on a real call next; see PROGRESS.md for known refinements (live captions are one
+block until we capture Recall's per-word speaker; 5-min buffer needed for caption-readiness;
+sentence-level correction for big chunks). `scripts/live-replay-engine.mjs` replays a recorded
+session as a fake-live feed for testing without Zoom.
 
 ## Stack
 
