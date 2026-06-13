@@ -98,7 +98,7 @@ export function CompanyView({
             <ChatIcon size={15} />
             {dict.company.openInChat}
           </button>
-          <AddInvestorCall />
+          <AddInvestorCall companyId={company.id} />
         </div>
         <div className="flex items-center gap-3">
           <div className="text-end">

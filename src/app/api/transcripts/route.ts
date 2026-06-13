@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { url, force } = body
+  const { url, force, companyId } = body
 
   if (!isValidVideoUrl(url)) {
     return NextResponse.json({ error: 'קישור YouTube או Vimeo לא תקין' }, { status: 400 })
@@ -60,6 +60,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Supabase select failed: ${selectErr.message}` }, { status: 500 })
   }
 
+  // Link this call to its company when it was added from a company page — so the
+  // transcript shows up under that company and grounds the chat with correct context.
+  if (existing && companyId) {
+    await supabaseAdmin.from('transcripts').update({ company_id: companyId }).eq('id', videoId)
+  }
+
   // Admin force re-transcribe — inserts a NEW row (suffix _r<timestamp>) so the
   // original is preserved for side-by-side comparison in the dashboard.
   if (existing && force) {
@@ -73,6 +79,7 @@ export async function POST(req: NextRequest) {
       status: 'processing',
       processing_step: 'downloading',
       user_id: userId,
+      company_id: companyId ?? null,
     })
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
     setImmediate(() => {
@@ -126,6 +133,7 @@ export async function POST(req: NextRequest) {
       status: 'processing',
       processing_step: 'downloading',
       user_id: userId,
+      company_id: companyId ?? null,
     }).select()
     console.log(`[POST] insert result: data=${JSON.stringify(insertedRows)}, error=${JSON.stringify(insertErr)}`)
     if (insertErr) {

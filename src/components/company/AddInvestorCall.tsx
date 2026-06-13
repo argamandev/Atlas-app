@@ -12,7 +12,7 @@ import { PlusIcon, ArrowUpIcon } from '@/components/ds/icons'
 // (no session) is surfaced as a friendly sign-in hint.
 type Status = 'idle' | 'submitting' | 'done' | 'error'
 
-export function AddInvestorCall() {
+export function AddInvestorCall({ companyId }: { companyId?: string }) {
   const { dict } = useI18n()
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState('')
@@ -28,7 +28,7 @@ export function AddInvestorCall() {
     setStatus('submitting')
     setMessage('')
     try {
-      const res = await apiPost<{ id: string }>('/api/transcripts', { url })
+      const res = await apiPost<{ id: string }>('/api/transcripts', { url, companyId })
       setStatus('done')
       setMessage(`${dict.company.queued} · ${res.id}`)
       setUrl('')
