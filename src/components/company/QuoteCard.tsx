@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Surface } from '@/components/ds/Surface'
 import { IconButton } from '@/components/ds/IconButton'
-import { QuoteIcon, SparkleIcon, CopyIcon, PencilIcon, TrashIcon } from '@/components/ds/icons'
-import { updateQuote, deleteQuote } from '@/lib/api/quotes'
+import { QuoteIcon, SparkleIcon, ShareIcon, ChevronRightIcon, CopyIcon, TrashIcon } from '@/components/ds/icons'
+import { deleteQuote } from '@/lib/api/quotes'
 import type { Quote } from '@/lib/api/types'
 
-// A saved quote with management: tap the text to copy a formatted quote, or use the
-// hover actions — edit, open in chat, copy, remove.
+// A saved quote with its actions (brief): open in chat WITH the quote as context,
+// share to WhatsApp, jump to the quote in the transcript, copy, and remove.
 export function QuoteCard({
   quote,
   companyName,
@@ -24,9 +24,6 @@ export function QuoteCard({
 }) {
   const { dict } = useI18n()
   const router = useRouter()
-  const [text, setText] = useState(quote.text)
-  const [draft, setDraft] = useState(quote.text)
-  const [editing, setEditing] = useState(false)
   const [removed, setRemoved] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -35,9 +32,31 @@ export function QuoteCard({
     setTimeout(() => setToast(null), 1600)
   }
 
-  async function share() {
+  // 1) Chat — open the chat with the company tagged AND this quote as context.
+  function openInChat() {
+    const q = encodeURIComponent(quote.text)
+    router.push(`/app/chat?company=${companyId}&quote=${q}`)
+  }
+
+  // 2) Share — WhatsApp: "SPEAKER said on the QUARTER investor call: '…'".
+  function shareWhatsApp() {
+    const who = quote.speaker || companyName
+    const when = quote.quarter ? `the ${quote.quarter}` : 'an'
+    const msg = `${who} said on ${when} investor call: "${quote.text}"`
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
+  }
+
+  // 3) Go to quote — open the transcript at the exact moment.
+  function goToQuote() {
+    if (!quote.transcriptId) return
+    const t = Math.max(0, Math.floor(quote.startSec ?? 0))
+    router.push(`/app/live/${quote.transcriptId}?t=${t}`)
+  }
+
+  // 4) Copy a formatted quote.
+  async function copy() {
     const meta = [companyName, quote.speaker, quote.quarter].filter(Boolean).join(' · ')
-    const formatted = meta ? `"${text}" — ${meta}` : `"${text}"`
+    const formatted = meta ? `"${quote.text}" — ${meta}` : `"${quote.text}"`
     try {
       await navigator.clipboard.writeText(formatted)
       flash(dict.common.copied)
@@ -46,21 +65,7 @@ export function QuoteCard({
     }
   }
 
-  async function save() {
-    setEditing(false)
-    const next = draft.trim()
-    if (next && next !== text) {
-      setText(next)
-      try {
-        await updateQuote(quote.id, { text: next })
-      } catch {
-        /* keep optimistic value */
-      }
-    } else {
-      setDraft(text)
-    }
-  }
-
+  // 5) Remove.
   async function remove() {
     setRemoved(true)
     try {
@@ -83,59 +88,29 @@ export function QuoteCard({
       <div className="flex gap-2.5">
         <QuoteIcon size={16} className="mt-0.5 shrink-0 text-ink-faint" />
         <div className="min-w-0 flex-1">
-          {editing ? (
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              autoFocus
-              dir="auto"
-              rows={3}
-              className="w-full resize-none rounded-md border border-hairline bg-canvas p-2 text-sm leading-relaxed text-ink outline-none focus:border-ink-faint"
-            />
-          ) : (
-            <p dir="auto" onClick={share} title={dict.common.copied} className="cursor-pointer text-sm leading-relaxed text-ink">
-              {text}
-            </p>
-          )}
-          {quote.speaker && !editing && <p className="mt-1.5 text-xs text-ink-muted">{quote.speaker}</p>}
+          <p dir="auto" className="text-sm leading-relaxed text-ink">
+            {quote.text}
+          </p>
+          {quote.speaker && <p className="mt-1.5 text-xs text-ink-muted">{quote.speaker}</p>}
 
-          <div className="mt-2 flex items-center gap-1">
-            {editing ? (
-              <>
-                <button
-                  type="button"
-                  onClick={save}
-                  className="rounded-md bg-ink px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-black"
-                >
-                  {dict.common.save}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(false)
-                    setDraft(text)
-                  }}
-                  className="rounded-md px-2.5 py-1 text-xs text-ink-muted transition-colors hover:text-ink"
-                >
-                  {dict.common.cancel}
-                </button>
-              </>
-            ) : (
-              <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                <IconButton label={dict.common.edit} size={28} onClick={() => { setDraft(text); setEditing(true) }}>
-                  <PencilIcon size={15} />
-                </IconButton>
-                <IconButton label={dict.company.openInChat} size={28} onClick={() => router.push(`/app/chat?company=${companyId}`)}>
-                  <SparkleIcon size={15} />
-                </IconButton>
-                <IconButton label={dict.common.copied} size={28} onClick={share}>
-                  <CopyIcon size={15} />
-                </IconButton>
-                <IconButton label={dict.common.remove} size={28} onClick={remove}>
-                  <TrashIcon size={15} />
-                </IconButton>
-              </div>
+          <div className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+            <IconButton label={dict.company.openInChat} size={28} onClick={openInChat}>
+              <SparkleIcon size={15} />
+            </IconButton>
+            <IconButton label={dict.common.share} size={28} onClick={shareWhatsApp}>
+              <ShareIcon size={15} />
+            </IconButton>
+            {quote.transcriptId && (
+              <IconButton label={dict.live.goToQuote} size={28} onClick={goToQuote}>
+                <ChevronRightIcon size={15} />
+              </IconButton>
             )}
+            <IconButton label={dict.common.copied} size={28} onClick={copy}>
+              <CopyIcon size={15} />
+            </IconButton>
+            <IconButton label={dict.common.remove} size={28} onClick={remove}>
+              <TrashIcon size={15} />
+            </IconButton>
           </div>
         </div>
       </div>

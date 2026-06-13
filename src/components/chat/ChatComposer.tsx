@@ -61,7 +61,7 @@ export function ChatComposer({
           <button type="button" onClick={onAt} aria-label="Mention" className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink">
             <AtIcon size={18} />
           </button>
-          <button type="button" aria-label="Commands" className="grid h-7 w-7 place-items-center rounded-md border border-hairline text-ink-faint hover:text-ink">
+          <button type="button" aria-label="Commands" className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink">
             <SlashIcon size={16} />
           </button>
         </div>

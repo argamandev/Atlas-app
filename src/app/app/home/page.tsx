@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { listCalls } from '@/lib/db/calls'
 import { companyDisplayName } from '@/lib/api/types'
 import { formatDate, formatTime } from '@/lib/i18n/format'
-import { AppPage } from '@/components/app/AppPage'
+import { CollapsiblePanel } from '@/components/app/CollapsiblePanel'
 import { Greeting } from '@/components/app/Greeting'
 import { HomeSearch } from '@/components/app/HomeSearch'
 import { SectionHeader } from '@/components/ds/SectionHeader'
@@ -19,26 +19,24 @@ export default async function HomePage() {
   const upcoming = await listCalls({ scope: 'upcoming' })
 
   // Live Now: DB live calls (none in mock) + the demo live call for the crown-jewel flow.
+  // Lives in a collapsible side panel so the main search recenters when collapsed.
   const panel = (
-    <>
-      <SectionHeader label={dict.home.liveNow} />
-      <EntityRow
-        href={DEMO_LIVE_CALL.href}
-        logoSrc={DEMO_LIVE_CALL.logoUrl}
-        name={locale === 'en' ? DEMO_LIVE_CALL.companyNameEn : DEMO_LIVE_CALL.companyName}
-        secondary={
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-live" />
-            <span className="font-medium text-live">{dict.live.liveBadge}</span>
-            <span className="text-ink-faint">· {DEMO_LIVE_CALL.quarter}</span>
-          </span>
-        }
-      />
-    </>
+    <EntityRow
+      href={DEMO_LIVE_CALL.href}
+      logoSrc={DEMO_LIVE_CALL.logoUrl}
+      name={locale === 'en' ? DEMO_LIVE_CALL.companyNameEn : DEMO_LIVE_CALL.companyName}
+      secondary={
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-live" />
+          <span className="font-medium text-live">{dict.live.liveBadge}</span>
+          <span className="text-ink-faint">· {DEMO_LIVE_CALL.quarter}</span>
+        </span>
+      }
+    />
   )
 
   return (
-    <AppPage panel={panel}>
+    <CollapsiblePanel title={dict.home.liveNow} panel={panel}>
       <div className="app-scroll flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-6">
           {/* hero: greeting + search */}
@@ -73,6 +71,6 @@ export default async function HomePage() {
           </div>
         </div>
       </div>
-    </AppPage>
+    </CollapsiblePanel>
   )
 }

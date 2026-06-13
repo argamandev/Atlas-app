@@ -19,6 +19,7 @@ export const he: Dictionary = {
     more: 'עוד',
     edit: 'עריכה',
     copied: 'הועתק',
+    share: 'שיתוף',
     retry: 'נסה שוב',
     error: 'משהו השתבש',
     empty: 'אין כאן עדיין כלום',
@@ -69,6 +70,7 @@ export const he: Dictionary = {
   },
   chat: {
     title: "צ'אט",
+    chats: 'שיחות',
     subhead: 'שאלו כל דבר על שיחות המשקיעים והדיווחים של חברה.',
     askAnything: 'שאלו כל דבר',
     history: 'היסטוריה',
@@ -81,6 +83,7 @@ export const he: Dictionary = {
     source: 'מקור',
     thinking: 'חושב…',
     slashHint: 'הקלידו / לפקודות, @ כדי לאזכר חברה',
+    referringTo: 'בהתייחס ל',
   },
   company: {
     overview: 'סקירה',
@@ -102,6 +105,8 @@ export const he: Dictionary = {
   },
   live: {
     overview: 'סקירה',
+    backToOverview: 'חזרה לסקירה',
+    goToQuote: 'מעבר לציטוט',
     transcript: 'תמלול',
     slides: 'מצגת',
     report: 'דוח',

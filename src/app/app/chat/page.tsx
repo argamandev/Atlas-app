@@ -2,12 +2,16 @@ import { getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { getCompany } from '@/lib/db/companies'
 import { companyDisplayName } from '@/lib/api/types'
-import { AppPage } from '@/components/app/AppPage'
+import { CollapsiblePanel } from '@/components/app/CollapsiblePanel'
 import { ChatView } from '@/components/chat/ChatView'
 import { SectionHeader } from '@/components/ds/SectionHeader'
 import { SparkleIcon, PlusIcon } from '@/components/ds/icons'
 
-export default async function ChatPage({ searchParams }: { searchParams: { company?: string } }) {
+export default async function ChatPage({
+  searchParams,
+}: {
+  searchParams: { company?: string; quote?: string }
+}) {
   const locale = getLocale()
   const dict = getDictionary(locale)
 
@@ -16,6 +20,8 @@ export default async function ChatPage({ searchParams }: { searchParams: { compa
     const c = await getCompany(searchParams.company)
     if (c) initialCompany = { id: c.id, name: companyDisplayName(c, locale), logoUrl: c.logoUrl }
   }
+  // searchParams values are already URL-decoded by Next.
+  const initialQuote = searchParams.quote ?? null
 
   const panel = (
     <div className="flex h-full flex-col gap-4">
@@ -24,12 +30,9 @@ export default async function ChatPage({ searchParams }: { searchParams: { compa
         {dict.chat.newChat}
       </button>
 
-      <div>
-        <SectionHeader label={dict.chat.history} className="mb-1.5" />
-        <div className="flex items-center gap-2 rounded-md px-2.5 py-4 text-sm text-ink-faint">
-          <SparkleIcon size={15} />
-          {dict.common.empty}
-        </div>
+      <div className="flex items-center gap-2 rounded-md px-2.5 py-4 text-sm text-ink-faint">
+        <SparkleIcon size={15} />
+        {dict.common.empty}
       </div>
 
       <div className="mt-auto space-y-4">
@@ -46,8 +49,8 @@ export default async function ChatPage({ searchParams }: { searchParams: { compa
   )
 
   return (
-    <AppPage panel={panel}>
-      <ChatView initialCompany={initialCompany} />
-    </AppPage>
+    <CollapsiblePanel title={dict.chat.chats} panel={panel}>
+      <ChatView initialCompany={initialCompany} initialQuote={initialQuote} />
+    </CollapsiblePanel>
   )
 }

@@ -20,6 +20,7 @@ export const en = {
     more: 'More',
     edit: 'Edit',
     copied: 'Copied',
+    share: 'Share',
     retry: 'Retry',
     error: 'Something went wrong',
     empty: 'Nothing here yet',
@@ -70,6 +71,7 @@ export const en = {
   },
   chat: {
     title: 'Chat',
+    chats: 'Chats',
     subhead: 'Ask anything about a company’s investor calls and filings.',
     askAnything: 'Ask anything',
     history: 'History',
@@ -82,6 +84,7 @@ export const en = {
     source: 'Source',
     thinking: 'Thinking…',
     slashHint: 'Type / for commands, @ to mention a company',
+    referringTo: 'Referring to',
   },
   company: {
     overview: 'Overview',
@@ -103,6 +106,8 @@ export const en = {
   },
   live: {
     overview: 'Overview',
+    backToOverview: 'Back to Overview',
+    goToQuote: 'Go to quote',
     transcript: 'Transcript',
     slides: 'Slides',
     report: 'Report',

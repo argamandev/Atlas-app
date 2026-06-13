@@ -14,6 +14,7 @@ import {
   CopyIcon,
   SearchIcon,
   QuoteIcon,
+  ShareIcon,
   PlayIcon,
   PauseIcon,
 } from '@/components/ds/icons'
@@ -23,27 +24,27 @@ import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { createQuote } from '@/lib/api/quotes'
 import { formatClock, formatDate } from '@/lib/i18n/format'
 import type { LiveCall } from '@/lib/live/loadCall'
-import { CompanyOverview, type CompanyOverviewData } from '@/components/company/CompanyOverview'
 
-export function LiveTranscriptView({ call, overview }: { call: LiveCall; overview?: CompanyOverviewData | null }) {
+export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; initialSeek?: number }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
   const audioRef = useRef<HTMLAudioElement>(null)
 
   const [tab, setTab] = useState('transcript')
-  const [currentTime, setCurrentTime] = useState(0)
+  const [currentTime, setCurrentTime] = useState(initialSeek ?? 0)
   const [duration, setDuration] = useState(call.transcript.durationSec || 0)
   const [playing, setPlaying] = useState(false)
   const [volume, setVolume] = useState(1)
   const [autoScroll, setAutoScroll] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
+  const [selection, setSelection] = useState<{ text: string; top: number; left: number } | null>(null)
 
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, currentTime), [flat, currentTime])
   const name = locale === 'en' ? call.companyNameEn ?? call.companyName : call.companyName
   const title = `${name} — ${call.quarter}`
+  const activeSpeaker = call.transcript.segments[flat[activeIndex]?.segmentIndex ?? 0]?.speakerName ?? null
 
-  // smooth karaoke: poll currentTime via rAF while playing
   useEffect(() => {
     if (!playing) return
     let raf = 0
@@ -81,6 +82,16 @@ export function LiveTranscriptView({ call, overview }: { call: LiveCall; overvie
     if (audioRef.current) audioRef.current.volume = v
   }
 
+  // Tabs: "Back to Overview" routes to the company page; the rest switch in-page.
+  function onTab(key: string) {
+    if (key === 'overview') {
+      if (call.companyId) router.push(`/app/company/${call.companyId}`)
+      else router.back()
+      return
+    }
+    setTab(key)
+  }
+
   function openInChat() {
     if (call.companyId) router.push(`/app/chat?company=${call.companyId}`)
   }
@@ -95,23 +106,34 @@ export function LiveTranscriptView({ call, overview }: { call: LiveCall; overvie
     }
   }
 
-  async function saveQuote() {
-    const text = (typeof window !== 'undefined' ? window.getSelection()?.toString() : '')?.trim()
-    if (!text) {
-      setToast(dict.live.selectToSave)
+  // Selection → Save / Share (brief: "after a quote is marked").
+  function onTextSelect() {
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    const text = sel?.toString().trim() ?? ''
+    if (!text || !sel || sel.rangeCount === 0) {
+      setSelection(null)
       return
     }
+    const rect = sel.getRangeAt(0).getBoundingClientRect()
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
+      setSelection(null)
+      return
+    }
+    setSelection({ text, top: rect.top, left: rect.left + rect.width / 2 })
+  }
+
+  async function saveSelection(text: string) {
+    if (!text) return
     if (!call.companyId) {
       setToast(dict.common.error)
       return
     }
-    const speaker = call.transcript.segments[flat[activeIndex]?.segmentIndex ?? 0]?.speakerName ?? null
     try {
       await createQuote({
-        companyId: call.companyId ?? '',
+        companyId: call.companyId,
         transcriptId: call.id === 'demo' ? null : call.id,
         text,
-        speaker,
+        speaker: activeSpeaker,
         quarter: call.quarter,
         startSec: currentTime,
       })
@@ -121,8 +143,15 @@ export function LiveTranscriptView({ call, overview }: { call: LiveCall; overvie
     }
   }
 
+  function shareSelection(text: string) {
+    const who = activeSpeaker || name
+    const when = call.quarter ? `the ${call.quarter}` : 'an'
+    const msg = `${who} said on ${when} investor call: "${text}"`
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
+  }
+
   const liveTabs = [
-    { key: 'overview', label: dict.live.overview },
+    { key: 'overview', label: dict.live.backToOverview },
     { key: 'transcript', label: dict.live.transcript },
     { key: 'slides', label: dict.live.slides },
     { key: 'report', label: dict.live.report },
@@ -160,7 +189,7 @@ export function LiveTranscriptView({ call, overview }: { call: LiveCall; overvie
       <div className="px-6">
         <Tabs
           activeKey={tab}
-          onChange={setTab}
+          onChange={onTab}
           items={liveTabs}
           trailing={
             <button
@@ -186,9 +215,6 @@ export function LiveTranscriptView({ call, overview }: { call: LiveCall; overvie
           <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
             <CopyIcon size={16} />
           </IconButton>
-          <IconButton label={dict.live.saveQuote} size={30} onClick={saveQuote}>
-            <QuoteIcon size={16} />
-          </IconButton>
         </div>
         <button type="button" className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-ink-faint hover:text-ink">
           <SearchIcon size={15} />
@@ -197,7 +223,11 @@ export function LiveTranscriptView({ call, overview }: { call: LiveCall; overvie
       </div>
 
       {/* body */}
-      <div className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2">
+      <div
+        className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
+        onMouseUp={tab === 'transcript' ? onTextSelect : undefined}
+        onScroll={() => selection && setSelection(null)}
+      >
         {tab === 'transcript' ? (
           <>
             {!call.transcript.hasWordTimings && (
@@ -211,14 +241,44 @@ export function LiveTranscriptView({ call, overview }: { call: LiveCall; overvie
               karaoke={call.transcript.hasWordTimings}
             />
           </>
-        ) : tab === 'overview' && overview ? (
-          <div className="mx-auto w-full max-w-2xl pt-2">
-            <CompanyOverview data={overview} />
-          </div>
         ) : (
           <div className="grid h-full place-items-center text-sm text-ink-faint">{dict.common.comingSoon}</div>
         )}
       </div>
+
+      {/* selection toolbar — Save / Share (appears over a text selection) */}
+      {selection && (
+        <div
+          style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
+          className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
+        >
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              void saveSelection(selection.text)
+              setSelection(null)
+            }}
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+          >
+            <QuoteIcon size={13} />
+            {dict.live.saveQuote}
+          </button>
+          <span className="h-4 w-px bg-white/15" />
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              shareSelection(selection.text)
+              setSelection(null)
+            }}
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+          >
+            <ShareIcon size={13} />
+            {dict.common.share}
+          </button>
+        </div>
+      )}
 
       {/* hidden audio element drives the sync */}
       {call.audioUrl && (
@@ -228,6 +288,7 @@ export function LiveTranscriptView({ call, overview }: { call: LiveCall; overvie
           preload="metadata"
           onLoadedMetadata={(e) => {
             e.currentTarget.volume = volume
+            if (initialSeek) e.currentTarget.currentTime = initialSeek
             setDuration(e.currentTarget.duration || duration)
           }}
           onPlay={() => setPlaying(true)}

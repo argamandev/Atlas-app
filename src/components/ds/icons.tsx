@@ -124,6 +124,9 @@ export const PencilIcon = (p: IconProps) => (
 export const TrashIcon = (p: IconProps) => (
   <Base {...p}><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></Base>
 )
+export const ShareIcon = (p: IconProps) => (
+  <Base {...p}><circle cx="6" cy="12" r="2.2" /><circle cx="17" cy="6" r="2.2" /><circle cx="17" cy="18" r="2.2" /><path d="M8 11l7-4M8 13l7 4" /></Base>
+)
 
 // ── media player ──
 export const PlayIcon = (p: IconProps) => (
