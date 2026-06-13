@@ -25,7 +25,15 @@ import { createQuote } from '@/lib/api/quotes'
 import { formatClock, formatDate } from '@/lib/i18n/format'
 import type { LiveCall } from '@/lib/live/loadCall'
 
-export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; initialSeek?: number }) {
+export function LiveTranscriptView({
+  call,
+  initialSeek,
+  initialSegmentId,
+}: {
+  call: LiveCall
+  initialSeek?: number
+  initialSegmentId?: string
+}) {
   const { dict, locale } = useI18n()
   const router = useRouter()
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -37,7 +45,9 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
   const [volume, setVolume] = useState(1)
   const [autoScroll, setAutoScroll] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
-  const [selection, setSelection] = useState<{ text: string; top: number; left: number; speaker: string | null } | null>(null)
+  const [selection, setSelection] = useState<
+    { text: string; top: number; left: number; speaker: string | null; segmentId: string | null } | null
+  >(null)
 
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, currentTime), [flat, currentTime])
@@ -62,6 +72,17 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
     const t = setTimeout(() => setToast(null), 2200)
     return () => clearTimeout(t)
   }, [toast])
+
+  // Go-to-quote: scroll to + flash-highlight the anchored line (and seek if audio plays).
+  useEffect(() => {
+    if (!initialSegmentId) return
+    const el = document.querySelector(`[data-segment-id="${CSS.escape(initialSegmentId)}"]`)
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    el.classList.add('quote-flash')
+    const t = setTimeout(() => el.classList.remove('quote-flash'), 2000)
+    return () => clearTimeout(t)
+  }, [initialSegmentId])
 
   function seek(t: number) {
     const a = audioRef.current
@@ -114,6 +135,14 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
     return el?.getAttribute('data-speaker') ?? null
   }
 
+  // The id of the segment a DOM selection sits in — the go-to-quote line anchor.
+  function selectionSegmentId(sel: Selection | null): string | null {
+    let node: Node | null = sel?.anchorNode ?? null
+    while (node && node.nodeType !== 1) node = node.parentNode
+    const el = (node as Element | null)?.closest('[data-segment-id]') ?? null
+    return el?.getAttribute('data-segment-id') ?? null
+  }
+
   // Selection → Save / Share (brief: "after a quote is marked").
   function onTextSelect() {
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
@@ -127,10 +156,16 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
       setSelection(null)
       return
     }
-    setSelection({ text, top: rect.top, left: rect.left + rect.width / 2, speaker: selectionSpeaker(sel) })
+    setSelection({
+      text,
+      top: rect.top,
+      left: rect.left + rect.width / 2,
+      speaker: selectionSpeaker(sel),
+      segmentId: selectionSegmentId(sel),
+    })
   }
 
-  async function saveSelection(sel: { text: string; speaker: string | null }) {
+  async function saveSelection(sel: { text: string; speaker: string | null; segmentId: string | null }) {
     if (!sel.text) return
     if (!call.companyId) {
       setToast(dict.common.error)
@@ -144,6 +179,7 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
         speaker: sel.speaker ?? activeSpeaker,
         quarter: call.quarter,
         startSec: currentTime,
+        anchor: sel.segmentId ? { segmentId: sel.segmentId, text: sel.text.slice(0, 80) } : null,
       })
       setToast(dict.live.quoteSaved)
     } catch (err) {

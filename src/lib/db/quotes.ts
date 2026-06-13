@@ -1,7 +1,7 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { Quote } from '@/lib/api/types'
+import type { Quote, QuoteAnchor } from '@/lib/api/types'
 
 // Quotes + followed-calls use the DB when their tables exist (migration 20260613_007),
 // and fall back to an in-process store when they don't — so the UI and the live-transcript
@@ -42,6 +42,7 @@ function mapQuote(r: Row): Quote {
     speaker: (r.speaker as string) ?? null,
     quarter: (r.quarter as string) ?? null,
     startSec: (r.start_sec as number) ?? null,
+    anchor: (r.anchor as QuoteAnchor) ?? null,
     createdAt: String(r.created_at ?? new Date().toISOString()),
   }
 }
@@ -53,13 +54,14 @@ export interface NewQuote {
   speaker?: string | null
   quarter?: string | null
   startSec?: number | null
+  anchor?: QuoteAnchor | null
 }
 
 export async function listQuotes(userId: string, companyId?: string): Promise<Quote[]> {
   if (!flags.quotes) {
     let q = supabaseAdmin
       .from('quotes')
-      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, created_at')
+      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
     if (companyId) q = q.eq('company_id', companyId)
@@ -84,8 +86,9 @@ export async function createQuote(userId: string, input: NewQuote): Promise<Quot
         speaker: input.speaker ?? null,
         quarter: input.quarter ?? null,
         start_sec: input.startSec ?? null,
+        anchor: input.anchor ?? null,
       })
-      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, created_at')
+      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, created_at')
       .single()
     if (!error && data) return mapQuote(data)
     if (error && !missingTable(error)) throw new Error(error.message)
@@ -99,6 +102,7 @@ export async function createQuote(userId: string, input: NewQuote): Promise<Quot
     speaker: input.speaker ?? null,
     quarter: input.quarter ?? null,
     startSec: input.startSec ?? null,
+    anchor: input.anchor ?? null,
     createdAt: new Date().toISOString(),
   }
   const arr = quoteMem.get(userId) ?? []
@@ -128,7 +132,7 @@ export async function updateQuote(userId: string, id: string, fields: { text?: s
       .update({ text: fields.text })
       .eq('id', id)
       .eq('user_id', userId)
-      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, created_at')
+      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, created_at')
       .maybeSingle()
     if (!error) return data ? mapQuote(data) : null
     if (!missingTable(error)) throw new Error(error.message)

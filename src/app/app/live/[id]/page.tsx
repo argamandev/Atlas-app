@@ -8,7 +8,7 @@ export default async function LivePage({
   searchParams,
 }: {
   params: { id: string }
-  searchParams: { t?: string }
+  searchParams: { t?: string; seg?: string }
 }) {
   const call = params.id === 'demo' ? await loadDemoCall() : await loadCompletedCall(params.id)
   if (!call) notFound()
@@ -18,7 +18,7 @@ export default async function LivePage({
 
   return (
     <AppPage>
-      <LiveTranscriptView call={call} initialSeek={initialSeek} />
+      <LiveTranscriptView call={call} initialSeek={initialSeek} initialSegmentId={searchParams.seg} />
     </AppPage>
   )
 }

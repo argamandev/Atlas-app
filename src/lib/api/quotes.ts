@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client'
-import type { Quote } from './types'
+import type { Quote, QuoteAnchor } from './types'
 
 export interface NewQuoteInput {
   companyId: string
@@ -8,6 +8,7 @@ export interface NewQuoteInput {
   speaker?: string | null
   quarter?: string | null
   startSec?: number | null
+  anchor?: QuoteAnchor | null
 }
 
 export function fetchQuotes(companyId?: string): Promise<Quote[]> {

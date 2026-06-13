@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     speaker: body.speaker ?? null,
     quarter: body.quarter ?? null,
     startSec: typeof body.startSec === 'number' ? body.startSec : null,
+    anchor: body.anchor ?? null,
   })
   return NextResponse.json(quote, { status: 201 })
 }

@@ -188,3 +188,7 @@
     mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.35) 100%);
   }
 }
+
+/* Go-to-quote: brief highlight of the anchored line (#5). */
+@keyframes quoteFlash { 0%, 100% { background: transparent } 20% { background: rgba(192, 74, 0, 0.14) } }
+.quote-flash { animation: quoteFlash 2s ease-out; border-radius: 8px; }

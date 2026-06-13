@@ -50,7 +50,8 @@ export function QuoteCard({
   function goToQuote() {
     if (!quote.transcriptId) return
     const t = Math.max(0, Math.floor(quote.startSec ?? 0))
-    router.push(`/app/live/${quote.transcriptId}?t=${t}`)
+    const seg = quote.anchor?.segmentId ? `&seg=${encodeURIComponent(quote.anchor.segmentId)}` : ''
+    router.push(`/app/live/${quote.transcriptId}?t=${t}${seg}`)
   }
 
   // 4) Copy a formatted quote.

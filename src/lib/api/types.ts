@@ -35,6 +35,11 @@ export interface ScheduledCall {
   company?: CompanyLite
 }
 
+export interface QuoteAnchor {
+  segmentId: string
+  text: string
+}
+
 export interface Quote {
   id: string
   companyId: string
@@ -43,6 +48,7 @@ export interface Quote {
   speaker: string | null
   quarter: string | null
   startSec: number | null
+  anchor: QuoteAnchor | null
   createdAt: string
   company?: CompanyLite
 }
