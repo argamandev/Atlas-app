@@ -3,12 +3,16 @@
 import { useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Greeting } from '@/components/app/Greeting'
+import { CollapsiblePanel } from '@/components/app/CollapsiblePanel'
+import { SectionHeader } from '@/components/ds/SectionHeader'
 import { ChatComposer } from './ChatComposer'
+import { ChatHistory } from './ChatHistory'
 import { MentionDropdown } from './MentionDropdown'
 import { CitationChip } from './CitationPopover'
 import { Logo } from '@/components/ds/Logo'
 import { QuoteIcon, CloseIcon } from '@/components/ds/icons'
 import { sendChat, type ChatSource } from '@/lib/api/chat'
+import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
 
 interface Msg {
@@ -36,6 +40,8 @@ export function ChatView({
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [quote, setQuote] = useState<string | null>(initialQuote ?? null)
   const [transcript] = useState(initialTranscript ?? null)
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [historyKey, setHistoryKey] = useState(0)
 
   function onChange(v: string) {
     setInput(v)
@@ -66,12 +72,40 @@ export function ChatView({
     setSending(true)
     try {
       const res = await sendChat({ message: apiMessage, companyId: companyId ?? undefined, transcriptId: transcript?.id, history })
-      setMessages((prev) => [...prev, { role: 'assistant', content: res.reply, source: res.source }])
+      const assistant: Msg = { role: 'assistant', content: res.reply, source: res.source }
+      setMessages((prev) => [...prev, assistant])
+      // Persist the full thread — create the conversation lazily on the first exchange.
+      const full = [
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+        { role: 'user' as const, content: text },
+        { role: assistant.role, content: assistant.content },
+      ]
+      let cid = conversationId
+      if (!cid) {
+        const conv = await createConversation({ companyId: companyId ?? null, transcriptId: transcript?.id ?? null })
+        cid = conv.id
+        setConversationId(cid)
+      }
+      await saveConversation(cid, full)
+      setHistoryKey((k) => k + 1)
     } catch (err) {
       setMessages((prev) => [...prev, { role: 'assistant', content: (err as Error).message }])
     } finally {
       setSending(false)
     }
+  }
+
+  async function openConversation(id: string) {
+    const conv = await fetchConversation(id)
+    setConversationId(conv.id)
+    setMessages(conv.messages.map((m) => ({ role: m.role, content: m.content })))
+  }
+
+  function newChat() {
+    setConversationId(null)
+    setMessages([])
+    setInput('')
+    setQuote(null)
   }
 
   const empty = messages.length === 0
@@ -128,25 +162,20 @@ export function ChatView({
     </div>
   )
 
-  // Empty: greeting + composer centered in the viewport (ChatGPT/Claude style).
-  if (empty) {
-    return (
-      <div className="relative flex h-full min-h-0 flex-1 flex-col">
-        <div className="flex flex-1 flex-col items-center justify-center px-6 pb-[8vh]">
-          <div className="w-full max-w-2xl">
-            <div className="mb-6 text-center">
-              <Greeting className="text-[28px] font-bold tracking-tight text-ink" />
-              <p className="mt-1.5 text-ink-muted">{dict.chat.subhead}</p>
-            </div>
-            {composer}
+  // Empty: greeting + composer centered. Active: messages scroll, composer drops to the bottom.
+  const content = empty ? (
+    <div className="relative flex h-full min-h-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-[8vh]">
+        <div className="w-full max-w-2xl">
+          <div className="mb-6 text-center">
+            <Greeting className="text-[28px] font-bold tracking-tight text-ink" />
+            <p className="mt-1.5 text-ink-muted">{dict.chat.subhead}</p>
           </div>
+          {composer}
         </div>
       </div>
-    )
-  }
-
-  // Active: messages scroll, composer drops to the bottom.
-  return (
+    </div>
+  ) : (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
       <div className="app-scroll flex-1 overflow-y-auto px-6 py-6">
         <div className="mx-auto w-full max-w-2xl space-y-5">
@@ -173,5 +202,28 @@ export function ChatView({
       </div>
       <div className="px-6 pb-5">{composer}</div>
     </div>
+  )
+
+  return (
+    <CollapsiblePanel
+      title={dict.chat.chats}
+      panel={
+        <div className="flex h-full flex-col gap-4">
+          <ChatHistory activeId={conversationId} onNew={newChat} onOpen={openConversation} refreshKey={historyKey} />
+          <div className="mt-auto space-y-4">
+            <div>
+              <SectionHeader label={dict.chat.myAgents} className="mb-1" />
+              <p className="px-2.5 text-xs text-ink-faint">{dict.chat.agentsComingSoon}</p>
+            </div>
+            <div>
+              <SectionHeader label={dict.chat.mySkills} className="mb-1" />
+              <p className="px-2.5 text-xs text-ink-faint">{dict.common.comingSoon}</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      {content}
+    </CollapsiblePanel>
   )
 }

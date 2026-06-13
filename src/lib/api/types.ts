@@ -58,3 +58,20 @@ export function companyDisplayName(c: { displayName: string; nameEn: string | nu
   if (locale === 'en' && c.nameEn) return c.nameEn
   return c.displayName
 }
+
+export interface ChatMsg {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface Conversation {
+  id: string
+  title: string
+  companyId: string | null
+  transcriptId: string | null
+  messages: ChatMsg[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type ConversationSummary = Omit<Conversation, 'messages'>
