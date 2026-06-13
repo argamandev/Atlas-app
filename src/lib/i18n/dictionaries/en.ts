@@ -112,6 +112,8 @@ export const en = {
     searchTranscript: 'Search',
     saveQuote: 'Save quote',
     quoteSaved: 'Saved to My Quotes',
+    selectToSave: 'Select text in the transcript to save a quote',
+    copied: 'Transcript copied',
     switchCall: 'Switch call',
     noWordTimings: 'Word-level sync isn’t available for this call yet',
   },

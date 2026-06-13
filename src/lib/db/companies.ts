@@ -55,6 +55,12 @@ export async function getCompany(id: string): Promise<Company | null> {
   return data ? mapCompany(data as Row) : null
 }
 
+export async function getCompanyByTicker(ticker: string): Promise<Company | null> {
+  const { data, error } = await supabaseAdmin.from('companies').select(COLS).eq('tase_security_id', ticker).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data ? mapCompany(data as Row) : null
+}
+
 export async function searchCompanies(q: string): Promise<Company[]> {
   const term = q.trim()
   if (!term) return listCompanies()

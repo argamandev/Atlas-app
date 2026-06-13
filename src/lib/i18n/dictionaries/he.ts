@@ -111,6 +111,8 @@ export const he: Dictionary = {
     searchTranscript: 'חיפוש',
     saveQuote: 'שמירת ציטוט',
     quoteSaved: 'נשמר לציטוטים שלי',
+    selectToSave: 'בחרו טקסט בתמלול כדי לשמור ציטוט',
+    copied: 'התמלול הועתק',
     switchCall: 'החלפת שיחה',
     noWordTimings: 'סנכרון ברמת מילה אינו זמין עדיין לשיחה זו',
   },
