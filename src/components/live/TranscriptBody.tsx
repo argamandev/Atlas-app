@@ -41,7 +41,7 @@ export function TranscriptBody({
   }, [activeIndex, autoScroll])
 
   return (
-    <div className="space-y-7">
+    <div dir="rtl" className="space-y-7 text-right">
       {transcript.segments.map((seg, si) => (
         <div key={seg.id} className="flex gap-3">
           <Avatar name={seg.speakerName} size={36} className="mt-0.5" />
@@ -53,7 +53,7 @@ export function TranscriptBody({
                 {formatClock(seg.start)}
               </span>
             </div>
-            <p dir="auto" className="mt-1.5 text-[15px] leading-[1.9] text-ink">
+            <p className="mt-1.5 text-[15px] leading-[1.9] text-ink">
               {seg.words.map((w, wi) => {
                 const gi = offsets[si] + wi
                 // Without word timings, render every word as plain spoken text (no advancing
