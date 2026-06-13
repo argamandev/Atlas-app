@@ -20,8 +20,14 @@ if (fs.existsSync(binPath)) {
 }
 
 console.log('[install-yt-dlp] downloading yt-dlp for Linux...')
-execSync(
-  `curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o "${binPath}" && chmod +x "${binPath}"`,
-  { stdio: 'inherit' }
-)
-console.log('[install-yt-dlp] done')
+try {
+  execSync(
+    `curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o "${binPath}" && chmod +x "${binPath}"`,
+    { stdio: 'inherit' }
+  )
+  console.log('[install-yt-dlp] done')
+} catch (err) {
+  // Non-fatal: nixpacks.toml also installs yt-dlp on PATH, and getYtDlpBin() falls back to it.
+  // Don't fail the whole build over a transient download hiccup.
+  console.warn('[install-yt-dlp] download failed — relying on PATH yt-dlp (nixpacks):', err && err.message)
+}
