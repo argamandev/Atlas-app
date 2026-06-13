@@ -1,0 +1,132 @@
+import 'server-only'
+import { randomUUID } from 'node:crypto'
+import { supabaseAdmin } from '@/lib/supabase'
+import type { Quote } from '@/lib/api/types'
+
+// Quotes + followed-calls use the DB when their tables exist (migration 20260613_007),
+// and fall back to an in-process store when they don't — so the UI and the live-transcript
+// self-test work even before the migration is applied. (Dev fallback is per-process only.)
+const quoteMem = new Map<string, Quote[]>()
+const followMem = new Map<string, Set<string>>()
+let quotesUseMemory = false
+let followsUseMemory = false
+
+function missingTable(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false
+  const code = err.code ?? ''
+  const msg = err.message ?? ''
+  // 42P01 = Postgres undefined_table; PGRST205 = PostgREST can't find table in schema cache.
+  return (
+    code === '42P01' ||
+    code === 'PGRST205' ||
+    /does not exist/i.test(msg) ||
+    /could not find the table/i.test(msg) ||
+    /schema cache/i.test(msg)
+  )
+}
+
+type Row = Record<string, unknown>
+function mapQuote(r: Row): Quote {
+  return {
+    id: String(r.id),
+    companyId: String(r.company_id ?? ''),
+    transcriptId: (r.transcript_id as string) ?? null,
+    text: String(r.text ?? ''),
+    speaker: (r.speaker as string) ?? null,
+    quarter: (r.quarter as string) ?? null,
+    startSec: (r.start_sec as number) ?? null,
+    createdAt: String(r.created_at ?? new Date().toISOString()),
+  }
+}
+
+export interface NewQuote {
+  companyId: string
+  transcriptId?: string | null
+  text: string
+  speaker?: string | null
+  quarter?: string | null
+  startSec?: number | null
+}
+
+export async function listQuotes(userId: string, companyId?: string): Promise<Quote[]> {
+  if (!quotesUseMemory) {
+    let q = supabaseAdmin
+      .from('quotes')
+      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    if (companyId) q = q.eq('company_id', companyId)
+    const { data, error } = await q
+    if (!error) return (data ?? []).map(mapQuote)
+    if (!missingTable(error)) throw new Error(error.message)
+    quotesUseMemory = true
+  }
+  const all = quoteMem.get(userId) ?? []
+  return companyId ? all.filter((x) => x.companyId === companyId) : all
+}
+
+export async function createQuote(userId: string, input: NewQuote): Promise<Quote> {
+  if (!quotesUseMemory) {
+    const { data, error } = await supabaseAdmin
+      .from('quotes')
+      .insert({
+        user_id: userId,
+        company_id: input.companyId,
+        transcript_id: input.transcriptId ?? null,
+        text: input.text,
+        speaker: input.speaker ?? null,
+        quarter: input.quarter ?? null,
+        start_sec: input.startSec ?? null,
+      })
+      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, created_at')
+      .single()
+    if (!error && data) return mapQuote(data)
+    if (error && !missingTable(error)) throw new Error(error.message)
+    quotesUseMemory = true
+  }
+  const quote: Quote = {
+    id: randomUUID(),
+    companyId: input.companyId,
+    transcriptId: input.transcriptId ?? null,
+    text: input.text,
+    speaker: input.speaker ?? null,
+    quarter: input.quarter ?? null,
+    startSec: input.startSec ?? null,
+    createdAt: new Date().toISOString(),
+  }
+  const arr = quoteMem.get(userId) ?? []
+  arr.unshift(quote)
+  quoteMem.set(userId, arr)
+  return quote
+}
+
+// ── followed calls ("My Calendar") ──
+export async function listFollowedCallIds(userId: string): Promise<string[]> {
+  if (!followsUseMemory) {
+    const { data, error } = await supabaseAdmin.from('followed_calls').select('call_id').eq('user_id', userId)
+    if (!error) return (data ?? []).map((r) => String((r as Row).call_id))
+    if (!missingTable(error)) throw new Error(error.message)
+    followsUseMemory = true
+  }
+  return Array.from(followMem.get(userId) ?? [])
+}
+
+export async function followCall(userId: string, callId: string, follow: boolean): Promise<void> {
+  if (!followsUseMemory) {
+    if (follow) {
+      const { error } = await supabaseAdmin.from('followed_calls').upsert({ user_id: userId, call_id: callId })
+      if (!error) return
+      if (!missingTable(error)) throw new Error(error.message)
+      followsUseMemory = true
+    } else {
+      const { error } = await supabaseAdmin.from('followed_calls').delete().eq('user_id', userId).eq('call_id', callId)
+      if (!error) return
+      if (!missingTable(error)) throw new Error(error.message)
+      followsUseMemory = true
+    }
+  }
+  const set = followMem.get(userId) ?? new Set<string>()
+  if (follow) set.add(callId)
+  else set.delete(callId)
+  followMem.set(userId, set)
+}
