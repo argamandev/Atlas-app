@@ -32,10 +32,11 @@ export function QuoteCard({
     setTimeout(() => setToast(null), 1600)
   }
 
-  // 1) Chat — open the chat with the company tagged AND this quote as context.
+  // 1) Chat — open the chat with the company tagged AND this quote AND the specific call as context.
   function openInChat() {
     const q = encodeURIComponent(quote.text)
-    router.push(`/app/chat?company=${companyId}&quote=${q}`)
+    const tid = quote.transcriptId ? `&transcript=${encodeURIComponent(quote.transcriptId)}` : ''
+    router.push(`/app/chat?company=${companyId}&quote=${q}${tid}`)
   }
 
   // 2) Share — WhatsApp: "SPEAKER said on the QUARTER investor call: '…'".

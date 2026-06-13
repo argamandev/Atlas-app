@@ -95,6 +95,58 @@ function buildFromIvrit(segs: IvritSegment[], overrides: Record<string, string> 
   return { segments, durationSec, hasWordTimings: true }
 }
 
+// Keep the EXACT IVRIT word timings (the karaoke) but relabel + regroup the words by the real
+// Gemini speaker names. Both transcripts are the same words in the same order, so a proportional
+// position map assigns each timed word its Gemini speaker. Word timings are untouched → the
+// karaoke highlight is byte-identical; only the speaker turns + labels change.
+function buildFromIvritWithGeminiNames(
+  segs: IvritSegment[],
+  fd: Transcript,
+  overrides: Record<string, string> = {},
+): WordTimedTranscript {
+  const timed: { text: string; start: number; end: number }[] = []
+  for (const s of segs) {
+    if (s.words.length) for (const w of s.words) timed.push({ text: w.word, start: w.start, end: w.end })
+    else timed.push({ text: s.text, start: s.start, end: s.end })
+  }
+  const I = timed.length
+
+  const lines = fd.sections?.flatMap((sec) => sec.lines) ?? []
+  const gSpeakers: string[] = [] // gemini speakerId per gemini word, in order
+  for (const line of lines) {
+    const n = line.text.split(/\s+/).filter(Boolean).length
+    for (let k = 0; k < n; k++) gSpeakers.push(line.speakerId)
+  }
+  const G = gSpeakers.length
+  if (!G || !I) return buildFromIvrit(segs, overrides)
+
+  // Real name from Gemini; the "Speaker Full Name" placeholder → דובר (still editable).
+  const baseName = (sid: string): string => {
+    const n = fd.speakers?.find((s) => s.id === sid)?.name
+    return !n || /speaker full name|^speaker\b/i.test(n) ? 'דובר' : n
+  }
+  const nameOf = (sid: string) => overrides[sid] ?? baseName(sid)
+  const roleOf = (sid: string) => fd.speakers?.find((s) => s.id === sid)?.title ?? null
+
+  const segments: TranscriptSegment[] = []
+  let cur: TranscriptSegment | null = null
+  for (let i = 0; i < I; i++) {
+    const gi = I > 1 && G > 1 ? Math.min(G - 1, Math.round((i * (G - 1)) / (I - 1))) : 0
+    const sid: string = gSpeakers[gi] ?? 's0'
+    const w = timed[i]
+    if (!cur || cur.speakerId !== sid) {
+      if (cur) segments.push(cur)
+      cur = { id: `seg-${segments.length}`, speakerId: sid, speakerName: nameOf(sid), role: roleOf(sid), words: [], start: w.start, end: w.end }
+    }
+    cur.words.push({ text: w.text, start: w.start, end: w.end })
+    cur.end = w.end
+  }
+  if (cur) segments.push(cur)
+
+  const durationSec = segments.reduce((m, s) => Math.max(m, s.end), 0)
+  return { segments, durationSec, hasWordTimings: true }
+}
+
 // A completed transcript. If IVRIT word timings + audio were stored → real karaoke + audio
 // playback. Otherwise a line-level read view from the Gemini transcript (no audio).
 export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
@@ -121,9 +173,14 @@ export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
     companyId: (data.company_id as string) ?? null,
   }
 
-  // Word-timed path — real karaoke synced to stored audio.
+  // Word-timed path — real karaoke synced to stored audio. Prefer Gemini's real speaker names
+  // (relabel only; word timings untouched); fall back to anonymous diarization labels.
   if (audioUrl && wordSegs && wordSegs.length) {
-    return { ...meta, audioUrl, transcript: buildFromIvrit(wordSegs, overrides) }
+    const hasGemini = (fd.sections?.flatMap((s) => s.lines) ?? []).length > 0
+    const transcript = hasGemini
+      ? buildFromIvritWithGeminiNames(wordSegs, fd, overrides)
+      : buildFromIvrit(wordSegs, overrides)
+    return { ...meta, audioUrl, transcript }
   }
 
   const nameOf = (sid: string) => overrides[sid] ?? fd.speakers?.find((s) => s.id === sid)?.name ?? 'Speaker'
