@@ -22,6 +22,7 @@ export default async function LivePage({
       <AppPage>
         <LiveBroadcastView
           companyName={company?.displayName ?? 'תמיס'}
+          companyId={company?.id ?? null}
           quarter="Q2 2026"
           logoUrl={company?.logoUrl ?? null}
           delaySec={Number.isFinite(d) && d > 0 ? d : 300}

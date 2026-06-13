@@ -1,15 +1,21 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Logo } from '@/components/ds/Logo'
+import { Tabs } from '@/components/ds/Tabs'
 import { IconButton } from '@/components/ds/IconButton'
-import { CloseIcon, PlayIcon } from '@/components/ds/icons'
+import { CloseIcon, SyncIcon, PlayIcon } from '@/components/ds/icons'
+import { TranscriptBody } from './TranscriptBody'
+import { MediaPlayer } from './MediaPlayer'
+import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
+import { formatDate } from '@/lib/i18n/format'
 
-// LIVE broadcast — streams audio + karaoke captions from the live engine (via /api/live/*),
-// held in a buffer so playback runs `delaySec` behind the real call. Word timings drive the
-// karaoke exactly like the finished-transcript page; the audio is scheduled chunk-by-chunk
-// through the Web Audio API (the only way to play a growing live stream). V1-styled.
+// LIVE broadcast — the V1 transcript page, fed by the live engine (/api/live/*). Same header,
+// tabs, karaoke TranscriptBody and MediaPlayer as the finished-transcript page; the difference
+// is the data streams in and the audio is scheduled through Web Audio, held `delaySec` behind
+// live. Joining drops you at the LIVE edge (liveEdge − delaySec), not the start of the call.
 
 type LiveWord = { text: string; rawText?: string; start: number | null }
 interface LiveState {
@@ -25,44 +31,69 @@ const SR = 16000
 
 export function LiveBroadcastView({
   companyName,
+  companyId,
   quarter,
   logoUrl,
   delaySec = 300,
 }: {
   companyName: string
+  companyId: string | null
   quarter: string
   logoUrl: string | null
   delaySec?: number
 }) {
+  const { dict, locale } = useI18n()
   const router = useRouter()
+
   const [words, setWords] = useState<LiveWord[]>([])
-  const [activeIdx, setActiveIdx] = useState(-1)
   const [phase, setPhase] = useState<'connecting' | 'waiting' | 'buffering' | 'ready' | 'playing'>('connecting')
   const [countdown, setCountdown] = useState(delaySec)
-  const [behind, setBehind] = useState(0)
   const [liveEnded, setLiveEnded] = useState(false)
+  const [autoScroll, setAutoScroll] = useState(true)
+  const [volume, setVolume] = useState(1)
+  const [paused, setPaused] = useState(false)
+  // playhead + edges, in recording-relative seconds (drive the player + karaoke)
+  const [playingRel, setPlayingRel] = useState(0)
+  const [liveEdge, setLiveEdge] = useState(0)
 
   const stRef = useRef<LiveState | null>(null)
-  const wordsRef = useRef<LiveWord[]>([])
   const seenLinesRef = useRef(0)
   const ctxRef = useRef<AudioContext | null>(null)
+  const gainRef = useRef<GainNode | null>(null)
+  const schedRef = useRef<AudioBufferSourceNode[]>([])
   const playPosRef = useRef<number | null>(null)
   const nextAtRef = useRef(0)
   const fetchingRef = useRef(false)
   const startedRef = useRef(false)
-  const activeWordRef = useRef<HTMLSpanElement | null>(null)
+  const pausedRef = useRef(false)
 
-  useEffect(() => {
-    wordsRef.current = words
-  }, [words])
-
-  useEffect(() => {
-    if (activeIdx >= 0 && activeWordRef.current) {
-      activeWordRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  // streaming words → a single-segment word-timed transcript (V1 karaoke renders it)
+  const transcript = useMemo<WordTimedTranscript>(() => {
+    const w = words.map((x) => ({ text: x.text, start: x.start ?? 0, end: x.start ?? 0 }))
+    return {
+      segments: [
+        { id: 'live', speakerId: 'live', speakerName: companyName, role: null, words: w, start: 0, end: w.at(-1)?.start ?? 0 },
+      ],
+      durationSec: liveEdge,
+      hasWordTimings: true,
     }
-  }, [activeIdx])
+  }, [words, companyName, liveEdge])
 
-  // poll engine state + schedule audio
+  const flat = useMemo(() => flattenWords(transcript), [transcript])
+  const activeIndex = useMemo(() => activeWordIndex(flat, playingRel), [flat, playingRel])
+
+  function flushAudio() {
+    for (const s of schedRef.current) {
+      try {
+        s.stop()
+      } catch {
+        /* already stopped */
+      }
+    }
+    schedRef.current = []
+  }
+
+  // poll engine + schedule audio
   useEffect(() => {
     let alive = true
 
@@ -73,6 +104,7 @@ export function LiveBroadcastView({
         if (!alive) return
         stRef.current = st
         setLiveEnded(st.liveEnded)
+        setLiveEdge(st.liveEdgeRel ?? 0)
 
         const newLines = st.lines.slice(seenLinesRef.current)
         if (newLines.length) {
@@ -103,8 +135,8 @@ export function LiveBroadcastView({
     async function pump() {
       const st = stRef.current
       const ctx = ctxRef.current
-      if (!startedRef.current || !st || fetchingRef.current || !ctx) return
-      if (nextAtRef.current - ctx.currentTime > 6) return // keep ~6s scheduled ahead
+      if (!startedRef.current || pausedRef.current || !st || fetchingRef.current || !ctx) return
+      if (nextAtRef.current - ctx.currentTime > 6) return
       const allowedEnd = st.liveEnded ? st.liveEdgeRel ?? 0 : (st.liveEdgeRel ?? 0) - delaySec
       const pos = playPosRef.current ?? 0
       const finalEnd = Math.min(pos + 4, allowedEnd)
@@ -120,9 +152,13 @@ export function LiveBroadcastView({
             for (let i = 0; i < i16.length; i++) ch[i] = i16[i] / 32768
             const src = ctx.createBufferSource()
             src.buffer = buf
-            src.connect(ctx.destination)
+            src.connect(gainRef.current ?? ctx.destination)
             if (nextAtRef.current < ctx.currentTime) nextAtRef.current = ctx.currentTime + 0.05
             src.start(nextAtRef.current)
+            schedRef.current.push(src)
+            src.onended = () => {
+              schedRef.current = schedRef.current.filter((s) => s !== src)
+            }
             nextAtRef.current += buf.duration
             playPosRef.current = pos + buf.duration
           }
@@ -138,51 +174,91 @@ export function LiveBroadcastView({
     }, 1500)
     void refresh()
 
-    let raf = 0
-    const tick = () => {
-      const st = stRef.current
+    // playhead update ~10fps (drives the scrubber + karaoke without re-rendering every frame)
+    const ph = setInterval(() => {
       const ctx = ctxRef.current
-      if (startedRef.current && st && ctx && playPosRef.current !== null) {
-        const playingRel = playPosRef.current - (nextAtRef.current - ctx.currentTime)
-        setBehind(Math.max(0, (st.liveEdgeRel ?? 0) - playingRel))
-        const ws = wordsRef.current
-        let lo = 0,
-          hi = ws.length - 1,
-          idx = -1
-        while (lo <= hi) {
-          const m = (lo + hi) >> 1
-          if (ws[m].start !== null && (ws[m].start as number) <= playingRel) {
-            idx = m
-            lo = m + 1
-          } else hi = m - 1
-        }
-        setActiveIdx((prev) => (prev === idx ? prev : idx))
+      if (startedRef.current && ctx && playPosRef.current !== null) {
+        const rel = playPosRef.current - (nextAtRef.current - ctx.currentTime)
+        setPlayingRel(Math.max(0, rel))
       }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
+    }, 100)
 
     return () => {
       alive = false
       clearInterval(iv)
-      cancelAnimationFrame(raf)
+      clearInterval(ph)
     }
   }, [delaySec])
 
   function join() {
+    const st = stRef.current
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     const ctx = new Ctx()
+    const gain = ctx.createGain()
+    gain.gain.value = volume
+    gain.connect(ctx.destination)
     ctxRef.current = ctx
-    playPosRef.current = stRef.current?.audioStartRel ?? 0
-    nextAtRef.current = ctx.currentTime + 0.3
+    gainRef.current = gain
+    // drop in at the LIVE edge (delaySec behind the call), not the start
+    const liveEdgeRel = st?.liveEdgeRel ?? 0
+    const startRel = st?.audioStartRel ?? 0
+    playPosRef.current = Math.max(startRel, liveEdgeRel - delaySec)
+    nextAtRef.current = ctx.currentTime + 0.2
     startedRef.current = true
+    pausedRef.current = false
+    setPaused(false)
     setPhase('playing')
+  }
+
+  function playPause() {
+    const ctx = ctxRef.current
+    if (!ctx) return
+    if (pausedRef.current) {
+      void ctx.resume()
+      pausedRef.current = false
+      setPaused(false)
+    } else {
+      void ctx.suspend()
+      pausedRef.current = true
+      setPaused(true)
+    }
+  }
+
+  function seek(t: number) {
+    const ctx = ctxRef.current
+    if (!ctx || playPosRef.current === null) return
+    const st = stRef.current
+    const maxEnd = st?.liveEnded ? st.liveEdgeRel ?? t : (st?.liveEdgeRel ?? t) - delaySec
+    const target = Math.min(Math.max(0, t), Math.max(0, maxEnd))
+    flushAudio()
+    playPosRef.current = target
+    nextAtRef.current = ctx.currentTime + 0.1
+    setPlayingRel(target)
+  }
+
+  function goLive() {
+    const st = stRef.current
+    seek((st?.liveEdgeRel ?? 0) - delaySec)
+  }
+
+  function changeVolume(v: number) {
+    setVolume(v)
+    if (gainRef.current) gainRef.current.gain.value = v
+  }
+
+  function onTab(key: string) {
+    if (key === 'overview') {
+      if (companyId) router.push(`/app/company/${companyId}`)
+      else router.push('/app/home')
+    }
   }
 
   const fmt = (s: number) => {
     s = Math.max(0, Math.round(s))
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   }
+  const behind = Math.max(0, liveEdge - playingRel)
+  const broadcastEdge = Math.max(0, (liveEnded ? liveEdge : liveEdge - delaySec))
 
   const overlayMsg =
     phase === 'connecting'
@@ -190,21 +266,29 @@ export function LiveBroadcastView({
       : phase === 'waiting'
         ? 'ממתין לתחילת השיחה…'
         : phase === 'buffering'
-          ? `השידור יתחיל בעוד ${fmt(countdown)} (מאגר השהיה נבנה)`
-          : `השידור זמין — בהשהיה של ${fmt(delaySec)} מאחורי השיחה החיה`
+          ? `השידור יתחיל בעוד ${fmt(countdown)}`
+          : `השידור זמין — בהשהיה של ${fmt(delaySec)} מאחורי החי`
+
+  const liveTabs = [
+    { key: 'overview', label: dict.live.backToOverview },
+    { key: 'transcript', label: dict.live.transcript },
+    { key: 'slides', label: dict.live.slides },
+    { key: 'report', label: dict.live.report },
+  ]
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col" dir="rtl">
-      {/* header */}
+    <div className="relative flex h-full min-h-0 flex-1 flex-col">
+      {/* header — same as the finished-transcript page */}
       <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <Logo src={logoUrl} name={companyName} size={32} />
           <span className="truncate font-bold text-ink">
             {companyName} — {quarter}
           </span>
+          <span className="shrink-0 text-sm text-ink-faint">{formatDate(new Date().toISOString(), locale)}</span>
           <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
             <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
-            <span className="text-2xs font-bold tracking-wide text-live">{liveEnded ? 'הסתיים' : 'שידור חי'}</span>
+            <span className="text-2xs font-bold tracking-wide text-live">{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
           </span>
           {phase === 'playing' && (
             <span className="shrink-0 text-xs text-ink-faint tabular-nums" dir="ltr">
@@ -212,47 +296,68 @@ export function LiveBroadcastView({
             </span>
           )}
         </div>
-        <IconButton label="סגירה" size={30} onClick={() => router.push('/app/home')}>
+        <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
           <CloseIcon size={17} />
         </IconButton>
       </header>
 
-      {/* transcript */}
-      <div className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-24 pt-6 text-right">
-        <p className="text-[26px] font-medium leading-[2.0]">
-          {words.map((w, i) => {
-            const fixed = w.rawText && w.rawText !== w.text
-            const cls =
-              i === activeIdx
-                ? 'bg-subtle text-ink'
-                : i < activeIdx
-                  ? 'text-ink'
-                  : 'text-ink-faint'
-            return (
-              <span
-                key={i}
-                ref={i === activeIdx ? activeWordRef : undefined}
-                title={fixed ? `מקור: ${w.rawText}` : undefined}
-                className={`rounded-[3px] ${cls} ${fixed ? 'underline decoration-[#C04A00]/50 underline-offset-4' : ''}`}
-              >
-                {w.text}{' '}
-              </span>
-            )
-          })}
-        </p>
+      {/* tabs */}
+      <div className="px-6">
+        <Tabs activeKey="transcript" onChange={onTab} items={liveTabs} />
       </div>
+
+      {/* sub-toolbar */}
+      <div className="flex items-center justify-between px-6 py-2">
+        <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
+          <SyncIcon size={16} />
+        </IconButton>
+        {phase === 'playing' && !liveEnded && (
+          <button
+            type="button"
+            onClick={goLive}
+            className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1 text-xs font-medium text-live"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
+            חזרה לשידור החי
+          </button>
+        )}
+      </div>
+
+      {/* transcript — the real V1 karaoke body */}
+      <div className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2">
+        <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke />
+      </div>
+
+      {/* the audio bar */}
+      <MediaPlayer
+        logoUrl={logoUrl}
+        title={companyName}
+        subtitle={quarter}
+        chapter={liveEnded ? undefined : 'Live session'}
+        currentTime={playingRel}
+        duration={broadcastEdge}
+        playing={phase === 'playing' && !paused}
+        isLive={!liveEnded}
+        volume={volume}
+        onPlayPause={playPause}
+        onSeek={seek}
+        onSkip={(d) => seek(playingRel + d)}
+        onVolumeChange={changeVolume}
+        onClose={() => router.push('/app/home')}
+      />
 
       {/* buffering / join overlay */}
       {phase !== 'playing' && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-canvas/95 px-6 text-center">
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-canvas/95 px-6 text-center">
           <span className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
-            <span className="text-2xs font-bold tracking-wide text-live">שידור חי</span>
+            <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
           </span>
-          <h2 className="text-xl font-bold text-ink">
-            {companyName} — שיחת משקיעים
-          </h2>
-          <p className="text-sm text-ink-muted tabular-nums">{overlayMsg}</p>
+          <h2 className="text-xl font-bold text-ink">{companyName} — שיחת משקיעים</h2>
+          {phase === 'buffering' && (
+            <div className="text-4xl font-bold tabular-nums text-ink">{fmt(countdown)}</div>
+          )}
+          <p className="text-sm text-ink-muted">{overlayMsg}</p>
           <button
             type="button"
             onClick={join}
@@ -260,7 +365,7 @@ export function LiveBroadcastView({
             className="flex items-center gap-2 rounded-full bg-[#C04A00] px-7 py-3 text-[15px] font-semibold text-white transition-opacity disabled:bg-subtle disabled:text-ink-faint"
           >
             <PlayIcon size={16} />
-            הצטרפו לשידור
+            הצטרפו לשידור החי
           </button>
         </div>
       )}

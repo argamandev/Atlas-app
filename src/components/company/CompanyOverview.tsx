@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { EntityRow } from '@/components/ds/EntityRow'
 import { SectionHeader } from '@/components/ds/SectionHeader'
@@ -18,6 +19,8 @@ export interface CompanyOverviewData {
   transcripts: RecentTranscript[]
   liveHref?: string | null
   liveQuarter?: string | null
+  /** when true, poll the live engine and show the live banner (→ /app/live/live) if a call is live */
+  liveEnabled?: boolean
 }
 
 export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
@@ -25,18 +28,43 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
   const { companyName, logoUrl, calls, transcripts, liveHref } = data
   const latest = transcripts[0]
 
+  // Live call auto-detect — when this is the live company, poll the engine like the home does.
+  const [engineLive, setEngineLive] = useState(false)
+  useEffect(() => {
+    if (!data.liveEnabled) return
+    let alive = true
+    const check = async () => {
+      try {
+        const r = await fetch('/api/live/state', { cache: 'no-store' })
+        const s = await r.json()
+        if (alive) setEngineLive(s.audioStartRel !== null && !s.liveEnded)
+      } catch {
+        if (alive) setEngineLive(false)
+      }
+    }
+    void check()
+    const iv = setInterval(check, 5000)
+    return () => {
+      alive = false
+      clearInterval(iv)
+    }
+  }, [data.liveEnabled])
+
+  const showLive = data.liveEnabled ? engineLive : !!liveHref
+  const liveLink = data.liveEnabled ? '/app/live/live' : liveHref
+
   return (
     <div className="space-y-8">
-      {liveHref && (
+      {showLive && liveLink && (
         <section>
           <SectionHeader label={dict.home.liveNow} className="mb-2" />
           <EntityRow
-            href={liveHref}
+            href={liveLink}
             logoSrc={logoUrl}
             name={companyName}
             secondary={
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-live" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
                 <span className="font-medium text-live">{dict.live.liveBadge}</span>
                 {data.liveQuarter ? <span className="text-ink-faint">· {data.liveQuarter}</span> : null}
               </span>

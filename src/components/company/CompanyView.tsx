@@ -17,7 +17,6 @@ import { CompanyOverview } from './CompanyOverview'
 import { QuoteCard } from './QuoteCard'
 import { formatDate, formatTime } from '@/lib/i18n/format'
 import { quarterSortKey } from '@/lib/utils'
-import { DEMO_LIVE_CALL } from '@/data/demo/liveCall'
 
 function groupByQuarter<T extends { quarter?: string | null }>(items: T[]): [string, T[]][] {
   const map = new Map<string, T[]>()
@@ -75,7 +74,7 @@ export function CompanyView({
   const name = companyDisplayName(company, locale)
   const industry = [company.sector, company.subSector].filter(Boolean).join(' · ')
   const openInChat = () => router.push(`/app/chat?company=${company.id}`)
-  const isDemoLive = company.ticker === DEMO_LIVE_CALL.companyTicker
+  const isLiveCompany = company.ticker === '1097229' // תמיס — the live-demo company
   const transcriptsByQuarter = groupByQuarter(transcripts)
   const quotesByQuarter = groupByQuarter(quotes)
   const onQuoteRemoved = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id))
@@ -151,8 +150,8 @@ export function CompanyView({
                 logoUrl: company.logoUrl,
                 calls,
                 transcripts,
-                liveHref: isDemoLive ? DEMO_LIVE_CALL.href : null,
-                liveQuarter: isDemoLive ? DEMO_LIVE_CALL.quarter : null,
+                liveEnabled: isLiveCompany,
+                liveQuarter: isLiveCompany ? 'Q2 2026' : null,
               }}
             />
           </div>
