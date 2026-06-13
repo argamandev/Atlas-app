@@ -193,7 +193,7 @@ async function runPipeline(videoId: string, url: string) {
       .select()
     if (upd2err) console.error(`[pipeline:${videoId}] update2 error:`, upd2err)
 
-    const { text: rawText, engine, model } = await transcribeAudio(audioPath)
+    const { text: rawText, engine, model, segments, audioUrl } = await transcribeAudio(audioPath)
     console.log(`[pipeline:${videoId}] transcription OK (${elapsed()}) — ${rawText.length} chars via ${engine} (${model})`)
 
     const { error: upd3err } = await supabaseAdmin
@@ -213,6 +213,8 @@ async function runPipeline(videoId: string, url: string) {
         formatted_data: formatted,
         status: 'completed',
         processing_step: 'completed',
+        audio_url: audioUrl ?? null,
+        word_segments: segments ?? null,
       })
       .eq('id', videoId)
       .select()

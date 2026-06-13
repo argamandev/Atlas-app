@@ -7,6 +7,7 @@ import * as os from 'os'
 import { getVideoInfo as ytGetInfo, downloadAudio as ytDownload } from './ytdlp'
 import { supabaseAdmin } from './supabase'
 import type { Transcript, CorrectionDiag } from './types'
+import type { IvritSegment, IvritWord } from './live/syncEngine'
 
 ffmpeg.setFfmpegPath(ffmpegPath.path)
 
@@ -16,10 +17,18 @@ const RUNPOD_IVRIT_ENDPOINT_ID = process.env.RUNPOD_IVRIT_ENDPOINT_ID
 
 const IVRIT_MODEL = process.env.RUNPOD_IVRIT_MODEL || 'ivrit-ai/whisper-large-v3-turbo-ct2'
 
+// Speaker diarization for the live karaoke. Word-level sync does NOT depend on this —
+// set IVRIT_DIARIZE=false to drop speaker labels and show one continuous synced transcript.
+const IVRIT_DIARIZE = (process.env.IVRIT_DIARIZE ?? 'true') !== 'false'
+
 export interface TranscriptionResult {
   text: string
   engine: 'ivrit' | 'whisper'
   model: string
+  /** word-timed segments (IVRIT word_timestamps) — drives the live karaoke. undefined on the plain-text/whisper paths. */
+  segments?: IvritSegment[]
+  /** persisted audio URL (Supabase Storage) for live playback. */
+  audioUrl?: string
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -127,69 +136,128 @@ async function uploadAudioToStorage(audioPath: string): Promise<{ publicUrl: str
   return { publicUrl: data.publicUrl, storagePath: fileName }
 }
 
-async function transcribeWithIvrit(audioPath: string): Promise<string> {
-  const { publicUrl, storagePath } = await uploadAudioToStorage(audioPath)
-  console.log(`[ivrit] uploaded audio, size: ${fs.statSync(audioPath).size} bytes`)
+// Submit one transcription job to the IVRIT/RunPod endpoint and poll to completion.
+async function runIvritJob(transcribeArgs: Record<string, unknown>): Promise<unknown> {
+  const runRes = await fetch(`https://api.runpod.ai/v2/${RUNPOD_IVRIT_ENDPOINT_ID}/run`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RUNPOD_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: { model: IVRIT_MODEL, streaming: false, transcribe_args: transcribeArgs } }),
+  })
+  if (!runRes.ok) throw new Error(`RunPod submit failed ${runRes.status}: ${await runRes.text()}`)
+  const { id: jobId } = (await runRes.json()) as { id: string }
+  console.log(`[ivrit] job submitted: ${jobId}`)
 
-  try {
-    const runRes = await fetch(`https://api.runpod.ai/v2/${RUNPOD_IVRIT_ENDPOINT_ID}/run`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RUNPOD_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: {
-          model: IVRIT_MODEL,
-          streaming: false,
-          transcribe_args: { url: publicUrl, language: 'he', transcription: 'plain_text' },
-        },
-      }),
+  const maxWaitMs = 30 * 60 * 1000
+  const start = Date.now()
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise((r) => setTimeout(r, 5000))
+    const statusRes = await fetch(`https://api.runpod.ai/v2/${RUNPOD_IVRIT_ENDPOINT_ID}/status/${jobId}`, {
+      headers: { Authorization: `Bearer ${RUNPOD_API_KEY}` },
     })
-    if (!runRes.ok) {
-      const body = await runRes.text()
-      throw new Error(`RunPod submit failed ${runRes.status}: ${body}`)
-    }
-    const { id: jobId } = (await runRes.json()) as { id: string }
-    console.log(`[ivrit] job submitted: ${jobId}`)
-
-    const maxWaitMs = 30 * 60 * 1000
-    const start = Date.now()
-    while (Date.now() - start < maxWaitMs) {
-      await new Promise(r => setTimeout(r, 5000))
-      const statusRes = await fetch(
-        `https://api.runpod.ai/v2/${RUNPOD_IVRIT_ENDPOINT_ID}/status/${jobId}`,
-        { headers: { Authorization: `Bearer ${RUNPOD_API_KEY}` } }
-      )
-      if (!statusRes.ok) continue
-      const status = (await statusRes.json()) as { status: string; output?: { result?: unknown }; error?: unknown }
-      console.log(`[ivrit] status: ${status.status}`)
-
-      if (status.status === 'COMPLETED') {
-        console.log(`[ivrit] raw output: ${JSON.stringify(status.output).slice(0, 500)}`)
-        const outputData = Array.isArray(status.output) ? (status.output as unknown[])[0] : status.output
-        const result = (outputData as { result?: unknown } | undefined)?.result
-        let text = ''
-        if (typeof result === 'string') {
-          text = result.trim()
-        } else if (result && typeof result === 'object' && 'text' in result) {
-          text = String(result.text).trim()
-        } else if (Array.isArray(result)) {
-          const segments = (result as unknown[]).flat()
-          text = segments.map((s) => (s as { text?: string }).text ?? '').join(' ').trim()
-        }
-        if (!text) throw new Error('IVRIT returned empty transcript')
-        console.log(`[ivrit] done — ${text.length} chars`)
-        return text
-      }
-      if (status.status === 'FAILED') {
-        throw new Error(`RunPod job failed: ${JSON.stringify(status.error)}`)
-      }
-    }
-    throw new Error('IVRIT transcription timed out after 30 minutes')
-  } finally {
-    supabaseAdmin.storage.from('audio-temp').remove([storagePath]).catch(() => {})
+    if (!statusRes.ok) continue
+    const status = (await statusRes.json()) as { status: string; output?: unknown; error?: unknown }
+    console.log(`[ivrit] status: ${status.status}`)
+    if (status.status === 'COMPLETED') return status.output
+    if (status.status === 'FAILED') throw new Error(`RunPod job failed: ${JSON.stringify(status.error)}`)
   }
+  throw new Error('IVRIT transcription timed out after 30 minutes')
+}
+
+function asNum(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v) : NaN
+  return Number.isFinite(n) ? n : null
+}
+
+// Walk RunPod's output ({type:'segments',data:[...]} chunks, {result}, arrays, bare segments)
+// and collect raw segment objects — defensive because the exact envelope varies.
+function collectRawSegments(node: unknown, out: Record<string, unknown>[] = []): Record<string, unknown>[] {
+  if (!node) return out
+  if (Array.isArray(node)) {
+    for (const n of node) collectRawSegments(n, out)
+    return out
+  }
+  if (typeof node === 'object') {
+    const o = node as Record<string, unknown>
+    if (o.type === 'segments' && Array.isArray(o.data)) {
+      for (const s of o.data) collectRawSegments(s, out)
+      return out
+    }
+    if (Array.isArray(o.segments)) {
+      for (const s of o.segments) collectRawSegments(s, out)
+      return out
+    }
+    if ('text' in o && ('start' in o || 'words' in o)) {
+      out.push(o)
+      return out
+    }
+    if ('result' in o) return collectRawSegments(o.result, out)
+    if ('output' in o) return collectRawSegments(o.output, out)
+    if ('data' in o) return collectRawSegments(o.data, out)
+  }
+  return out
+}
+
+// Normalize raw IVRIT segments into our word-timed shape.
+function parseIvritSegments(output: unknown): IvritSegment[] {
+  const segs: IvritSegment[] = []
+  for (const s of collectRawSegments(output)) {
+    const start = asNum(s.start)
+    if (start == null) continue
+    const end = asNum(s.end) ?? start
+    const extra = (s.extra_data ?? {}) as Record<string, unknown>
+    const wordsRaw = (Array.isArray(s.words) ? s.words : Array.isArray(extra.words) ? extra.words : []) as Record<string, unknown>[]
+    const words: IvritWord[] = wordsRaw
+      .map((w) => ({ word: String(w.word ?? w.text ?? '').trim(), start: asNum(w.start) ?? start, end: asNum(w.end) ?? asNum(w.start) ?? end }))
+      .filter((w) => w.word)
+    const speakerRaw = s.speaker ?? extra.speaker ?? null
+    segs.push({ text: String(s.text ?? '').trim(), start, end, speaker: speakerRaw != null ? String(speakerRaw) : null, words })
+  }
+  return segs.filter((s) => s.text || s.words.length)
+}
+
+// Plain-text fallback extraction (string result / {text} / segment arrays).
+function extractIvritText(output: unknown): string {
+  const segs = parseIvritSegments(output)
+  if (segs.length) return segs.map((s) => s.text).join(' ').trim()
+  const data = Array.isArray(output) ? (output as unknown[])[0] : output
+  const result = (data as { result?: unknown } | undefined)?.result
+  if (typeof result === 'string') return result.trim()
+  if (result && typeof result === 'object' && 'text' in result) return String((result as { text: unknown }).text).trim()
+  return ''
+}
+
+async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; segments?: IvritSegment[]; audioUrl: string }> {
+  // Audio is uploaded to Storage AND kept (not deleted) so the live page can play it back.
+  const { publicUrl } = await uploadAudioToStorage(audioPath)
+  console.log(`[ivrit] uploaded audio (persisted), size: ${fs.statSync(audioPath).size} bytes`)
+
+  // Attempt 1: rich request — per-word timestamps (+ optional diarization). Drives the karaoke.
+  try {
+    const output = await runIvritJob({
+      url: publicUrl,
+      language: 'he',
+      ...(IVRIT_DIARIZE ? { diarize: true } : {}),
+      output_options: { word_timestamps: true, extra_data: true },
+    })
+    console.log(`[ivrit] raw output (rich): ${JSON.stringify(output).slice(0, 800)}`)
+    const segments = parseIvritSegments(output)
+    const text = segments.length ? segments.map((s) => s.text).join(' ').trim() : extractIvritText(output)
+    const withWords = segments.filter((s) => s.words.length).length
+    if (text) {
+      console.log(`[ivrit] rich done — ${text.length} chars, ${segments.length} segs, ${withWords} with word timings`)
+      return { text, segments: withWords ? segments : undefined, audioUrl: publicUrl }
+    }
+    console.warn('[ivrit] rich request returned no text — falling back to plain_text')
+  } catch (err) {
+    console.warn(`[ivrit] rich request failed — falling back to plain_text: ${(err as Error).message}`)
+  }
+
+  // Attempt 2 (safe fallback): the original plain-text request — never breaks existing transcription.
+  const output = await runIvritJob({ url: publicUrl, language: 'he', transcription: 'plain_text' })
+  const text = extractIvritText(output)
+  if (!text) throw new Error('IVRIT returned empty transcript')
+  console.log(`[ivrit] plain done — ${text.length} chars`)
+  return { text, audioUrl: publicUrl }
 }
 
 async function whisperTranscribe(audioPath: string): Promise<string> {
@@ -209,9 +277,9 @@ async function whisperTranscribe(audioPath: string): Promise<string> {
 export async function transcribeAudio(audioPath: string): Promise<TranscriptionResult> {
   if (RUNPOD_API_KEY && RUNPOD_IVRIT_ENDPOINT_ID) {
     try {
-      console.log(`[transcribe] using IVRIT/RunPod (model: ${IVRIT_MODEL})`)
-      const text = await transcribeWithIvrit(audioPath)
-      return { text, engine: 'ivrit', model: IVRIT_MODEL }
+      console.log(`[transcribe] using IVRIT/RunPod (model: ${IVRIT_MODEL}, diarize: ${IVRIT_DIARIZE})`)
+      const { text, segments, audioUrl } = await transcribeWithIvrit(audioPath)
+      return { text, engine: 'ivrit', model: IVRIT_MODEL, segments, audioUrl }
     } catch (err) {
       console.error('[transcribe] IVRIT failed — falling back to Whisper:', (err as Error).message)
     }

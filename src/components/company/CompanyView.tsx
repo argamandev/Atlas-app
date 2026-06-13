@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { companyDisplayName, type Company, type ScheduledCall, type Quote } from '@/lib/api/types'
+import type { RecentTranscript } from '@/lib/types'
 import { Tabs } from '@/components/ds/Tabs'
 import { Logo } from '@/components/ds/Logo'
 import { Surface } from '@/components/ds/Surface'
@@ -56,10 +57,12 @@ function CallMenu({ onChat, moreLabel, chatLabel }: { onChat: () => void; moreLa
 export function CompanyView({
   company,
   calls,
+  transcripts,
   quotes,
 }: {
   company: Company
   calls: ScheduledCall[]
+  transcripts: RecentTranscript[]
   quotes: Quote[]
 }) {
   const { dict, locale } = useI18n()
@@ -70,7 +73,7 @@ export function CompanyView({
   const industry = [company.sector, company.subSector].filter(Boolean).join(' · ')
   const openInChat = () => router.push(`/app/chat?company=${company.id}`)
   const isDemoLive = company.ticker === DEMO_LIVE_CALL.companyTicker
-  const callsByQuarter = groupByQuarter(calls)
+  const transcriptsByQuarter = groupByQuarter(transcripts)
   const quotesByQuarter = groupByQuarter(quotes)
 
   const callRow = (call: ScheduledCall) => (
@@ -82,6 +85,19 @@ export function CompanyView({
       secondary={`${call.quarter} · ${formatDate(call.scheduledAt, locale)}`}
       meta={<span dir="ltr">{formatTime(call.scheduledAt, locale)}</span>}
       trailing={<CallMenu onChat={openInChat} moreLabel={dict.common.more} chatLabel={dict.company.openInChat} />}
+    />
+  )
+
+  // A finished (transcribed) call — opens the Live Transcript page (karaoke + audio).
+  const finishedRow = (t: RecentTranscript) => (
+    <EntityRow
+      key={t.id}
+      href={`/app/live/${t.id}`}
+      logoSrc={company.logoUrl}
+      name={name}
+      secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
+      secondary={[t.quarter, formatDate(t.date || t.createdAt, locale)].filter(Boolean).join(' · ')}
+      meta={t.duration ? <span dir="ltr">{t.duration}</span> : undefined}
     />
   )
 
@@ -140,6 +156,13 @@ export function CompanyView({
               </section>
             )}
 
+            {transcripts.length > 0 && (
+              <section>
+                <SectionHeader label={dict.company.latestCall} className="mb-2" />
+                {finishedRow(transcripts[0])}
+              </section>
+            )}
+
             <section>
               <SectionHeader label={dict.company.upcomingCalls} className="mb-2" />
               {calls.length === 0 ? (
@@ -183,18 +206,30 @@ export function CompanyView({
           </div>
         ) : (
           <div className="space-y-6 py-6">
-            <SectionHeader label={dict.company.backlog} className="mb-1" />
-            {calls.length === 0 ? (
+            {transcripts.length === 0 && calls.length === 0 ? (
               <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.common.empty}</p>
             ) : (
-              callsByQuarter.map(([quarter, qs]) => (
-                <div key={quarter}>
-                  <div className="mb-1.5 px-1 text-xs font-medium text-ink-faint" dir="ltr">
-                    {quarter}
+              <>
+                {transcriptsByQuarter.length > 0 && (
+                  <div className="space-y-5">
+                    <SectionHeader label={dict.company.backlog} className="mb-1" />
+                    {transcriptsByQuarter.map(([quarter, ts]) => (
+                      <div key={`t-${quarter}`}>
+                        <div className="mb-1.5 px-1 text-xs font-medium text-ink-faint" dir="ltr">
+                          {quarter}
+                        </div>
+                        <div className="flex flex-col gap-0.5">{ts.map(finishedRow)}</div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex flex-col gap-0.5">{qs.map(callRow)}</div>
-                </div>
-              ))
+                )}
+                {calls.length > 0 && (
+                  <div>
+                    <SectionHeader label={dict.company.upcomingCalls} className="mb-2" />
+                    <div className="flex flex-col gap-0.5">{calls.map(callRow)}</div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

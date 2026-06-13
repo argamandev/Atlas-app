@@ -37,3 +37,28 @@ export async function getUserTranscripts(
     }
   })
 }
+
+// Finished (completed) transcripts linked to a company — shown on the company page and
+// opened in the Live Transcript page. Platform-wide (no per-user filter).
+export async function listCompanyTranscripts(companyId: string): Promise<RecentTranscript[]> {
+  const { data } = await supabaseAdmin
+    .from('transcripts')
+    .select('id, youtube_title, status, duration, created_at, formatted_data')
+    .eq('company_id', companyId)
+    .eq('status', 'completed')
+    .order('created_at', { ascending: false })
+
+  return (data ?? []).map((row) => {
+    const fd = row.formatted_data as Record<string, string> | null
+    return {
+      id: row.id as string,
+      company: fd?.company ?? (row.youtube_title as string) ?? 'שיחת משקיעים',
+      ticker: fd?.ticker ?? '',
+      quarter: fd?.quarter ?? '',
+      date: fd?.date ?? (row.created_at as string).split('T')[0],
+      duration: (row.duration as string) ?? '',
+      status: row.status as TranscriptStatus,
+      createdAt: row.created_at as string,
+    }
+  })
+}

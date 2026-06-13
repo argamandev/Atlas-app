@@ -7,6 +7,22 @@ export interface TimedWord {
   end: number
 }
 
+// Raw IVRIT word-timed output (stored on transcripts.word_segments). Kept as a light,
+// runtime-free type so both the pipeline and the live page can import it without pulling
+// the heavy transcription module.
+export interface IvritWord {
+  word: string
+  start: number
+  end: number
+}
+export interface IvritSegment {
+  text: string
+  start: number
+  end: number
+  speaker: string | null // diarization label when enabled, else null
+  words: IvritWord[]
+}
+
 export interface TranscriptSegment {
   id: string
   speakerId: string

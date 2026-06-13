@@ -2,7 +2,7 @@ import path from 'node:path'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getCompanyByTicker } from '@/lib/db/companies'
 import { loadRecallTranscript } from './recallAdapter'
-import type { TranscriptSegment, WordTimedTranscript } from './syncEngine'
+import type { TranscriptSegment, WordTimedTranscript, IvritSegment } from './syncEngine'
 import type { Transcript } from '@/lib/types'
 import { DEMO_LIVE_CALL } from '@/data/demo/liveCall'
 
@@ -51,16 +51,78 @@ function parseTs(ts: string | null | undefined): number {
   return parts[0] ?? 0
 }
 
-// A completed transcript (YouTube/IVRIT path) → line-level transcript (no word timings,
-// no stored audio yet). Each line becomes a clickable chunk; highlight is line-level.
+// Build a word-timed (karaoke) transcript from stored IVRIT word_segments. Diarized
+// segments are grouped into speaker blocks; otherwise one continuous block. Falls back
+// to a chunk-per-segment when a segment lacks per-word timings.
+function buildFromIvrit(segs: IvritSegment[]): WordTimedTranscript {
+  const toWords = (s: IvritSegment) =>
+    s.words.length
+      ? s.words.map((w) => ({ text: w.word, start: w.start, end: w.end }))
+      : [{ text: s.text, start: s.start, end: s.end }]
+
+  const hasSpeakers = segs.some((s) => s.speaker != null)
+  const segments: TranscriptSegment[] = []
+
+  if (!hasSpeakers) {
+    const words = segs.flatMap(toWords)
+    segments.push({
+      id: 'seg-0',
+      speakerId: 's0',
+      speakerName: 'דובר',
+      role: null,
+      words,
+      start: words[0]?.start ?? 0,
+      end: words[words.length - 1]?.end ?? 0,
+    })
+  } else {
+    const spkIndex = new Map<string, number>()
+    let cur: TranscriptSegment | null = null
+    for (const s of segs) {
+      const key: string = s.speaker ?? cur?.speakerId ?? 's0'
+      if (!cur || cur.speakerId !== key) {
+        if (cur) segments.push(cur)
+        if (!spkIndex.has(key)) spkIndex.set(key, spkIndex.size + 1)
+        cur = { id: `seg-${segments.length}`, speakerId: key, speakerName: `Speaker ${spkIndex.get(key)}`, role: null, words: [], start: s.start, end: s.end }
+      }
+      cur.words.push(...toWords(s))
+      cur.end = cur.words[cur.words.length - 1]?.end ?? s.end
+    }
+    if (cur) segments.push(cur)
+  }
+
+  const durationSec = segments.reduce((m, s) => Math.max(m, s.end), 0)
+  return { segments, durationSec, hasWordTimings: true }
+}
+
+// A completed transcript. If IVRIT word timings + audio were stored → real karaoke + audio
+// playback. Otherwise a line-level read view from the Gemini transcript (no audio).
 export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
   const { data } = await supabaseAdmin
     .from('transcripts')
-    .select('id, formatted_data, duration, company_id')
+    .select('id, formatted_data, duration, company_id, audio_url, word_segments')
     .eq('id', id)
     .maybeSingle()
   if (!data?.formatted_data) return null
   const fd = data.formatted_data as Transcript
+  const audioUrl = (data.audio_url as string) ?? null
+  const wordSegs = (data.word_segments as IvritSegment[] | null) ?? null
+
+  const meta = {
+    id,
+    title: `${fd.company ?? ''} — ${fd.quarter ?? ''}`.trim(),
+    companyName: fd.company ?? '',
+    companyNameEn: fd.company ?? '',
+    logoUrl: null,
+    quarter: fd.quarter ?? '',
+    date: fd.date ?? '',
+    isLive: false,
+    companyId: (data.company_id as string) ?? null,
+  }
+
+  // Word-timed path — real karaoke synced to stored audio.
+  if (audioUrl && wordSegs && wordSegs.length) {
+    return { ...meta, audioUrl, transcript: buildFromIvrit(wordSegs) }
+  }
 
   const nameOf = (sid: string) => fd.speakers?.find((s) => s.id === sid)?.name ?? 'Speaker'
   const roleOf = (sid: string) => fd.speakers?.find((s) => s.id === sid)?.title ?? null
