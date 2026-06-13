@@ -144,6 +144,23 @@ export async function updateQuote(userId: string, id: string, fields: { text?: s
   return q ?? null
 }
 
+// Keep saved quotes in sync when a speaker is renamed in the transcript.
+export async function renameSpeakerInQuotes(transcriptId: string, oldName: string, newName: string): Promise<void> {
+  if (!flags.quotes) {
+    const { error } = await supabaseAdmin
+      .from('quotes')
+      .update({ speaker: newName })
+      .eq('transcript_id', transcriptId)
+      .eq('speaker', oldName)
+    if (!error) return
+    if (!missingTable(error)) throw new Error(error.message)
+    flags.quotes = true
+  }
+  for (const arr of Array.from(quoteMem.values())) {
+    for (const q of arr) if (q.transcriptId === transcriptId && q.speaker === oldName) q.speaker = newName
+  }
+}
+
 // ── followed calls ("My Calendar") ──
 export async function listFollowedCallIds(userId: string): Promise<string[]> {
   if (!flags.follows) {

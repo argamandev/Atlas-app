@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar } from '@/components/ds/Avatar'
 import { formatClock } from '@/lib/i18n/format'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 import type { WordTimedTranscript } from '@/lib/live/syncEngine'
 
 // Karaoke transcript (brief §5.5): spoken words solid near-black, the active word
@@ -13,6 +14,7 @@ export function TranscriptBody({
   autoScroll,
   onWordClick,
   karaoke = true,
+  onRenameSpeaker,
 }: {
   transcript: WordTimedTranscript
   activeIndex: number
@@ -20,8 +22,11 @@ export function TranscriptBody({
   onWordClick: (start: number) => void
   /** false for line-level (no word timings) transcripts — render as a plain read view */
   karaoke?: boolean
+  onRenameSpeaker?: (segmentId: string, speakerId: string, oldName: string, newName: string) => void
 }) {
+  const { dict } = useI18n()
   const activeWordRef = useRef<HTMLSpanElement>(null)
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null)
 
   // starting global word index per segment
   const offsets = useMemo(() => {
@@ -47,7 +52,35 @@ export function TranscriptBody({
           <Avatar name={seg.speakerName} size={36} className="mt-0.5" />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-bold text-ink">{seg.speakerName}</span>
+              {editing?.id === seg.id ? (
+                <input
+                  autoFocus
+                  dir="rtl"
+                  value={editing.value}
+                  onChange={(e) => setEditing({ id: seg.id, value: e.target.value })}
+                  onBlur={() => {
+                    const v = editing.value.trim()
+                    if (v && v !== seg.speakerName) onRenameSpeaker?.(seg.id, seg.speakerId, seg.speakerName, v)
+                    setEditing(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                    if (e.key === 'Escape') setEditing(null)
+                  }}
+                  className="w-40 rounded border border-hairline bg-canvas px-1.5 py-0.5 text-sm font-bold text-ink outline-none"
+                />
+              ) : onRenameSpeaker ? (
+                <button
+                  type="button"
+                  onClick={() => setEditing({ id: seg.id, value: seg.speakerName })}
+                  className="text-sm font-bold text-ink hover:underline"
+                  title={dict.live.editSpeaker}
+                >
+                  {seg.speakerName}
+                </button>
+              ) : (
+                <span className="text-sm font-bold text-ink">{seg.speakerName}</span>
+              )}
               {seg.role && <span className="text-xs text-ink-muted">{seg.role}</span>}
               <span className="ms-auto text-xs text-ink-faint tabular-nums" dir="ltr">
                 {formatClock(seg.start)}

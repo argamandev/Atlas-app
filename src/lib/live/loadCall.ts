@@ -54,7 +54,7 @@ function parseTs(ts: string | null | undefined): number {
 // Build a word-timed (karaoke) transcript from stored IVRIT word_segments. Diarized
 // segments are grouped into speaker blocks; otherwise one continuous block. Falls back
 // to a chunk-per-segment when a segment lacks per-word timings.
-function buildFromIvrit(segs: IvritSegment[]): WordTimedTranscript {
+function buildFromIvrit(segs: IvritSegment[], overrides: Record<string, string> = {}): WordTimedTranscript {
   const toWords = (s: IvritSegment) =>
     s.words.length
       ? s.words.map((w) => ({ text: w.word, start: w.start, end: w.end }))
@@ -68,7 +68,7 @@ function buildFromIvrit(segs: IvritSegment[]): WordTimedTranscript {
     segments.push({
       id: 'seg-0',
       speakerId: 's0',
-      speakerName: 'דובר',
+      speakerName: overrides['s0'] ?? 'דובר',
       role: null,
       words,
       start: words[0]?.start ?? 0,
@@ -82,7 +82,8 @@ function buildFromIvrit(segs: IvritSegment[]): WordTimedTranscript {
       if (!cur || cur.speakerId !== key) {
         if (cur) segments.push(cur)
         if (!spkIndex.has(key)) spkIndex.set(key, spkIndex.size + 1)
-        cur = { id: `seg-${segments.length}`, speakerId: key, speakerName: `Speaker ${spkIndex.get(key)}`, role: null, words: [], start: s.start, end: s.end }
+        const label: string = overrides[key] ?? `Speaker ${spkIndex.get(key)}`
+        cur = { id: `seg-${segments.length}`, speakerId: key, speakerName: label, role: null, words: [], start: s.start, end: s.end }
       }
       cur.words.push(...toWords(s))
       cur.end = cur.words[cur.words.length - 1]?.end ?? s.end
@@ -99,13 +100,14 @@ function buildFromIvrit(segs: IvritSegment[]): WordTimedTranscript {
 export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
   const { data } = await supabaseAdmin
     .from('transcripts')
-    .select('id, formatted_data, duration, company_id, audio_url, word_segments')
+    .select('id, formatted_data, duration, company_id, audio_url, word_segments, speaker_names')
     .eq('id', id)
     .maybeSingle()
   if (!data?.formatted_data) return null
   const fd = data.formatted_data as Transcript
   const audioUrl = (data.audio_url as string) ?? null
   const wordSegs = (data.word_segments as IvritSegment[] | null) ?? null
+  const overrides = (data.speaker_names as Record<string, string> | null) ?? {}
 
   const meta = {
     id,
@@ -121,10 +123,10 @@ export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
 
   // Word-timed path — real karaoke synced to stored audio.
   if (audioUrl && wordSegs && wordSegs.length) {
-    return { ...meta, audioUrl, transcript: buildFromIvrit(wordSegs) }
+    return { ...meta, audioUrl, transcript: buildFromIvrit(wordSegs, overrides) }
   }
 
-  const nameOf = (sid: string) => fd.speakers?.find((s) => s.id === sid)?.name ?? 'Speaker'
+  const nameOf = (sid: string) => overrides[sid] ?? fd.speakers?.find((s) => s.id === sid)?.name ?? 'Speaker'
   const roleOf = (sid: string) => fd.speakers?.find((s) => s.id === sid)?.title ?? null
   const lines = fd.sections?.flatMap((sec) => sec.lines) ?? []
 

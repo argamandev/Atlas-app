@@ -121,6 +121,8 @@ export const he: Dictionary = {
     selectToSave: 'בחרו טקסט בתמלול כדי לשמור ציטוט',
     copied: 'התמלול הועתק',
     switchCall: 'החלפת שיחה',
+    editSpeaker: 'עריכת שם הדובר',
+    saveSpeaker: 'שמירה',
     noWordTimings: 'סנכרון ברמת מילה אינו זמין עדיין לשיחה זו',
   },
   player: {

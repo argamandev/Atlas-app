@@ -127,6 +127,22 @@ export function LiveTranscriptView({
     }
   }
 
+  // Rename a speaker — persists an override on the transcript + updates that speaker's quotes.
+  async function renameSpeaker(_segmentId: string, speakerId: string, oldName: string, newName: string) {
+    if (call.id === 'demo') return
+    try {
+      await fetch(`/api/transcripts/${call.id}/speakers`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ speakerId, name: newName, oldName }),
+      })
+      router.refresh()
+      setToast(dict.common.save)
+    } catch (err) {
+      setToast((err as Error).message)
+    }
+  }
+
   // The speaker of the paragraph a DOM selection sits in (or null if outside the transcript).
   function selectionSpeaker(sel: Selection | null): string | null {
     let node: Node | null = sel?.anchorNode ?? null
@@ -283,6 +299,7 @@ export function LiveTranscriptView({
               autoScroll={autoScroll}
               onWordClick={seek}
               karaoke={call.transcript.hasWordTimings}
+              onRenameSpeaker={renameSpeaker}
             />
           </>
         ) : (

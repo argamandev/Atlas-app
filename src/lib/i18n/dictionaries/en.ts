@@ -122,6 +122,8 @@ export const en = {
     selectToSave: 'Select text in the transcript to save a quote',
     copied: 'Transcript copied',
     switchCall: 'Switch call',
+    editSpeaker: 'Edit speaker name',
+    saveSpeaker: 'Save',
     noWordTimings: 'Word-level sync isn’t available for this call yet',
   },
   player: {
