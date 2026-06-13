@@ -82,7 +82,7 @@ export function ChatView({
                   </div>
                 ) : (
                   <div key={i} className="text-[15px] leading-relaxed text-ink">
-                    <p className="whitespace-pre-wrap">{m.content}</p>
+                    <p dir="auto" className="whitespace-pre-wrap">{m.content}</p>
                     {m.source && <CitationChip source={m.source} />}
                   </div>
                 ),

@@ -50,7 +50,7 @@ export function TranscriptBody({
                 {formatClock(seg.start)}
               </span>
             </div>
-            <p className="mt-1.5 text-[15px] leading-[1.9] text-ink">
+            <p dir="auto" className="mt-1.5 text-[15px] leading-[1.9] text-ink">
               {seg.words.map((w, wi) => {
                 const gi = offsets[si] + wi
                 const isActive = gi === activeIndex
