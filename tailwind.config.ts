@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss'
+import { tokens } from './src/lib/design/tokens'
 
 const config: Config = {
   content: ['./src/**/*.{ts,tsx,js,jsx}'],
@@ -17,6 +18,22 @@ const config: Config = {
         success: '#00C853',
         error: '#FF3B30',
         'status-processing': '#3B82F6',
+
+        // ── V1 light design system (from src/lib/design/tokens.ts) ──
+        desktop: tokens.color.desktop,
+        canvas: tokens.color.canvas,
+        panel: tokens.color.panel,
+        subtle: tokens.color.subtle,
+        'subtle-strong': tokens.color.subtleStrong,
+        hairline: tokens.color.hairline,
+        ink: tokens.color.ink,
+        'ink-muted': tokens.color.inkMuted,
+        'ink-faint': tokens.color.inkFaint,
+        player: tokens.color.player,
+        'player-ink': tokens.color.playerInk,
+        'player-faint': tokens.color.playerFaint,
+        'player-track': tokens.color.playerTrack,
+        live: tokens.color.live,
       },
       fontFamily: {
         hebrew: [
@@ -34,6 +51,15 @@ const config: Config = {
           'system-ui',
           'sans-serif',
         ],
+        // Hebrew V1 UI font — Calibri Regular with a Hebrew-supporting fallback stack.
+        calibri: [
+          'Calibri',
+          '"Segoe UI"',
+          '"IBM Plex Sans Hebrew"',
+          'Heebo',
+          'system-ui',
+          'sans-serif',
+        ],
       },
       borderRadius: {
         none: '0',
@@ -43,6 +69,17 @@ const config: Config = {
         lg: '6px',
         xl: '6px',
         full: '9999px',
+        // ── V1 light design system radius scale ──
+        card: tokens.radius.md, // 12px — cards, list rows, panels
+        bubble: tokens.radius.bubble, // 14px — chat bubbles, inputs, composer
+        win: tokens.radius.win, // 16px — the app window / large cards
+        pill: tokens.radius.pill, // media player + pill controls
+      },
+      boxShadow: {
+        // Soft, diffuse elevation used in exactly three places (brief §3.4).
+        window: tokens.shadow.window,
+        popover: tokens.shadow.popover,
+        player: tokens.shadow.player,
       },
       fontSize: {
         '2xs': ['10px', { lineHeight: '14px' }],

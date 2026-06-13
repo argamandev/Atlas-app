@@ -153,3 +153,38 @@
 
   mark { background: #ffe08a !important; color: #111111 !important; }
 }
+
+/* ── V1 light design system (Quartr-style macOS feel) ── */
+@layer utilities {
+  /* macOS desktop backdrop — a soft, warm stone/marble wash (pure CSS, no asset). */
+  .desktop-backdrop {
+    background-color: #e7e2da;
+    background-image:
+      radial-gradient(120% 80% at 15% 8%, rgba(255, 255, 255, 0.55), transparent 60%),
+      radial-gradient(100% 90% at 85% 18%, rgba(214, 205, 193, 0.45), transparent 55%),
+      radial-gradient(130% 120% at 72% 92%, rgba(193, 183, 168, 0.42), transparent 62%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(176, 166, 151, 0.16));
+  }
+
+  /* Thin, quiet scrollbars for the light panels. */
+  .app-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .app-scroll::-webkit-scrollbar-track { background: transparent; }
+  .app-scroll::-webkit-scrollbar-thumb {
+    background: rgba(20, 20, 20, 0.14);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .app-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(20, 20, 20, 0.24);
+    background-clip: padding-box;
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Karaoke "upcoming text fades to gray" mask (brief §5.5 / §3.6.11). */
+  .karaoke-fade {
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.35) 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.35) 100%);
+  }
+}

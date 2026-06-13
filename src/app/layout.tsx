@@ -18,8 +18,8 @@ export default function RootLayout({
   const locale = getLocale()
   const dir = getDirection(locale)
   const dict = getDictionary(locale)
-  // English UI → Inter; Hebrew UI → IBM Plex Sans Hebrew (which also covers Hebrew content).
-  const fontClass = locale === 'he' ? 'font-hebrew' : 'font-latin'
+  // English UI → Inter; Hebrew UI → Calibri Regular (with a Hebrew fallback stack).
+  const fontClass = locale === 'he' ? 'font-calibri' : 'font-latin'
 
   return (
     <html dir={dir} lang={locale}>
