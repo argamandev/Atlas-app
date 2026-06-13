@@ -103,6 +103,9 @@ export const ChevronLeftIcon = (p: IconProps) => (
 export const SyncIcon = (p: IconProps) => (
   <Base {...p}><path d="M4 12a8 8 0 0113.7-5.7L20 8M20 4v4h-4M20 12a8 8 0 01-13.7 5.7L4 16M4 20v-4h4" /></Base>
 )
+export const RefreshIcon = (p: IconProps) => (
+  <Base {...p}><path d="M21 12a9 9 0 11-3-6.7L21 8" /><path d="M21 3v5h-5" /></Base>
+)
 export const CopyIcon = (p: IconProps) => (
   <Base {...p}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a1 1 0 01-1-1V5a1 1 0 011-1h9a1 1 0 011 1v1" /></Base>
 )

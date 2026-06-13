@@ -114,6 +114,7 @@ export const he: Dictionary = {
     pauseAudio: 'השהיית אודיו',
     playAudio: 'הפעלת אודיו',
     autoScroll: 'גלילה אוטומטית',
+    refresh: 'רענון',
     copy: 'העתקה',
     searchTranscript: 'חיפוש',
     saveQuote: 'שמירת ציטוט',

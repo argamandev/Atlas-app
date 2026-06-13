@@ -11,6 +11,7 @@ import {
   CloseIcon,
   ChevronDownIcon,
   SyncIcon,
+  RefreshIcon,
   CopyIcon,
   SearchIcon,
   QuoteIcon,
@@ -291,6 +292,9 @@ export function LiveTranscriptView({
         <div className="flex items-center gap-0.5">
           <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
             <SyncIcon size={16} />
+          </IconButton>
+          <IconButton label={dict.live.refresh} size={30} onClick={() => router.refresh()}>
+            <RefreshIcon size={16} />
           </IconButton>
           <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
             <CopyIcon size={16} />

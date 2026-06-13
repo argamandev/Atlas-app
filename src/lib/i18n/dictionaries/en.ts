@@ -115,6 +115,7 @@ export const en = {
     pauseAudio: 'Pause audio',
     playAudio: 'Play audio',
     autoScroll: 'Auto-scroll',
+    refresh: 'Refresh',
     copy: 'Copy',
     searchTranscript: 'Search',
     saveQuote: 'Save quote',
