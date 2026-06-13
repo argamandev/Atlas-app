@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const message: string = body?.message
   const companyId: string | undefined = body?.companyId || undefined
+  const transcriptId: string | undefined = body?.transcriptId || undefined
   const history: ChatMessage[] = Array.isArray(body?.history) ? body.history : []
   if (!message) return NextResponse.json({ error: 'message required' }, { status: 400 })
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const ctx = await getChatContext(companyId)
+    const ctx = await getChatContext(companyId, transcriptId)
     const client = new Anthropic({ apiKey })
 
     const system =

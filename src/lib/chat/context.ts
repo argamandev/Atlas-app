@@ -36,9 +36,22 @@ async function latestCompleted(companyId?: string): Promise<{ id: string; format
   return null
 }
 
-export async function getChatContext(companyId?: string): Promise<ChatContext> {
-  // Prefer the company's own transcript; fall back to any completed transcript.
-  const hit = (companyId ? await latestCompleted(companyId) : null) ?? (await latestCompleted())
+async function byId(transcriptId: string): Promise<{ id: string; formatted_data: Transcript } | null> {
+  const { data } = await supabaseAdmin
+    .from('transcripts')
+    .select('id, formatted_data')
+    .eq('id', transcriptId)
+    .maybeSingle()
+  if (data?.formatted_data) return { id: data.id as string, formatted_data: data.formatted_data as Transcript }
+  return null
+}
+
+export async function getChatContext(companyId?: string, transcriptId?: string): Promise<ChatContext> {
+  // Prefer the specific call, then the company's own transcript, then any completed transcript.
+  const hit =
+    (transcriptId ? await byId(transcriptId) : null) ??
+    (companyId ? await latestCompleted(companyId) : null) ??
+    (await latestCompleted())
   if (!hit) return { text: '', source: null }
   const fd = hit.formatted_data
   return {

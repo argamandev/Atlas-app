@@ -1,6 +1,7 @@
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { getCompany } from '@/lib/db/companies'
+import { supabaseAdmin } from '@/lib/supabase'
 import { companyDisplayName } from '@/lib/api/types'
 import { CollapsiblePanel } from '@/components/app/CollapsiblePanel'
 import { ChatView } from '@/components/chat/ChatView'
@@ -10,7 +11,7 @@ import { SparkleIcon, PlusIcon } from '@/components/ds/icons'
 export default async function ChatPage({
   searchParams,
 }: {
-  searchParams: { company?: string; quote?: string }
+  searchParams: { company?: string; quote?: string; transcript?: string }
 }) {
   const locale = getLocale()
   const dict = getDictionary(locale)
@@ -22,6 +23,18 @@ export default async function ChatPage({
   }
   // searchParams values are already URL-decoded by Next.
   const initialQuote = searchParams.quote ?? null
+
+  // Transcript-scoped context (✦ "open in chat" from a specific call).
+  let initialTranscript: { id: string; label: string } | null = null
+  if (searchParams.transcript) {
+    const { data } = await supabaseAdmin
+      .from('transcripts')
+      .select('id, formatted_data')
+      .eq('id', searchParams.transcript)
+      .maybeSingle()
+    const fd = data?.formatted_data as { company?: string; quarter?: string } | undefined
+    if (fd) initialTranscript = { id: data!.id as string, label: `${fd.company ?? ''} · ${fd.quarter ?? ''}`.trim() }
+  }
 
   const panel = (
     <div className="flex h-full flex-col gap-4">
@@ -50,7 +63,7 @@ export default async function ChatPage({
 
   return (
     <CollapsiblePanel title={dict.chat.chats} panel={panel}>
-      <ChatView initialCompany={initialCompany} initialQuote={initialQuote} />
+      <ChatView initialCompany={initialCompany} initialQuote={initialQuote} initialTranscript={initialTranscript} />
     </CollapsiblePanel>
   )
 }

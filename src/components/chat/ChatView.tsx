@@ -20,9 +20,11 @@ interface Msg {
 export function ChatView({
   initialCompany,
   initialQuote,
+  initialTranscript,
 }: {
   initialCompany: { id: string; name: string; logoUrl: string | null } | null
   initialQuote?: string | null
+  initialTranscript?: { id: string; label: string } | null
 }) {
   const { dict, locale } = useI18n()
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -33,6 +35,7 @@ export function ChatView({
   const [companyName, setCompanyName] = useState<string | null>(initialCompany?.name ?? null)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [quote, setQuote] = useState<string | null>(initialQuote ?? null)
+  const [transcript] = useState(initialTranscript ?? null)
 
   function onChange(v: string) {
     setInput(v)
@@ -62,7 +65,7 @@ export function ChatView({
     setQuote(null)
     setSending(true)
     try {
-      const res = await sendChat({ message: apiMessage, companyId: companyId ?? undefined, history })
+      const res = await sendChat({ message: apiMessage, companyId: companyId ?? undefined, transcriptId: transcript?.id, history })
       setMessages((prev) => [...prev, { role: 'assistant', content: res.reply, source: res.source }])
     } catch (err) {
       setMessages((prev) => [...prev, { role: 'assistant', content: (err as Error).message }])
@@ -76,12 +79,17 @@ export function ChatView({
   // Composer block — shared between the empty (centered) and active (pinned-bottom) states.
   const composer = (
     <div className="relative mx-auto w-full max-w-2xl">
-      {(companyName || quote) && (
+      {(companyName || quote || transcript) && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {companyName && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
               {initialCompany?.logoUrl && <Logo src={initialCompany.logoUrl} name={companyName} size={16} />}
               <span className="font-medium text-ink">@{companyName}</span>
+            </span>
+          )}
+          {transcript && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
+              <span className="font-medium text-ink">{transcript.label}</span>
             </span>
           )}
           {quote && (

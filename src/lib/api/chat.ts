@@ -14,6 +14,7 @@ export interface ChatReply {
 export function sendChat(input: {
   message: string
   companyId?: string
+  transcriptId?: string
   history?: { role: 'user' | 'assistant'; content: string }[]
 }): Promise<ChatReply> {
   return apiPost<ChatReply>('/api/chat', input)

@@ -122,7 +122,9 @@ export function LiveTranscriptView({
   }
 
   function openInChat() {
-    if (call.companyId) router.push(`/app/chat?company=${call.companyId}`)
+    if (!call.companyId) return
+    const tid = call.id === 'demo' ? '' : `&transcript=${encodeURIComponent(call.id)}`
+    router.push(`/app/chat?company=${call.companyId}${tid}`)
   }
 
   async function copyAll() {
