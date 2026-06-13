@@ -21,6 +21,7 @@ import {
 import { TranscriptBody } from './TranscriptBody'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
+import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
 import { formatClock, formatDate } from '@/lib/i18n/format'
 import type { LiveCall } from '@/lib/live/loadCall'
@@ -49,8 +50,12 @@ export function LiveTranscriptView({
     { text: string; top: number; left: number; speaker: string | null; segmentId: string | null } | null
   >(null)
 
+  const [query, setQuery] = useState('')
+  const [matchPos, setMatchPos] = useState(0)
+
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, currentTime), [flat, currentTime])
+  const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
   const name = locale === 'en' ? call.companyNameEn ?? call.companyName : call.companyName
   const title = `${name} — ${call.quarter}`
   const activeSpeaker = call.transcript.segments[flat[activeIndex]?.segmentIndex ?? 0]?.speakerName ?? null
@@ -276,10 +281,41 @@ export function LiveTranscriptView({
             <CopyIcon size={16} />
           </IconButton>
         </div>
-        <button type="button" className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-ink-faint hover:text-ink">
-          <SearchIcon size={15} />
-          {dict.live.searchTranscript}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <SearchIcon size={15} className="text-ink-faint" />
+          <input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setMatchPos(0)
+            }}
+            placeholder={dict.live.searchTranscript}
+            className="w-44 bg-transparent text-xs text-ink outline-none placeholder:text-ink-faint"
+          />
+          {query && (
+            <span className="flex items-center gap-1 text-2xs text-ink-faint">
+              <span className="tabular-nums">
+                {matches.length ? matchPos + 1 : 0}/{matches.length}
+              </span>
+              <button
+                type="button"
+                disabled={!matches.length}
+                onClick={() => setMatchPos((p) => (p - 1 + matches.length) % matches.length)}
+                className="px-1 hover:text-ink disabled:opacity-40"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                disabled={!matches.length}
+                onClick={() => setMatchPos((p) => (p + 1) % matches.length)}
+                className="px-1 hover:text-ink disabled:opacity-40"
+              >
+                ›
+              </button>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* body */}
@@ -300,6 +336,8 @@ export function LiveTranscriptView({
               onWordClick={seek}
               karaoke={call.transcript.hasWordTimings}
               onRenameSpeaker={renameSpeaker}
+              searchMatches={matches}
+              activeMatch={matches[matchPos] ?? -1}
             />
           </>
         ) : (

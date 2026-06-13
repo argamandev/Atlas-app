@@ -15,6 +15,8 @@ export function TranscriptBody({
   onWordClick,
   karaoke = true,
   onRenameSpeaker,
+  searchMatches = [],
+  activeMatch = -1,
 }: {
   transcript: WordTimedTranscript
   activeIndex: number
@@ -23,10 +25,16 @@ export function TranscriptBody({
   /** false for line-level (no word timings) transcripts — render as a plain read view */
   karaoke?: boolean
   onRenameSpeaker?: (segmentId: string, speakerId: string, oldName: string, newName: string) => void
+  /** global word indices matching the search query */
+  searchMatches?: number[]
+  /** the global word index of the currently-focused match (next/prev) */
+  activeMatch?: number
 }) {
   const { dict } = useI18n()
   const activeWordRef = useRef<HTMLSpanElement>(null)
+  const activeMatchRef = useRef<HTMLSpanElement>(null)
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null)
+  const matchSet = useMemo(() => new Set(searchMatches), [searchMatches])
 
   // starting global word index per segment
   const offsets = useMemo(() => {
@@ -44,6 +52,12 @@ export function TranscriptBody({
       activeWordRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
     }
   }, [activeIndex, autoScroll])
+
+  useEffect(() => {
+    if (activeMatch >= 0 && activeMatchRef.current) {
+      activeMatchRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }, [activeMatch])
 
   return (
     <div dir="rtl" className="space-y-7 text-right">
@@ -93,10 +107,12 @@ export function TranscriptBody({
                 // highlight / fade) — a clean read view rather than a stuck cursor.
                 const isActive = karaoke && gi === activeIndex
                 const spoken = !karaoke || gi <= activeIndex
+                const isMatch = matchSet.has(gi)
+                const isActiveMatch = gi === activeMatch
                 return (
                   <span
                     key={wi}
-                    ref={isActive ? activeWordRef : undefined}
+                    ref={isActiveMatch ? activeMatchRef : isActive ? activeWordRef : undefined}
                     onClick={() => onWordClick(w.start)}
                     data-wi={gi}
                     data-start={w.start}
@@ -105,6 +121,7 @@ export function TranscriptBody({
                       'cursor-pointer rounded-[3px] transition-colors',
                       isActive ? 'bg-subtle text-ink' : spoken ? 'text-ink' : 'text-ink-faint',
                       'hover:bg-subtle/70',
+                      isMatch ? (isActiveMatch ? 'bg-[#C04A00]/30' : 'bg-[#C04A00]/12') : '',
                     ].join(' ')}
                   >
                     {w.text}{' '}
