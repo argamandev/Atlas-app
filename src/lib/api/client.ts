@@ -29,3 +29,18 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     }),
   )
 }
+
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  return handle<T>(
+    await fetch(path, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  )
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  return handle<T>(await fetch(path, { method: 'DELETE', credentials: 'include' }))
+}

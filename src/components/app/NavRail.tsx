@@ -2,102 +2,94 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { cn } from '@/lib/utils'
 import { selectionClasses } from '@/components/ds/SelectableRow'
 import {
   HomeIcon,
   CalendarIcon,
-  SearchIcon,
-  ChatIcon,
-  TopicsIcon,
-  SavedIcon,
-  WorkspacesIcon,
-  WatchlistsIcon,
-  ReleaseNotesIcon,
-  HelpIcon,
+  SparkleIcon,
   ProfileIcon,
-  SettingsIcon,
   CollapseIcon,
+  SearchIcon,
+  ChevronRightIcon,
   type IconProps,
 } from '@/components/ds/icons'
 
-type NavItem = { key: string; href: string; icon: (p: IconProps) => JSX.Element; label: string; stub?: boolean }
+type NavItem = { key: string; href: string; icon: (p: IconProps) => JSX.Element; label: string }
 
-// The labeled nav column (brief §4 / reference left column). Active item gets the
-// shared selection fill; the whole rail sits on the leading edge and mirrors in RTL.
+// Three-layer sidebar's nav rail. Slimmed to the first-product surface (Home / Calendar /
+// Chat + Profile) and collapsible to an icon-only rail. "Chat" uses the sparkle icon —
+// the single chat affordance across the app.
 export function NavRail() {
   const { dict } = useI18n()
   const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(false)
 
   const mainNav: NavItem[] = [
     { key: 'home', href: '/app/home', icon: HomeIcon, label: dict.nav.home },
     { key: 'calendar', href: '/app/calendar', icon: CalendarIcon, label: dict.nav.calendar },
-    { key: 'search', href: '/app/home', icon: SearchIcon, label: dict.nav.search },
-    { key: 'chat', href: '/app/chat', icon: ChatIcon, label: dict.nav.chat },
-    { key: 'topics', href: '#', icon: TopicsIcon, label: dict.nav.topics, stub: true },
-    { key: 'saved', href: '#', icon: SavedIcon, label: dict.nav.saved, stub: true },
-    { key: 'workspaces', href: '#', icon: WorkspacesIcon, label: dict.nav.workspaces, stub: true },
-    { key: 'watchlists', href: '#', icon: WatchlistsIcon, label: dict.nav.watchlists, stub: true },
+    { key: 'chat', href: '/app/chat', icon: SparkleIcon, label: dict.nav.chat },
   ]
+  const footerNav: NavItem[] = [{ key: 'profile', href: '/app/settings', icon: ProfileIcon, label: dict.nav.profile }]
 
-  const footerNav: NavItem[] = [
-    { key: 'release', href: '#', icon: ReleaseNotesIcon, label: dict.nav.releaseNotes, stub: true },
-    { key: 'help', href: '#', icon: HelpIcon, label: dict.nav.helpSupport, stub: true },
-    { key: 'profile', href: '/app/settings', icon: ProfileIcon, label: dict.nav.profile },
-    { key: 'settings', href: '/app/settings', icon: SettingsIcon, label: dict.nav.settings },
-  ]
-
-  const isActive = (href: string) =>
-    href !== '#' && href !== '/app/home' ? pathname.startsWith(href) : pathname === href
+  const isActive = (href: string) => (href === '/app/home' ? pathname === href : pathname.startsWith(href))
 
   const renderItem = (item: NavItem) => {
     const Icon = item.icon
-    // Search shares Home's route, and Profile shares Settings' route — don't let those
-    // shortcuts claim the active state (avoids double-highlighting the rail).
-    const active = item.key !== 'search' && item.key !== 'profile' && isActive(item.href)
-    const content = (
-      <>
-        <Icon size={18} className={cn(active ? 'text-ink' : 'text-ink-muted')} />
-        <span className={cn('truncate text-sm', active ? 'font-semibold text-ink' : 'text-ink-muted')}>
-          {item.label}
-        </span>
-      </>
-    )
-    const cls = cn('flex items-center gap-3 rounded-md px-2.5 py-1.5', selectionClasses(active))
-    if (item.stub) {
-      return (
-        <button key={item.key} type="button" className={cn(cls, 'w-full text-start opacity-90')} title={dict.common.comingSoon}>
-          {content}
-        </button>
-      )
-    }
+    const active = isActive(item.href)
     return (
-      <Link key={item.key} href={item.href} className={cls}>
-        {content}
+      <Link
+        key={item.key}
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        className={cn('flex items-center gap-3 rounded-md py-1.5 transition-colors', collapsed ? 'justify-center px-0' : 'px-2.5', selectionClasses(active))}
+      >
+        <Icon size={18} className={active ? 'text-ink' : 'text-ink-muted'} />
+        {!collapsed && (
+          <span className={cn('truncate text-sm', active ? 'font-semibold text-ink' : 'text-ink-muted')}>{item.label}</span>
+        )}
       </Link>
     )
   }
 
   return (
-    <nav className="app-scroll hidden w-[230px] shrink-0 flex-col overflow-y-auto border-e border-hairline bg-panel p-3 md:flex">
-      {/* brand */}
-      <Link href="/app/home" className="mb-3 flex items-center gap-2 px-1.5 py-1">
-        <span className="grid h-5 w-5 place-items-center rounded-[6px] bg-ink text-[11px] font-bold text-white">ת</span>
-        <span className="text-[15px] font-bold tracking-tight text-ink">{dict.common.brand}</span>
+    <nav
+      className={cn(
+        'flex shrink-0 flex-col border-e border-hairline bg-panel p-3 transition-[width] duration-200',
+        collapsed ? 'w-[60px]' : 'w-[230px]',
+      )}
+    >
+      {/* brand wordmark (logo TBD) */}
+      <Link href="/app/home" className={cn('mb-3 flex items-center px-1.5 py-1', collapsed ? 'justify-center' : 'gap-2')}>
+        <span className="text-[15px] font-bold tracking-tight text-ink">
+          {collapsed ? dict.common.brand.slice(0, 1) : dict.common.brand}
+        </span>
       </Link>
 
       {/* quick access (⌘K) — stub */}
       <button
         type="button"
-        className="mb-3 flex items-center justify-between rounded-md border border-hairline bg-canvas px-2.5 py-1.5 text-ink-faint transition-colors hover:text-ink-muted"
-        title={dict.common.comingSoon}
+        title={dict.common.quickAccess}
+        className={cn(
+          'mb-3 flex items-center rounded-md border border-hairline bg-canvas py-1.5 text-ink-faint transition-colors hover:text-ink-muted',
+          collapsed ? 'justify-center px-0' : 'justify-between px-2.5',
+        )}
       >
-        <span className="flex items-center gap-2">
+        {collapsed ? (
           <SearchIcon size={15} />
-          <span className="text-sm">{dict.common.quickAccess}</span>
-        </span>
-        <kbd className="rounded-sm bg-subtle px-1.5 py-0.5 text-2xs font-medium text-ink-faint" dir="ltr">⌘K</kbd>
+        ) : (
+          <>
+            <span className="flex items-center gap-2">
+              <SearchIcon size={15} />
+              <span className="text-sm">{dict.common.quickAccess}</span>
+            </span>
+            <kbd className="rounded-sm bg-subtle px-1.5 py-0.5 text-2xs font-medium text-ink-faint" dir="ltr">
+              ⌘K
+            </kbd>
+          </>
+        )}
       </button>
 
       <div className="flex flex-col gap-0.5">{mainNav.map(renderItem)}</div>
@@ -106,11 +98,15 @@ export function NavRail() {
         {footerNav.map(renderItem)}
         <button
           type="button"
-          className="flex items-center gap-3 rounded-md px-2.5 py-1.5 text-ink-faint transition-colors hover:bg-subtle/70 hover:text-ink-muted"
+          onClick={() => setCollapsed((c) => !c)}
           title={dict.nav.collapseSidebar}
+          className={cn(
+            'flex items-center gap-3 rounded-md py-1.5 text-ink-faint transition-colors hover:bg-subtle/70 hover:text-ink-muted',
+            collapsed ? 'justify-center px-0' : 'px-2.5',
+          )}
         >
-          <CollapseIcon size={18} />
-          <span className="truncate text-sm">{dict.nav.collapseSidebar}</span>
+          {collapsed ? <ChevronRightIcon size={18} /> : <CollapseIcon size={18} />}
+          {!collapsed && <span className="truncate text-sm">{dict.nav.collapseSidebar}</span>}
         </button>
       </div>
     </nav>

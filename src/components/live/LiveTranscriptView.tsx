@@ -8,7 +8,6 @@ import { Tabs } from '@/components/ds/Tabs'
 import { IconButton } from '@/components/ds/IconButton'
 import {
   SparkleIcon,
-  ExpandIcon,
   CloseIcon,
   ChevronDownIcon,
   SyncIcon,
@@ -24,10 +23,9 @@ import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { createQuote } from '@/lib/api/quotes'
 import { formatClock, formatDate } from '@/lib/i18n/format'
 import type { LiveCall } from '@/lib/live/loadCall'
+import { CompanyOverview, type CompanyOverviewData } from '@/components/company/CompanyOverview'
 
-const SPEEDS = [1, 1.2, 1.5, 2]
-
-export function LiveTranscriptView({ call }: { call: LiveCall }) {
+export function LiveTranscriptView({ call, overview }: { call: LiveCall; overview?: CompanyOverviewData | null }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -36,7 +34,7 @@ export function LiveTranscriptView({ call }: { call: LiveCall }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(call.transcript.durationSec || 0)
   const [playing, setPlaying] = useState(false)
-  const [speedIdx, setSpeedIdx] = useState(0)
+  const [volume, setVolume] = useState(1)
   const [autoScroll, setAutoScroll] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -78,10 +76,13 @@ export function LiveTranscriptView({ call }: { call: LiveCall }) {
   function skip(delta: number) {
     seek(Math.min(duration, Math.max(0, currentTime + delta)))
   }
-  function cycleSpeed() {
-    const next = (speedIdx + 1) % SPEEDS.length
-    setSpeedIdx(next)
-    if (audioRef.current) audioRef.current.playbackRate = SPEEDS[next]
+  function changeVolume(v: number) {
+    setVolume(v)
+    if (audioRef.current) audioRef.current.volume = v
+  }
+
+  function openInChat() {
+    if (call.companyId) router.push(`/app/chat?company=${call.companyId}`)
   }
 
   async function copyAll() {
@@ -146,11 +147,8 @@ export function LiveTranscriptView({ call }: { call: LiveCall }) {
           </IconButton>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
-          <IconButton label="AI" size={30}>
+          <IconButton label={dict.company.openInChat} size={30} onClick={openInChat}>
             <SparkleIcon size={17} />
-          </IconButton>
-          <IconButton label="Expand" size={30}>
-            <ExpandIcon size={17} />
           </IconButton>
           <IconButton label={dict.common.close} size={30} onClick={() => router.back()}>
             <CloseIcon size={17} />
@@ -213,6 +211,10 @@ export function LiveTranscriptView({ call }: { call: LiveCall }) {
               karaoke={call.transcript.hasWordTimings}
             />
           </>
+        ) : tab === 'overview' && overview ? (
+          <div className="mx-auto w-full max-w-2xl pt-2">
+            <CompanyOverview data={overview} />
+          </div>
         ) : (
           <div className="grid h-full place-items-center text-sm text-ink-faint">{dict.common.comingSoon}</div>
         )}
@@ -224,7 +226,10 @@ export function LiveTranscriptView({ call }: { call: LiveCall }) {
           ref={audioRef}
           src={call.audioUrl}
           preload="metadata"
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || duration)}
+          onLoadedMetadata={(e) => {
+            e.currentTarget.volume = volume
+            setDuration(e.currentTarget.duration || duration)
+          }}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
@@ -242,11 +247,11 @@ export function LiveTranscriptView({ call }: { call: LiveCall }) {
           duration={duration}
           playing={playing}
           isLive={call.isLive}
-          speed={SPEEDS[speedIdx]}
+          volume={volume}
           onPlayPause={playPause}
           onSeek={seek}
           onSkip={skip}
-          onCycleSpeed={cycleSpeed}
+          onVolumeChange={changeVolume}
           onClose={() => router.back()}
         />
       )}

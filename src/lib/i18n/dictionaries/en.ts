@@ -18,6 +18,8 @@ export const en = {
     add: 'Add',
     remove: 'Remove',
     more: 'More',
+    edit: 'Edit',
+    copied: 'Copied',
     retry: 'Retry',
     error: 'Something went wrong',
     empty: 'Nothing here yet',

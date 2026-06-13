@@ -5,7 +5,7 @@ import { companyDisplayName } from '@/lib/api/types'
 import { AppPage } from '@/components/app/AppPage'
 import { ChatView } from '@/components/chat/ChatView'
 import { SectionHeader } from '@/components/ds/SectionHeader'
-import { ChatIcon, PlusIcon } from '@/components/ds/icons'
+import { SparkleIcon, PlusIcon } from '@/components/ds/icons'
 
 export default async function ChatPage({ searchParams }: { searchParams: { company?: string } }) {
   const locale = getLocale()
@@ -27,7 +27,7 @@ export default async function ChatPage({ searchParams }: { searchParams: { compa
       <div>
         <SectionHeader label={dict.chat.history} className="mb-1.5" />
         <div className="flex items-center gap-2 rounded-md px-2.5 py-4 text-sm text-ink-faint">
-          <ChatIcon size={15} />
+          <SparkleIcon size={15} />
           {dict.common.empty}
         </div>
       </div>

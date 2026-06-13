@@ -11,8 +11,10 @@ import { Surface } from '@/components/ds/Surface'
 import { EntityRow } from '@/components/ds/EntityRow'
 import { SectionHeader } from '@/components/ds/SectionHeader'
 import { IconButton } from '@/components/ds/IconButton'
-import { ChatIcon, DotsVerticalIcon, CalendarIcon, QuoteIcon } from '@/components/ds/icons'
+import { SparkleIcon, DotsVerticalIcon, CalendarIcon } from '@/components/ds/icons'
 import { AddInvestorCall } from './AddInvestorCall'
+import { CompanyOverview } from './CompanyOverview'
+import { QuoteCard } from './QuoteCard'
 import { formatDate, formatTime } from '@/lib/i18n/format'
 import { quarterSortKey } from '@/lib/utils'
 import { DEMO_LIVE_CALL } from '@/data/demo/liveCall'
@@ -45,7 +47,7 @@ function CallMenu({ onChat, moreLabel, chatLabel }: { onChat: () => void; moreLa
             }}
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-ink hover:bg-subtle"
           >
-            <ChatIcon size={15} className="text-ink-muted" />
+            <SparkleIcon size={15} className="text-ink-muted" />
             {chatLabel}
           </button>
         </Surface>
@@ -58,7 +60,7 @@ export function CompanyView({
   company,
   calls,
   transcripts,
-  quotes,
+  quotes: initialQuotes,
 }: {
   company: Company
   calls: ScheduledCall[]
@@ -68,6 +70,7 @@ export function CompanyView({
   const { dict, locale } = useI18n()
   const router = useRouter()
   const [tab, setTab] = useState('overview')
+  const [quotes, setQuotes] = useState<Quote[]>(initialQuotes)
 
   const name = companyDisplayName(company, locale)
   const industry = [company.sector, company.subSector].filter(Boolean).join(' · ')
@@ -75,6 +78,7 @@ export function CompanyView({
   const isDemoLive = company.ticker === DEMO_LIVE_CALL.companyTicker
   const transcriptsByQuarter = groupByQuarter(transcripts)
   const quotesByQuarter = groupByQuarter(quotes)
+  const onQuoteRemoved = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id))
 
   const callRow = (call: ScheduledCall) => (
     <EntityRow
@@ -88,7 +92,6 @@ export function CompanyView({
     />
   )
 
-  // A finished (transcribed) call — opens the Live Transcript page (karaoke + audio).
   const finishedRow = (t: RecentTranscript) => (
     <EntityRow
       key={t.id}
@@ -103,108 +106,82 @@ export function CompanyView({
 
   return (
     <div className="app-scroll flex-1 overflow-y-auto">
-      {/* header — identity in the top-trailing corner; actions lead */}
-      <header className="flex items-start justify-between gap-4 border-b border-hairline px-8 py-5">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={openInChat}
-            className="flex items-center gap-1.5 rounded-md border border-hairline px-3 py-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
-          >
-            <ChatIcon size={15} />
-            {dict.company.openInChat}
-          </button>
-          <AddInvestorCall companyId={company.id} />
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-end">
-            <h1 className="text-lg font-bold leading-tight text-ink">{name}</h1>
-            {industry && <p className="mt-0.5 text-xs text-ink-muted">{industry}</p>}
+      {/* header — identity on the leading edge (top-left in EN, top-right in HE) */}
+      <header className="border-b border-hairline">
+        <div className="mx-auto flex max-w-4xl items-start justify-between gap-4 px-8 py-5">
+          <div className="flex items-center gap-3">
+            <Logo src={company.logoUrl} name={name} size={44} />
+            <div className="text-start">
+              <h1 className="text-lg font-bold leading-tight text-ink">{name}</h1>
+              {industry && <p className="mt-0.5 text-xs text-ink-muted">{industry}</p>}
+            </div>
           </div>
-          <Logo src={company.logoUrl} name={name} size={44} />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openInChat}
+              className="flex items-center gap-1.5 rounded-md border border-hairline px-3 py-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
+            >
+              <SparkleIcon size={15} />
+              {dict.company.openInChat}
+            </button>
+            <AddInvestorCall companyId={company.id} />
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-3xl px-8">
+      <div className="mx-auto w-full max-w-4xl px-8">
         <Tabs
           className="mt-4"
           activeKey={tab}
           onChange={setTab}
           items={[
             { key: 'overview', label: dict.company.overview },
+            { key: 'quotes', label: dict.company.myQuotes },
             { key: 'calls', label: dict.company.investorCalls },
           ]}
         />
 
-        {tab === 'overview' ? (
-          <div className="space-y-8 py-6">
-            {isDemoLive && (
-              <section>
-                <SectionHeader label={dict.home.liveNow} className="mb-2" />
-                <EntityRow
-                  href={DEMO_LIVE_CALL.href}
-                  logoSrc={company.logoUrl}
-                  name={name}
-                  secondary={
-                    <span className="flex items-center gap-1.5">
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-live" />
-                      <span className="font-medium text-live">{dict.live.liveBadge}</span>
-                      <span className="text-ink-faint">· {DEMO_LIVE_CALL.quarter}</span>
-                    </span>
-                  }
-                />
-              </section>
-            )}
-
-            {transcripts.length > 0 && (
-              <section>
-                <SectionHeader label={dict.company.latestCall} className="mb-2" />
-                {finishedRow(transcripts[0])}
-              </section>
-            )}
-
-            <section>
-              <SectionHeader label={dict.company.upcomingCalls} className="mb-2" />
-              {calls.length === 0 ? (
-                <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.home.noUpcoming}</p>
-              ) : (
-                <div className="flex flex-col gap-0.5">{calls.map(callRow)}</div>
-              )}
-            </section>
-
-            <section>
-              <SectionHeader label={dict.company.myQuotes} className="mb-2" />
-              {quotes.length === 0 ? (
-                <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.common.empty}</p>
-              ) : (
-                <div className="space-y-5">
-                  {quotesByQuarter.map(([quarter, qs]) => (
-                    <div key={quarter}>
-                      <div className="mb-1.5 px-1 text-xs font-medium text-ink-faint" dir="ltr">
-                        {quarter}
-                      </div>
-                      <div className="space-y-2">
-                        {qs.map((quote) => (
-                          <Surface key={quote.id} tone="canvas" className="border border-hairline p-3.5">
-                            <div className="flex gap-2.5">
-                              <QuoteIcon size={16} className="mt-0.5 shrink-0 text-ink-faint" />
-                              <div>
-                                <p className="text-sm leading-relaxed text-ink">{quote.text}</p>
-                                {quote.speaker && (
-                                  <p className="mt-1.5 text-xs text-ink-muted">{quote.speaker}</p>
-                                )}
-                              </div>
-                            </div>
-                          </Surface>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+        {tab === 'overview' && (
+          <div className="py-6">
+            <CompanyOverview
+              data={{
+                companyName: name,
+                companyId: company.id,
+                logoUrl: company.logoUrl,
+                calls,
+                transcripts,
+                liveHref: isDemoLive ? DEMO_LIVE_CALL.href : null,
+                liveQuarter: isDemoLive ? DEMO_LIVE_CALL.quarter : null,
+              }}
+            />
           </div>
-        ) : (
+        )}
+
+        {tab === 'quotes' && (
+          <div className="py-6">
+            {quotes.length === 0 ? (
+              <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.common.empty}</p>
+            ) : (
+              <div className="space-y-5">
+                {quotesByQuarter.map(([quarter, qs]) => (
+                  <div key={quarter}>
+                    <div className="mb-1.5 px-1 text-xs font-medium text-ink-faint" dir="ltr">
+                      {quarter}
+                    </div>
+                    <div className="space-y-2">
+                      {qs.map((quote) => (
+                        <QuoteCard key={quote.id} quote={quote} companyName={name} companyId={company.id} onRemoved={onQuoteRemoved} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'calls' && (
           <div className="space-y-6 py-6">
             {transcripts.length === 0 && calls.length === 0 ? (
               <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.common.empty}</p>

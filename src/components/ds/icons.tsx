@@ -118,6 +118,12 @@ export const FilterIcon = (p: IconProps) => (
 export const CheckIcon = (p: IconProps) => (
   <Base {...p}><path d="M5 12.5l4.5 4.5L19 7" /></Base>
 )
+export const PencilIcon = (p: IconProps) => (
+  <Base {...p}><path d="M4 20l4-1L19 8a2 2 0 00-3-3L5 16l-1 4z" /><path d="M14 7l3 3" /></Base>
+)
+export const TrashIcon = (p: IconProps) => (
+  <Base {...p}><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></Base>
+)
 
 // ── media player ──
 export const PlayIcon = (p: IconProps) => (

@@ -17,6 +17,8 @@ export const he: Dictionary = {
     add: 'הוספה',
     remove: 'הסרה',
     more: 'עוד',
+    edit: 'עריכה',
+    copied: 'הועתק',
     retry: 'נסה שוב',
     error: 'משהו השתבש',
     empty: 'אין כאן עדיין כלום',

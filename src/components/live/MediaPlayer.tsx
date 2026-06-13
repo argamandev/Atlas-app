@@ -10,8 +10,6 @@ import {
   PlayIcon,
   PauseIcon,
   VolumeIcon,
-  CaptionsIcon,
-  LevelsIcon,
   CloseIcon,
   ChevronRightIcon,
 } from '@/components/ds/icons'
@@ -27,11 +25,11 @@ export interface MediaPlayerProps {
   duration: number
   playing: boolean
   isLive: boolean
-  speed: number
+  volume: number
   onPlayPause: () => void
   onSeek: (t: number) => void
   onSkip: (delta: number) => void
-  onCycleSpeed: () => void
+  onVolumeChange: (v: number) => void
   onClose?: () => void
 }
 
@@ -121,33 +119,30 @@ export function MediaPlayer(props: MediaPlayerProps) {
             <ForwardCircleIcon size={20} />
           </IconCircleLabel>
 
-          <button
-            type="button"
-            onClick={props.onCycleSpeed}
-            aria-label={dict.player.speed}
-            className="ms-1 rounded-md px-1.5 py-1 text-2xs font-medium text-player-faint hover:text-player-ink"
-            dir="ltr"
-          >
-            {props.speed.toFixed(1)}×
-          </button>
-          <button type="button" aria-label={dict.player.volume} className="grid h-7 w-7 place-items-center text-player-faint hover:text-player-ink">
-            <VolumeIcon size={18} />
-          </button>
-
-          <span className="mx-1 h-5 w-px bg-white/15" />
-
-          <div className="flex items-center gap-0.5 rounded-md border border-white/12 p-0.5">
-            <span className="grid h-6 w-6 place-items-center rounded text-2xs font-bold text-player-ink/90" title={dict.player.transcriptToggle}>T</span>
-            <button type="button" aria-label={dict.player.captions} className="grid h-6 w-6 place-items-center rounded text-player-faint hover:text-player-ink">
-              <CaptionsIcon size={16} />
+          {/* volume — icon toggles mute, slider sets level */}
+          <div className="ms-1 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => props.onVolumeChange(props.volume > 0 ? 0 : 1)}
+              aria-label={dict.player.volume}
+              className={`grid h-7 w-7 place-items-center transition-colors ${props.volume > 0 ? 'text-player-faint hover:text-player-ink' : 'text-player-faint/40'}`}
+            >
+              <VolumeIcon size={18} />
             </button>
-            <button type="button" aria-label={dict.player.levels} className="grid h-6 w-6 place-items-center rounded text-player-faint hover:text-player-ink">
-              <LevelsIcon size={16} />
-            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={props.volume}
+              onChange={(e) => props.onVolumeChange(parseFloat(e.target.value))}
+              aria-label={dict.player.volume}
+              className="h-1 w-16 cursor-pointer accent-[#ECECEA]"
+            />
           </div>
 
           {props.onClose && (
-            <button type="button" onClick={props.onClose} aria-label={dict.player.close} className="ms-0.5 grid h-7 w-7 place-items-center text-player-faint hover:text-player-ink">
+            <button type="button" onClick={props.onClose} aria-label={dict.player.close} className="ms-1 grid h-7 w-7 place-items-center text-player-faint hover:text-player-ink">
               <CloseIcon size={16} />
             </button>
           )}

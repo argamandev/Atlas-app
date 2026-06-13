@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getRequestUserId } from '@/lib/auth'
 import { isValidVideoUrl, extractVideoId } from '@/lib/utils'
+import { DEMO_USER_ID } from '@/lib/api/types'
 
 async function isAdminUser(userId: string): Promise<boolean> {
   const { data } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).single()
@@ -31,8 +32,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = await getRequestUserId(req)
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // The V1 product runs anonymously; fall back to the demo user (matches /api/quotes etc.).
+  const userId = (await getRequestUserId(req)) ?? DEMO_USER_ID
 
   const body = await req.json()
   const { url, force, companyId } = body

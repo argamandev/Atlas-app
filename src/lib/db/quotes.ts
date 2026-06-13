@@ -107,6 +107,39 @@ export async function createQuote(userId: string, input: NewQuote): Promise<Quot
   return quote
 }
 
+export async function deleteQuote(userId: string, id: string): Promise<void> {
+  if (!flags.quotes) {
+    const { error } = await supabaseAdmin.from('quotes').delete().eq('id', id).eq('user_id', userId)
+    if (!error) return
+    if (!missingTable(error)) throw new Error(error.message)
+    flags.quotes = true
+  }
+  const arr = quoteMem.get(userId) ?? []
+  quoteMem.set(
+    userId,
+    arr.filter((q) => q.id !== id),
+  )
+}
+
+export async function updateQuote(userId: string, id: string, fields: { text?: string }): Promise<Quote | null> {
+  if (!flags.quotes) {
+    const { data, error } = await supabaseAdmin
+      .from('quotes')
+      .update({ text: fields.text })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, created_at')
+      .maybeSingle()
+    if (!error) return data ? mapQuote(data) : null
+    if (!missingTable(error)) throw new Error(error.message)
+    flags.quotes = true
+  }
+  const arr = quoteMem.get(userId) ?? []
+  const q = arr.find((x) => x.id === id)
+  if (q && fields.text !== undefined) q.text = fields.text
+  return q ?? null
+}
+
 // ── followed calls ("My Calendar") ──
 export async function listFollowedCallIds(userId: string): Promise<string[]> {
   if (!flags.follows) {
