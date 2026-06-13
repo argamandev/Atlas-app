@@ -124,6 +124,8 @@ export const en = {
     switchCall: 'Switch call',
     editSpeaker: 'Edit speaker name',
     saveSpeaker: 'Save',
+    openWithLlm: 'Open with LLM',
+    llmCopied: 'Transcript copied — paste it into',
     noWordTimings: 'Word-level sync isn’t available for this call yet',
   },
   player: {

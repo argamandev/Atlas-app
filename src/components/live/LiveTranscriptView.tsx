@@ -22,6 +22,7 @@ import { TranscriptBody } from './TranscriptBody'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { findMatches } from '@/lib/live/search'
+import { LLM_TARGETS, buildLlmPrompt, transcriptToText } from '@/lib/live/llmHandoff'
 import { createQuote } from '@/lib/api/quotes'
 import { formatClock, formatDate } from '@/lib/i18n/format'
 import type { LiveCall } from '@/lib/live/loadCall'
@@ -52,6 +53,7 @@ export function LiveTranscriptView({
 
   const [query, setQuery] = useState('')
   const [matchPos, setMatchPos] = useState(0)
+  const [llmOpen, setLlmOpen] = useState(false)
 
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, currentTime), [flat, currentTime])
@@ -215,6 +217,19 @@ export function LiveTranscriptView({
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
   }
 
+  // Open with LLM (#3) — copy a framed transcript prompt and open the chosen LLM in a tab.
+  async function openWithLlm(target: (typeof LLM_TARGETS)[number]) {
+    setLlmOpen(false)
+    const text = buildLlmPrompt(name, call.quarter, transcriptToText(call.transcript))
+    try {
+      await navigator.clipboard.writeText(text)
+      setToast(`${dict.live.llmCopied} ${target.label}`)
+    } catch {
+      /* clipboard blocked — still open the LLM */
+    }
+    window.open(target.url, '_blank', 'noopener')
+  }
+
   const liveTabs = [
     { key: 'overview', label: dict.live.backToOverview },
     { key: 'transcript', label: dict.live.transcript },
@@ -280,6 +295,25 @@ export function LiveTranscriptView({
           <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
             <CopyIcon size={16} />
           </IconButton>
+          <div className="relative">
+            <IconButton label={dict.live.openWithLlm} size={30} onClick={() => setLlmOpen((v) => !v)}>
+              <SparkleIcon size={16} />
+            </IconButton>
+            {llmOpen && (
+              <div className="absolute z-50 mt-1 w-40 overflow-hidden rounded-lg bg-canvas p-1 shadow-popover">
+                {LLM_TARGETS.map((tg) => (
+                  <button
+                    key={tg.key}
+                    type="button"
+                    onClick={() => void openWithLlm(tg)}
+                    className="block w-full rounded-md px-2.5 py-1.5 text-start text-sm text-ink hover:bg-subtle"
+                  >
+                    {tg.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1.5">
           <SearchIcon size={15} className="text-ink-faint" />

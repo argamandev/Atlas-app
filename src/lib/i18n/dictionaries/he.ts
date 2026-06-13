@@ -123,6 +123,8 @@ export const he: Dictionary = {
     switchCall: 'החלפת שיחה',
     editSpeaker: 'עריכת שם הדובר',
     saveSpeaker: 'שמירה',
+    openWithLlm: 'פתיחה ב-LLM',
+    llmCopied: 'התמלול הועתק — הדביקו אותו ב-',
     noWordTimings: 'סנכרון ברמת מילה אינו זמין עדיין לשיחה זו',
   },
   player: {
