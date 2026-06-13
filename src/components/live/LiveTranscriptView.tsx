@@ -37,7 +37,7 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
   const [volume, setVolume] = useState(1)
   const [autoScroll, setAutoScroll] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
-  const [selection, setSelection] = useState<{ text: string; top: number; left: number } | null>(null)
+  const [selection, setSelection] = useState<{ text: string; top: number; left: number; speaker: string | null } | null>(null)
 
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, currentTime), [flat, currentTime])
@@ -106,6 +106,14 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
     }
   }
 
+  // The speaker of the paragraph a DOM selection sits in (or null if outside the transcript).
+  function selectionSpeaker(sel: Selection | null): string | null {
+    let node: Node | null = sel?.anchorNode ?? null
+    while (node && node.nodeType !== 1) node = node.parentNode
+    const el = (node as Element | null)?.closest('[data-segment-id]') ?? null
+    return el?.getAttribute('data-speaker') ?? null
+  }
+
   // Selection → Save / Share (brief: "after a quote is marked").
   function onTextSelect() {
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
@@ -119,11 +127,11 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
       setSelection(null)
       return
     }
-    setSelection({ text, top: rect.top, left: rect.left + rect.width / 2 })
+    setSelection({ text, top: rect.top, left: rect.left + rect.width / 2, speaker: selectionSpeaker(sel) })
   }
 
-  async function saveSelection(text: string) {
-    if (!text) return
+  async function saveSelection(sel: { text: string; speaker: string | null }) {
+    if (!sel.text) return
     if (!call.companyId) {
       setToast(dict.common.error)
       return
@@ -132,8 +140,8 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
       await createQuote({
         companyId: call.companyId,
         transcriptId: call.id === 'demo' ? null : call.id,
-        text,
-        speaker: activeSpeaker,
+        text: sel.text,
+        speaker: sel.speaker ?? activeSpeaker,
         quarter: call.quarter,
         startSec: currentTime,
       })
@@ -256,7 +264,7 @@ export function LiveTranscriptView({ call, initialSeek }: { call: LiveCall; init
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
-              void saveSelection(selection.text)
+              void saveSelection(selection)
               setSelection(null)
             }}
             className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"

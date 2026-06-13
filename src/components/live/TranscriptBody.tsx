@@ -43,7 +43,7 @@ export function TranscriptBody({
   return (
     <div dir="rtl" className="space-y-7 text-right">
       {transcript.segments.map((seg, si) => (
-        <div key={seg.id} className="flex gap-3">
+        <div key={seg.id} data-segment-id={seg.id} data-speaker={seg.speakerName} className="flex gap-3">
           <Avatar name={seg.speakerName} size={36} className="mt-0.5" />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
