@@ -66,6 +66,9 @@ export const ReleaseNotesIcon = (p: IconProps) => (
 export const CollapseIcon = (p: IconProps) => (
   <Base {...p}><path d="M13 7l-5 5 5 5M19 7l-5 5 5 5" /></Base>
 )
+export const SunIcon = (p: IconProps) => (
+  <Base {...p}><circle cx="12" cy="12" r="4" /><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" /></Base>
+)
 
 // ── chat composer ──
 export const PlusIcon = (p: IconProps) => (
@@ -129,6 +132,12 @@ export const TrashIcon = (p: IconProps) => (
 )
 export const ShareIcon = (p: IconProps) => (
   <Base {...p}><circle cx="6" cy="12" r="2.2" /><circle cx="17" cy="6" r="2.2" /><circle cx="17" cy="18" r="2.2" /><path d="M8 11l7-4M8 13l7 4" /></Base>
+)
+export const FolderIcon = (p: IconProps) => (
+  <Base {...p}><path d="M3.5 7a2 2 0 012-2h2.8a2 2 0 011.4.6L11 7h7.5a2 2 0 012 2v7a2 2 0 01-2 2h-13a2 2 0 01-2-2z" /></Base>
+)
+export const FolderPlusIcon = (p: IconProps) => (
+  <Base {...p}><path d="M3.5 7a2 2 0 012-2h2.8a2 2 0 011.4.6L11 7h7.5a2 2 0 012 2v7a2 2 0 01-2 2h-13a2 2 0 01-2-2z" /><path d="M12 10.5v4M10 12.5h4" /></Base>
 )
 
 // ── media player ──

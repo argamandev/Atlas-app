@@ -43,9 +43,13 @@ function mapQuote(r: Row): Quote {
     quarter: (r.quarter as string) ?? null,
     startSec: (r.start_sec as number) ?? null,
     anchor: (r.anchor as QuoteAnchor) ?? null,
+    folderId: (r.folder_id as string) ?? null,
     createdAt: String(r.created_at ?? new Date().toISOString()),
   }
 }
+
+// columns selected for a Quote row (kept in one place — every read uses the same shape)
+const QUOTE_COLS = 'id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, folder_id, created_at'
 
 export interface NewQuote {
   companyId: string
@@ -61,7 +65,7 @@ export async function listQuotes(userId: string, companyId?: string): Promise<Qu
   if (!flags.quotes) {
     let q = supabaseAdmin
       .from('quotes')
-      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, created_at')
+      .select(QUOTE_COLS)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
     if (companyId) q = q.eq('company_id', companyId)
@@ -88,7 +92,7 @@ export async function createQuote(userId: string, input: NewQuote): Promise<Quot
         start_sec: input.startSec ?? null,
         anchor: input.anchor ?? null,
       })
-      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, created_at')
+      .select(QUOTE_COLS)
       .single()
     if (!error && data) return mapQuote(data)
     if (error && !missingTable(error)) throw new Error(error.message)
@@ -125,14 +129,24 @@ export async function deleteQuote(userId: string, id: string): Promise<void> {
   )
 }
 
-export async function updateQuote(userId: string, id: string, fields: { text?: string }): Promise<Quote | null> {
+export async function updateQuote(
+  userId: string,
+  id: string,
+  fields: { text?: string; folderId?: string | null },
+): Promise<Quote | null> {
+  // build the column patch from only the keys actually provided (folderId:null = unfile)
+  const patch: Record<string, unknown> = {}
+  if (fields.text !== undefined) patch.text = fields.text
+  if (fields.folderId !== undefined) patch.folder_id = fields.folderId
+  if (Object.keys(patch).length === 0) return null
+
   if (!flags.quotes) {
     const { data, error } = await supabaseAdmin
       .from('quotes')
-      .update({ text: fields.text })
+      .update(patch)
       .eq('id', id)
       .eq('user_id', userId)
-      .select('id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, created_at')
+      .select(QUOTE_COLS)
       .maybeSingle()
     if (!error) return data ? mapQuote(data) : null
     if (!missingTable(error)) throw new Error(error.message)
@@ -140,7 +154,10 @@ export async function updateQuote(userId: string, id: string, fields: { text?: s
   }
   const arr = quoteMem.get(userId) ?? []
   const q = arr.find((x) => x.id === id)
-  if (q && fields.text !== undefined) q.text = fields.text
+  if (q) {
+    if (fields.text !== undefined) q.text = fields.text
+    if (fields.folderId !== undefined) q.folderId = fields.folderId
+  }
   return q ?? null
 }
 

@@ -52,6 +52,15 @@ export function relativeShort(d: Date | string, now = new Date()): string {
   return `${day}d`
 }
 
+// Locale-aware "starts in N days" pill for upcoming calls. numeric:'auto' gives the
+// natural "tomorrow"/"מחר", "today"/"היום" forms; otherwise "in 4 days"/"בעוד 4 ימים".
+export function formatRelativeDays(d: Date | string, locale: Locale, now = new Date()): string {
+  const date = typeof d === 'string' ? new Date(d) : d
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate())
+  const days = Math.round((startOfDay(date).getTime() - startOfDay(now).getTime()) / 86400000)
+  return new Intl.RelativeTimeFormat(localeTag[locale], { numeric: 'auto' }).format(days, 'day')
+}
+
 // mm:ss / h:mm:ss for the media player + transcript timestamps.
 export function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds))

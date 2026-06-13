@@ -62,7 +62,9 @@ export function ChatComposer({
             <AtIcon size={18} />
           </button>
           <button type="button" aria-label="Commands" className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink">
-            <SlashIcon size={16} />
+            <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] ring-[1.4px] ring-current">
+              <SlashIcon size={12} />
+            </span>
           </button>
         </div>
         <button

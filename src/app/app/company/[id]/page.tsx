@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { getCompany } from '@/lib/db/companies'
 import { listCompanyCalls } from '@/lib/db/calls'
 import { listQuotes } from '@/lib/db/quotes'
+import { listFolders } from '@/lib/db/quoteFolders'
 import { listCompanyTranscripts } from '@/lib/transcripts'
 import { getCurrentUser } from '@/lib/auth'
 import { DEMO_USER_ID } from '@/lib/api/types'
@@ -17,11 +18,12 @@ export default async function CompanyPage({ params }: { params: { id: string } }
     listCompanyTranscripts(params.id),
     getCurrentUser(),
   ])
-  const quotes = await listQuotes(user.userId ?? DEMO_USER_ID, params.id)
+  const userId = user.userId ?? DEMO_USER_ID
+  const [quotes, folders] = await Promise.all([listQuotes(userId, params.id), listFolders(userId, params.id)])
 
   return (
     <AppPage>
-      <CompanyView company={company} calls={calls} transcripts={transcripts} quotes={quotes} />
+      <CompanyView company={company} calls={calls} transcripts={transcripts} quotes={quotes} folders={folders} />
     </AppPage>
   )
 }

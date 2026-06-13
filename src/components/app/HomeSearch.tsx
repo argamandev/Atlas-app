@@ -53,19 +53,19 @@ export function HomeSearch() {
 
   return (
     <div ref={boxRef} className="relative w-full">
-      <div className="flex items-center gap-2 rounded-bubble border border-hairline bg-canvas px-4 py-3 transition-colors focus-within:border-ink-faint">
+      <div className="flex items-center gap-2.5 rounded-bubble bg-canvas px-4 py-3 shadow-float transition-shadow">
         <SearchIcon size={18} className="text-ink-faint" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder={dict.home.searchPlaceholder}
-          className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
+          className="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint"
         />
       </div>
 
       {open && results.length > 0 && (
-        <Surface elevation="popover" className="absolute inset-x-0 top-full z-50 mt-2 p-1.5 text-start">
+        <Surface elevation="popover" className="absolute inset-x-0 top-full z-50 mt-2 animate-pop-in p-1.5 text-start">
           {results.map((c) => (
             <EntityRow
               key={c.id}

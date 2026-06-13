@@ -287,7 +287,7 @@ export function LiveBroadcastView({
           </span>
           <span className="shrink-0 text-sm text-ink-faint">{formatDate(new Date().toISOString(), locale)}</span>
           <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
             <span className="text-2xs font-bold tracking-wide text-live">{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
           </span>
           {phase === 'playing' && (
@@ -317,7 +317,7 @@ export function LiveBroadcastView({
             onClick={goLive}
             className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1 text-xs font-medium text-live"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
             חזרה לשידור החי
           </button>
         )}
@@ -350,7 +350,7 @@ export function LiveBroadcastView({
       {phase !== 'playing' && (
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-canvas/95 px-6 text-center">
           <span className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
             <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
           </span>
           <h2 className="text-xl font-bold text-ink">{companyName} — שיחת משקיעים</h2>

@@ -41,7 +41,7 @@ export function LiveNowPanel({ companyName, logoUrl }: { companyName: string; lo
       name={companyName}
       secondary={
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
           <span className="font-medium text-live">{dict.live.liveBadge}</span>
         </span>
       }

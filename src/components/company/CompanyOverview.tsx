@@ -56,15 +56,16 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
   return (
     <div className="space-y-8">
       {showLive && liveLink && (
-        <section>
+        <section className="animate-fade-up">
           <SectionHeader label={dict.home.liveNow} className="mb-2" />
           <EntityRow
             href={liveLink}
             logoSrc={logoUrl}
             name={companyName}
+            className="transition-all duration-200 hover:-translate-y-px hover:shadow-float"
             secondary={
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
                 <span className="font-medium text-live">{dict.live.liveBadge}</span>
                 {data.liveQuarter ? <span className="text-ink-faint">· {data.liveQuarter}</span> : null}
               </span>
@@ -73,7 +74,7 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
         </section>
       )}
 
-      <section>
+      <section className="animate-fade-up" style={{ animationDelay: '0.05s' }}>
         <SectionHeader label={dict.company.latestCall} className="mb-2" />
         {!latest ? (
           <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.common.empty}</p>
@@ -82,6 +83,7 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
             href={`/app/live/${latest.id}`}
             logoSrc={logoUrl}
             name={companyName}
+            className="transition-all duration-200 hover:-translate-y-px hover:shadow-float"
             secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
             secondary={[latest.quarter, formatDate(latest.date || latest.createdAt, locale)].filter(Boolean).join(' · ')}
             meta={latest.duration ? <span dir="ltr">{latest.duration}</span> : undefined}
@@ -89,7 +91,7 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
         )}
       </section>
 
-      <section>
+      <section className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
         <SectionHeader label={dict.company.upcomingCalls} className="mb-2" />
         {calls.length === 0 ? (
           <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.home.noUpcoming}</p>

@@ -49,8 +49,16 @@ export interface Quote {
   quarter: string | null
   startSec: number | null
   anchor: QuoteAnchor | null
+  folderId?: string | null // the My-Quotes folder this quote is filed into (null = unfiled)
   createdAt: string
   company?: CompanyLite
+}
+
+// A user-named folder for organizing saved quotes (per company). Migration 20260614_010.
+export interface QuoteFolder {
+  id: string
+  companyId: string | null
+  name: string
 }
 
 // Localized display helpers — pick the right name for the active locale.

@@ -93,14 +93,14 @@ export function TranscriptBody({
                   {seg.speakerName}
                 </button>
               ) : (
-                <span className="text-sm font-bold text-ink">{seg.speakerName}</span>
+                <span className="text-[15px] font-bold text-ink">{seg.speakerName}</span>
               )}
-              {seg.role && <span className="text-xs text-ink-muted">{seg.role}</span>}
+              {seg.role && <span className="text-[13px] text-ink-muted">{seg.role}</span>}
               <span className="ms-auto text-xs text-ink-faint tabular-nums" dir="ltr">
                 {formatClock(seg.start)}
               </span>
             </div>
-            <p className="mt-1.5 text-[15px] leading-[1.9] text-ink">
+            <p className="mt-2 text-[17px] leading-[1.85] text-ink">
               {seg.words.map((w, wi) => {
                 const gi = offsets[si] + wi
                 // Without word timings, render every word as plain spoken text (no advancing

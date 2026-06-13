@@ -3,13 +3,13 @@ import { getDictionary } from '@/lib/i18n/dictionaries'
 import { getCurrentUser } from '@/lib/auth'
 import { listCalls } from '@/lib/db/calls'
 import { companyDisplayName } from '@/lib/api/types'
-import { formatDate, formatTime } from '@/lib/i18n/format'
+import { formatDate, formatTime, formatRelativeDays } from '@/lib/i18n/format'
 import { CollapsiblePanel } from '@/components/app/CollapsiblePanel'
 import { Greeting } from '@/components/app/Greeting'
+import { TodayLine } from '@/components/app/TodayLine'
 import { HomeSearch } from '@/components/app/HomeSearch'
+import { UpcomingCard } from '@/components/app/UpcomingCard'
 import { SectionHeader } from '@/components/ds/SectionHeader'
-import { EntityRow } from '@/components/ds/EntityRow'
-import { CalendarIcon } from '@/components/ds/icons'
 import { LiveNowPanel } from '@/components/app/LiveNowPanel'
 import { getCompanyByTicker } from '@/lib/db/companies'
 
@@ -29,8 +29,12 @@ export default async function HomePage() {
       <div className="app-scroll flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-6">
           {/* hero: greeting + search */}
-          <div className="flex flex-col items-center gap-3 pt-[12vh] text-center">
-            <Greeting name={userId ? userName : undefined} className="text-[28px] font-bold tracking-tight text-ink" />
+          <div className="flex animate-fade-up flex-col items-center gap-3 pt-[12vh] text-center">
+            <TodayLine />
+            <Greeting
+              name={userId ? userName : undefined}
+              className="text-[28px] font-bold tracking-tight text-ink sm:text-[30px]"
+            />
             <p className="text-ink-muted">{dict.home.discoverSubhead}</p>
             <div className="mt-3 w-full max-w-lg">
               <HomeSearch />
@@ -38,21 +42,23 @@ export default async function HomePage() {
           </div>
 
           {/* upcoming investor calls */}
-          <div className="mt-16 pb-12">
-            <SectionHeader label={dict.home.upcomingCalls} className="mb-2" />
+          <div className="mt-[9vh] pb-16">
+            <SectionHeader label={dict.home.upcomingCalls} className="mb-3" />
             {upcoming.length === 0 ? (
               <p className="px-2.5 py-6 text-sm text-ink-faint">{dict.home.noUpcoming}</p>
             ) : (
-              <div className="flex flex-col gap-0.5">
-                {upcoming.map((call) => (
-                  <EntityRow
+              <div className="flex flex-col gap-2.5">
+                {upcoming.map((call, i) => (
+                  <UpcomingCard
                     key={call.id}
+                    index={i}
                     href={`/app/company/${call.companyId}`}
                     logoSrc={call.company?.logoUrl}
                     name={call.company ? companyDisplayName(call.company, locale) : ''}
-                    secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
-                    secondary={`${call.quarter} · ${formatDate(call.scheduledAt, locale)}`}
-                    meta={<span dir="ltr">{formatTime(call.scheduledAt, locale)}</span>}
+                    sub={`${call.quarter} · ${dict.home.investorCall}`}
+                    dateLabel={formatDate(call.scheduledAt, locale, { day: 'numeric', month: 'short' })}
+                    timeLabel={formatTime(call.scheduledAt, locale)}
+                    relLabel={formatRelativeDays(call.scheduledAt, locale)}
                   />
                 ))}
               </div>

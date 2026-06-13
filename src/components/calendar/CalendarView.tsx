@@ -70,17 +70,19 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   ]
   while (cells.length % 7 !== 0) cells.push(null)
 
+  const today = new Date()
+
   return (
     <div className="app-scroll flex-1 overflow-y-auto px-8 py-6">
-      <div className="mx-auto w-full max-w-4xl">
+      <div className="mx-auto w-full max-w-4xl animate-fade-up">
         {/* header: title + mode toggle */}
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-ink">{dict.calendar.title}</h1>
-          <div className="flex items-center gap-1 rounded-md bg-panel p-0.5">
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight text-ink">{dict.calendar.title}</h1>
+          <div className="flex items-center gap-1 rounded-full bg-panel p-1">
             <button
               type="button"
               onClick={() => setMode('all')}
-              className={cn('rounded px-3 py-1 text-sm transition-colors', mode === 'all' ? 'bg-canvas font-medium text-ink shadow-popover' : 'text-ink-muted')}
+              className={cn('rounded-full px-3.5 py-1.5 text-sm transition-colors', mode === 'all' ? 'bg-canvas font-medium text-ink shadow-card' : 'text-ink-muted hover:text-ink')}
             >
               {dict.calendar.allCalls}
             </button>
@@ -99,8 +101,8 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                 if (id) void follow(id, true)
               }}
               className={cn(
-                'rounded px-3 py-1 text-sm transition-colors',
-                mode === 'mine' ? 'bg-canvas font-medium text-ink shadow-popover' : 'text-ink-muted',
+                'rounded-full px-3.5 py-1.5 text-sm transition-colors',
+                mode === 'mine' ? 'bg-canvas font-medium text-ink shadow-card' : 'text-ink-muted hover:text-ink',
                 dropActive && 'ring-2 ring-ink/40',
               )}
             >
@@ -131,9 +133,22 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
           {cells.map((day, i) => {
             const k = day ? localKey(year, monthIdx, day) : `blank-${i}`
             const dayCalls = day ? byDay.get(k) ?? [] : []
+            const isToday =
+              day != null && year === today.getFullYear() && monthIdx === today.getMonth() && day === today.getDate()
             return (
-              <div key={k} className="min-h-[96px] bg-canvas p-1.5">
-                {day && <div className="mb-1 px-0.5 text-xs text-ink-faint">{day}</div>}
+              <div key={k} className={cn('min-h-[96px] bg-canvas p-1.5', isToday && 'ring-1 ring-inset ring-ink/30')}>
+                {day && (
+                  <div className="mb-1 flex px-0.5">
+                    <span
+                      className={cn(
+                        'grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs tabular-nums',
+                        isToday ? 'bg-ink font-semibold text-white' : 'text-ink-faint',
+                      )}
+                    >
+                      {day}
+                    </span>
+                  </div>
+                )}
                 <div className="space-y-1">
                   {dayCalls.map((c) => {
                     const isFollowed = followed.has(c.id)
@@ -142,7 +157,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         key={c.id}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData('text/plain', c.id)}
-                        className="group flex items-center gap-1.5 rounded-md bg-subtle px-1.5 py-1"
+                        className="group flex cursor-grab items-center gap-1.5 rounded-md bg-canvas px-1.5 py-1 shadow-card ring-1 ring-hairline/60 transition-shadow hover:shadow-popover"
                         title={c.company ? companyDisplayName(c.company, locale) : ''}
                       >
                         <Logo src={c.company?.logoUrl} name={c.company?.displayName ?? ''} size={18} />

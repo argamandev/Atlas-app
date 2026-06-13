@@ -45,8 +45,12 @@ export const tokens = {
     pill: '9999px', // the media player + pill controls
   },
 
-  // depth used in exactly three places (brief §3.4): window, popover, player
+  // depth used in exactly three places (brief §3.4): window, popover, player.
+  // `card` (barely-there lift for list rows / cards) and `float` (the search +
+  // composer hover-float) are the softer, more diffuse recipes from the V1 design pass.
   shadow: {
+    card: '0 1px 2px rgba(20,18,15,0.05), 0 1px 1px rgba(20,18,15,0.03)',
+    float: '0 24px 70px -20px rgba(20,18,15,0.16), 0 2px 8px -2px rgba(20,18,15,0.07)',
     window: '0 24px 64px -16px rgba(0,0,0,0.28), 0 2px 8px -2px rgba(0,0,0,0.10)',
     popover: '0 12px 36px -8px rgba(0,0,0,0.22), 0 2px 6px -2px rgba(0,0,0,0.10)',
     player: '0 16px 48px -12px rgba(0,0,0,0.42), 0 2px 8px -2px rgba(0,0,0,0.24)',

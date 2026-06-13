@@ -20,6 +20,7 @@ import {
   PauseIcon,
 } from '@/components/ds/icons'
 import { TranscriptBody } from './TranscriptBody'
+import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { findMatches } from '@/lib/live/search'
@@ -59,7 +60,8 @@ export function LiveTranscriptView({
   const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
   const name = locale === 'en' ? call.companyNameEn ?? call.companyName : call.companyName
   const title = `${name} — ${call.quarter}`
-  const activeSpeaker = call.transcript.segments[flat[activeIndex]?.segmentIndex ?? 0]?.speakerName ?? null
+  const activeSegmentIndex = flat[activeIndex]?.segmentIndex ?? 0
+  const activeSpeaker = call.transcript.segments[activeSegmentIndex]?.speakerName ?? null
 
   useEffect(() => {
     if (!playing) return
@@ -236,16 +238,28 @@ export function LiveTranscriptView({
   ]
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col">
-      {/* header */}
-      <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
+    <div className="flex h-full min-h-0 flex-1">
+      {/* context panel — chapters/sections + speakers (RTL Hebrew) */}
+      <TranscriptSidePanel
+        transcript={call.transcript}
+        activeSegmentIndex={activeSegmentIndex}
+        onSeek={seek}
+        companyName={name}
+        sub={[call.quarter, formatDate(call.date, locale)].filter(Boolean).join(' · ')}
+        isLive={call.isLive}
+      />
+
+      {/* main column — header, tabs, transcript + the (unchanged) docked player */}
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {/* header */}
+        <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <Logo src={call.logoUrl} name={title} size={32} />
           <span className="truncate font-bold text-ink">{title}</span>
           <span className="shrink-0 text-sm text-ink-faint">{formatDate(call.date, locale)}</span>
           {call.isLive && (
             <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-live" />
+              <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
               <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
             </span>
           )}
@@ -435,11 +449,12 @@ export function LiveTranscriptView({
         />
       )}
 
-      {toast && (
-        <div className="pointer-events-none absolute inset-x-0 top-3 z-50 flex justify-center">
-          <span className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white shadow-popover">{toast}</span>
-        </div>
-      )}
+        {toast && (
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-50 flex justify-center">
+            <span className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white shadow-popover">{toast}</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

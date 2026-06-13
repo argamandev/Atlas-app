@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Greeting } from '@/components/app/Greeting'
 import { CollapsiblePanel } from '@/components/app/CollapsiblePanel'
@@ -9,6 +9,8 @@ import { ChatComposer } from './ChatComposer'
 import { ChatHistory } from './ChatHistory'
 import { MentionDropdown } from './MentionDropdown'
 import { CitationChip } from './CitationPopover'
+import { StreamingText } from './StreamingText'
+import { Typewriter } from './Typewriter'
 import { Logo } from '@/components/ds/Logo'
 import { QuoteIcon, CloseIcon } from '@/components/ds/icons'
 import { sendChat, type ChatSource } from '@/lib/api/chat'
@@ -19,6 +21,8 @@ interface Msg {
   role: 'user' | 'assistant'
   content: string
   source?: ChatSource | null
+  /** freshly-received assistant reply → reveal with the streaming typewriter once */
+  streaming?: boolean
 }
 
 export function ChatView({
@@ -42,6 +46,16 @@ export function ChatView({
   const [transcript] = useState(initialTranscript ?? null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [historyKey, setHistoryKey] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const scrollToEnd = () => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }
+  // keep pinned to the newest message as the thread grows
+  useEffect(() => {
+    scrollToEnd()
+  }, [messages.length, sending])
 
   function onChange(v: string) {
     setInput(v)
@@ -58,8 +72,8 @@ export function ChatView({
     inputRef.current?.focus()
   }
 
-  async function send() {
-    const text = input.trim()
+  async function send(explicit?: string) {
+    const text = (explicit ?? input).trim()
     if (!text || sending) return
     const history = messages.map((m) => ({ role: m.role, content: m.content }))
     // A quote carried in from "Chat about this quote" rides along on the API message as
@@ -72,7 +86,7 @@ export function ChatView({
     setSending(true)
     try {
       const res = await sendChat({ message: apiMessage, companyId: companyId ?? undefined, transcriptId: transcript?.id, history })
-      const assistant: Msg = { role: 'assistant', content: res.reply, source: res.source }
+      const assistant: Msg = { role: 'assistant', content: res.reply, source: res.source, streaming: true }
       setMessages((prev) => [...prev, assistant])
       // Persist the full thread — create the conversation lazily on the first exchange.
       const full = [
@@ -106,6 +120,11 @@ export function ChatView({
     setMessages([])
     setInput('')
     setQuote(null)
+  }
+
+  // the freshly-streamed reply has finished revealing → settle it (drop the caret, show citation)
+  function finishStreaming(index: number) {
+    setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, streaming: false } : m)))
   }
 
   const empty = messages.length === 0
@@ -162,14 +181,18 @@ export function ChatView({
     </div>
   )
 
-  // Empty: greeting + composer centered. Active: messages scroll, composer drops to the bottom.
+  // Empty: greeting + composer centered (clean, Claude-style — no emblem/chips). Active:
+  // messages scroll and the composer drops to the bottom; the reply streams in with a caret.
   const content = empty ? (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
-      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-[8vh]">
-        <div className="w-full max-w-2xl">
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-[10vh]">
+        <div className="w-full max-w-2xl animate-fade-up">
           <div className="mb-6 text-center">
-            <Greeting className="text-[28px] font-bold tracking-tight text-ink" />
-            <p className="mt-1.5 text-ink-muted">{dict.chat.subhead}</p>
+            <Greeting className="text-[30px] font-bold tracking-tight text-ink" />
+            <p className="mt-2 text-ink-muted">{dict.chat.subhead}</p>
+            <div className="mt-3 flex h-6 items-center justify-center text-sm text-ink-faint">
+              <Typewriter items={dict.chat.suggestions} />
+            </div>
           </div>
           {composer}
         </div>
@@ -177,27 +200,41 @@ export function ChatView({
     </div>
   ) : (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
-      <div className="app-scroll flex-1 overflow-y-auto px-6 py-6">
-        <div className="mx-auto w-full max-w-2xl space-y-5">
+      <div ref={scrollRef} className="app-scroll flex-1 overflow-y-auto px-6 py-6">
+        <div className="mx-auto w-full max-w-2xl space-y-6">
           {messages.map((m, i) =>
             m.role === 'user' ? (
               // dir="auto" lets a Hebrew message read RTL even in English mode; ml-auto keeps
               // the user's own bubble on the trailing (right) edge in both directions.
-              <div key={i} className="flex">
-                <div dir="auto" className="ml-auto max-w-[85%] rounded-bubble bg-subtle px-3.5 py-2 text-[15px] text-ink">
+              <div key={i} className="flex animate-fade-up">
+                <div dir="auto" className="ml-auto max-w-[85%] rounded-bubble bg-subtle px-4 py-2.5 text-[15px] leading-relaxed text-ink">
                   {m.content}
                 </div>
               </div>
             ) : (
-              <div key={i} className="text-[15px] leading-relaxed text-ink">
-                <p dir="auto" className="whitespace-pre-wrap">
-                  {m.content}
-                </p>
-                {m.source && <CitationChip source={m.source} />}
+              <div key={i} className="animate-fade-in text-[15px] leading-relaxed text-ink">
+                {m.streaming ? (
+                  <StreamingText
+                    text={m.content}
+                    onDone={() => finishStreaming(i)}
+                    onTick={scrollToEnd}
+                    className="whitespace-pre-wrap"
+                  />
+                ) : (
+                  <p dir="auto" className="whitespace-pre-wrap">
+                    {m.content}
+                  </p>
+                )}
+                {m.source && !m.streaming && <CitationChip source={m.source} />}
               </div>
             ),
           )}
-          {sending && <p className="text-sm text-ink-faint">{dict.chat.thinking}</p>}
+          {sending && (
+            <p className="animate-fade-in text-sm text-ink-faint">
+              {dict.chat.thinking}
+              <span className="caret" />
+            </p>
+          )}
         </div>
       </div>
       <div className="px-6 pb-5">{composer}</div>

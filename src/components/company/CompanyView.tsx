@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { companyDisplayName, type Company, type ScheduledCall, type Quote } from '@/lib/api/types'
+import { companyDisplayName, type Company, type ScheduledCall, type Quote, type QuoteFolder } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 import { Tabs } from '@/components/ds/Tabs'
 import { Logo } from '@/components/ds/Logo'
@@ -14,7 +14,7 @@ import { IconButton } from '@/components/ds/IconButton'
 import { SparkleIcon, DotsVerticalIcon, CalendarIcon } from '@/components/ds/icons'
 import { AddInvestorCall } from './AddInvestorCall'
 import { CompanyOverview } from './CompanyOverview'
-import { QuoteCard } from './QuoteCard'
+import { MyQuotes } from './MyQuotes'
 import { formatDate, formatTime } from '@/lib/i18n/format'
 import { quarterSortKey } from '@/lib/utils'
 
@@ -60,11 +60,13 @@ export function CompanyView({
   calls,
   transcripts,
   quotes: initialQuotes,
+  folders,
 }: {
   company: Company
   calls: ScheduledCall[]
   transcripts: RecentTranscript[]
   quotes: Quote[]
+  folders: QuoteFolder[]
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -76,7 +78,6 @@ export function CompanyView({
   const openInChat = () => router.push(`/app/chat?company=${company.id}`)
   const isLiveCompany = company.ticker === '1097229' // תמיס — the live-demo company
   const transcriptsByQuarter = groupByQuarter(transcripts)
-  const quotesByQuarter = groupByQuarter(quotes)
   const onQuoteRemoved = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id))
 
   const callRow = (call: ScheduledCall) => (
@@ -107,12 +108,16 @@ export function CompanyView({
     <div className="app-scroll flex-1 overflow-y-auto">
       {/* header — identity on the leading edge (top-left in EN, top-right in HE) */}
       <header className="border-b border-hairline">
-        <div className="mx-auto flex max-w-4xl items-start justify-between gap-4 px-8 py-5">
-          <div className="flex items-center gap-3">
-            <Logo src={company.logoUrl} name={name} size={44} />
+        <div className="mx-auto flex max-w-4xl animate-fade-up items-start justify-between gap-4 px-8 py-5">
+          <div className="flex items-center gap-3.5">
+            <Logo src={company.logoUrl} name={name} size={48} />
             <div className="text-start">
-              <h1 className="text-lg font-bold leading-tight text-ink">{name}</h1>
-              {industry && <p className="mt-0.5 text-xs text-ink-muted">{industry}</p>}
+              <h1 className="text-xl font-bold leading-tight text-ink">{name}</h1>
+              {(industry || company.ticker) && (
+                <p className="mt-0.5 text-xs text-ink-muted">
+                  {[industry, company.ticker].filter(Boolean).join(' · ')}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -159,24 +164,13 @@ export function CompanyView({
 
         {tab === 'quotes' && (
           <div className="py-6">
-            {quotes.length === 0 ? (
-              <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.common.empty}</p>
-            ) : (
-              <div className="space-y-5">
-                {quotesByQuarter.map(([quarter, qs]) => (
-                  <div key={quarter}>
-                    <div className="mb-1.5 px-1 text-xs font-medium text-ink-faint" dir="ltr">
-                      {quarter}
-                    </div>
-                    <div className="space-y-2">
-                      {qs.map((quote) => (
-                        <QuoteCard key={quote.id} quote={quote} companyName={name} companyId={company.id} onRemoved={onQuoteRemoved} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <MyQuotes
+              quotes={quotes}
+              companyId={company.id}
+              companyName={name}
+              onRemoved={onQuoteRemoved}
+              initialFolders={folders}
+            />
           </div>
         )}
 

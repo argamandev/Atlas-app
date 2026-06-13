@@ -77,6 +77,8 @@ const config: Config = {
       },
       boxShadow: {
         // Soft, diffuse elevation used in exactly three places (brief §3.4).
+        card: tokens.shadow.card,
+        float: tokens.shadow.float,
         window: tokens.shadow.window,
         popover: tokens.shadow.popover,
         player: tokens.shadow.player,
@@ -107,6 +109,11 @@ const config: Config = {
         'fade-in': 'fadeIn 0.4s ease-out forwards',
         'slide-up': 'slideUp 0.5s ease-out forwards',
         'blink': 'blink 1.2s step-end infinite',
+        // ── V1 design-pass motion (cubic-bezier ease-out, fill both for staggered reveals) ──
+        'fade-up': 'fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'pop-in': 'popIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'pulse-live': 'pulseLive 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) infinite',
+        'shimmer': 'shimmer 1.4s linear infinite',
       },
       keyframes: {
         progressFill: {
@@ -124,6 +131,25 @@ const config: Config = {
         blink: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0' },
+        },
+        // softer, shorter reveal than slideUp — used for staggered list/section entrances
+        fadeUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        // popovers, dropdowns, suggestion chips
+        popIn: {
+          '0%': { opacity: '0', transform: 'translateY(8px) scale(0.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        // the reserved LIVE dot — gentle shrink+fade, not a hard blink
+        pulseLive: {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.55', transform: 'scale(0.82)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
         },
       },
     },

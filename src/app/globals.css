@@ -192,3 +192,29 @@
 /* Go-to-quote: brief highlight of the anchored line (#5). */
 @keyframes quoteFlash { 0%, 100% { background: transparent } 20% { background: rgba(192, 74, 0, 0.14) } }
 .quote-flash { animation: quoteFlash 2s ease-out; border-radius: 8px; }
+
+/* ── V1 design-pass motion helpers ── */
+/* Typewriter / streaming caret — a thin blinking bar that sits on the baseline of
+   the last character. Inherits color from `currentColor`, so it reads on any surface. */
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-inline-start: 2px;
+  vertical-align: -0.12em;
+  border-radius: 2px;
+  background: currentColor;
+  animation: blink 1s step-end infinite;
+}
+
+/* Honour the OS "reduce motion" setting for every reveal/loop animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
