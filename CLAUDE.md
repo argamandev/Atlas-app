@@ -33,7 +33,8 @@ Three-layer RTL sidebar (icon rail → expanded panel → content). Pages:
   (drag to follow).
 - **Chat** — LLM chat over the transcript DB; `/company` slash commands set context; history
   panel; "My Agents" (standing quote-capture rules) + "My Skills" (agents/skills = post-launch,
-  stub the UI). `@anthropic-ai/sdk` already a dependency; V1 = context-stuffing, no vector DB.
+  stub the UI). Chat runs on **Gemini 3.5 Flash** (shares `GEMINI_API_KEY` with the pipeline,
+  `thinkingBudget: 0`); V1 = context-stuffing, no vector DB.
 - **Company page** — header (name/logo/sector), Overview tab (latest call, upcoming, My Quotes
   by quarter/timeline), Investor Calls tab (full backlog by quarter), "Add Investor Call"
   (YouTube link → existing pipeline), "Open in Chat" per call/company.
