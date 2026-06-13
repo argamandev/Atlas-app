@@ -209,7 +209,17 @@ function parseIvritSegments(output: unknown): IvritSegment[] {
     const words: IvritWord[] = wordsRaw
       .map((w) => ({ word: String(w.word ?? w.text ?? '').trim(), start: asNum(w.start) ?? start, end: asNum(w.end) ?? asNum(w.start) ?? end }))
       .filter((w) => w.word)
-    const speakerRaw = s.speaker ?? extra.speaker ?? null
+    // IVRIT diarization exposes the speaker as a segment-level `speakers: [label]` array
+    // (and per-word `speaker`); fall back through the singular forms. Reading only `s.speaker`
+    // dropped diarization → every turn collapsed into one block.
+    const firstWordSpeaker = (wordsRaw[0]?.speaker as string | undefined) ?? undefined
+    const speakerRaw =
+      s.speaker ??
+      (Array.isArray(s.speakers) ? s.speakers[0] : undefined) ??
+      extra.speaker ??
+      (Array.isArray(extra.speakers) ? (extra.speakers as unknown[])[0] : undefined) ??
+      firstWordSpeaker ??
+      null
     segs.push({ text: String(s.text ?? '').trim(), start, end, speaker: speakerRaw != null ? String(speakerRaw) : null, words })
   }
   return segs.filter((s) => s.text || s.words.length)
