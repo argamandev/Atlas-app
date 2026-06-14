@@ -9,11 +9,10 @@ import { ChatComposer } from './ChatComposer'
 import { ChatHistory } from './ChatHistory'
 import { MentionDropdown } from './MentionDropdown'
 import { CitationChip } from './CitationPopover'
-import { StreamingText } from './StreamingText'
 import { Typewriter } from './Typewriter'
 import { Logo } from '@/components/ds/Logo'
 import { QuoteIcon, CloseIcon } from '@/components/ds/icons'
-import { sendChat, type ChatSource } from '@/lib/api/chat'
+import { streamChat, type ChatSource } from '@/lib/api/chat'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
 
@@ -21,8 +20,23 @@ interface Msg {
   role: 'user' | 'assistant'
   content: string
   source?: ChatSource | null
-  /** freshly-received assistant reply → reveal with the streaming typewriter once */
+  /** true while tokens are still streaming in from the model (caret shown) */
   streaming?: boolean
+}
+
+// Pre-first-token "thinking" indicator — three staggered bouncing dots.
+function ThinkingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 py-1.5" aria-label="thinking">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint"
+          style={{ animationDelay: `${i * 0.15}s` }}
+        />
+      ))}
+    </span>
+  )
 }
 
 export function ChatView({
@@ -75,24 +89,43 @@ export function ChatView({
   async function send(explicit?: string) {
     const text = (explicit ?? input).trim()
     if (!text || sending) return
+    const priorMessages = messages
     const history = messages.map((m) => ({ role: m.role, content: m.content }))
     // A quote carried in from "Chat about this quote" rides along on the API message as
     // grounding context, but only the user's typed text shows in the bubble. One turn only.
     const apiMessage = quote ? `Regarding this quote from the investor call: "${quote}"\n\n${text}` : text
-    setMessages((prev) => [...prev, { role: 'user', content: text }])
+    // Push the user message + an empty assistant message we stream tokens into.
+    setMessages((prev) => [...prev, { role: 'user', content: text }, { role: 'assistant', content: '', streaming: true }])
     setInput('')
     setMentionQuery(null)
     setQuote(null)
     setSending(true)
+
+    const setLastAssistant = (patch: Partial<Msg>) =>
+      setMessages((prev) => {
+        const cp = prev.slice()
+        const last = cp[cp.length - 1]
+        if (last && last.role === 'assistant') cp[cp.length - 1] = { ...last, ...patch }
+        return cp
+      })
+
+    let full = ''
     try {
-      const res = await sendChat({ message: apiMessage, companyId: companyId ?? undefined, transcriptId: transcript?.id, history })
-      const assistant: Msg = { role: 'assistant', content: res.reply, source: res.source, streaming: true }
-      setMessages((prev) => [...prev, assistant])
+      const { source } = await streamChat(
+        { message: apiMessage, companyId: companyId ?? undefined, transcriptId: transcript?.id, history },
+        (delta) => {
+          full += delta
+          setLastAssistant({ content: full })
+          scrollToEnd()
+        },
+      )
+      setLastAssistant({ content: full, source, streaming: false })
+
       // Persist the full thread — create the conversation lazily on the first exchange.
-      const full = [
-        ...messages.map((m) => ({ role: m.role, content: m.content })),
+      const fullThread = [
+        ...priorMessages.map((m) => ({ role: m.role, content: m.content })),
         { role: 'user' as const, content: text },
-        { role: assistant.role, content: assistant.content },
+        { role: 'assistant' as const, content: full },
       ]
       let cid = conversationId
       if (!cid) {
@@ -100,10 +133,10 @@ export function ChatView({
         cid = conv.id
         setConversationId(cid)
       }
-      await saveConversation(cid, full)
+      await saveConversation(cid, fullThread)
       setHistoryKey((k) => k + 1)
     } catch (err) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: (err as Error).message }])
+      setLastAssistant({ content: (err as Error).message, streaming: false })
     } finally {
       setSending(false)
     }
@@ -120,11 +153,6 @@ export function ChatView({
     setMessages([])
     setInput('')
     setQuote(null)
-  }
-
-  // the freshly-streamed reply has finished revealing → settle it (drop the caret, show citation)
-  function finishStreaming(index: number) {
-    setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, streaming: false } : m)))
   }
 
   const empty = messages.length === 0
@@ -213,27 +241,17 @@ export function ChatView({
               </div>
             ) : (
               <div key={i} className="animate-fade-in text-[15px] leading-relaxed text-ink">
-                {m.streaming ? (
-                  <StreamingText
-                    text={m.content}
-                    onDone={() => finishStreaming(i)}
-                    onTick={scrollToEnd}
-                    className="whitespace-pre-wrap"
-                  />
+                {m.streaming && !m.content ? (
+                  <ThinkingDots />
                 ) : (
                   <p dir="auto" className="whitespace-pre-wrap">
                     {m.content}
+                    {m.streaming && <span className="caret" />}
                   </p>
                 )}
                 {m.source && !m.streaming && <CitationChip source={m.source} />}
               </div>
             ),
-          )}
-          {sending && (
-            <p className="animate-fade-in text-sm text-ink-faint">
-              {dict.chat.thinking}
-              <span className="caret" />
-            </p>
           )}
         </div>
       </div>
