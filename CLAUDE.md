@@ -78,6 +78,30 @@ block until we capture Recall's per-word speaker; 5-min buffer needed for captio
 sentence-level correction for big chunks). `scripts/live-replay-engine.mjs` replays a recorded
 session as a fake-live feed for testing without Zoom.
 
+**Update (2026-06-14, design pass + chat/player/diarization features):** A V1 **design pass**
+folded the Claude-Design look into the working product (refined sizing/motion/shadows; flat-at-rest
++ hover-shadow cards; calendar polish) — see PROGRESS.md. Then four features shipped (branch
+`feat/product-enhancements`, merged to `main`):
+- **Global persistent audio player** (`src/lib/player/PlayerProvider.tsx` in the app shell + one
+  hidden `<audio>`; `GlobalPlayer`, `ShellChrome`, `ReturnToTranscriptChip`): recorded-call audio
+  keeps playing across navigation + while chatting. `LiveTranscriptView` now *consumes* the global
+  player (no own `<audio>`); `usePlayer`/`usePlayerTime` keep tick re-renders local. Live-broadcast
+  view keeps its own Web-Audio engine (separate). Save-quote toast → clickable "My Quotes" (`?tab=quotes`).
+- **Streaming chat** — `/api/chat` proxies Gemini `streamGenerateContent` (SSE) → plain-text token
+  stream (`x-chat-source` header); client `streamChat()`; **markdown rendered** via `react-markdown`
+  + `remark-gfm` + shared `Markdown` (`.md` styles in globals.css). Streams plain+caret, renders
+  rich text once settled. Thinking-dots indicator.
+- **In-transcript side chat** (`TranscriptChatPanel`) — highlight → ✦ "Ask about this" → side panel
+  beside the transcript (audio keeps playing); while open, highlighting auto-references into the
+  composer. The composer (`ChatComposer`) is a **unified two-toned box** (warm reference header +
+  white input) à la Claude — used by both chats.
+- **Diarization editing** (Feature 1) — finished transcripts only: an additive overlay column
+  `transcripts.speaker_edits` (`{boundaries:[{atWordIndex,speakerId}]}`); `applySpeakerEdits` in
+  `syncEngine` re-segments the flat word stream (pure passthrough when absent → no regression);
+  `PATCH /api/transcripts/[id]/diarization` recomputes the full overlay; "Edit speakers" mode in
+  the transcript reassigns a selected run to a speaker. **My-Quotes folders** also added earlier
+  (`quote_folders` table + `quotes.folder_id`). NEXT: **test the live feature on a real call**.
+
 ## Stack
 
 - **Next.js 14 (App Router)** — server components + route handlers; TypeScript; deployed on **Railway**.

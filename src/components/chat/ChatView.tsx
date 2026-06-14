@@ -13,7 +13,6 @@ import { Typewriter } from './Typewriter'
 import { ThinkingDots } from './ThinkingDots'
 import { Markdown } from './Markdown'
 import { Logo } from '@/components/ds/Logo'
-import { QuoteIcon, CloseIcon } from '@/components/ds/icons'
 import { streamChat, type ChatSource } from '@/lib/api/chat'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
@@ -147,7 +146,9 @@ export function ChatView({
   // Composer block — shared between the empty (centered) and active (pinned-bottom) states.
   const composer = (
     <div className="relative mx-auto w-full max-w-2xl">
-      {(companyName || quote || transcript) && (
+      {/* context tags (company / transcript). The quoted excerpt now lives inside the
+          composer as its warm reference header (unified two-toned box). */}
+      {(companyName || transcript) && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {companyName && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
@@ -158,22 +159,6 @@ export function ChatView({
           {transcript && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
               <span className="font-medium text-ink">{transcript.label}</span>
-            </span>
-          )}
-          {quote && (
-            <span dir="auto" className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
-              <QuoteIcon size={12} className="shrink-0" />
-              <span className="truncate text-ink">
-                {dict.chat.referringTo}: “{quote}”
-              </span>
-              <button
-                type="button"
-                onClick={() => setQuote(null)}
-                aria-label={dict.common.close}
-                className="shrink-0 text-ink-faint transition-colors hover:text-ink"
-              >
-                <CloseIcon size={12} />
-              </button>
             </span>
           )}
         </div>
@@ -191,6 +176,8 @@ export function ChatView({
           setMentionQuery('')
           inputRef.current?.focus()
         }}
+        reference={quote}
+        onRemoveReference={() => setQuote(null)}
       />
       <p className="mt-2 px-1 text-center text-2xs text-ink-faint">{dict.chat.slashHint}</p>
     </div>

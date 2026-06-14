@@ -153,22 +153,16 @@ export function TranscriptChatPanel({
       </div>
 
       <div className="border-t border-hairline p-3">
-        {/* pending reference — sits at the BOTTOM, above the composer; removable */}
-        {ref && (
-          <div dir="auto" className="mb-2 flex items-start gap-2 rounded-card bg-canvas p-2.5 shadow-card animate-fade-up">
-            <QuoteIcon size={12} className="mt-0.5 shrink-0 text-ink-faint" />
-            <p className="line-clamp-2 flex-1 text-xs leading-relaxed text-ink-muted">“{ref}”</p>
-            <button
-              type="button"
-              onClick={() => setRef('')}
-              aria-label={dict.common.close}
-              className="shrink-0 text-ink-faint transition-colors hover:text-ink"
-            >
-              <CloseIcon size={13} />
-            </button>
-          </div>
-        )}
-        <ChatComposer inputRef={inputRef} value={input} onChange={setInput} onSend={send} onAt={() => {}} />
+        {/* the pending reference now lives INSIDE the composer as its warm header (unified box) */}
+        <ChatComposer
+          inputRef={inputRef}
+          value={input}
+          onChange={setInput}
+          onSend={send}
+          onAt={() => {}}
+          reference={ref || null}
+          onRemoveReference={() => setRef('')}
+        />
       </div>
     </aside>
   )

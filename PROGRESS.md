@@ -5,6 +5,35 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-14 — Design pass + 4 features (player / streaming chat / side-chat / diarization)
+
+- **Design pass**: folded the Claude-Design look into the working product (no rebuild) — fade-up/
+  pop-in/pulse-live motion + softer card/float shadows; bigger-then-dialled-back home hero; upcoming
+  cards **flat at rest, smooth shadow on hover** (per founder feedback); calendar polish; My-Quotes
+  **collapsible quarters + user-named folders** (`quote_folders` table + `quotes.folder_id`). Kept
+  the **MediaPlayer as-is** and transcripts **RTL Hebrew** (added a chapters/speakers side panel).
+- **Feature 4 — Global audio player**: lifted the recorded-call player into the app shell
+  (`PlayerProvider` + one `<audio>`), so audio survives navigation + plays while chatting; floating
+  **Return-to-transcript** chip; clickable **My Quotes** toast. `LiveTranscriptView` now consumes the
+  global player. *Why*: foundation for the in-transcript chat + a far better listening UX.
+- **Feature 5 — Streaming chat**: real Gemini SSE → token stream; **markdown rendering**
+  (`react-markdown`+`remark-gfm`, RTL-aware `.md` typography) so replies read like Claude, not raw
+  `**`/tables; thinking-dots. *Why*: the chat felt like a thin LLM wrapper.
+- **Feature 6 — In-transcript side chat**: highlight → ✦ Ask → side panel (transcript stays, audio
+  plays); while open, **highlighting auto-references** into the composer; new refs append at the
+  bottom and ride into their message (history preserved). Composer is a **unified two-toned box**
+  (warm reference header + white input) matching `Product Reference/Chat-quote-reference-visualgoal.jpeg`.
+- **Feature 1 — Diarization editing**: additive `transcripts.speaker_edits` overlay +
+  `applySpeakerEdits` (pure passthrough when absent → zero regression; verified on a real transcript
+  then reset to pristine); `PATCH …/diarization` recomputes the full boundary list; "Edit speakers"
+  reassigns a selected run. *Deferred*: adding a brand-new speaker; optimistic (non-refresh) update.
+- **Verified**: `tsc` + `next build` (22/22) green per feature; dev-server smoke 200; streaming +
+  diarization endpoints exercised live. Built on branch `feat/product-enhancements`, merged to `main`.
+- **NEXT (today)**: (1) **test the live feature on a real call**; (2) keep polishing chat UX. Advanced
+  features start tomorrow.
+
+---
+
 ## 2026-06-14 — Deployed to Railway + Core 1 live-on-platform (built, first test, rebuilt)
 
 - **Shipped Spec 1 + deployed**: merged the 9 transcript/chat fixes to `main`, deployed on
