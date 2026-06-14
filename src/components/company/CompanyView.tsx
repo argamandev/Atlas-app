@@ -61,16 +61,18 @@ export function CompanyView({
   transcripts,
   quotes: initialQuotes,
   folders,
+  initialTab = 'overview',
 }: {
   company: Company
   calls: ScheduledCall[]
   transcripts: RecentTranscript[]
   quotes: Quote[]
   folders: QuoteFolder[]
+  initialTab?: string
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useState(initialTab)
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes)
 
   const name = companyDisplayName(company, locale)

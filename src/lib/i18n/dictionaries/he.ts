@@ -145,6 +145,7 @@ export const he: Dictionary = {
     parts: 'חלקי השיחה',
     speakers: 'דוברים',
     liveNowShort: 'משודר',
+    returnToTranscript: 'חזרה לתמלול',
   },
   player: {
     rewind15: '15 שניות אחורה',

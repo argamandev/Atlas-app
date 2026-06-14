@@ -146,6 +146,7 @@ export const en = {
     parts: 'Call sections',
     speakers: 'Speakers',
     liveNowShort: 'Live',
+    returnToTranscript: 'Return to transcript',
   },
   player: {
     rewind15: 'Back 15s',

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Logo } from '@/components/ds/Logo'
@@ -10,6 +11,7 @@ import {
   SparkleIcon,
   CloseIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   SyncIcon,
   RefreshIcon,
   CopyIcon,
@@ -21,12 +23,14 @@ import {
 } from '@/components/ds/icons'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
-import { MediaPlayer } from './MediaPlayer'
+import { usePlayer, usePlayerTime } from '@/lib/player/PlayerProvider'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
 import { formatClock, formatDate } from '@/lib/i18n/format'
 import type { LiveCall } from '@/lib/live/loadCall'
+
+type Toast = { text: string; action?: { label: string; href: string } }
 
 export function LiveTranscriptView({
   call,
@@ -39,49 +43,58 @@ export function LiveTranscriptView({
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
-  const audioRef = useRef<HTMLAudioElement>(null)
+
+  // Playback is global now (Feature 4): the transcript page loads the call into the shared
+  // player and reads the playhead from it, rather than owning an <audio> element. This is
+  // what lets the audio keep playing while you browse/chat and return via the Return chip.
+  const player = usePlayer()
+  const currentTime = usePlayerTime()
+  const playing = player.playing
+  const isActiveCall = player.call?.id === call.id
+  const effTime = isActiveCall ? currentTime : 0
 
   const [tab, setTab] = useState('transcript')
-  const [currentTime, setCurrentTime] = useState(initialSeek ?? 0)
-  const [duration, setDuration] = useState(call.transcript.durationSec || 0)
-  const [playing, setPlaying] = useState(false)
-  const [volume, setVolume] = useState(1)
   const [autoScroll, setAutoScroll] = useState(true)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<Toast | null>(null)
   const [selection, setSelection] = useState<
     { text: string; top: number; left: number; speaker: string | null; segmentId: string | null } | null
   >(null)
-
   const [query, setQuery] = useState('')
   const [matchPos, setMatchPos] = useState(0)
 
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
-  const activeIndex = useMemo(() => activeWordIndex(flat, currentTime), [flat, currentTime])
+  const activeIndex = useMemo(() => activeWordIndex(flat, effTime), [flat, effTime])
   const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
   const name = locale === 'en' ? call.companyNameEn ?? call.companyName : call.companyName
   const title = `${name} — ${call.quarter}`
   const activeSegmentIndex = flat[activeIndex]?.segmentIndex ?? 0
   const activeSpeaker = call.transcript.segments[activeSegmentIndex]?.speakerName ?? null
 
+  // Load this call into the global player (once per call). No auto-play — the user presses play.
   useEffect(() => {
-    if (!playing) return
-    let raf = 0
-    const tick = () => {
-      const a = audioRef.current
-      if (a) setCurrentTime(a.currentTime)
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [playing])
+    if (!call.audioUrl) return
+    player.load({
+      id: call.id,
+      companyId: call.companyId,
+      title: name,
+      subtitle: call.quarter,
+      logoUrl: call.logoUrl,
+      audioUrl: call.audioUrl,
+      isLive: false,
+      duration: call.transcript.durationSec || undefined,
+      startAt: initialSeek,
+    })
+    if (initialSeek != null) player.seek(initialSeek)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call.id, call.audioUrl])
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), 2200)
+    const t = setTimeout(() => setToast(null), 3200)
     return () => clearTimeout(t)
   }, [toast])
 
-  // Go-to-quote: scroll to + flash-highlight the anchored line (and seek if audio plays).
+  // Go-to-quote: scroll to + flash-highlight the anchored line.
   useEffect(() => {
     if (!initialSegmentId) return
     const el = document.querySelector(`[data-segment-id="${CSS.escape(initialSegmentId)}"]`)
@@ -93,22 +106,10 @@ export function LiveTranscriptView({
   }, [initialSegmentId])
 
   function seek(t: number) {
-    const a = audioRef.current
-    if (a) a.currentTime = t
-    setCurrentTime(t)
+    if (call.audioUrl) player.seek(t)
   }
   function playPause() {
-    const a = audioRef.current
-    if (!a) return
-    if (a.paused) void a.play()
-    else a.pause()
-  }
-  function skip(delta: number) {
-    seek(Math.min(duration, Math.max(0, currentTime + delta)))
-  }
-  function changeVolume(v: number) {
-    setVolume(v)
-    if (audioRef.current) audioRef.current.volume = v
+    player.toggle()
   }
 
   // Tabs: "Back to Overview" routes to the company page; the rest switch in-page.
@@ -131,7 +132,7 @@ export function LiveTranscriptView({
     const text = call.transcript.segments.map((s) => s.words.map((w) => w.text).join(' ')).join('\n\n')
     try {
       await navigator.clipboard.writeText(text)
-      setToast(dict.live.copied)
+      setToast({ text: dict.live.copied })
     } catch {
       /* clipboard may be blocked */
     }
@@ -147,21 +148,18 @@ export function LiveTranscriptView({
         body: JSON.stringify({ speakerId, name: newName, oldName }),
       })
       router.refresh()
-      setToast(dict.common.save)
+      setToast({ text: dict.common.save })
     } catch (err) {
-      setToast((err as Error).message)
+      setToast({ text: (err as Error).message })
     }
   }
 
-  // The speaker of the paragraph a DOM selection sits in (or null if outside the transcript).
   function selectionSpeaker(sel: Selection | null): string | null {
     let node: Node | null = sel?.anchorNode ?? null
     while (node && node.nodeType !== 1) node = node.parentNode
     const el = (node as Element | null)?.closest('[data-segment-id]') ?? null
     return el?.getAttribute('data-speaker') ?? null
   }
-
-  // The id of the segment a DOM selection sits in — the go-to-quote line anchor.
   function selectionSegmentId(sel: Selection | null): string | null {
     let node: Node | null = sel?.anchorNode ?? null
     while (node && node.nodeType !== 1) node = node.parentNode
@@ -169,7 +167,7 @@ export function LiveTranscriptView({
     return el?.getAttribute('data-segment-id') ?? null
   }
 
-  // Selection → Save / Share (brief: "after a quote is marked").
+  // Selection → Save / Share (appears over a text selection).
   function onTextSelect() {
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     const text = sel?.toString().trim() ?? ''
@@ -194,7 +192,7 @@ export function LiveTranscriptView({
   async function saveSelection(sel: { text: string; speaker: string | null; segmentId: string | null }) {
     if (!sel.text) return
     if (!call.companyId) {
-      setToast(dict.common.error)
+      setToast({ text: dict.common.error })
       return
     }
     try {
@@ -204,12 +202,16 @@ export function LiveTranscriptView({
         text: sel.text,
         speaker: sel.speaker ?? activeSpeaker,
         quarter: call.quarter,
-        startSec: currentTime,
+        startSec: effTime,
         anchor: sel.segmentId ? { segmentId: sel.segmentId, text: sel.text.slice(0, 80) } : null,
       })
-      setToast(dict.live.quoteSaved)
+      // Clickable toast → jump straight to that company's My Quotes tab (audio keeps playing).
+      setToast({
+        text: dict.live.quoteSaved,
+        action: { label: dict.company.myQuotes, href: `/app/company/${call.companyId}?tab=quotes` },
+      })
     } catch (err) {
-      setToast((err as Error).message)
+      setToast({ text: (err as Error).message })
     }
   }
 
@@ -220,8 +222,6 @@ export function LiveTranscriptView({
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
   }
 
-  // Share the transcript as a PDF — opens a clean print view (browser "Save as PDF"), styled
-  // like the transcript page, which the user can attach in email / WhatsApp.
   function sharePdf() {
     if (call.id === 'demo') {
       window.print()
@@ -249,209 +249,186 @@ export function LiveTranscriptView({
         isLive={call.isLive}
       />
 
-      {/* main column — header, tabs, transcript + the (unchanged) docked player */}
+      {/* main column — header, tabs, transcript (the player is now the global docked bar) */}
       <div className="relative flex min-w-0 flex-1 flex-col">
         {/* header */}
         <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <Logo src={call.logoUrl} name={title} size={32} />
-          <span className="truncate font-bold text-ink">{title}</span>
-          <span className="shrink-0 text-sm text-ink-faint">{formatDate(call.date, locale)}</span>
-          {call.isLive && (
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-              <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
-            </span>
-          )}
-          <IconButton label={dict.live.switchCall} size={26}>
-            <ChevronDownIcon size={16} />
-          </IconButton>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <IconButton label={dict.live.shareTranscript} size={30} onClick={sharePdf}>
-            <ShareIcon size={17} />
-          </IconButton>
-          <IconButton label={dict.common.close} size={30} onClick={() => router.back()}>
-            <CloseIcon size={17} />
-          </IconButton>
-        </div>
-      </header>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Logo src={call.logoUrl} name={title} size={32} />
+            <span className="truncate font-bold text-ink">{title}</span>
+            <span className="shrink-0 text-sm text-ink-faint">{formatDate(call.date, locale)}</span>
+            {call.isLive && (
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
+                <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
+              </span>
+            )}
+            <IconButton label={dict.live.switchCall} size={26}>
+              <ChevronDownIcon size={16} />
+            </IconButton>
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <IconButton label={dict.live.shareTranscript} size={30} onClick={sharePdf}>
+              <ShareIcon size={17} />
+            </IconButton>
+            <IconButton label={dict.common.close} size={30} onClick={() => router.back()}>
+              <CloseIcon size={17} />
+            </IconButton>
+          </div>
+        </header>
 
-      {/* tabs + inline audio chip */}
-      <div className="px-6">
-        <Tabs
-          activeKey={tab}
-          onChange={onTab}
-          items={liveTabs}
-          trailing={
+        {/* tabs + inline audio chip */}
+        <div className="px-6">
+          <Tabs
+            activeKey={tab}
+            onChange={onTab}
+            items={liveTabs}
+            trailing={
+              <button
+                type="button"
+                onClick={playPause}
+                disabled={!call.audioUrl}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-ink-muted transition-colors hover:text-ink disabled:opacity-40"
+              >
+                {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
+                <span>{playing ? dict.live.pauseAudio : dict.live.playAudio}</span>
+                <span className="tabular-nums text-ink-faint" dir="ltr">
+                  {formatClock(effTime)}
+                </span>
+              </button>
+            }
+          />
+        </div>
+
+        {/* sub-toolbar */}
+        <div className="flex items-center justify-between px-6 py-2">
+          <div className="flex items-center gap-0.5">
+            <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
+              <SyncIcon size={16} />
+            </IconButton>
+            <IconButton label={dict.live.refresh} size={30} onClick={() => router.refresh()}>
+              <RefreshIcon size={16} />
+            </IconButton>
+            <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
+              <CopyIcon size={16} />
+            </IconButton>
+            <IconButton label={dict.company.openInChat} size={30} onClick={openInChat}>
+              <SparkleIcon size={16} />
+            </IconButton>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <SearchIcon size={15} className="text-ink-faint" />
+            <input
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setMatchPos(0)
+              }}
+              placeholder={dict.live.searchTranscript}
+              className="w-44 bg-transparent text-xs text-ink outline-none placeholder:text-ink-faint"
+            />
+            {query && (
+              <span className="flex items-center gap-1 text-2xs text-ink-faint">
+                <span className="tabular-nums">
+                  {matches.length ? matchPos + 1 : 0}/{matches.length}
+                </span>
+                <button
+                  type="button"
+                  disabled={!matches.length}
+                  onClick={() => setMatchPos((p) => (p - 1 + matches.length) % matches.length)}
+                  className="px-1 hover:text-ink disabled:opacity-40"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  disabled={!matches.length}
+                  onClick={() => setMatchPos((p) => (p + 1) % matches.length)}
+                  className="px-1 hover:text-ink disabled:opacity-40"
+                >
+                  ›
+                </button>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* body */}
+        <div
+          className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-2"
+          onMouseUp={tab === 'transcript' ? onTextSelect : undefined}
+          onScroll={() => selection && setSelection(null)}
+        >
+          {tab === 'transcript' ? (
+            <>
+              {!call.transcript.hasWordTimings && (
+                <p className="mb-4 rounded-md bg-subtle px-3 py-2 text-xs text-ink-muted">{dict.live.noWordTimings}</p>
+              )}
+              <TranscriptBody
+                transcript={call.transcript}
+                activeIndex={activeIndex}
+                autoScroll={autoScroll}
+                onWordClick={seek}
+                karaoke={call.transcript.hasWordTimings && isActiveCall}
+                onRenameSpeaker={renameSpeaker}
+                searchMatches={matches}
+                activeMatch={matches[matchPos] ?? -1}
+              />
+            </>
+          ) : (
+            <div className="grid h-full place-items-center text-sm text-ink-faint">{dict.common.comingSoon}</div>
+          )}
+        </div>
+
+        {/* selection toolbar — Save / Share (appears over a text selection) */}
+        {selection && (
+          <div
+            style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
+            className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
+          >
             <button
               type="button"
-              onClick={playPause}
-              disabled={!call.audioUrl}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-ink-muted transition-colors hover:text-ink disabled:opacity-40"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                void saveSelection(selection)
+                setSelection(null)
+              }}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
             >
-              {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
-              <span>{playing ? dict.live.pauseAudio : dict.live.playAudio}</span>
-              <span className="tabular-nums text-ink-faint" dir="ltr">{formatClock(currentTime)}</span>
+              <QuoteIcon size={13} />
+              {dict.live.saveQuote}
             </button>
-          }
-        />
-      </div>
-
-      {/* sub-toolbar */}
-      <div className="flex items-center justify-between px-6 py-2">
-        <div className="flex items-center gap-0.5">
-          <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
-            <SyncIcon size={16} />
-          </IconButton>
-          <IconButton label={dict.live.refresh} size={30} onClick={() => router.refresh()}>
-            <RefreshIcon size={16} />
-          </IconButton>
-          <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
-            <CopyIcon size={16} />
-          </IconButton>
-          <IconButton label={dict.company.openInChat} size={30} onClick={openInChat}>
-            <SparkleIcon size={16} />
-          </IconButton>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <SearchIcon size={15} className="text-ink-faint" />
-          <input
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setMatchPos(0)
-            }}
-            placeholder={dict.live.searchTranscript}
-            className="w-44 bg-transparent text-xs text-ink outline-none placeholder:text-ink-faint"
-          />
-          {query && (
-            <span className="flex items-center gap-1 text-2xs text-ink-faint">
-              <span className="tabular-nums">
-                {matches.length ? matchPos + 1 : 0}/{matches.length}
-              </span>
-              <button
-                type="button"
-                disabled={!matches.length}
-                onClick={() => setMatchPos((p) => (p - 1 + matches.length) % matches.length)}
-                className="px-1 hover:text-ink disabled:opacity-40"
-              >
-                ‹
-              </button>
-              <button
-                type="button"
-                disabled={!matches.length}
-                onClick={() => setMatchPos((p) => (p + 1) % matches.length)}
-                className="px-1 hover:text-ink disabled:opacity-40"
-              >
-                ›
-              </button>
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* body */}
-      <div
-        className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
-        onMouseUp={tab === 'transcript' ? onTextSelect : undefined}
-        onScroll={() => selection && setSelection(null)}
-      >
-        {tab === 'transcript' ? (
-          <>
-            {!call.transcript.hasWordTimings && (
-              <p className="mb-4 rounded-md bg-subtle px-3 py-2 text-xs text-ink-muted">{dict.live.noWordTimings}</p>
-            )}
-            <TranscriptBody
-              transcript={call.transcript}
-              activeIndex={activeIndex}
-              autoScroll={autoScroll}
-              onWordClick={seek}
-              karaoke={call.transcript.hasWordTimings}
-              onRenameSpeaker={renameSpeaker}
-              searchMatches={matches}
-              activeMatch={matches[matchPos] ?? -1}
-            />
-          </>
-        ) : (
-          <div className="grid h-full place-items-center text-sm text-ink-faint">{dict.common.comingSoon}</div>
+            <span className="h-4 w-px bg-white/15" />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                shareSelection(selection.text)
+                setSelection(null)
+              }}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+            >
+              <ShareIcon size={13} />
+              {dict.common.share}
+            </button>
+          </div>
         )}
-      </div>
 
-      {/* selection toolbar — Save / Share (appears over a text selection) */}
-      {selection && (
-        <div
-          style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
-          className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
-        >
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              void saveSelection(selection)
-              setSelection(null)
-            }}
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
-          >
-            <QuoteIcon size={13} />
-            {dict.live.saveQuote}
-          </button>
-          <span className="h-4 w-px bg-white/15" />
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              shareSelection(selection.text)
-              setSelection(null)
-            }}
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
-          >
-            <ShareIcon size={13} />
-            {dict.common.share}
-          </button>
-        </div>
-      )}
-
-      {/* hidden audio element drives the sync */}
-      {call.audioUrl && (
-        <audio
-          ref={audioRef}
-          src={call.audioUrl}
-          preload="metadata"
-          onLoadedMetadata={(e) => {
-            e.currentTarget.volume = volume
-            if (initialSeek) e.currentTarget.currentTime = initialSeek
-            setDuration(e.currentTarget.duration || duration)
-          }}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
-          onTimeUpdate={(e) => !playing && setCurrentTime(e.currentTarget.currentTime)}
-        />
-      )}
-
-      {call.audioUrl && (
-        <MediaPlayer
-          logoUrl={call.logoUrl}
-          title={name}
-          subtitle={call.quarter}
-          chapter={call.isLive ? 'Live session' : undefined}
-          currentTime={currentTime}
-          duration={duration}
-          playing={playing}
-          isLive={call.isLive}
-          volume={volume}
-          onPlayPause={playPause}
-          onSeek={seek}
-          onSkip={skip}
-          onVolumeChange={changeVolume}
-          onClose={() => router.back()}
-        />
-      )}
-
+        {/* toast — quote-saved gets a clickable "My Quotes →" jump (audio keeps playing) */}
         {toast && (
           <div className="pointer-events-none absolute inset-x-0 top-3 z-50 flex justify-center">
-            <span className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white shadow-popover">{toast}</span>
+            <span className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white shadow-popover">
+              {toast.text}
+              {toast.action && (
+                <Link
+                  href={toast.action.href}
+                  className="flex items-center gap-0.5 text-white/80 underline-offset-2 transition-colors hover:text-white hover:underline"
+                >
+                  {toast.action.label}
+                  <ChevronRightIcon size={13} className="rtl:rotate-180" />
+                </Link>
+              )}
+            </span>
           </div>
         )}
       </div>

@@ -9,7 +9,13 @@ import { DEMO_USER_ID } from '@/lib/api/types'
 import { AppPage } from '@/components/app/AppPage'
 import { CompanyView } from '@/components/company/CompanyView'
 
-export default async function CompanyPage({ params }: { params: { id: string } }) {
+export default async function CompanyPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: { tab?: string }
+}) {
   const company = await getCompany(params.id)
   if (!company) notFound()
 
@@ -21,9 +27,18 @@ export default async function CompanyPage({ params }: { params: { id: string } }
   const userId = user.userId ?? DEMO_USER_ID
   const [quotes, folders] = await Promise.all([listQuotes(userId, params.id), listFolders(userId, params.id)])
 
+  const initialTab = searchParams.tab === 'quotes' || searchParams.tab === 'calls' ? searchParams.tab : 'overview'
+
   return (
     <AppPage>
-      <CompanyView company={company} calls={calls} transcripts={transcripts} quotes={quotes} folders={folders} />
+      <CompanyView
+        company={company}
+        calls={calls}
+        transcripts={transcripts}
+        quotes={quotes}
+        folders={folders}
+        initialTab={initialTab}
+      />
     </AppPage>
   )
 }
