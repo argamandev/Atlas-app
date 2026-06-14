@@ -19,6 +19,8 @@ import {
   QuoteIcon,
   ShareIcon,
   StarIcon,
+  PencilIcon,
+  CheckIcon,
   PlayIcon,
   PauseIcon,
 } from '@/components/ds/icons'
@@ -59,12 +61,23 @@ export function LiveTranscriptView({
   const [autoScroll, setAutoScroll] = useState(true)
   const [toast, setToast] = useState<Toast | null>(null)
   const [selection, setSelection] = useState<
-    { text: string; top: number; left: number; speaker: string | null; segmentId: string | null } | null
+    {
+      text: string
+      top: number
+      left: number
+      speaker: string | null
+      segmentId: string | null
+      fromWord?: number
+      toWord?: number
+    } | null
   >(null)
   const [query, setQuery] = useState('')
   const [matchPos, setMatchPos] = useState(0)
   // in-transcript side chat (Feature 6): open + the seeded quote + a nonce so re-starring re-seeds
   const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({ open: false, seed: '', nonce: 0 })
+  // diarization edit mode (Feature 1) — finished, real transcripts only
+  const [editMode, setEditMode] = useState(false)
+  const canEdit = call.companyId != null && call.id !== 'demo'
 
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, effTime), [flat, effTime])
@@ -73,6 +86,12 @@ export function LiveTranscriptView({
   const title = `${name} — ${call.quarter}`
   const activeSegmentIndex = flat[activeIndex]?.segmentIndex ?? 0
   const activeSpeaker = call.transcript.segments[activeSegmentIndex]?.speakerName ?? null
+  // unique speakers (id → label) for the reassign menu (Feature 1)
+  const speakerList = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const s of call.transcript.segments) if (!seen.has(s.speakerId)) seen.set(s.speakerId, s.speakerName)
+    return Array.from(seen.entries()).map(([id, label]) => ({ id, label }))
+  }, [call.transcript])
 
   // Load this call into the global player (once per call). No auto-play — the user presses play.
   useEffect(() => {
@@ -171,7 +190,24 @@ export function LiveTranscriptView({
     return el?.getAttribute('data-segment-id') ?? null
   }
 
-  // Selection → Save / Share (appears over a text selection).
+  // The global word-index range a selection covers (Feature 1 reassignment).
+  function selectedWordRange(sel: Selection | null): { from: number; to: number } | null {
+    if (!sel || sel.rangeCount === 0 || typeof document === 'undefined') return null
+    let from = Infinity
+    let to = -Infinity
+    document.querySelectorAll('[data-wi]').forEach((el) => {
+      if (sel.containsNode(el, true)) {
+        const wi = Number((el as HTMLElement).dataset.wi)
+        if (Number.isInteger(wi)) {
+          from = Math.min(from, wi)
+          to = Math.max(to, wi)
+        }
+      }
+    })
+    return Number.isFinite(from) ? { from, to } : null
+  }
+
+  // Selection → Save / Share / Star, or (in edit mode) reassign the run to a speaker.
   function onTextSelect() {
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     const text = sel?.toString().trim() ?? ''
@@ -184,13 +220,35 @@ export function LiveTranscriptView({
       setSelection(null)
       return
     }
+    const range = editMode ? selectedWordRange(sel) : null
     setSelection({
       text,
       top: rect.top,
       left: rect.left + rect.width / 2,
       speaker: selectionSpeaker(sel),
       segmentId: selectionSegmentId(sel),
+      fromWord: range?.from,
+      toWord: range?.to,
     })
+  }
+
+  // Reassign the selected run to a speaker → recompute + persist the overlay → reload (Feature 1).
+  async function assignSpeaker(speakerId: string) {
+    if (!selection || selection.fromWord == null || selection.toWord == null) return
+    const { fromWord, toWord } = selection
+    setSelection(null)
+    try {
+      const res = await fetch(`/api/transcripts/${call.id}/diarization`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ fromWord, toWord, speakerId }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? 'failed')
+      router.refresh()
+      setToast({ text: dict.common.save })
+    } catch (err) {
+      setToast({ text: (err as Error).message })
+    }
   }
 
   async function saveSelection(sel: { text: string; speaker: string | null; segmentId: string | null }) {
@@ -322,6 +380,12 @@ export function LiveTranscriptView({
             <IconButton label={dict.company.openInChat} size={30} onClick={openInChat}>
               <SparkleIcon size={16} />
             </IconButton>
+            {canEdit && (
+              <IconButton label={dict.live.editSpeakers} active={editMode} size={30} onClick={() => setEditMode((v) => !v)}>
+                <PencilIcon size={16} />
+              </IconButton>
+            )}
+            {editMode && <span className="ms-1 hidden text-2xs text-ink-faint sm:inline">{dict.live.editSpeakersHint}</span>}
           </div>
           <div className="flex items-center gap-1.5">
             <SearchIcon size={15} className="text-ink-faint" />
@@ -387,19 +451,38 @@ export function LiveTranscriptView({
           )}
         </div>
 
-        {/* selection toolbar — Save / Share (appears over a text selection) */}
-        {selection && (
-          <div
-            style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
-            className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
-          >
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                void saveSelection(selection)
-                setSelection(null)
-              }}
+        {/* selection toolbar — reassign-to-speaker (edit mode) OR Save / Share / Star */}
+        {selection &&
+          (editMode && selection.fromWord != null ? (
+            <div
+              style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
+              className="z-50 flex max-w-[320px] flex-wrap items-center gap-1 rounded-2xl bg-player px-2 py-1.5 shadow-player"
+            >
+              <span className="px-1 text-2xs font-medium text-player-faint">{dict.live.assignToSpeaker}</span>
+              {speakerList.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => void assignSpeaker(s.id)}
+                  className="rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
+              className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
+            >
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  void saveSelection(selection)
+                  setSelection(null)
+                }}
               className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
             >
               <QuoteIcon size={13} />
@@ -429,10 +512,10 @@ export function LiveTranscriptView({
               className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
             >
               <StarIcon size={13} />
-              {dict.live.askAboutQuote}
-            </button>
-          </div>
-        )}
+                {dict.live.askAboutQuote}
+              </button>
+            </div>
+          ))}
 
         {/* toast — quote-saved gets a clickable "My Quotes →" jump (audio keeps playing) */}
         {toast && (

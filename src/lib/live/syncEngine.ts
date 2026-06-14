@@ -40,6 +40,59 @@ export interface WordTimedTranscript {
   hasWordTimings: boolean
 }
 
+// Manual diarization overlay (Feature 1): ordered split points over the flat word stream.
+// The speaker of word i is the speakerId of the latest boundary with atWordIndex <= i.
+export interface SpeakerEdits {
+  boundaries: { atWordIndex: number; speakerId: string }[]
+}
+
+// Re-segment a word-timed transcript by a manual overlay. Word timings/order are preserved
+// (karaoke unaffected) — only the speaker turns change. A pure passthrough when there are no
+// boundaries, so an un-edited transcript renders identically to before.
+export function applySpeakerEdits(t: WordTimedTranscript, edits: SpeakerEdits | null | undefined): WordTimedTranscript {
+  if (!edits?.boundaries?.length) return t
+
+  // registry (speakerId -> name/role) from the current derived segments
+  const reg = new Map<string, { name: string; role: string | null }>()
+  for (const s of t.segments) if (!reg.has(s.speakerId)) reg.set(s.speakerId, { name: s.speakerName, role: s.role ?? null })
+
+  const flat = t.segments.flatMap((s) => s.words.map((w) => ({ w, speakerId: s.speakerId })))
+  const bounds = [...edits.boundaries].sort((a, b) => a.atWordIndex - b.atWordIndex)
+
+  const speakerAt = (i: number): string => {
+    let sid = flat[i]?.speakerId ?? 's0'
+    for (const b of bounds) {
+      if (b.atWordIndex <= i) sid = b.speakerId
+      else break
+    }
+    return sid
+  }
+
+  const segments: TranscriptSegment[] = []
+  let cur: TranscriptSegment | null = null
+  for (let i = 0; i < flat.length; i++) {
+    const sid = speakerAt(i)
+    const w = flat[i].w
+    if (!cur || cur.speakerId !== sid) {
+      if (cur) segments.push(cur)
+      const meta = reg.get(sid)
+      cur = {
+        id: `seg-${segments.length}`,
+        speakerId: sid,
+        speakerName: meta?.name ?? 'דובר',
+        role: meta?.role ?? null,
+        words: [],
+        start: w.start,
+        end: w.end,
+      }
+    }
+    cur.words.push(w)
+    cur.end = w.end
+  }
+  if (cur) segments.push(cur)
+  return { segments, durationSec: t.durationSec, hasWordTimings: t.hasWordTimings }
+}
+
 export interface FlatWord extends TimedWord {
   segmentIndex: number
   wordIndex: number

@@ -2,7 +2,8 @@ import path from 'node:path'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getCompanyByTicker } from '@/lib/db/companies'
 import { loadRecallTranscript } from './recallAdapter'
-import type { TranscriptSegment, WordTimedTranscript, IvritSegment } from './syncEngine'
+import { applySpeakerEdits } from './syncEngine'
+import type { TranscriptSegment, WordTimedTranscript, IvritSegment, SpeakerEdits } from './syncEngine'
 import type { Transcript } from '@/lib/types'
 import { DEMO_LIVE_CALL } from '@/data/demo/liveCall'
 
@@ -152,7 +153,7 @@ function buildFromIvritWithGeminiNames(
 export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
   const { data } = await supabaseAdmin
     .from('transcripts')
-    .select('id, formatted_data, duration, company_id, audio_url, word_segments, speaker_names')
+    .select('id, formatted_data, duration, company_id, audio_url, word_segments, speaker_names, speaker_edits')
     .eq('id', id)
     .maybeSingle()
   if (!data?.formatted_data) return null
@@ -160,6 +161,7 @@ export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
   const audioUrl = (data.audio_url as string) ?? null
   const wordSegs = (data.word_segments as IvritSegment[] | null) ?? null
   const overrides = (data.speaker_names as Record<string, string> | null) ?? {}
+  const edits = (data.speaker_edits as SpeakerEdits | null) ?? null // manual diarization overlay (Feature 1)
 
   const meta = {
     id,
@@ -177,10 +179,10 @@ export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
   // (relabel only; word timings untouched); fall back to anonymous diarization labels.
   if (audioUrl && wordSegs && wordSegs.length) {
     const hasGemini = (fd.sections?.flatMap((s) => s.lines) ?? []).length > 0
-    const transcript = hasGemini
+    const built = hasGemini
       ? buildFromIvritWithGeminiNames(wordSegs, fd, overrides)
       : buildFromIvrit(wordSegs, overrides)
-    return { ...meta, audioUrl, transcript }
+    return { ...meta, audioUrl, transcript: applySpeakerEdits(built, edits) }
   }
 
   const nameOf = (sid: string) => overrides[sid] ?? fd.speakers?.find((s) => s.id === sid)?.name ?? 'Speaker'
@@ -216,6 +218,6 @@ export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
     isLive: false,
     audioUrl: null,
     companyId: (data.company_id as string) ?? null,
-    transcript: { segments, durationSec, hasWordTimings: false },
+    transcript: applySpeakerEdits({ segments, durationSec, hasWordTimings: false }, edits),
   }
 }

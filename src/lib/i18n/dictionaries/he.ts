@@ -148,6 +148,9 @@ export const he: Dictionary = {
     returnToTranscript: 'חזרה לתמלול',
     askAboutQuote: 'שאלו על הקטע',
     askAboutQuoteHint: 'שאלו כל דבר על הקטע שסימנתם — השמע ממשיך לנגן.',
+    editSpeakers: 'עריכת דוברים',
+    editSpeakersHint: 'סמנו טקסט כדי לשייך אותו לדובר',
+    assignToSpeaker: 'שיוך לדובר',
   },
   player: {
     rewind15: '15 שניות אחורה',

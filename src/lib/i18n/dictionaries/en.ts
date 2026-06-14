@@ -149,6 +149,9 @@ export const en = {
     returnToTranscript: 'Return to transcript',
     askAboutQuote: 'Ask about this',
     askAboutQuoteHint: 'Ask anything about the excerpt you highlighted — the audio keeps playing.',
+    editSpeakers: 'Edit speakers',
+    editSpeakersHint: 'Select text to reassign it to a speaker',
+    assignToSpeaker: 'Assign to speaker',
   },
   player: {
     rewind15: 'Back 15s',
