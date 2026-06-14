@@ -147,6 +147,8 @@ export const en = {
     speakers: 'Speakers',
     liveNowShort: 'Live',
     returnToTranscript: 'Return to transcript',
+    askAboutQuote: 'Ask about this',
+    askAboutQuoteHint: 'Ask anything about the excerpt you highlighted — the audio keeps playing.',
   },
   player: {
     rewind15: 'Back 15s',

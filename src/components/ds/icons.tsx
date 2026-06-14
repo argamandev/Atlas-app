@@ -139,6 +139,9 @@ export const FolderIcon = (p: IconProps) => (
 export const FolderPlusIcon = (p: IconProps) => (
   <Base {...p}><path d="M3.5 7a2 2 0 012-2h2.8a2 2 0 011.4.6L11 7h7.5a2 2 0 012 2v7a2 2 0 01-2 2h-13a2 2 0 01-2-2z" /><path d="M12 10.5v4M10 12.5h4" /></Base>
 )
+export const StarIcon = (p: IconProps) => (
+  <Base {...p}><path d="M12 3.6l2.6 5.27 5.82.85-4.21 4.1.99 5.8L12 17.9l-5.2 2.72.99-5.8-4.21-4.1 5.82-.85z" /></Base>
+)
 
 // ── media player ──
 export const PlayIcon = (p: IconProps) => (

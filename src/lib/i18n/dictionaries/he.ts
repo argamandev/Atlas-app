@@ -146,6 +146,8 @@ export const he: Dictionary = {
     speakers: 'דוברים',
     liveNowShort: 'משודר',
     returnToTranscript: 'חזרה לתמלול',
+    askAboutQuote: 'שאלו על הקטע',
+    askAboutQuoteHint: 'שאלו כל דבר על הקטע שסימנתם — השמע ממשיך לנגן.',
   },
   player: {
     rewind15: '15 שניות אחורה',

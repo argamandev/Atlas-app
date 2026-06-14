@@ -18,11 +18,13 @@ import {
   SearchIcon,
   QuoteIcon,
   ShareIcon,
+  StarIcon,
   PlayIcon,
   PauseIcon,
 } from '@/components/ds/icons'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
+import { TranscriptChatPanel } from './TranscriptChatPanel'
 import { usePlayer, usePlayerTime } from '@/lib/player/PlayerProvider'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { findMatches } from '@/lib/live/search'
@@ -61,6 +63,8 @@ export function LiveTranscriptView({
   >(null)
   const [query, setQuery] = useState('')
   const [matchPos, setMatchPos] = useState(0)
+  // in-transcript side chat (Feature 6): open + the seeded quote + a nonce so re-starring re-seeds
+  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({ open: false, seed: '', nonce: 0 })
 
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, effTime), [flat, effTime])
@@ -239,15 +243,18 @@ export function LiveTranscriptView({
 
   return (
     <div className="flex h-full min-h-0 flex-1">
-      {/* context panel — chapters/sections + speakers (RTL Hebrew) */}
-      <TranscriptSidePanel
-        transcript={call.transcript}
-        activeSegmentIndex={activeSegmentIndex}
-        onSeek={seek}
-        companyName={name}
-        sub={[call.quarter, formatDate(call.date, locale)].filter(Boolean).join(' · ')}
-        isLive={call.isLive}
-      />
+      {/* context panel — chapters/sections + speakers (RTL Hebrew). Hidden while the
+          in-transcript chat is open, to give the transcript + chat room. */}
+      {!chat.open && (
+        <TranscriptSidePanel
+          transcript={call.transcript}
+          activeSegmentIndex={activeSegmentIndex}
+          onSeek={seek}
+          companyName={name}
+          sub={[call.quarter, formatDate(call.date, locale)].filter(Boolean).join(' · ')}
+          isLive={call.isLive}
+        />
+      )}
 
       {/* main column — header, tabs, transcript (the player is now the global docked bar) */}
       <div className="relative flex min-w-0 flex-1 flex-col">
@@ -411,6 +418,19 @@ export function LiveTranscriptView({
               <ShareIcon size={13} />
               {dict.common.share}
             </button>
+            <span className="h-4 w-px bg-white/15" />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 }))
+                setSelection(null)
+              }}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+            >
+              <StarIcon size={13} />
+              {dict.live.askAboutQuote}
+            </button>
           </div>
         )}
 
@@ -432,6 +452,17 @@ export function LiveTranscriptView({
           </div>
         )}
       </div>
+
+      {/* in-transcript side chat (Feature 6) — opens beside the transcript; audio keeps playing */}
+      {chat.open && (
+        <TranscriptChatPanel
+          companyId={call.companyId}
+          transcriptId={call.id === 'demo' ? undefined : call.id}
+          quote={chat.seed}
+          seedNonce={chat.nonce}
+          onClose={() => setChat((c) => ({ ...c, open: false }))}
+        />
+      )}
     </div>
   )
 }

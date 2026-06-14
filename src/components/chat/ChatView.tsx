@@ -10,6 +10,7 @@ import { ChatHistory } from './ChatHistory'
 import { MentionDropdown } from './MentionDropdown'
 import { CitationChip } from './CitationPopover'
 import { Typewriter } from './Typewriter'
+import { ThinkingDots } from './ThinkingDots'
 import { Logo } from '@/components/ds/Logo'
 import { QuoteIcon, CloseIcon } from '@/components/ds/icons'
 import { streamChat, type ChatSource } from '@/lib/api/chat'
@@ -22,21 +23,6 @@ interface Msg {
   source?: ChatSource | null
   /** true while tokens are still streaming in from the model (caret shown) */
   streaming?: boolean
-}
-
-// Pre-first-token "thinking" indicator — three staggered bouncing dots.
-function ThinkingDots() {
-  return (
-    <span className="inline-flex items-center gap-1 py-1.5" aria-label="thinking">
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-faint"
-          style={{ animationDelay: `${i * 0.15}s` }}
-        />
-      ))}
-    </span>
-  )
 }
 
 export function ChatView({
