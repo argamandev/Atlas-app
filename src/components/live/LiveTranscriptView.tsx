@@ -18,9 +18,7 @@ import {
   SearchIcon,
   QuoteIcon,
   ShareIcon,
-  StarIcon,
   PencilIcon,
-  CheckIcon,
   PlayIcon,
   PauseIcon,
 } from '@/components/ds/icons'
@@ -212,6 +210,13 @@ export function LiveTranscriptView({
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     const text = sel?.toString().trim() ?? ''
     if (!text || !sel || sel.rangeCount === 0) {
+      setSelection(null)
+      return
+    }
+    // If the side chat is already open, drop the highlight straight into the chat input as a
+    // reference (no popup, no extra clicks) — Claude-style. Edit mode still uses the popup.
+    if (chat.open && !editMode) {
+      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1 }))
       setSelection(null)
       return
     }
@@ -511,7 +516,7 @@ export function LiveTranscriptView({
               }}
               className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
             >
-              <StarIcon size={13} />
+              <SparkleIcon size={14} />
                 {dict.live.askAboutQuote}
               </button>
             </div>

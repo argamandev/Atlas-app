@@ -11,6 +11,7 @@ import { MentionDropdown } from './MentionDropdown'
 import { CitationChip } from './CitationPopover'
 import { Typewriter } from './Typewriter'
 import { ThinkingDots } from './ThinkingDots'
+import { Markdown } from './Markdown'
 import { Logo } from '@/components/ds/Logo'
 import { QuoteIcon, CloseIcon } from '@/components/ds/icons'
 import { streamChat, type ChatSource } from '@/lib/api/chat'
@@ -229,11 +230,14 @@ export function ChatView({
               <div key={i} className="animate-fade-in text-[15px] leading-relaxed text-ink">
                 {m.streaming && !m.content ? (
                   <ThinkingDots />
-                ) : (
+                ) : m.streaming ? (
+                  // stream as plain text (fast, no reflow) — render polished markdown once settled
                   <p dir="auto" className="whitespace-pre-wrap">
                     {m.content}
-                    {m.streaming && <span className="caret" />}
+                    <span className="caret" />
                   </p>
+                ) : (
+                  <Markdown content={m.content} />
                 )}
                 {m.source && !m.streaming && <CitationChip source={m.source} />}
               </div>

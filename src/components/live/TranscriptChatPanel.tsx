@@ -6,14 +6,18 @@ import { streamChat, type ChatSource } from '@/lib/api/chat'
 import { CitationChip } from '@/components/chat/CitationPopover'
 import { ChatComposer } from '@/components/chat/ChatComposer'
 import { ThinkingDots } from '@/components/chat/ThinkingDots'
+import { Markdown } from '@/components/chat/Markdown'
 import { SparkleIcon, CloseIcon, QuoteIcon } from '@/components/ds/icons'
 
-// In-transcript side chat (Feature 6). Opens beside the transcript when the user stars a
-// selection; the transcript stays visible and the (global) audio keeps playing. Seeded with
-// the selected quote + the call's company/transcript so the user can ask about that excerpt.
+// In-transcript side chat (Feature 6, refined). Opens beside the transcript; the transcript
+// stays visible and the global audio keeps playing. While it's open, highlighting transcript
+// text auto-populates a *reference block above the composer* (Claude-style) — the user just
+// types their question. On send, the reference becomes part of that message (shown in its
+// bubble), so a new highlight never clobbers earlier context; history reads top-to-bottom.
 interface Msg {
   role: 'user' | 'assistant'
   content: string
+  reference?: string
   source?: ChatSource | null
   streaming?: boolean
 }
@@ -28,7 +32,7 @@ export function TranscriptChatPanel({
   companyId: string | null
   transcriptId: string | undefined
   quote: string
-  /** bumps every time a new selection is starred, so the seed re-applies */
+  /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
   onClose: () => void
 }) {
@@ -36,13 +40,13 @@ export function TranscriptChatPanel({
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [activeQuote, setActiveQuote] = useState<string>(quote)
+  const [ref, setRef] = useState<string>(quote) // the pending reference shown above the composer
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // re-seed the grounding quote whenever a fresh selection is starred
+  // a fresh selection (star, or any highlight while open) → set it as the pending reference
   useEffect(() => {
-    setActiveQuote(quote)
+    if (quote) setRef(quote)
     inputRef.current?.focus()
   }, [seedNonce, quote])
 
@@ -55,13 +59,16 @@ export function TranscriptChatPanel({
   async function send(explicit?: string) {
     const text = (explicit ?? input).trim()
     if (!text || sending) return
+    const usedRef = ref.trim()
     const history = messages.map((m) => ({ role: m.role, content: m.content }))
-    const apiMessage = activeQuote
-      ? `Regarding this quote from the investor call: "${activeQuote}"\n\n${text}`
-      : text
-    setMessages((prev) => [...prev, { role: 'user', content: text }, { role: 'assistant', content: '', streaming: true }])
+    const apiMessage = usedRef ? `Regarding this quote from the investor call: "${usedRef}"\n\n${text}` : text
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: text, reference: usedRef || undefined },
+      { role: 'assistant', content: '', streaming: true },
+    ])
     setInput('')
-    setActiveQuote('')
+    setRef('')
     setSending(true)
 
     const setLast = (patch: Partial<Msg>) =>
@@ -108,25 +115,22 @@ export function TranscriptChatPanel({
       </header>
 
       <div ref={scrollRef} className="app-scroll flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        {/* the seeded quote context */}
-        {activeQuote && (
-          <div className="animate-fade-up rounded-card bg-canvas p-3 shadow-card">
-            <div className="mb-1 flex items-center gap-1.5 text-2xs font-medium text-ink-faint">
-              <QuoteIcon size={12} />
-              {dict.chat.referringTo}
-            </div>
-            <p dir="auto" className="text-sm leading-relaxed text-ink">
-              “{activeQuote}”
-            </p>
-          </div>
-        )}
         {messages.length === 0 && (
           <p className="px-1 text-sm leading-relaxed text-ink-faint">{dict.live.askAboutQuoteHint}</p>
         )}
         {messages.map((m, i) =>
           m.role === 'user' ? (
-            <div key={i} className="flex animate-fade-up">
-              <div dir="auto" className="ml-auto max-w-[90%] rounded-bubble bg-subtle px-3.5 py-2 text-sm leading-relaxed text-ink">
+            <div key={i} className="flex animate-fade-up flex-col items-end gap-1">
+              {m.reference && (
+                <div dir="auto" className="max-w-[92%] rounded-card bg-canvas px-3 py-2 shadow-card">
+                  <div className="mb-0.5 flex items-center gap-1 text-2xs font-medium text-ink-faint">
+                    <QuoteIcon size={11} />
+                    {dict.chat.referringTo}
+                  </div>
+                  <p className="line-clamp-3 text-xs leading-relaxed text-ink-muted">“{m.reference}”</p>
+                </div>
+              )}
+              <div dir="auto" className="max-w-[92%] rounded-bubble bg-subtle px-3.5 py-2 text-sm leading-relaxed text-ink">
                 {m.content}
               </div>
             </div>
@@ -134,11 +138,13 @@ export function TranscriptChatPanel({
             <div key={i} className="animate-fade-in text-sm leading-relaxed text-ink">
               {m.streaming && !m.content ? (
                 <ThinkingDots />
-              ) : (
+              ) : m.streaming ? (
                 <p dir="auto" className="whitespace-pre-wrap">
                   {m.content}
-                  {m.streaming && <span className="caret" />}
+                  <span className="caret" />
                 </p>
+              ) : (
+                <Markdown content={m.content} />
               )}
               {m.source && !m.streaming && <CitationChip source={m.source} />}
             </div>
@@ -147,6 +153,21 @@ export function TranscriptChatPanel({
       </div>
 
       <div className="border-t border-hairline p-3">
+        {/* pending reference — sits at the BOTTOM, above the composer; removable */}
+        {ref && (
+          <div dir="auto" className="mb-2 flex items-start gap-2 rounded-card bg-canvas p-2.5 shadow-card animate-fade-up">
+            <QuoteIcon size={12} className="mt-0.5 shrink-0 text-ink-faint" />
+            <p className="line-clamp-2 flex-1 text-xs leading-relaxed text-ink-muted">“{ref}”</p>
+            <button
+              type="button"
+              onClick={() => setRef('')}
+              aria-label={dict.common.close}
+              className="shrink-0 text-ink-faint transition-colors hover:text-ink"
+            >
+              <CloseIcon size={13} />
+            </button>
+          </div>
+        )}
         <ChatComposer inputRef={inputRef} value={input} onChange={setInput} onSend={send} onAt={() => {}} />
       </div>
     </aside>
