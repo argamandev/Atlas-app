@@ -3,7 +3,7 @@ import type { Dictionary } from './en'
 // Hebrew UI strings. Typed as Dictionary, so it must stay in lockstep with en.ts.
 export const he: Dictionary = {
   common: {
-    brand: 'תמלול',
+    brand: 'אטלס',
     menu: 'תפריט',
     search: 'חיפוש',
     loading: 'טוען…',
@@ -72,8 +72,8 @@ export const he: Dictionary = {
   chat: {
     title: "צ'אט",
     chats: 'שיחות',
-    subhead: 'שאלו כל דבר על שיחות המשקיעים והדיווחים של חברה.',
-    askAnything: 'שאלו כל דבר',
+    subhead: 'שאלו את אטלס כל דבר על שיחות המשקיעים והדיווחים של חברה.',
+    askAnything: 'שאלו את אטלס…',
     history: 'היסטוריה',
     newChat: 'שיחה חדשה',
     myAgents: 'הסוכנים שלי',
@@ -146,7 +146,7 @@ export const he: Dictionary = {
     speakers: 'דוברים',
     liveNowShort: 'משודר',
     returnToTranscript: 'חזרה לתמלול',
-    askAboutQuote: 'שאלו על הקטע',
+    askAboutQuote: 'שאלו את אטלס',
     askAboutQuoteHint: 'שאלו כל דבר על הקטע שסימנתם — השמע ממשיך לנגן.',
     editSpeakers: 'עריכת דוברים',
     editSpeakersHint: 'סמנו טקסט כדי לשייך אותו לדובר',

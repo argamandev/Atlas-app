@@ -2,6 +2,11 @@
 
 Project memory for Claude. Read this first every session.
 
+> **Brand (2026-06-15):** the product is now **Atlas** (Hebrew UI: **אטלס**), rebranded from
+> תמלול/Timlul across the **V1 app (`/app/*`)** only. The legacy root product and the
+> `timlul-ai.com` domain still carry the old name. Note: "תמלול" throughout this file is
+> historical *and* the everyday Hebrew noun for "transcript" — only brand-name uses were renamed.
+
 ## What this is — the big vision
 
 **תמלול** is building the best product for the Israeli public market and its financial
@@ -115,6 +120,16 @@ hairline border (NOT the earlier grey "sleeve"/puffy card), with the excerpt wra
 opening and a closing quote**. *These changes are in the working tree, not yet committed.*
 **Known open item (parked):** Hebrew inside a markdown **table** still aligns left instead of hugging
 the right — to revisit later.
+
+**Update (2026-06-15, rebrand → Atlas):** Product rebranded תמלול/Timlul → **Atlas** (Hebrew UI:
+**אטלס**) across the **V1 app only**. Wordmark = the real logo image via the `BrandWordmark` DS
+component (trimmed transparent PNG used as a `currentColor` CSS mask → ink on light, light on dark);
+favicon traced from the logo's actual "A" glyph (`scripts/prep-brand-assets.mjs` → `src/app/icon.png`);
+locale-aware `<title>`; and Atlas now has a **voice** in chat ("Ask Atlas…" placeholder, "Ask Atlas"
+highlight action, "You are Atlas…" prompt). **Colors untouched.** Renamed brand-name uses only — never
+the Hebrew noun תמלול ("transcript"). See PROGRESS.md. **Parked (revisit later):** chat visuals/UX +
+the Atlas name context keep evolving, and the **in-transcript side-chat** gets its own visual + naming
+pass (Atlas will fit there perfectly) — deferred while we build bigger features.
 
 ## Stack
 

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Timlul V1 design tokens — the single source of truth for the light, near-
+// Atlas V1 design tokens — the single source of truth for the light, near-
 // monochrome, macOS-feel visual system (Quartr-style). Consumed by tailwind.config.ts
 // so every component pulls from here; NO ad-hoc hex / radius / shadow inline anywhere.
 //

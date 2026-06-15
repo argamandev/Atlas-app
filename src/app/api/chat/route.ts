@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const ctx = await getChatContext(companyId, transcriptId)
 
   const system =
-    'You are Timlul, a research assistant for Israeli public-company investor calls. ' +
+    'You are Atlas, a research assistant for Israeli public-company investor calls. ' +
     'Answer the user using the transcript context below when relevant, and cite the speaker by name. ' +
     'If the answer is not in the transcript, say so plainly rather than inventing facts. ' +
     'When the user asks for a comparison or a list, use a clean Markdown table. ' +

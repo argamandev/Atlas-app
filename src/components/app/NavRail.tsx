@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { cn } from '@/lib/utils'
 import { selectionClasses } from '@/components/ds/SelectableRow'
+import { BrandWordmark } from '@/components/ds/BrandWordmark'
 import {
   HomeIcon,
   CalendarIcon,
@@ -61,11 +62,20 @@ export function NavRail() {
         collapsed ? 'w-[60px]' : 'w-[230px]',
       )}
     >
-      {/* brand wordmark (logo TBD) */}
-      <Link href="/app/home" className={cn('mb-3 flex items-center px-1.5 py-1', collapsed ? 'justify-center' : 'gap-2')}>
-        <span className="text-[15px] font-bold tracking-tight text-ink">
-          {collapsed ? dict.common.brand.slice(0, 1) : dict.common.brand}
-        </span>
+      {/* brand wordmark — the real Atlas logo, recolored to ink via currentColor.
+          Collapsed rail shows a serif "A" monogram echoing the wordmark. */}
+      <Link
+        href="/app/home"
+        aria-label={dict.common.brand}
+        className={cn('mb-3 flex items-center px-1.5 py-1', collapsed ? 'justify-center' : 'gap-2')}
+      >
+        {collapsed ? (
+          <span className="text-[18px] font-semibold leading-none text-ink" style={{ fontFamily: "'Times New Roman', Georgia, serif" }}>
+            A
+          </span>
+        ) : (
+          <BrandWordmark height={18} className="text-ink" />
+        )}
       </Link>
 
       {/* quick access (⌘K) — stub */}

@@ -1,10 +1,10 @@
 // English UI strings (default locale). The shape of this object IS the Dictionary type;
 // he.ts must match it exactly, so adding a key here forces a Hebrew translation.
 //
-// NOTE: `brand` is a best-guess romanization of תמלול — confirm the English brand name.
+// NOTE: `brand` is the product name — "Atlas" (Hebrew UI shows the transliteration אטלס).
 export const en = {
   common: {
-    brand: 'Timlul',
+    brand: 'Atlas',
     menu: 'Menu',
     search: 'Search',
     loading: 'Loading…',
@@ -73,8 +73,8 @@ export const en = {
   chat: {
     title: 'Chat',
     chats: 'Chats',
-    subhead: 'Ask anything about a company’s investor calls and filings.',
-    askAnything: 'Ask anything',
+    subhead: 'Ask Atlas anything about a company’s investor calls and filings.',
+    askAnything: 'Ask Atlas…',
     history: 'History',
     newChat: 'New chat',
     myAgents: 'My Agents',
@@ -147,7 +147,7 @@ export const en = {
     speakers: 'Speakers',
     liveNowShort: 'Live',
     returnToTranscript: 'Return to transcript',
-    askAboutQuote: 'Ask about this',
+    askAboutQuote: 'Ask Atlas',
     askAboutQuoteHint: 'Ask anything about the excerpt you highlighted — the audio keeps playing.',
     editSpeakers: 'Edit speakers',
     editSpeakersHint: 'Select text to reassign it to a speaker',

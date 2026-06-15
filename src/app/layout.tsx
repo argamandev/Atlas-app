@@ -5,9 +5,13 @@ import { getDictionary } from '@/lib/i18n/dictionaries'
 import { getDirection } from '@/lib/i18n/config'
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider'
 
-export const metadata: Metadata = {
-  title: 'תמלול',
-  description: 'Institutional-grade investor call intelligence.',
+export function generateMetadata(): Metadata {
+  // Latin "Atlas" in English UI; Hebrew transliteration אטלס in the Hebrew UI.
+  const locale = getLocale()
+  return {
+    title: locale === 'he' ? 'אטלס' : 'Atlas',
+    description: 'Institutional-grade investor call intelligence.',
+  }
 }
 
 export default function RootLayout({

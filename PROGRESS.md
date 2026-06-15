@@ -5,6 +5,40 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-15 — Rebrand → **Atlas** (name + logo across the V1 app)
+
+- **New product name: Atlas** (Latin serif wordmark), replacing תמלול / Timlul. Founder
+  decisions: **Latin "Atlas" via the real logo image**; **Hebrew UI shows the transliteration
+  אטלס** (English UI = "Atlas"); **scope = V1 app (`/app/*`) only** — the legacy root product
+  keeps the old name. **Colors untouched** (explicit founder constraint — the warm, near-mono V1
+  palette already matches the logo's cream/dark-serif world).
+- **Critical nuance honored**: in Hebrew, תמלול is *also* the noun "transcript" (`transcript:`,
+  `חזרה לתמלול`, the hero, etc.). Renamed **only the brand-name uses** (`common.brand`, metadata
+  title, chat assistant name), never the noun — a blind find-replace would have broken the product
+  vocabulary.
+- **Logo asset, zero new deps**: `scripts/prep-brand-assets.mjs` (pure Node zlib — no sharp/
+  ImageMagick/ffmpeg available) decodes the transparent wordmark, trims the heavy internal padding
+  to the glyph bbox (645×296 → **398×135**), re-encodes → `public/brand/atlas-wordmark.png`. New
+  `BrandWordmark` DS component renders it as a **CSS mask filled with `currentColor`** → ink on
+  light surfaces, light on dark, transparent on any background, crisp at any size. `NavRail` uses it
+  (expanded) + a serif "A" monogram (collapsed). Added a favicon (`src/app/icon.png`) — the
+  wordmark's **actual "A" glyph** traced by the same script (bilinear-scaled, ink on a rounded cream
+  tile); there was none before.
+- **Atlas voice / identity** (founder goal: "give the product real character, like Claude"): chat
+  subhead → "**Ask Atlas** anything about a company's investor calls and filings."; highlight-to-ask
+  button → "**Ask Atlas**" (was "Ask about this"); composer placeholder → "**Ask Atlas…**"; system
+  prompt → "You are **Atlas**…".
+- **Verified**: `tsc` clean + `next build` green (22/22) + offline composite preview of the wordmark
+  on panel/white/dark surfaces + `next dev` smoke (`/app/home` 200, `/icon.png` 200). **Committed and
+  fast-forward-merged to `main`, pushed to origin.**
+- **Parked (revisit later — founder call)**: chat visuals + UX and the Atlas name/voice context will
+  keep evolving as the product grows; the **in-transcript side-chat** gets a dedicated visual + naming
+  pass (Atlas fits there perfectly). Deferred now to build bigger features. Also intentionally left
+  out of git: the untracked `תמיס/` (8.3 MB report PDF) and `Product Reference/` design refs — decide
+  if/how to store those (repo vs. external/LFS).
+
+---
+
 ## 2026-06-15 — Chat polish (RTL output + reference composer → native Claude look)
 
 - **Status**: chat logic + conversation are **starting to get good** — streaming, markdown, RTL
