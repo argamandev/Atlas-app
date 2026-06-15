@@ -8,6 +8,7 @@ import { ChatComposer } from '@/components/chat/ChatComposer'
 import { ThinkingDots } from '@/components/chat/ThinkingDots'
 import { Markdown } from '@/components/chat/Markdown'
 import { SparkleIcon, CloseIcon, QuoteIcon } from '@/components/ds/icons'
+import { detectDir } from '@/lib/utils'
 
 // In-transcript side chat (Feature 6, refined). Opens beside the transcript; the transcript
 // stays visible and the global audio keeps playing. While it's open, highlighting transcript
@@ -122,12 +123,18 @@ export function TranscriptChatPanel({
           m.role === 'user' ? (
             <div key={i} className="flex animate-fade-up flex-col items-end gap-1">
               {m.reference && (
-                <div dir="auto" className="max-w-[92%] rounded-card bg-canvas px-3 py-2 shadow-card">
-                  <div className="mb-0.5 flex items-center gap-1 text-2xs font-medium text-ink-faint">
+                // Flat, Claude-style reference attachment: soft #f8f7f2 fill (matches the
+                // composer's reference header), a 1px hairline, an 8px radius — no shadow, no
+                // bubble. The quote text obeys content direction so Hebrew reads RTL.
+                <div
+                  dir={detectDir(m.reference)}
+                  className="max-w-[92%] rounded-[8px] border border-[#e5e5e5] bg-[#f8f7f2] px-3 py-2"
+                >
+                  <div className="mb-1 flex items-center gap-1.5 text-2xs font-medium text-ink-faint">
                     <QuoteIcon size={11} />
                     {dict.chat.referringTo}
                   </div>
-                  <p className="line-clamp-3 text-xs leading-relaxed text-ink-muted">“{m.reference}”</p>
+                  <p className="line-clamp-3 text-xs leading-relaxed text-ink-muted">{m.reference}</p>
                 </div>
               )}
               <div dir="auto" className="max-w-[92%] rounded-bubble bg-subtle px-3.5 py-2 text-sm leading-relaxed text-ink">

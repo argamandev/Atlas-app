@@ -81,6 +81,19 @@ export function quarterSortKey(quarter: string | undefined | null): number {
   return year * 10 + q
 }
 
+// Pick text direction from content rather than the unreliable `dir="auto"` (which only
+// inspects the first strong character — so a Hebrew reply that opens with a number, ticker,
+// or English word wrongly renders LTR, and its tables flip the wrong way). We count Hebrew
+// vs Latin letters: Hebrew-dominant → rtl, no Hebrew at all → ltr. Used by the chat output
+// (assistant markdown, reference blocks) so Hebrew reads right-to-left and English stays LTR.
+export function detectDir(text: string | null | undefined): 'rtl' | 'ltr' {
+  if (!text) return 'rtl' // the product is Hebrew-native; default RTL when there's nothing to weigh
+  const hebrew = (text.match(/[֐-׿]/g) || []).length
+  if (hebrew === 0) return 'ltr'
+  const latin = (text.match(/[A-Za-z]/g) || []).length
+  return hebrew >= latin ? 'rtl' : 'ltr'
+}
+
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleDateString('he-IL', {

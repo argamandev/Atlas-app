@@ -5,6 +5,30 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-15 — Chat polish (RTL output + reference composer → native Claude look)
+
+- **Status**: chat logic + conversation are **starting to get good** — streaming, markdown, RTL
+  output and the quote→chat reference flow work; the assistant feels real, not a thin wrapper.
+  **The chat interface looks okay right now**; it'll be **better shaped later and adjusted to match
+  Claude's interface** more precisely. Changes are in the working tree, **not yet committed**.
+- **Shipped this session**: dynamic RTL on chat output (content-driven `detectDir`, not `dir="auto"`);
+  `<br>`-in-table-cell rendering via a tiny self-contained remark plugin (no new dep, only touches
+  `<br>`); flattened the history reference block (`TranscriptChatPanel`).
+- **Reference composer — re-done to Claude's look**: a first pass went **too grey (`#EFEDE8`) and
+  too puffy** (rounded card floating in a grey sleeve); founder course-corrected against the real
+  reference (`Product Reference/refernce chat interface/side-chat-refernce.jpeg`). Now `ChatComposer`
+  is **flat, predominantly white**, with a **faint 1px hairline** dividing the reference row from the
+  input + a **thin outer hairline border**, and the excerpt wrapped in **both an opening and closing
+  quote**. Founder confirmed the row IS divider-separated. *Good-enough for now; finer Claude-match
+  to come.*
+- **Lesson logged** (memory `matching-design-references`): match a reference's real character
+  (Claude = flat/white/hairline/minimal, not grey/puffy) and **describe understanding + confirm
+  before implementing** visual changes.
+- **Parked (revisit later)**: Hebrew inside markdown **tables** still pins left instead of hugging
+  the right edge.
+
+---
+
 ## 2026-06-14 — Design pass + 4 features (player / streaming chat / side-chat / diarization)
 
 - **Design pass**: folded the Claude-Design look into the working product (no rebuild) — fade-up/

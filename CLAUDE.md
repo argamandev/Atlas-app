@@ -102,6 +102,20 @@ folded the Claude-Design look into the working product (refined sizing/motion/sh
   the transcript reassigns a selected run to a speaker. **My-Quotes folders** also added earlier
   (`quote_folders` table + `quotes.folder_id`). NEXT: **test the live feature on a real call**.
 
+**Update (2026-06-15, chat polish):** The chat logic + conversation are **starting to get good** —
+markdown rendering, streaming, RTL output and the quote-reference flow work and feel much closer to
+a real assistant. **Overall the chat interface looks okay right now** — it'll be **better shaped
+later and adjusted to match Claude's interface** more precisely. Done this session: dynamic
+content-driven RTL on chat output (`detectDir`, not `dir="auto"`); `<br>`-in-table-cell rendering
+(tiny self-contained remark plugin, only touches `<br>`, no new dep); flattened the history
+reference block (`TranscriptChatPanel`); and the `ChatComposer` reference state **re-done to the
+native Claude look** (`Product Reference/refernce chat interface/side-chat-refernce.jpeg`) — flat,
+predominantly white, a faint 1px hairline dividing the reference row from the input + a thin outer
+hairline border (NOT the earlier grey "sleeve"/puffy card), with the excerpt wrapped in **both an
+opening and a closing quote**. *These changes are in the working tree, not yet committed.*
+**Known open item (parked):** Hebrew inside a markdown **table** still aligns left instead of hugging
+the right — to revisit later.
+
 ## Stack
 
 - **Next.js 14 (App Router)** — server components + route handlers; TypeScript; deployed on **Railway**.

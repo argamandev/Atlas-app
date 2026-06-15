@@ -246,3 +246,7 @@
 .md th, .md td { border: 1px solid rgba(20, 18, 15, 0.1); padding: 7px 11px; text-align: start; vertical-align: top; }
 .md th { font-weight: 600; background: rgba(20, 18, 15, 0.035); color: #1b1b1a; }
 .md tr:nth-child(even) td { background: rgba(20, 18, 15, 0.018); }
+/* Tables don't inherit `direction` reliably once set to display:block, so pin it to the
+   wrapper's resolved direction — Hebrew puts the first column on the far right; English stays LTR. */
+.md[dir='rtl'] table { direction: rtl; }
+.md[dir='ltr'] table { direction: ltr; }
