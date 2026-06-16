@@ -180,6 +180,11 @@ NEXT: Phase 2B toolbar-on-live → 2C quote-anchor → 2D unified player.
 - **View/Edit**: `src/app/transcript/[id]/page.tsx` reads `formatted_data` directly via
   `supabaseAdmin`, renders `TranscriptEditor` (inline edit of company/quarter/speakers/lines +
   highlights, saved via `PUT /api/transcripts/[id]`).
+- **Admin delete/rename** (V1, admin-only via `profiles.role='admin'`): `DELETE /api/transcripts/[id]`
+  (nulls `scheduled_calls.transcript_id` — that FK has no cascade — deletes the row, quotes
+  auto-detach, best-effort removes the `audio-temp` object) and `PATCH /api/transcripts/[id]`
+  (renames the call: `formatted_data.company`/`quarter`). UI = `AdminCallControls` (pencil/trash)
+  beside each finished call in `CompanyView`'s Investor-Calls tab; the company page passes `isAdmin`.
 - **Transcription internals** (`src/lib/transcription.ts`):
   - `transcribeAudio` → IVRIT/RunPod primary, Whisper fallback.
   - `parseTitleMeta(videoTitle, today)` — synchronous regex: extracts company name + quarter from the
