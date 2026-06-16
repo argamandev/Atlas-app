@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   const { data: existingRows, error: selectErr } = await supabaseAdmin
     .from('transcripts')
-    .select('id, status, created_at')
+    .select('id, status, created_at, raw_transcript')
     .eq('id', videoId)
     .limit(1)
   const existing = existingRows?.[0] ?? null
@@ -118,10 +118,12 @@ export async function POST(req: NextRequest) {
       })
       return NextResponse.json({ id: videoId })
     }
-    // Reset failed records
+    // Reset failed records. If the transcript already exists, re-run formatting only
+    // (cheap — skips download + IVRIT). Otherwise restart the full pipeline.
+    const hasTranscript = !!existing.raw_transcript
     const { error: updateErr } = await supabaseAdmin
       .from('transcripts')
-      .update({ status: 'processing', processing_step: 'downloading', error_message: null })
+      .update({ status: 'processing', processing_step: hasTranscript ? 'formatting' : 'downloading', error_message: null })
       .eq('id', videoId)
     if (updateErr) {
       console.error('[POST] update failed:', updateErr)
@@ -148,9 +150,12 @@ export async function POST(req: NextRequest) {
     console.log(`[POST] inserted row for ${videoId}`)
   }
 
-  // Fire-and-forget
+  // Fire-and-forget. A failed/reset row that already has a transcript only needs
+  // reformatting; everything else runs the full pipeline. (force already returned above.)
+  const reformatOnly = !!existing && !!existing.raw_transcript
   setImmediate(() => {
-    runPipeline(videoId, url).catch(async (err: Error) => {
+    const run = reformatOnly ? reformatPipeline(videoId) : runPipeline(videoId, url)
+    run.catch(async (err: Error) => {
       console.error('[pipeline] FAILED:', err.message)
       await supabaseAdmin
         .from('transcripts')
@@ -199,7 +204,7 @@ async function runPipeline(videoId: string, url: string) {
 
     const { error: upd3err } = await supabaseAdmin
       .from('transcripts')
-      .update({ raw_transcript: rawText, processing_step: 'formatting' })
+      .update({ raw_transcript: rawText, word_segments: segments ?? null, audio_url: audioUrl ?? null, processing_step: 'formatting' })
       .eq('id', videoId)
       .select()
     if (upd3err) console.error(`[pipeline:${videoId}] update3 error:`, upd3err)
@@ -214,8 +219,6 @@ async function runPipeline(videoId: string, url: string) {
         formatted_data: formatted,
         status: 'completed',
         processing_step: 'completed',
-        audio_url: audioUrl ?? null,
-        word_segments: segments ?? null,
       })
       .eq('id', videoId)
       .select()
@@ -227,4 +230,32 @@ async function runPipeline(videoId: string, url: string) {
       fs.unlinkSync(audioPath)
     }
   }
+}
+
+// Re-run ONLY the formatting step on a row that already has a stored transcript.
+// Used when a call failed at formatting — skips download + IVRIT entirely.
+async function reformatPipeline(videoId: string) {
+  const t0 = Date.now()
+  console.log(`[reformat:${videoId}] start (skipping download + transcription)`)
+
+  const { data: row, error } = await supabaseAdmin
+    .from('transcripts')
+    .select('raw_transcript, youtube_title, word_segments')
+    .eq('id', videoId)
+    .single()
+  if (error || !row?.raw_transcript) {
+    throw new Error(`reformat: row ${videoId} has no raw_transcript (${error?.message ?? 'empty'})`)
+  }
+
+  const engine = row.word_segments ? 'ivrit' : 'whisper'
+  const formatted = await formatTranscript(row.raw_transcript as string, videoId, (row.youtube_title as string) ?? '', { engine })
+  formatted.processingSecs = Math.round((Date.now() - t0) / 1000)
+
+  const { error: updErr } = await supabaseAdmin
+    .from('transcripts')
+    .update({ formatted_data: formatted, status: 'completed', processing_step: 'completed' })
+    .eq('id', videoId)
+    .select()
+  if (updErr) console.error(`[reformat:${videoId}] update error:`, updErr)
+  console.log(`[reformat:${videoId}] DONE (${((Date.now() - t0) / 1000).toFixed(1)}s)`)
 }

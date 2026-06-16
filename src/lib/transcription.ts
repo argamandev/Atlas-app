@@ -15,7 +15,11 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY
 const RUNPOD_IVRIT_ENDPOINT_ID = process.env.RUNPOD_IVRIT_ENDPOINT_ID
 
-const IVRIT_MODEL = process.env.RUNPOD_IVRIT_MODEL || 'ivrit-ai/whisper-large-v3-turbo-ct2'
+const IVRIT_MODEL = process.env.RUNPOD_IVRIT_MODEL || 'ivrit-ai/whisper-large-v3-ct2'
+const IVRIT_FALLBACK_MODEL = 'ivrit-ai/whisper-large-v3-turbo-ct2'
+
+// OpenAI model used to format the transcript when Gemini is unavailable.
+const FORMAT_FALLBACK_MODEL = process.env.OPENAI_FORMAT_MODEL || 'gpt-4.1'
 
 // Speaker diarization for the live karaoke. Word-level sync does NOT depend on this —
 // set IVRIT_DIARIZE=false to drop speaker labels and show one continuous synced transcript.
@@ -137,11 +141,11 @@ async function uploadAudioToStorage(audioPath: string): Promise<{ publicUrl: str
 }
 
 // Submit one transcription job to the IVRIT/RunPod endpoint and poll to completion.
-async function runIvritJob(transcribeArgs: Record<string, unknown>): Promise<unknown> {
+async function runIvritJob(transcribeArgs: Record<string, unknown>, model: string): Promise<unknown> {
   const runRes = await fetch(`https://api.runpod.ai/v2/${RUNPOD_IVRIT_ENDPOINT_ID}/run`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${RUNPOD_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input: { model: IVRIT_MODEL, streaming: false, transcribe_args: transcribeArgs } }),
+    body: JSON.stringify({ input: { model, streaming: false, transcribe_args: transcribeArgs } }),
   })
   if (!runRes.ok) throw new Error(`RunPod submit failed ${runRes.status}: ${await runRes.text()}`)
   const { id: jobId } = (await runRes.json()) as { id: string }
@@ -236,11 +240,8 @@ function extractIvritText(output: unknown): string {
   return ''
 }
 
-async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; segments?: IvritSegment[]; audioUrl: string }> {
-  // Audio is uploaded to Storage AND kept (not deleted) so the live page can play it back.
-  const { publicUrl } = await uploadAudioToStorage(audioPath)
-  console.log(`[ivrit] uploaded audio (persisted), size: ${fs.statSync(audioPath).size} bytes`)
-
+// Run the rich→plain attempts against ONE model. Throws if both yield nothing.
+async function ivritTranscribeWithModel(publicUrl: string, model: string): Promise<{ text: string; segments?: IvritSegment[] }> {
   // Attempt 1: rich request — per-word timestamps (+ optional diarization). Drives the karaoke.
   try {
     const output = await runIvritJob({
@@ -248,26 +249,43 @@ async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; s
       language: 'he',
       ...(IVRIT_DIARIZE ? { diarize: true } : {}),
       output_options: { word_timestamps: true, extra_data: true },
-    })
-    console.log(`[ivrit] raw output (rich): ${JSON.stringify(output).slice(0, 800)}`)
+    }, model)
+    console.log(`[ivrit:${model}] raw output (rich): ${JSON.stringify(output).slice(0, 800)}`)
     const segments = parseIvritSegments(output)
     const text = segments.length ? segments.map((s) => s.text).join(' ').trim() : extractIvritText(output)
     const withWords = segments.filter((s) => s.words.length).length
     if (text) {
-      console.log(`[ivrit] rich done — ${text.length} chars, ${segments.length} segs, ${withWords} with word timings`)
-      return { text, segments: withWords ? segments : undefined, audioUrl: publicUrl }
+      console.log(`[ivrit:${model}] rich done — ${text.length} chars, ${segments.length} segs, ${withWords} with word timings`)
+      return { text, segments: withWords ? segments : undefined }
     }
-    console.warn('[ivrit] rich request returned no text — falling back to plain_text')
+    console.warn(`[ivrit:${model}] rich request returned no text — falling back to plain_text`)
   } catch (err) {
-    console.warn(`[ivrit] rich request failed — falling back to plain_text: ${(err as Error).message}`)
+    console.warn(`[ivrit:${model}] rich request failed — falling back to plain_text: ${(err as Error).message}`)
   }
 
   // Attempt 2 (safe fallback): the original plain-text request — never breaks existing transcription.
-  const output = await runIvritJob({ url: publicUrl, language: 'he', transcription: 'plain_text' })
+  const output = await runIvritJob({ url: publicUrl, language: 'he', transcription: 'plain_text' }, model)
   const text = extractIvritText(output)
   if (!text) throw new Error('IVRIT returned empty transcript')
-  console.log(`[ivrit] plain done — ${text.length} chars`)
-  return { text, audioUrl: publicUrl }
+  console.log(`[ivrit:${model}] plain done — ${text.length} chars`)
+  return { text }
+}
+
+async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; segments?: IvritSegment[]; audioUrl: string; model: string }> {
+  // Audio is uploaded to Storage AND kept (not deleted) so the live page can play it back.
+  const { publicUrl } = await uploadAudioToStorage(audioPath)
+  console.log(`[ivrit] uploaded audio (persisted), size: ${fs.statSync(audioPath).size} bytes`)
+
+  // Accurate model first; on failure retry once with the faster, proven turbo model.
+  try {
+    const { text, segments } = await ivritTranscribeWithModel(publicUrl, IVRIT_MODEL)
+    return { text, segments, audioUrl: publicUrl, model: IVRIT_MODEL }
+  } catch (err) {
+    if (IVRIT_MODEL === IVRIT_FALLBACK_MODEL) throw err
+    console.warn(`[ivrit] model ${IVRIT_MODEL} failed — retrying with ${IVRIT_FALLBACK_MODEL}: ${(err as Error).message}`)
+    const { text, segments } = await ivritTranscribeWithModel(publicUrl, IVRIT_FALLBACK_MODEL)
+    return { text, segments, audioUrl: publicUrl, model: IVRIT_FALLBACK_MODEL }
+  }
 }
 
 async function whisperTranscribe(audioPath: string): Promise<string> {
@@ -288,8 +306,8 @@ export async function transcribeAudio(audioPath: string): Promise<TranscriptionR
   if (RUNPOD_API_KEY && RUNPOD_IVRIT_ENDPOINT_ID) {
     try {
       console.log(`[transcribe] using IVRIT/RunPod (model: ${IVRIT_MODEL}, diarize: ${IVRIT_DIARIZE})`)
-      const { text, segments, audioUrl } = await transcribeWithIvrit(audioPath)
-      return { text, engine: 'ivrit', model: IVRIT_MODEL, segments, audioUrl }
+      const { text, segments, audioUrl, model } = await transcribeWithIvrit(audioPath)
+      return { text, engine: 'ivrit', model, segments, audioUrl }
     } catch (err) {
       console.error('[transcribe] IVRIT failed — falling back to Whisper:', (err as Error).message)
     }
@@ -346,12 +364,11 @@ function parseTitleMeta(videoTitle: string, today: string): {
   return { company: title, business: '', ticker: '', quarter, date: today, speakers: [] }
 }
 
-// Call Gemini 3.5 Flash with the company-aware formatting prompt (2 attempts)
-async function formatWithGeminiFlash(rawText: string, company: string, business: string): Promise<string> {
-  const GEMINI_KEY = process.env.GEMINI_API_KEY
-  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not set')
+// Shared formatting prompt. Gemini uses this verbatim (unchanged from before);
+// the GPT fallback appends one explicit-format line so parseGeminiOutput can read it.
+function buildFormatPrompt(rawText: string, company: string, business: string): string {
   const businessDesc = business ? `${business} company` : 'Israeli public company'
-  const prompt = `The text below is a raw IVRIT speech-to-text with no speaker labels. The speaker names are already in the text.
+  return `The text below is a raw IVRIT speech-to-text with no speaker labels. The speaker names are already in the text.
 
 your mission is to understand the context of the call, organize it beautifully with speaker names, paragraphs of each speaker and fix specific typos or wrong words based on the context you understand.
 
@@ -362,9 +379,18 @@ Don't rephrase and dont summorize!
 Just organize everything, fix specific words you are confident they are wrong based on the context!
 
 ${rawText}`
+}
 
+// Call Gemini 3.5 Flash with the company-aware formatting prompt.
+// Retries with exponential backoff so a transient 503/overload spike can clear.
+async function formatWithGeminiFlash(rawText: string, company: string, business: string): Promise<string> {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY
+  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY not set')
+  const prompt = buildFormatPrompt(rawText, company, business)
+
+  const backoffsMs = [5000, 15000, 40000] // waits BETWEEN the 4 attempts
   let lastErr: Error | undefined
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= 4; attempt++) {
     try {
       const res = await withTimeout(
         fetch(
@@ -392,17 +418,44 @@ ${rawText}`
       return text
     } catch (err) {
       lastErr = err as Error
-      if (attempt < 2) {
-        console.warn(`[format] Gemini attempt ${attempt} failed — retrying: ${lastErr.message}`)
-        await new Promise(r => setTimeout(r, 3000))
+      if (attempt < 4) {
+        const wait = backoffsMs[attempt - 1]
+        console.warn(`[format] Gemini attempt ${attempt} failed — retrying in ${wait / 1000}s: ${lastErr.message}`)
+        await new Promise(r => setTimeout(r, wait))
       }
     }
   }
   throw lastErr!
 }
 
+// Fallback formatter when Gemini is unavailable. Reuses OPENAI_API_KEY (already used by
+// the Whisper fallback). GPT-4.1 has 32k output tokens — comfortable for real calls.
+async function formatWithGPT(rawText: string, company: string, business: string): Promise<string> {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set')
+  const prompt = buildFormatPrompt(rawText, company, business) +
+    `\n\nFormat the result as Markdown: begin each speaker's turn with a header line "## <speaker name>" on its own line, followed by that speaker's paragraphs. Use the speaker names exactly as they appear in the text. Do not add any commentary before or after the transcript.`
+
+  const res = await withTimeout(
+    openai.chat.completions.create({
+      model: FORMAT_FALLBACK_MODEL,
+      max_tokens: 32768,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+    8 * 60 * 1000,
+    'GPT format'
+  )
+  const choice = res.choices[0]
+  if (choice?.finish_reason === 'length') {
+    throw new Error('GPT formatting truncated (finish_reason=length) — transcript too long for the fallback')
+  }
+  const text = choice?.message?.content ?? ''
+  if (!text) throw new Error('GPT returned empty response')
+  console.log(`[format] GPT (${FORMAT_FALLBACK_MODEL}) output: ${text.length} chars`)
+  return text
+}
+
 // Parse Gemini's markdown output (bold "**Name:**" or "## Name" headers) into structured lines
-function parseGeminiOutput(
+export function parseGeminiOutput(
   text: string,
   metaSpeakers: Array<{ name: string; role: string; title: string }>,
 ): { mgmtLines: Line[]; qaLines: Line[]; speakers: Speaker[] } {
@@ -495,12 +548,20 @@ export async function formatTranscript(
   console.log(`[format] meta — company: "${meta.company}"  quarter: "${meta.quarter}"`)
 
 
-  // Step 2: format and organize with Gemini 3.5 Flash
+  // Step 2: format and organize — Gemini 3.5 Flash, with a GPT-4.1 fallback if Gemini is down.
   console.log('[format] formatting with Gemini 3.5 Flash...')
-  const geminiOutput = await formatWithGeminiFlash(rawText, meta.company ?? '', meta.business ?? '')
+  let formattedMarkdown: string
+  try {
+    formattedMarkdown = await formatWithGeminiFlash(rawText, meta.company ?? '', meta.business ?? '')
+    console.log('[format] formatted via gemini')
+  } catch (gemErr) {
+    console.warn(`[format] Gemini failed after retries — falling back to ${FORMAT_FALLBACK_MODEL}: ${(gemErr as Error).message}`)
+    formattedMarkdown = await formatWithGPT(rawText, meta.company ?? '', meta.business ?? '')
+    console.log(`[format] formatted via ${FORMAT_FALLBACK_MODEL}`)
+  }
 
   // Step 3: parse into structured sections
-  const { mgmtLines, qaLines, speakers } = parseGeminiOutput(geminiOutput, meta.speakers ?? [])
+  const { mgmtLines, qaLines, speakers } = parseGeminiOutput(formattedMarkdown, meta.speakers ?? [])
 
   return buildTranscript(videoId, meta, today, now, speakers, mgmtLines, qaLines, opts)
 }
