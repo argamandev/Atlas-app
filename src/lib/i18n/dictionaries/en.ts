@@ -119,6 +119,9 @@ export const en = {
     removeFromFolder: 'Remove from folder',
     deleteFolder: 'Delete folder',
     emptyFolder: 'No quotes in this folder yet',
+    deleteConfirm: 'Delete this transcript? This cannot be undone.',
+    renameTitle: 'Title',
+    renameQuarter: 'Quarter (e.g. Q4 2025)',
   },
   live: {
     overview: 'Overview',

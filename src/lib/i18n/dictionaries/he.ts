@@ -118,6 +118,9 @@ export const he: Dictionary = {
     removeFromFolder: 'הסרה מהתיקייה',
     deleteFolder: 'מחיקת תיקייה',
     emptyFolder: 'אין ציטוטים בתיקייה זו עדיין',
+    deleteConfirm: 'למחוק את התמלול הזה? לא ניתן לבטל.',
+    renameTitle: 'כותרת',
+    renameQuarter: 'רבעון (לדוגמה Q4 2025)',
   },
   live: {
     overview: 'סקירה',

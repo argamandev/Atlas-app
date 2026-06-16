@@ -38,6 +38,7 @@ export default async function CompanyPage({
         quotes={quotes}
         folders={folders}
         initialTab={initialTab}
+        isAdmin={user.isAdmin}
       />
     </AppPage>
   )

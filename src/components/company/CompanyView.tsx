@@ -13,6 +13,7 @@ import { SectionHeader } from '@/components/ds/SectionHeader'
 import { IconButton } from '@/components/ds/IconButton'
 import { SparkleIcon, DotsVerticalIcon, CalendarIcon } from '@/components/ds/icons'
 import { AddInvestorCall } from './AddInvestorCall'
+import { AdminCallControls } from './AdminCallControls'
 import { CompanyOverview } from './CompanyOverview'
 import { MyQuotes } from './MyQuotes'
 import { formatDate, formatTime } from '@/lib/i18n/format'
@@ -62,6 +63,7 @@ export function CompanyView({
   quotes: initialQuotes,
   folders,
   initialTab = 'overview',
+  isAdmin = false,
 }: {
   company: Company
   calls: ScheduledCall[]
@@ -69,6 +71,7 @@ export function CompanyView({
   quotes: Quote[]
   folders: QuoteFolder[]
   initialTab?: string
+  isAdmin?: boolean
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -94,17 +97,26 @@ export function CompanyView({
     />
   )
 
-  const finishedRow = (t: RecentTranscript) => (
-    <EntityRow
-      key={t.id}
-      href={`/app/live/${t.id}`}
-      logoSrc={company.logoUrl}
-      name={name}
-      secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
-      secondary={[t.quarter, formatDate(t.date || t.createdAt, locale)].filter(Boolean).join(' · ')}
-      meta={t.duration ? <span dir="ltr">{t.duration}</span> : undefined}
-    />
-  )
+  const finishedRow = (t: RecentTranscript) => {
+    const row = (
+      <EntityRow
+        href={`/app/live/${t.id}`}
+        logoSrc={company.logoUrl}
+        name={name}
+        secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
+        secondary={[t.quarter, formatDate(t.date || t.createdAt, locale)].filter(Boolean).join(' · ')}
+        meta={t.duration ? <span dir="ltr">{t.duration}</span> : undefined}
+      />
+    )
+    if (!isAdmin) return <div key={t.id}>{row}</div>
+    // Admin controls sit BESIDE the row (not inside the EntityRow link) — rename + delete.
+    return (
+      <div key={t.id} className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">{row}</div>
+        <AdminCallControls transcriptId={t.id} title={t.company} quarter={t.quarter} />
+      </div>
+    )
+  }
 
   return (
     <div className="app-scroll flex-1 overflow-y-auto">
