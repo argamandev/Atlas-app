@@ -15,7 +15,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY
 const RUNPOD_IVRIT_ENDPOINT_ID = process.env.RUNPOD_IVRIT_ENDPOINT_ID
 
-const IVRIT_MODEL = process.env.RUNPOD_IVRIT_MODEL || 'ivrit-ai/whisper-large-v3-turbo-ct2'
+const IVRIT_MODEL = process.env.RUNPOD_IVRIT_MODEL || 'ivrit-ai/whisper-large-v3-ct2'
+const IVRIT_FALLBACK_MODEL = 'ivrit-ai/whisper-large-v3-turbo-ct2'
 
 // Speaker diarization for the live karaoke. Word-level sync does NOT depend on this —
 // set IVRIT_DIARIZE=false to drop speaker labels and show one continuous synced transcript.
@@ -137,11 +138,11 @@ async function uploadAudioToStorage(audioPath: string): Promise<{ publicUrl: str
 }
 
 // Submit one transcription job to the IVRIT/RunPod endpoint and poll to completion.
-async function runIvritJob(transcribeArgs: Record<string, unknown>): Promise<unknown> {
+async function runIvritJob(transcribeArgs: Record<string, unknown>, model: string): Promise<unknown> {
   const runRes = await fetch(`https://api.runpod.ai/v2/${RUNPOD_IVRIT_ENDPOINT_ID}/run`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${RUNPOD_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input: { model: IVRIT_MODEL, streaming: false, transcribe_args: transcribeArgs } }),
+    body: JSON.stringify({ input: { model, streaming: false, transcribe_args: transcribeArgs } }),
   })
   if (!runRes.ok) throw new Error(`RunPod submit failed ${runRes.status}: ${await runRes.text()}`)
   const { id: jobId } = (await runRes.json()) as { id: string }
@@ -236,11 +237,8 @@ function extractIvritText(output: unknown): string {
   return ''
 }
 
-async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; segments?: IvritSegment[]; audioUrl: string }> {
-  // Audio is uploaded to Storage AND kept (not deleted) so the live page can play it back.
-  const { publicUrl } = await uploadAudioToStorage(audioPath)
-  console.log(`[ivrit] uploaded audio (persisted), size: ${fs.statSync(audioPath).size} bytes`)
-
+// Run the rich→plain attempts against ONE model. Throws if both yield nothing.
+async function ivritTranscribeWithModel(publicUrl: string, model: string): Promise<{ text: string; segments?: IvritSegment[] }> {
   // Attempt 1: rich request — per-word timestamps (+ optional diarization). Drives the karaoke.
   try {
     const output = await runIvritJob({
@@ -248,26 +246,43 @@ async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; s
       language: 'he',
       ...(IVRIT_DIARIZE ? { diarize: true } : {}),
       output_options: { word_timestamps: true, extra_data: true },
-    })
-    console.log(`[ivrit] raw output (rich): ${JSON.stringify(output).slice(0, 800)}`)
+    }, model)
+    console.log(`[ivrit:${model}] raw output (rich): ${JSON.stringify(output).slice(0, 800)}`)
     const segments = parseIvritSegments(output)
     const text = segments.length ? segments.map((s) => s.text).join(' ').trim() : extractIvritText(output)
     const withWords = segments.filter((s) => s.words.length).length
     if (text) {
-      console.log(`[ivrit] rich done — ${text.length} chars, ${segments.length} segs, ${withWords} with word timings`)
-      return { text, segments: withWords ? segments : undefined, audioUrl: publicUrl }
+      console.log(`[ivrit:${model}] rich done — ${text.length} chars, ${segments.length} segs, ${withWords} with word timings`)
+      return { text, segments: withWords ? segments : undefined }
     }
-    console.warn('[ivrit] rich request returned no text — falling back to plain_text')
+    console.warn(`[ivrit:${model}] rich request returned no text — falling back to plain_text`)
   } catch (err) {
-    console.warn(`[ivrit] rich request failed — falling back to plain_text: ${(err as Error).message}`)
+    console.warn(`[ivrit:${model}] rich request failed — falling back to plain_text: ${(err as Error).message}`)
   }
 
   // Attempt 2 (safe fallback): the original plain-text request — never breaks existing transcription.
-  const output = await runIvritJob({ url: publicUrl, language: 'he', transcription: 'plain_text' })
+  const output = await runIvritJob({ url: publicUrl, language: 'he', transcription: 'plain_text' }, model)
   const text = extractIvritText(output)
   if (!text) throw new Error('IVRIT returned empty transcript')
-  console.log(`[ivrit] plain done — ${text.length} chars`)
-  return { text, audioUrl: publicUrl }
+  console.log(`[ivrit:${model}] plain done — ${text.length} chars`)
+  return { text }
+}
+
+async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; segments?: IvritSegment[]; audioUrl: string; model: string }> {
+  // Audio is uploaded to Storage AND kept (not deleted) so the live page can play it back.
+  const { publicUrl } = await uploadAudioToStorage(audioPath)
+  console.log(`[ivrit] uploaded audio (persisted), size: ${fs.statSync(audioPath).size} bytes`)
+
+  // Accurate model first; on failure retry once with the faster, proven turbo model.
+  try {
+    const { text, segments } = await ivritTranscribeWithModel(publicUrl, IVRIT_MODEL)
+    return { text, segments, audioUrl: publicUrl, model: IVRIT_MODEL }
+  } catch (err) {
+    if (IVRIT_MODEL === IVRIT_FALLBACK_MODEL) throw err
+    console.warn(`[ivrit] model ${IVRIT_MODEL} failed — retrying with ${IVRIT_FALLBACK_MODEL}: ${(err as Error).message}`)
+    const { text, segments } = await ivritTranscribeWithModel(publicUrl, IVRIT_FALLBACK_MODEL)
+    return { text, segments, audioUrl: publicUrl, model: IVRIT_FALLBACK_MODEL }
+  }
 }
 
 async function whisperTranscribe(audioPath: string): Promise<string> {
@@ -288,8 +303,8 @@ export async function transcribeAudio(audioPath: string): Promise<TranscriptionR
   if (RUNPOD_API_KEY && RUNPOD_IVRIT_ENDPOINT_ID) {
     try {
       console.log(`[transcribe] using IVRIT/RunPod (model: ${IVRIT_MODEL}, diarize: ${IVRIT_DIARIZE})`)
-      const { text, segments, audioUrl } = await transcribeWithIvrit(audioPath)
-      return { text, engine: 'ivrit', model: IVRIT_MODEL, segments, audioUrl }
+      const { text, segments, audioUrl, model } = await transcribeWithIvrit(audioPath)
+      return { text, engine: 'ivrit', model, segments, audioUrl }
     } catch (err) {
       console.error('[transcribe] IVRIT failed — falling back to Whisper:', (err as Error).message)
     }
