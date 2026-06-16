@@ -281,7 +281,8 @@ export function LiveBroadcastView({
   }
 
   function goLive() {
-    seek(delayedLiveEdge(liveEdge, delaySec, endedWallRef.current, Date.now()))
+    // engine's shared edge (not the per-client interpolated one) so two viewers converge on "live"
+    seek(delayedLiveEdge(rawEdgeRef.current, delaySec, endedWallRef.current, Date.now()))
   }
 
   function changeVolume(v: number) {
@@ -341,7 +342,7 @@ export function LiveBroadcastView({
           </span>
           {phase === 'playing' && !ended && (
             <span className="shrink-0 text-xs text-ink-faint tabular-nums" dir="ltr">
-              -{fmt(behind)} מאחורי החי
+              -{fmt(behind)} מאחורי שיחת המשקיעים המקורית
             </span>
           )}
         </div>
@@ -388,6 +389,7 @@ export function LiveBroadcastView({
         duration={broadcastEdge}
         playing={phase === 'playing' && !paused}
         isLive={!ended}
+        onGoLive={goLive}
         volume={volume}
         onPlayPause={playPause}
         onSeek={seek}

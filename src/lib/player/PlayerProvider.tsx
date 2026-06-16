@@ -43,6 +43,8 @@ interface PlayerApi {
   close: () => void
   getCurrentTime: () => number
   subscribeTime: (cb: () => void) => () => void
+  viewingId: string | null
+  setViewing: (id: string | null) => void
 }
 
 const Ctx = createContext<PlayerApi | null>(null)
@@ -65,6 +67,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [playing, setPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(1)
+  const [viewingId, setViewingId] = useState<string | null>(null) // call a LiveTranscriptView is displaying (URL-independent)
 
   // time store — a mutable ref + listener set, driven by rAF while playing + timeupdate.
   const timeRef = useRef(0)
@@ -158,6 +161,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (a) a.volume = v
     setVolumeState(v)
   }, [])
+  const setViewing = useCallback((id: string | null) => setViewingId(id), [])
   const close = useCallback(() => {
     audioRef.current?.pause()
     setCall(null)
@@ -180,6 +184,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     close,
     getCurrentTime,
     subscribeTime,
+    viewingId,
+    setViewing,
   }
 
   return (

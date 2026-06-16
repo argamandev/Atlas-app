@@ -11,12 +11,12 @@ import { ChevronLeftIcon } from '@/components/ds/icons'
 // loaded, except the transcript page itself. Click → back to that call's transcript (the
 // player keeps playing the whole time). Disappears when the player is closed (Feature 4).
 export function ReturnToTranscriptChip() {
-  const { call } = usePlayer()
+  const { call, viewingId } = usePlayer()
   const pathname = usePathname()
   const { dict } = useI18n()
   if (!call) return null
   const href = `/app/live/${call.id}`
-  if (pathname === href) return null // already on the transcript
+  if (pathname === href || viewingId === call.id) return null // already on the transcript (URL or inline swap)
 
   return (
     <Link

@@ -31,6 +31,7 @@ export interface MediaPlayerProps {
   onSkip: (delta: number) => void
   onVolumeChange: (v: number) => void
   onClose?: () => void
+  onGoLive?: () => void
 }
 
 export function MediaPlayer(props: MediaPlayerProps) {
@@ -73,7 +74,18 @@ export function MediaPlayer(props: MediaPlayerProps) {
                 <ChevronRightIcon size={12} className="shrink-0" />
               </>
             )}
-            <span dir="ltr" className="ms-auto tabular-nums">-{formatClock(remaining)}</span>
+            {isLive ? (
+              <button
+                type="button"
+                onClick={props.onGoLive}
+                className="ms-auto font-semibold text-live transition-opacity hover:opacity-80"
+                aria-label="חזרה לשידור החי"
+              >
+                LIVE
+              </button>
+            ) : (
+              <span dir="ltr" className="ms-auto tabular-nums">-{formatClock(remaining)}</span>
+            )}
           </div>
 
           <button

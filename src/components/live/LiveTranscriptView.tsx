@@ -55,6 +55,13 @@ export function LiveTranscriptView({
   const isActiveCall = player.call?.id === call.id
   const effTime = isActiveCall ? currentTime : 0
 
+  // Tell the player this call is being displayed (URL-independent) so the Return-to-transcript chip
+  // hides while we're on it — including the inline live→finished swap, where the URL stays /app/live/live.
+  useEffect(() => {
+    player.setViewing(call.id)
+    return () => player.setViewing(null)
+  }, [call.id, player.setViewing])
+
   const [tab, setTab] = useState('transcript')
   const [autoScroll, setAutoScroll] = useState(true)
   const [toast, setToast] = useState<Toast | null>(null)
