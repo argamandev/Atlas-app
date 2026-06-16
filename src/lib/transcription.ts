@@ -402,7 +402,7 @@ ${rawText}`
 }
 
 // Parse Gemini's markdown output (bold "**Name:**" or "## Name" headers) into structured lines
-function parseGeminiOutput(
+export function parseGeminiOutput(
   text: string,
   metaSpeakers: Array<{ name: string; role: string; title: string }>,
 ): { mgmtLines: Line[]; qaLines: Line[]; speakers: Speaker[] } {
