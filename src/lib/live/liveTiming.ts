@@ -2,8 +2,8 @@
 // jitter/cutoff bugs lived in this math (see the live-view fixes, 2026-06-16). All times are
 // recording-relative seconds; wall-clock args are ms.
 
-/** Single source of truth for the live stream buffer — 5 minutes behind real-time. */
-export const LIVE_BUFFER_SEC = 300
+/** Single source of truth for the live stream buffer — 5 min default; override via NEXT_PUBLIC_LIVE_BUFFER_SEC. */
+export const LIVE_BUFFER_SEC = Number(process.env.NEXT_PUBLIC_LIVE_BUFFER_SEC) || 300
 
 /**
  * Smoothly interpolate the live edge between polls. The engine's edge is polled ~every 1.5s but the

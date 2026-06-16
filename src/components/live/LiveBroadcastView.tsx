@@ -36,6 +36,7 @@ export function LiveBroadcastView({
   quarter,
   logoUrl,
   delaySec = LIVE_BUFFER_SEC,
+  persistKey,
   playheadRef,
   onSourceEnded,
   onHostedOver,
@@ -46,10 +47,11 @@ export function LiveBroadcastView({
   quarter: string
   logoUrl: string | null
   delaySec?: number
+  persistKey?: string
   playheadRef?: React.MutableRefObject<number>
   onSourceEnded?: () => void
   onHostedOver?: () => void
-  notice?: string
+  notice?: React.ReactNode
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -79,6 +81,8 @@ export function LiveBroadcastView({
   const edgeWallRef = useRef(0)  // wall-clock ms at that poll — to interpolate between polls
   const endedWallRef = useRef<number | null>(null) // wall-clock ms when the source ended (else null)
   const seekTokenRef = useRef(0) // bumped on seek; an in-flight pump fetch with a stale token is discarded
+  const sawLiveRef = useRef(false) // saw the source live (vs. already ended on first load — i.e. a refresh)
+  const lastSaveRef = useRef(0) // throttle playhead persistence
 
   // streaming words → a single-segment word-timed transcript (V1 karaoke renders it)
   const transcript = useMemo<WordTimedTranscript>(() => {
@@ -117,7 +121,11 @@ export function LiveBroadcastView({
         if (!alive) return
         stRef.current = st
         setLiveEnded(st.liveEnded)
-        if (st.liveEnded && endedWallRef.current === null) endedWallRef.current = Date.now()
+        if (!st.liveEnded) sawLiveRef.current = true
+        if (st.liveEnded && endedWallRef.current === null) {
+          // ended while watching → real-time drain; ended before we loaded (refresh) → ramp already done
+          endedWallRef.current = sawLiveRef.current ? Date.now() : Date.now() - (delaySec * 1000 + 2000)
+        }
         rawEdgeRef.current = st.liveEdgeRel ?? 0
         edgeWallRef.current = Date.now()
 
@@ -194,6 +202,10 @@ export function LiveBroadcastView({
           const ph = Math.max(0, playPosRef.current - (nextAtRef.current - ctx.currentTime))
           setPlayingRel(ph)
           if (playheadRef) playheadRef.current = ph
+          if (persistKey && Date.now() - lastSaveRef.current > 1000) {
+            lastSaveRef.current = Date.now()
+            try { sessionStorage.setItem(persistKey, String(ph)) } catch { /* ignore */ }
+          }
         }
         setPhase('playing')
         return
@@ -230,7 +242,11 @@ export function LiveBroadcastView({
     // drop in at the LIVE edge (delaySec behind the call), not the start
     const liveEdgeRel = st?.liveEdgeRel ?? 0
     const startRel = st?.audioStartRel ?? 0
-    playPosRef.current = Math.max(startRel, liveEdgeRel - delaySec)
+    // resume the persisted playhead across a refresh (clamped to the playable edge); else drop in at live
+    const maxEnd = delayedLiveEdge(liveEdgeRel, delaySec, endedWallRef.current, Date.now())
+    const saved = persistKey ? Number(sessionStorage.getItem(persistKey)) : NaN
+    playPosRef.current =
+      Number.isFinite(saved) && saved > 0 ? Math.min(saved, Math.max(0, maxEnd)) : Math.max(startRel, liveEdgeRel - delaySec)
     nextAtRef.current = ctx.currentTime + 0.2
     startedRef.current = true
     pausedRef.current = false
@@ -300,7 +316,7 @@ export function LiveBroadcastView({
         ? 'ממתין לתחילת השיחה…'
         : phase === 'buffering'
           ? `השידור יתחיל בעוד ${fmt(countdown)}`
-          : `השידור זמין — בהשהיה של ${fmt(delaySec)} מאחורי החי`
+          : 'השידור זמין — הצטרפו לצפייה'
 
   const liveTabs = [
     { key: 'overview', label: dict.live.backToOverview },
@@ -358,11 +374,7 @@ export function LiveBroadcastView({
 
       {/* transcript — the real V1 karaoke body */}
       <div className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2">
-        {notice && (
-          <div className="mb-3 rounded-lg border border-hairline bg-subtle/60 px-4 py-2.5 text-center text-sm text-ink-muted">
-            {notice}
-          </div>
-        )}
+        {notice && <div className="mb-3">{notice}</div>}
         <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke />
       </div>
 

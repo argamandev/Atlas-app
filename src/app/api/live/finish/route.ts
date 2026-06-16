@@ -8,6 +8,13 @@ import { runDemoFinish, DEMO_CALL_ID } from '@/lib/live/finishLiveCall'
 // Demo source = the recorded session; production would feed the live engine's captured buffer.
 export const dynamic = 'force-dynamic'
 
+// Status-only (no trigger) — lets the client re-derive finish state after a refresh.
+export async function GET() {
+  const { data } = await supabaseAdmin
+    .from('transcripts').select('status').eq('id', DEMO_CALL_ID).maybeSingle()
+  return NextResponse.json({ id: DEMO_CALL_ID, status: data?.status ?? 'none' })
+}
+
 export async function POST() {
   const { data } = await supabaseAdmin
     .from('transcripts').select('status').eq('id', DEMO_CALL_ID).maybeSingle()
