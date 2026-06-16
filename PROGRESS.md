@@ -5,6 +5,136 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-16 — Thread A Phase 1 EXECUTED (finish hand-off) — awaiting admin test
+
+**Status:** Phase 1 (the spine) built, self-verified, and run against the recorded תמיס session — a
+real finished transcript row exists, **awaiting admin test in the app**. All work is in the working
+tree, **uncommitted** (founder to review/commit). Spec + plan written and committed to docs.
+
+**TEST THIS:** open **`/app/live/live-finish-demo-tamis-2026-06-14`** in the V1 app. Expect: תמיס
+Q1 2026 · audio plays · **karaoke highlights words in sync** · click-word seeks audio · Gemini speaker
+turns (גיא ברנע מנכ"ל / מיכל אדרי סמנכ"לית כספים / analysts) · the toolbar (Save Quote / Ask Atlas /
+Share). NB: the recording is a rough two-session test capture whose spoken content is אור ים אנרגיה,
+attached to תמיס — so body text won't match the header; a known asset quirk, **not** a pipeline bug.
+
+**What shipped** (Phase 1 = ended live call → normal finished `transcripts` row; NO IVRIT, NO YouTube —
+reuses only Gemini polish + the stored shapes):
+- `src/lib/live/finishLiveCall.ts` — pure, unit-tested transforms (normalize-session / synthesize
+  word-ends / build `word_segments` / duration / pcm-bytes) + orchestration: trim captured PCM → MP3
+  (ffmpeg 32 kbps mono) → upload to `audio-temp` → Gemini polish (reuses `formatTranscript`) →
+  idempotent upsert of a completed row. Renders via the EXISTING `loadCompletedCall` →
+  `LiveTranscriptView` (word-timed karaoke + toolbar) for free — the displayed/karaoke words come from
+  `word_segments`; Gemini's `formatted_data` supplies the speaker turns proportionally.
+- `src/lib/live/finishLiveCall.test.ts` (10 tests) · `scripts/finish-live-call.ts` (runner) ·
+  `scripts/verify-finish.ts` (headless render-precondition check).
+- Spec `docs/superpowers/specs/2026-06-16-live-transcript-ux-design.md` · plan
+  `docs/superpowers/plans/2026-06-16-live-transcript-phase-1.md`.
+
+**Decisions taken autonomously:** attach demo to תמיס (ticker 1097229); idempotent synthetic id
+`live-finish-demo-tamis-2026-06-14`; use the FIRST of the recording's two concatenated sessions
+(759 words, ~6:40) + trim the MP3 to it (stops session-2 audio bleed); resolve the demo row owner
+deterministically (admin profile → newest transcript → demo user) because the zero-UUID demo user
+fails `transcripts_user_id_fkey`.
+
+**Verified:** 10 unit tests green · `tsc --noEmit` clean · `next build` green (22 routes) ·
+`finish-live-call` exit 0 · `verify-finish` → status completed, audio HTTP 206 `audio/mpeg`, 759 timed
+words, 8 Gemini speakers, all render preconditions pass. Cold-context `reviewer`: **no blockers, no
+security holes**; 2 majors fixed (orphan audio → deterministic filename; arbitrary owner →
+deterministic), plus a karaoke binary-search sort guard.
+
+**Known/minor:** a couple of orphan mp3s from earlier runs linger in `audio-temp` (harmless temp
+bucket; the script now overwrites a single deterministic object). The live path still has no live
+*speaker* capture — Phase 1 leans on Gemini's proportional turns (the asset has no speaker field).
+
+**NEXT — Phase 2 (after admin OK):** live-mode richness — toolbar on the live view, quote-as-anchor
+carrying live→finished, live audio surviving navigation, same-page live→finished transition. All
+demoable via `scripts/live-replay-engine.mjs`. Write the Phase 2 plan, then build + test.
+
+---
+
+## 2026-06-15 — Thread A (RESUMED 2026-06-16 → see top entry): live→finished "one call" UX
+
+**Status:** Brainstormed with the founder; decisions below are **locked**. **Paused mid-design** to
+chase the live webinar bot test (Thread B). No code written (brainstorming HARD-GATE respected).
+**Resume by:** present the full design in sections → write spec to `docs/superpowers/specs/` →
+founder review → `writing-plans` → build **Phase 1**.
+
+**The vision — one call that *matures* (not two things):** a call (e.g. "Q2 2026") has ONE identity.
+It's LIVE (streaming raw Recall captions, already quotable/shareable/Ask-Atlas-able); when it ends the
+SAME call runs through Gemini → becomes the finished transcript on the company page with full
+functionality. Live or finished = the same kind of page; one's just streaming and ~5 min behind.
+
+**Locked decisions:**
+- **The LIVE view must FEEL like the finished view** (founder's core ask): while live, the user can
+  walk to other pages with the (delayed) live audio still playing + a Return-to-transcript chip, and
+  highlight a live caption → **Ask Atlas / Save Quote / Share** — same toolbar as finished.
+- **Recall gives speakers** (participant = Zoom display name + is_host + per-word timestamps). Best
+  finished transcript = Recall participant boundaries/timing + Gemini role detection (מנכ"ל/CFO/מנחה)
+  + typo cleanup; same capture also fixes the live "one-block captions" gap. Caveat: per-Zoom-
+  participant, not voice diarization — weak when several people share one account.
+- **Quotes = "auto-upgrade & deep-link"** (founder chose): a quote is stored as an ANCHOR (which words
+  + the moment), NOT frozen text. Renders best-available text — raw while live, corrected once polished
+  — and deep-links to the exact spot + audio in the finished transcript. Falls back to the saved
+  snapshot only if a chunk's word count changes. Leans on the pipeline's "keep same words in order" rule.
+- **Build path = C→A** (founder chose): two phases (C) toward the unified **"one page, two modes"**
+  end-state (A — one transcript page running live-mode or finished-mode; audio layer lifted into the
+  app shell so it survives navigation in BOTH; quote/share/Ask-Atlas on the one page → identical by
+  construction, can't drift).
+
+**Phase 1 (the spine — build first, biggest value):** turn an ended live call into a normal finished
+transcript so the existing finished UX renders it for free:
+- Capture Recall raw at call end (text + speakers + per-word timestamps).
+- Encode the engine's captured PCM → MP3 → upload to Supabase Storage → `audio_url` (polish is
+  post-call; capturing is the only irreversible step).
+- Build `word_segments` (IVRIT-shaped) from Recall words WITH speaker per segment.
+- Run Gemini polish (same `formatWithGeminiFlash` prompt as the IVRIT path, correct company context)
+  → `formatted_data`.
+- Insert a `transcripts` row (formatted_data + audio_url + word_segments + company_id + duration,
+  status=completed) under the company → `/app/live/[id]` → `loadCompletedCall` → `LiveTranscriptView`
+  renders audio karaoke + quote/share/Ask-Atlas.
+
+**Phase 2 (the live richness):** Quote/Share/Ask-Atlas ON the live view + live audio that survives
+navigation (lift the live Web-Audio engine into the app shell, like the finished global player) + the
+quote-anchor data so live-saved quotes carry into the finished transcript.
+
+**Code facts for a fast resume:**
+- `LiveTranscriptView` (finished) ALREADY has it all: global player (`usePlayer`), `createQuote`,
+  share (WhatsApp + `/print/[id]`), Ask-Atlas (`TranscriptChatPanel`), karaoke; loaded via
+  `loadCompletedCall` from a `transcripts` row.
+- `LiveBroadcastView` (live) is streaming-only: own Web-Audio engine that dies on navigation, NO
+  quote/share/Ask-Atlas, NO global player; company hardcoded to תמיס (placeholder until MAYA).
+- Reusable as-is: Gemini polish (`formatTranscript`/`formatWithGeminiFlash`), transcripts-row creation,
+  `word_segments`+`audio_url`+`loadCompletedCall`, quotes table.
+- **Demo asset available now:** old תמיס live session rotated to `scripts/out/sessions/` (`*.pcm` +
+  `*.jsonl`) — Phase 1 can be built & demoed against it WITHOUT a live call.
+
+---
+
+## 2026-06-15 — Live webinar bot test: Zoom registration is the real wall (Core 1/2)
+
+- **Tested 2 Recall bots into a real registration-required Zoom *webinar*** (Atlas = live→platform,
+  Sagi = record-only; treated as a תמיס test). Rig was solid end-to-end (`live-broadcast.mjs` engine
+  + cloudflared tunnel + new `scripts/live-webinar-bots.mjs`); Recall accepted every bot. **All 4
+  launches died `fatal: zoom_token_expired` — no bot got in.**
+- **Root cause (confirmed by a founder screenshot):** the registrant `…/w/{id}?tk=…` link is a
+  **single-use, short-lived *landing* token** — opening it hits Zoom's "Join meeting" chooser and
+  **consumes** it. The founder opened every link (to join / screenshot), so the bot always got an
+  already-burned token. We used Recall's *correct* method (meeting-id + `tk` + `zoom.user_email`);
+  the method was fine, **token freshness** was the blocker.
+- **Zoom OAuth does NOT fix this** (verified in Recall docs): signed-in/ZAK bots only bypass
+  *"authenticated-users-only"* meetings and **"cannot skip waiting rooms or bypass registration."**
+  Earlier hunch corrected before building the wrong thing.
+- **Real fix = freshness + automation:** the untested decisive experiment is register → **never open
+  the link** → fire the bot within seconds. For Core 2 (MAYA fleet) the hard part isn't getting Zoom
+  links — it's a tight **auto-register → grab fresh `tk` → launch bot** pipeline (token never
+  human-touched). OAuth only helps where we host/co-host (mint clean tokens via Zoom API) or for
+  auth-only meetings.
+- **Tooling/leftovers:** `scripts/live-webinar-bots.mjs` (create/atlas/sagi/status) added; old תמיס
+  recording rotated to `scripts/out/sessions/`. The brainstorm for the live→finished "one call" UX
+  (Phase 1 polish pipeline) is **paused mid-design, not lost** — resume there next.
+
+---
+
 ## 2026-06-15 — Rebrand → **Atlas** (name + logo across the V1 app)
 
 - **New product name: Atlas** (Latin serif wordmark), replacing תמלול / Timlul. Founder

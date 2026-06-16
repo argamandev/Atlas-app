@@ -1,0 +1,59 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { interpolatedEdge, viewerEnded, delayedLiveEdge, bufferGate, hostedLiveOver, LIVE_BUFFER_SEC } from './liveTiming'
+
+test('interpolatedEdge advances by wall-clock while live', () => {
+  assert.equal(interpolatedEdge(100, 1000, 1000, false), 100)
+  assert.equal(interpolatedEdge(100, 1000, 2500, false), 101.5) // +1.5s elapsed
+})
+
+test('interpolatedEdge is frozen once the call ended', () => {
+  assert.equal(interpolatedEdge(100, 1000, 9999, true), 100)
+})
+
+test('interpolatedEdge never advances on a stale/future anchor', () => {
+  assert.equal(interpolatedEdge(100, 2000, 1000, false), 100) // now < anchor → +0
+})
+
+test('viewerEnded is true only once the playhead caught up to the edge', () => {
+  assert.equal(viewerEnded(false, 100, 100), false) // backend still live
+  assert.equal(viewerEnded(true, 80, 100), false) // ended, but 20s of buffer left
+  assert.equal(viewerEnded(true, 99.5, 100), true) // within epsilon → done
+  assert.equal(viewerEnded(true, 0, 0), false) // ended with no audio captured → not "ended"
+})
+
+test('delayedLiveEdge tracks liveEdge − buffer while the source is live', () => {
+  assert.equal(delayedLiveEdge(400, 300, null, 999), 100)
+  assert.equal(delayedLiveEdge(50, 300, null, 999), 0) // clamped at 0
+})
+
+test('delayedLiveEdge keeps draining at 1x after the source ends, capped at the true end', () => {
+  const endWall = 1000 // source ended; edge frozen at 463 (7:43), buffer 300 → freeze point 163
+  assert.equal(delayedLiveEdge(463, 300, endWall, 1000), 163) // at end: 463 − 300
+  assert.equal(delayedLiveEdge(463, 300, endWall, 1000 + 100_000), 263) // +100s → 263 (no jump)
+  assert.equal(delayedLiveEdge(463, 300, endWall, 1000 + 300_000), 463) // +300s → reaches the true end
+  assert.equal(delayedLiveEdge(463, 300, endWall, 1000 + 999_000), 463) // never exceeds the true end
+  assert.equal(delayedLiveEdge(463, 300, endWall, 1000 + 1e12), 463) // huge overshoot still capped
+})
+
+test('bufferGate counts down until the buffer fills, then ready', () => {
+  assert.deepEqual(bufferGate(0, 60, 300, false), { phase: 'buffering', countdown: 240 })
+  assert.deepEqual(bufferGate(0, 300, 300, false), { phase: 'ready', countdown: 0 })
+  assert.deepEqual(bufferGate(null, 0, 300, false), { phase: 'waiting', countdown: 300 })
+})
+
+test('bufferGate is ready immediately once the call ended (no more waiting)', () => {
+  assert.deepEqual(bufferGate(0, 60, 300, true), { phase: 'ready', countdown: 0 })
+})
+
+test('LIVE_BUFFER_SEC is the 5-minute policy', () => {
+  assert.equal(LIVE_BUFFER_SEC, 300)
+})
+
+test('hostedLiveOver: false while live, false mid-drain, true once the buffer reached the true end', () => {
+  assert.equal(hostedLiveOver(false, 100, 463), false) // source still live
+  assert.equal(hostedLiveOver(true, 200, 463), false) // ended, buffer still draining
+  assert.equal(hostedLiveOver(true, 462.5, 463), true) // drained to within epsilon → over
+  assert.equal(hostedLiveOver(true, 463, 463), true)
+  assert.equal(hostedLiveOver(true, 0, 0), false) // ended with no audio → not over
+})

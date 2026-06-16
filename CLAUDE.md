@@ -131,6 +131,15 @@ the Hebrew noun תמלול ("transcript"). See PROGRESS.md. **Parked (revisit la
 the Atlas name context keep evolving, and the **in-transcript side-chat** gets its own visual + naming
 pass (Atlas will fit there perfectly) — deferred while we build bigger features.
 
+**Update (2026-06-16, Thread A Phase 1 — live→finished "one call"):** Built the **finish hand-off**
+(`src/lib/live/finishLiveCall.ts`): an ended live call → a normal finished `transcripts` row (raw text →
+Gemini `formatTranscript`; captured words → `word_segments`; captured PCM → MP3 → `audio_url`; **no IVRIT,
+no YouTube**), so the existing `loadCompletedCall` → `LiveTranscriptView` renders it with synced-audio
+karaoke + the Save-Quote/Ask-Atlas/Share toolbar for free — wiring Core 3's missing input (live output,
+not just YouTube). Run/demoed against the recorded session via `scripts/finish-live-call.ts`. Executed +
+self-verified — **awaiting admin test** at `/app/live/live-finish-demo-tamis-2026-06-14`. Spec/plan under
+`docs/superpowers/`. Phase 2 (live-mode richness) next. See PROGRESS.md.
+
 ## Stack
 
 - **Next.js 14 (App Router)** — server components + route handlers; TypeScript; deployed on **Railway**.

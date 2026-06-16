@@ -36,7 +36,7 @@ export function LiveNowPanel({ companyName, logoUrl }: { companyName: string; lo
 
   return (
     <EntityRow
-      href="/app/live/live?delay=60"
+      href="/app/live/live"
       logoSrc={logoUrl}
       name={companyName}
       secondary={

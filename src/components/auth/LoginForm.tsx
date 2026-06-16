@@ -25,7 +25,7 @@ export function LoginForm() {
       return
     }
 
-    router.push('/app/home')
+    router.push('/dashboard')
     router.refresh()
   }
 

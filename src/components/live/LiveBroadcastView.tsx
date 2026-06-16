@@ -11,6 +11,7 @@ import { TranscriptBody } from './TranscriptBody'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
 import { formatDate } from '@/lib/i18n/format'
+import { interpolatedEdge, delayedLiveEdge, bufferGate, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
 // LIVE broadcast — the V1 transcript page, fed by the live engine (/api/live/*). Same header,
 // tabs, karaoke TranscriptBody and MediaPlayer as the finished-transcript page; the difference
@@ -34,13 +35,21 @@ export function LiveBroadcastView({
   companyId,
   quarter,
   logoUrl,
-  delaySec = 300,
+  delaySec = LIVE_BUFFER_SEC,
+  playheadRef,
+  onSourceEnded,
+  onHostedOver,
+  notice,
 }: {
   companyName: string
   companyId: string | null
   quarter: string
   logoUrl: string | null
   delaySec?: number
+  playheadRef?: React.MutableRefObject<number>
+  onSourceEnded?: () => void
+  onHostedOver?: () => void
+  notice?: string
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -66,6 +75,10 @@ export function LiveBroadcastView({
   const fetchingRef = useRef(false)
   const startedRef = useRef(false)
   const pausedRef = useRef(false)
+  const rawEdgeRef = useRef(0)   // last polled live edge (recording seconds)
+  const edgeWallRef = useRef(0)  // wall-clock ms at that poll — to interpolate between polls
+  const endedWallRef = useRef<number | null>(null) // wall-clock ms when the source ended (else null)
+  const seekTokenRef = useRef(0) // bumped on seek; an in-flight pump fetch with a stale token is discarded
 
   // streaming words → a single-segment word-timed transcript (V1 karaoke renders it)
   const transcript = useMemo<WordTimedTranscript>(() => {
@@ -74,10 +87,10 @@ export function LiveBroadcastView({
       segments: [
         { id: 'live', speakerId: 'live', speakerName: companyName, role: null, words: w, start: 0, end: w.at(-1)?.start ?? 0 },
       ],
-      durationSec: liveEdge,
+      durationSec: w.at(-1)?.start ?? 0,
       hasWordTimings: true,
     }
-  }, [words, companyName, liveEdge])
+  }, [words, companyName])
 
   const flat = useMemo(() => flattenWords(transcript), [transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, playingRel), [flat, playingRel])
@@ -104,7 +117,9 @@ export function LiveBroadcastView({
         if (!alive) return
         stRef.current = st
         setLiveEnded(st.liveEnded)
-        setLiveEdge(st.liveEdgeRel ?? 0)
+        if (st.liveEnded && endedWallRef.current === null) endedWallRef.current = Date.now()
+        rawEdgeRef.current = st.liveEdgeRel ?? 0
+        edgeWallRef.current = Date.now()
 
         const newLines = st.lines.slice(seenLinesRef.current)
         if (newLines.length) {
@@ -112,20 +127,6 @@ export function LiveBroadcastView({
           for (const l of newLines) for (const w of l.words) add.push(w)
           setWords((prev) => [...prev, ...add])
           seenLinesRef.current = st.lines.length
-        }
-
-        if (startedRef.current) {
-          setPhase('playing')
-        } else if (st.offline || st.audioStartRel === null) {
-          setPhase('waiting')
-        } else {
-          const buffered = (st.liveEdgeRel ?? 0) - st.audioStartRel
-          if (buffered < delaySec && !st.liveEnded) {
-            setPhase('buffering')
-            setCountdown(Math.max(0, Math.round(delaySec - buffered)))
-          } else {
-            setPhase('ready')
-          }
         }
       } catch {
         /* keep last state */
@@ -137,14 +138,15 @@ export function LiveBroadcastView({
       const ctx = ctxRef.current
       if (!startedRef.current || pausedRef.current || !st || fetchingRef.current || !ctx) return
       if (nextAtRef.current - ctx.currentTime > 6) return
-      const allowedEnd = st.liveEnded ? st.liveEdgeRel ?? 0 : (st.liveEdgeRel ?? 0) - delaySec
+      const allowedEnd = delayedLiveEdge(st.liveEdgeRel ?? 0, delaySec, endedWallRef.current, Date.now())
       const pos = playPosRef.current ?? 0
       const finalEnd = Math.min(pos + 4, allowedEnd)
       if (finalEnd - pos < 0.5) return
       fetchingRef.current = true
+      const token = seekTokenRef.current
       try {
         const r = await fetch(`/api/live/pcm?from=${pos}&to=${finalEnd}`, { cache: 'no-store' })
-        if (r.status === 200) {
+        if (seekTokenRef.current === token && r.status === 200) {
           const i16 = new Int16Array(await r.arrayBuffer())
           if (i16.length) {
             const buf = ctx.createBuffer(1, i16.length, SR)
@@ -165,8 +167,9 @@ export function LiveBroadcastView({
         }
       } catch {
         /* transient */
+      } finally {
+        fetchingRef.current = false
       }
-      fetchingRef.current = false
     }
 
     const iv = setInterval(() => {
@@ -174,13 +177,38 @@ export function LiveBroadcastView({
     }, 1500)
     void refresh()
 
-    // playhead update ~10fps (drives the scrubber + karaoke without re-rendering every frame)
+    // 10fps tick: interpolate the live edge smoothly between the 1.5s polls (kills the "behind live"
+    // + remaining-time sawtooth), drive phase/countdown, and advance the playhead.
     const ph = setInterval(() => {
-      const ctx = ctxRef.current
-      if (startedRef.current && ctx && playPosRef.current !== null) {
-        const rel = playPosRef.current - (nextAtRef.current - ctx.currentTime)
-        setPlayingRel(Math.max(0, rel))
+      const st = stRef.current
+      const ended = !!st?.liveEnded
+      const edge =
+        edgeWallRef.current === 0
+          ? rawEdgeRef.current
+          : interpolatedEdge(rawEdgeRef.current, edgeWallRef.current, Date.now(), ended)
+      setLiveEdge((prev) => (ended ? edge : Math.max(prev, edge)))
+
+      if (startedRef.current) {
+        const ctx = ctxRef.current
+        if (ctx && playPosRef.current !== null) {
+          const ph = Math.max(0, playPosRef.current - (nextAtRef.current - ctx.currentTime))
+          setPlayingRel(ph)
+          if (playheadRef) playheadRef.current = ph
+        }
+        setPhase('playing')
+        return
       }
+      if (!st) {
+        setPhase('connecting')
+        return
+      }
+      if (st.offline || st.audioStartRel === null) {
+        setPhase('waiting')
+        return
+      }
+      const g = bufferGate(st.audioStartRel, edge, delaySec, st.liveEnded)
+      setPhase(g.phase)
+      setCountdown(g.countdown)
     }, 100)
 
     return () => {
@@ -227,9 +255,9 @@ export function LiveBroadcastView({
   function seek(t: number) {
     const ctx = ctxRef.current
     if (!ctx || playPosRef.current === null) return
-    const st = stRef.current
-    const maxEnd = st?.liveEnded ? st.liveEdgeRel ?? t : (st?.liveEdgeRel ?? t) - delaySec
+    const maxEnd = delayedLiveEdge(liveEdge, delaySec, endedWallRef.current, Date.now())
     const target = Math.min(Math.max(0, t), Math.max(0, maxEnd))
+    seekTokenRef.current++
     flushAudio()
     playPosRef.current = target
     nextAtRef.current = ctx.currentTime + 0.1
@@ -237,8 +265,7 @@ export function LiveBroadcastView({
   }
 
   function goLive() {
-    const st = stRef.current
-    seek((st?.liveEdgeRel ?? 0) - delaySec)
+    seek(delayedLiveEdge(liveEdge, delaySec, endedWallRef.current, Date.now()))
   }
 
   function changeVolume(v: number) {
@@ -258,7 +285,13 @@ export function LiveBroadcastView({
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   }
   const behind = Math.max(0, liveEdge - playingRel)
-  const broadcastEdge = Math.max(0, (liveEnded ? liveEdge : liveEdge - delaySec))
+  const broadcastEdge = delayedLiveEdge(liveEdge, delaySec, endedWallRef.current, Date.now())
+  const ended = hostedLiveOver(liveEnded, broadcastEdge, liveEdge) // finished mode once the buffer fully drained
+
+  // One-shot signals to the LiveSession wrapper: start the finish when the source ends; allow the
+  // inline swap once the buffer has fully drained. Parent guards against double-fire.
+  useEffect(() => { if (liveEnded) onSourceEnded?.() }, [liveEnded]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (ended) onHostedOver?.() }, [ended]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const overlayMsg =
     phase === 'connecting'
@@ -288,9 +321,9 @@ export function LiveBroadcastView({
           <span className="shrink-0 text-sm text-ink-faint">{formatDate(new Date().toISOString(), locale)}</span>
           <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
             <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            <span className="text-2xs font-bold tracking-wide text-live">{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
+            <span className="text-2xs font-bold tracking-wide text-live">{ended ? 'הסתיים' : dict.live.liveBadge}</span>
           </span>
-          {phase === 'playing' && (
+          {phase === 'playing' && !ended && (
             <span className="shrink-0 text-xs text-ink-faint tabular-nums" dir="ltr">
               -{fmt(behind)} מאחורי החי
             </span>
@@ -311,7 +344,7 @@ export function LiveBroadcastView({
         <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
           <SyncIcon size={16} />
         </IconButton>
-        {phase === 'playing' && !liveEnded && (
+        {phase === 'playing' && !ended && (
           <button
             type="button"
             onClick={goLive}
@@ -325,6 +358,11 @@ export function LiveBroadcastView({
 
       {/* transcript — the real V1 karaoke body */}
       <div className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2">
+        {notice && (
+          <div className="mb-3 rounded-lg border border-hairline bg-subtle/60 px-4 py-2.5 text-center text-sm text-ink-muted">
+            {notice}
+          </div>
+        )}
         <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke />
       </div>
 
@@ -333,11 +371,11 @@ export function LiveBroadcastView({
         logoUrl={logoUrl}
         title={companyName}
         subtitle={quarter}
-        chapter={liveEnded ? undefined : 'Live session'}
+        chapter={ended ? undefined : 'Live session'}
         currentTime={playingRel}
         duration={broadcastEdge}
         playing={phase === 'playing' && !paused}
-        isLive={!liveEnded}
+        isLive={!ended}
         volume={volume}
         onPlayPause={playPause}
         onSeek={seek}
