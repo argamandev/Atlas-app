@@ -140,6 +140,19 @@ not just YouTube). Run/demoed against the recorded session via `scripts/finish-l
 self-verified — **awaiting admin test** at `/app/live/live-finish-demo-tamis-2026-06-14`. Spec/plan under
 `docs/superpowers/`. Phase 2 (live-mode richness) next. See PROGRESS.md.
 
+**Update (2026-06-16, live UX 2A + polish SHIPPED to `main`):** The live→finished transition is live.
+One **unified live view** (`LiveSession`/`LiveBroadcastView`; single `LIVE_BUFFER_SEC` buffer, env-overridable
+via `NEXT_PUBLIC_LIVE_BUFFER_SEC`) shared by the Home + Company entries. Pure, unit-tested timing in
+`src/lib/live/liveTiming.ts` (interpolated edge for smooth timers; `delayedLiveEdge` drains the buffer at
+1x after the source ends — no cutoff/jump; `hostedLiveOver` = drain-based finished mode). The **inline
+swap**: source ends → `POST /api/live/finish` (idempotent; fires `finishLiveCall`) → client polls the
+**non-auth** `GET /api/live/finish` → "View the organized transcript" button → renders `LiveTranscriptView`
+in place at the same URL (audio continues via `initialSeek`); `GET /api/live/finished-call/[id]` returns
+the `LiveCall`. Refresh-safe (sessionStorage playhead + on-mount status re-derive). `ReturnToTranscriptChip`
+uses `PlayerProvider.viewingId` (URL-independent) so it hides during the inline swap. **Gemini fallback**
+(merged): GPT-4.1 formatter when Gemini 503s + accurate-IVRIT default + backoff (`transcription.ts`).
+NEXT: Phase 2B toolbar-on-live → 2C quote-anchor → 2D unified player.
+
 ## Stack
 
 - **Next.js 14 (App Router)** — server components + route handlers; TypeScript; deployed on **Railway**.

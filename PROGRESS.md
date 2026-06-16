@@ -5,7 +5,44 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
-## 2026-06-16 — Thread A Phase 1 EXECUTED (finish hand-off) — awaiting admin test
+## 2026-06-16 — Live transcript UX COMPLETE (2A transition + polish) → shipped to `main`
+
+**Status:** The live→finished "one call matures" UX is DONE and merged to `main` (from
+`feat/live-ux-2a`), tested live end-to-end (Or Yam replay under תמיס). **Phase 2 (2B/2C/2D) is next.**
+
+**What shipped (on top of Phase 1's finish pipeline):**
+- **Unified live view** — Home + Company entries open ONE route (`/app/live/live` → `LiveSession` →
+  `LiveBroadcastView`) with ONE buffer: `LIVE_BUFFER_SEC` (5-min default; `NEXT_PUBLIC_LIVE_BUFFER_SEC`
+  override — local tests use 60s).
+- **Pure timing engine** (`src/lib/live/liveTiming.ts`, unit-tested): `interpolatedEdge` (smooth edge
+  between 1.5s polls → no jittery "behind"/timers), `delayedLiveEdge` (after source-end the buffer
+  **drains** at 1x to the true end → no cutoff, no timeline jump), `hostedLiveOver` (drain-based
+  finished mode → kills the return-to-live-after-ended bug), `bufferGate` (countdown).
+- **2A inline swap** (`LiveSession`): source ends → `POST /api/live/finish` runs Gemini
+  (`finishLiveCall`) → poll the **non-auth** `GET /api/live/finish` → prominent **"View the organized
+  transcript"** button → swaps `LiveTranscriptView` **in place** (same URL; audio continues via
+  `initialSeek`). "Try again" on failure; English AI-status text; new `GET /api/live/finished-call/[id]`.
+- **Refresh-safe**: playhead persisted (sessionStorage) + restored on join; finish state re-derived on
+  mount; already-ended-on-load skips the drain ramp.
+- **Polish**: clickable **"LIVE"** on the player bar → jumps to the live edge; ready overlay reads
+  "available — join" (no misleading future-time); "-X מאחורי שיחת המשקיעים המקורית"; cross-client
+  "return to live" converges via the engine's shared edge (~1s — exact lockstep deemed out of V1 scope);
+  `ReturnToTranscriptChip` hidden while a transcript is displayed (`PlayerProvider.viewingId`).
+- **Gemini fallback merged** (parallel session, `transcription.ts`): accurate-IVRIT default + **GPT-4.1
+  fallback when Gemini 503s** + exponential backoff → the finish is 503-resilient.
+
+**Verified:** `tsc` clean · 42 tests · clean `next build`; founder confirmed every reported issue fixed.
+**Test harness:** `scripts/finish-live-call.ts` (+ `runDemoFinish`), `scripts/prep-replay-session.mjs`,
+`scripts/verify-finish.ts`, replay via `scripts/live-replay-engine.mjs`. Specs/plans under
+`docs/superpowers/` (2026-06-16-live-*).
+
+**NEXT — Phase 2 (continuing):** 2B toolbar-on-live (Save Quote / Ask Atlas / Share on a live caption)
+→ 2C quote-as-anchor (live quotes carry into finished) → 2D unified/persistent live audio player
+(truly-gapless swap).
+
+---
+
+## 2026-06-16 — Thread A Phase 1 EXECUTED (finish hand-off) — DONE (tested + shipped; see top entry)
 
 **Status:** Phase 1 (the spine) built, self-verified, and run against the recorded תמיס session — a
 real finished transcript row exists, **awaiting admin test in the app**. All work is in the working
