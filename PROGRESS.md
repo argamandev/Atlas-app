@@ -5,6 +5,31 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-16 — Transcription resilience + admin delete/rename (branch `fix/transcribe-fallback`)
+
+- **Root cause fixed:** a real submission (Knesset/ZIM call) died at the formatting step when
+  **Gemini 3.5 Flash 503'd** — `formatWithGeminiFlash` retried only 2×/3s with **no second
+  provider**, throwing away a successful, expensive IVRIT transcription. Now: Gemini retries **4×
+  with exponential backoff** (5s/15s/40s), then **falls back to GPT-4.1** (reuses `OPENAI_API_KEY`,
+  32k output, truncation-guarded; shared `buildFormatPrompt` keeps Gemini's prompt byte-identical).
+  Proven under a **real Gemini outage** while reformatting the ZIM call (Gemini 503×4 → GPT-4.1
+  delivered 11 speakers / 112 lines).
+- **IVRIT default → accurate model** (`ivrit-ai/whisper-large-v3-ct2`) with an automatic **accurate →
+  turbo → Whisper** chain; the actual model used is reported in diagnostics. Railway env
+  `RUNPOD_IVRIT_MODEL` set to match.
+- **Cheap re-runs:** transcript + word-timings + audio are persisted **before** formatting, and a
+  failed/retried row reformats only (skips download + IVRIT). New `scripts/reformat.mjs <id>`.
+- **Admin delete + rename** (company page, admin-only via `profiles.role='admin'`): `DELETE
+  /api/transcripts/[id]` (unlinks `scheduled_calls`, deletes the row, best-effort removes stored
+  audio; quotes auto-detach) and `PATCH` rename (edits `formatted_data.company`/`quarter`).
+  `AdminCallControls` renders rename/delete beside each finished call.
+- **Personal-transcribe ("transcribe your own audio")** was designed + built as a fully-isolated,
+  removable bolt-on, then **dismissed for now** — parked on branch `personal-transcribe-parked`
+  (recoverable). The additive DB columns (`transcripts.kind`/`description`) + `user_quotes` table
+  remain in the DB but are inert (unreferenced by deployed code).
+
+---
+
 ## 2026-06-16 — Live transcript UX COMPLETE (2A transition + polish) → shipped to `main`
 
 **Status:** The live→finished "one call matures" UX is DONE and merged to `main` (from

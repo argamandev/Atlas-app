@@ -157,10 +157,13 @@ NEXT: Phase 2B toolbar-on-live → 2C quote-anchor → 2D unified player.
 
 - **Next.js 14 (App Router)** — server components + route handlers; TypeScript; deployed on **Railway**.
 - **Supabase** — Postgres, Auth (SSR cookies), Storage (`audio-temp` bucket), RLS on `transcripts`.
-- **Transcription**: **IVRIT on RunPod** is the primary engine (`ivrit-ai/whisper-large-v3-turbo-ct2`,
-  HTTP polling), with **OpenAI Whisper** as fallback if IVRIT errors. **Gemini 3.5 Flash** does
-  formatting, speaker tagging, and light contextual correction via a holistic company-aware prompt.
-  GPT-4o is no longer in the pipeline.
+- **Transcription**: **IVRIT on RunPod** is the primary engine. Default model is the accurate
+  `ivrit-ai/whisper-large-v3-ct2`, with an automatic fallback chain **accurate → turbo
+  (`…-turbo-ct2`) → OpenAI Whisper**. **Gemini 3.5 Flash** does formatting, speaker tagging, and
+  light contextual correction via a holistic company-aware prompt — with **exponential backoff (4
+  attempts) and a GPT-4.1 fallback** when Gemini is overloaded/unavailable (reuses `OPENAI_API_KEY`;
+  same prompt). Transcript + word-timings + audio are persisted **before** formatting, so a failed
+  format re-runs as a cheap reformat-only pass (no re-download/transcribe; `scripts/reformat.mjs`).
 - **Audio**: `yt-dlp` + `ffmpeg` download to 32 kbps mono MP3 @ 16 kHz. On Windows uses `bin/yt-dlp.exe`.
 - **Styling**: Tailwind. Brand font **IBM Plex Sans Hebrew**. Dark theme, accent `#C04A00`.
 
