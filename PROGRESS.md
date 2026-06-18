@@ -5,6 +5,32 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-18 — Live UX: free-recording-after-end + 3 bug fixes (AWAITING FOUNDER TEST)
+
+**Status:** On `feat/live-phase2` (NOT merged to `main`). Checkpoint `c36d3e2` + **3 isolated fix commits**,
+awaiting the founder's feature‑by‑feature live test (test 1 → 3 → 2; `git revert` any single one that
+misbehaves). Temp debug code stripped. `tsc` clean · tests pass · clean `next build`.
+
+**Redesign (founder‑driven, after real 3‑min Zoom tests):** the end‑of‑call is now a **free recording**, not
+a draining edge — once the SOURCE ends, the whole captured buffer is a normal recording the viewer roams
+freely (badge → gray "הסתיים", LIVE button gone, scrubber = the full call). The finish fires and the
+organized transcript is offered via a **button** (no forced auto‑swap). Hard lesson from the multi‑hour
+chase: a **stale browser bundle** masked every fix — always hard‑refresh after a dev restart.
+
+**The 3 fixes (commits, in test order):**
+- **1 `2141360`** — LIVE/ended badge moved **top‑right** (grouped with close); a "waiting for live captions…"
+  placeholder when joined before Recall's first batch (accuracy mode lags 72–188s).
+- **3 `0739635`** — removed the inline banner that blocked text; finish status now shows as **floating,
+  dismissible (✕) frosted‑light Apple cards** (processing / ready+View / failed+retry) + a gray header badge.
+- **2 `16d7778`** — live **"Ask Atlas" grounds on the on‑screen captions** (`liveContext` → `/api/chat`); and
+  `getChatContext` no longer falls back to a **different company** when a companyId is set (the wrong‑company
+  bug). Finished view + global `/chat` unaffected (additive).
+
+**Plan:** `docs/superpowers/plans/2026-06-18-live-ux-three-bugs.md`. **Next:** founder's live test → if good,
+sync `main` + merge; then 2C (quote‑anchor) / 2D (HLS migration per the Quartr research).
+
+---
+
 ## 2026-06-17 — 2B toolbar + live-flow bug chase; seamless live→organized hand-off (AWAITING FOUNDER TEST)
 
 **Status:** Phase **2B (toolbar on the live view) DONE + founder-approved**. Three live-flow bugs found and
