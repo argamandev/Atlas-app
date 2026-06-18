@@ -138,12 +138,12 @@ export function LiveSession(props: {
       />
       {showCard && (
         <div
-          className="animate-fade-up fixed inset-x-0 top-3 z-50 mx-auto flex w-fit max-w-[92vw] items-center gap-3 rounded-2xl bg-white/85 px-4 py-2.5 text-sm text-ink shadow-popover ring-1 ring-black/5 backdrop-blur-xl"
+          className="animate-fade-up fixed inset-x-0 top-3 z-50 mx-auto flex w-fit max-w-[92vw] items-center gap-2.5 rounded-2xl bg-white/80 px-3.5 py-2 text-xs text-ink-muted shadow-popover ring-1 ring-black/5 backdrop-blur-xl"
           dir="ltr"
         >
           {finishStatus === 'processing' && (
             <span className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink-faint" />
+              <span className="h-1 w-1 animate-pulse rounded-full bg-ink-faint" />
               Investor call ended — AI is processing your transcript. This takes a few minutes; we&apos;ll notify you.
             </span>
           )}
@@ -153,7 +153,7 @@ export function LiveSession(props: {
               <button
                 type="button"
                 onClick={viewOrganized}
-                className="flex items-center gap-1 rounded-full bg-[#C04A00] px-3 py-1 text-xs font-semibold text-white"
+                className="flex items-center gap-1 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90"
               >
                 View<ChevronRightIcon size={13} className="rtl:rotate-180" />
               </button>
@@ -165,7 +165,7 @@ export function LiveSession(props: {
               <button
                 type="button"
                 onClick={retryFinish}
-                className="rounded-full bg-[#C04A00] px-3 py-1 text-xs font-semibold text-white"
+                className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90"
               >
                 Try again
               </button>
