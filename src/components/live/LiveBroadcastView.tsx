@@ -391,17 +391,27 @@ export function LiveBroadcastView({
           </span>
           <span className="shrink-0 text-sm text-ink-faint">{formatDate(new Date().toISOString(), locale)}</span>
           {phase === 'playing' && !liveEnded && (
-            <span className="shrink-0 text-xs text-ink-faint tabular-nums" dir="ltr">
-              -{fmt(behind)} מאחורי שיחת המשקיעים המקורית
+            <span
+              className="shrink-0 whitespace-nowrap rounded-full bg-subtle px-2 py-0.5 text-2xs font-medium text-ink-muted tabular-nums"
+              dir="ltr"
+            >
+              -{fmt(behind)} {dict.live.behindLive}
             </span>
           )}
         </div>
-        {/* top-right: LIVE / ended badge + close */}
+        {/* top-right: LIVE pill while airing → full "ended, AI is processing" status once the source ends */}
         <div className="flex shrink-0 items-center gap-3">
-          <span className={`flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 ${liveEnded ? 'bg-subtle' : 'bg-live/10'}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${liveEnded ? 'bg-ink-faint' : 'bg-live animate-pulse-live'}`} />
-            <span className={`text-2xs font-bold tracking-wide ${liveEnded ? 'text-ink-faint' : 'text-live'}`}>{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
-          </span>
+          {liveEnded ? (
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-2xs font-medium text-ink-faint">
+              <span className="h-1.5 w-1.5 rounded-full bg-ink-faint" />
+              {dict.live.endedStatus}
+            </span>
+          ) : (
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
+              <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
+            </span>
+          )}
           <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
             <CloseIcon size={17} />
           </IconButton>
@@ -418,16 +428,6 @@ export function LiveBroadcastView({
         <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
           <SyncIcon size={16} />
         </IconButton>
-        {phase === 'playing' && !liveEnded && (
-          <button
-            type="button"
-            onClick={goLive}
-            className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1 text-xs font-medium text-live"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            חזרה לשידור החי
-          </button>
-        )}
       </div>
 
       {/* transcript — the real V1 karaoke body */}

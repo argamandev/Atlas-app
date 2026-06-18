@@ -152,6 +152,8 @@ export const en = {
     editSpeakers: 'Edit speakers',
     editSpeakersHint: 'Select text to reassign it to a speaker',
     assignToSpeaker: 'Assign to speaker',
+    endedStatus: 'Sourced Investor Call ended, AI is processing your transcript',
+    behindLive: 'behind the sourced Investor Call',
   },
   player: {
     rewind15: 'Back 15s',

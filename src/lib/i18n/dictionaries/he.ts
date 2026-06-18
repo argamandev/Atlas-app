@@ -151,6 +151,8 @@ export const he: Dictionary = {
     editSpeakers: 'עריכת דוברים',
     editSpeakersHint: 'סמנו טקסט כדי לשייך אותו לדובר',
     assignToSpeaker: 'שיוך לדובר',
+    endedStatus: 'שיחת המקור הסתיימה, ה-AI מעבד את התמלול',
+    behindLive: 'מאחורי שיחת המשקיעים המקורית',
   },
   player: {
     rewind15: '15 שניות אחורה',
