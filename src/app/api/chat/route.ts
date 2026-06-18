@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
   const message: string = body?.message
   const companyId: string | undefined = body?.companyId || undefined
   const transcriptId: string | undefined = body?.transcriptId || undefined
+  // The LIVE view sends the on-screen captions directly (there's no completed transcript yet) so the
+  // chat is grounded on the call in front of the user — not a DB lookup that could hit another company.
+  const liveContext: string | undefined = body?.liveContext || undefined
   const history: ChatMessage[] = Array.isArray(body?.history) ? body.history : []
   if (!message) return NextResponse.json({ error: 'message required' }, { status: 400 })
 
@@ -29,7 +32,9 @@ export async function POST(req: NextRequest) {
     return textResponse('The chat model isn’t configured yet (missing GEMINI_API_KEY).')
   }
 
-  const ctx = await getChatContext(companyId, transcriptId)
+  const ctx = liveContext
+    ? { text: liveContext.slice(0, 40_000), source: null }
+    : await getChatContext(companyId, transcriptId)
 
   const system =
     'You are Atlas, a research assistant for Israeli public-company investor calls. ' +

@@ -8,6 +8,7 @@ export interface ChatInput {
   message: string
   companyId?: string
   transcriptId?: string
+  liveContext?: string // LIVE view: the on-screen captions, used directly as grounding context
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
 

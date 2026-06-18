@@ -47,11 +47,11 @@ async function byId(transcriptId: string): Promise<{ id: string; formatted_data:
 }
 
 export async function getChatContext(companyId?: string, transcriptId?: string): Promise<ChatContext> {
-  // Prefer the specific call, then the company's own transcript, then any completed transcript.
+  // Prefer the specific call; else the company's OWN latest transcript. Only fall back to "any completed
+  // transcript" when NO company was given (the global /chat page) — never cross into a different company.
   const hit =
     (transcriptId ? await byId(transcriptId) : null) ??
-    (companyId ? await latestCompleted(companyId) : null) ??
-    (await latestCompleted())
+    (companyId ? await latestCompleted(companyId) : await latestCompleted())
   if (!hit) return { text: '', source: null }
   const fd = hit.formatted_data
   return {

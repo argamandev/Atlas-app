@@ -105,6 +105,12 @@ export function LiveBroadcastView({
 
   const flat = useMemo(() => flattenWords(transcript), [transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, playingRel), [flat, playingRel])
+  // The on-screen captions as plain text — fed to "Ask Atlas" so it answers about THIS live call
+  // (not a DB lookup that could hit a different company). Undefined until the first captions arrive.
+  const liveCaptionsText = useMemo(
+    () => (words.length ? `${companyName} — ${quarter}\n\n${words.map((w) => w.text).join(' ')}` : undefined),
+    [words, companyName, quarter],
+  )
 
   function flushAudio() {
     for (const s of schedRef.current) {
@@ -516,6 +522,7 @@ export function LiveBroadcastView({
         <TranscriptChatPanel
           companyId={companyId}
           transcriptId={undefined}
+          liveContext={liveCaptionsText}
           quote={chat.seed}
           seedNonce={chat.nonce}
           onClose={() => setChat((c) => ({ ...c, open: false }))}
