@@ -42,7 +42,6 @@ export function LiveBroadcastView({
   persistKey,
   playheadRef,
   onSourceEnded,
-  notice,
 }: {
   companyName: string
   companyId: string | null
@@ -52,7 +51,6 @@ export function LiveBroadcastView({
   persistKey?: string
   playheadRef?: React.MutableRefObject<number>
   onSourceEnded?: () => void
-  notice?: React.ReactNode
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -394,9 +392,9 @@ export function LiveBroadcastView({
         </div>
         {/* top-right: LIVE / ended badge + close */}
         <div className="flex shrink-0 items-center gap-3">
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            <span className="text-2xs font-bold tracking-wide text-live">{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
+          <span className={`flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 ${liveEnded ? 'bg-subtle' : 'bg-live/10'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${liveEnded ? 'bg-ink-faint' : 'bg-live animate-pulse-live'}`} />
+            <span className={`text-2xs font-bold tracking-wide ${liveEnded ? 'text-ink-faint' : 'text-live'}`}>{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
           </span>
           <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
             <CloseIcon size={17} />
@@ -425,10 +423,6 @@ export function LiveBroadcastView({
           </button>
         )}
       </div>
-
-      {/* source-ended / organized banner — a centered pill ABOVE the transcript (outside the scroll
-          area) so it stays visible; inside, the karaoke auto-scroll would push it out of view. */}
-      {notice && <div className="flex justify-center px-6 pb-2 pt-1">{notice}</div>}
 
       {/* transcript — the real V1 karaoke body */}
       <div
