@@ -369,7 +369,7 @@ export function LiveBroadcastView({
       : phase === 'waiting'
         ? 'ממתין לתחילת השיחה…'
         : phase === 'buffering'
-          ? `בונים מאגר השהיה של ${Math.round(delaySec / 60)} דק׳ כדי לשדר את השיחה בשידור חי`
+          ? dict.live.buffering.replace('{min}', String(Math.round(delaySec / 60)))
           : 'השידור זמין — הצטרפו לצפייה'
 
   const liveTabs = [

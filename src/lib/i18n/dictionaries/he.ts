@@ -153,6 +153,7 @@ export const he: Dictionary = {
     assignToSpeaker: 'שיוך לדובר',
     endedStatus: 'שיחת המקור הסתיימה, ה-AI מעבד את התמלול',
     behindLive: 'מאחורי שיחת המשקיעים המקורית',
+    buffering: 'אנחנו משהים {min} דק׳ משיחת המקור כדי להפיק תמלול חי',
   },
   player: {
     rewind15: '15 שניות אחורה',

@@ -154,6 +154,7 @@ export const en = {
     assignToSpeaker: 'Assign to speaker',
     endedStatus: 'Sourced Investor Call ended, AI is processing your transcript',
     behindLive: 'behind the sourced Investor Call',
+    buffering: 'We buffer {min} minutes from the sourced Investor Call to generate a live transcript',
   },
   player: {
     rewind15: 'Back 15s',
