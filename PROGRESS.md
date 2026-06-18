@@ -5,6 +5,31 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-18 — Live UX polish pass: 8 founder-requested refinements (AWAITING FOUNDER TEST)
+
+**Status:** On `feat/live-phase2` (NOT merged). **5 isolated commits** on top of the free-recording pass,
+each independently revertible. `tsc` clean · 42 tests pass · clean `next build`. Awaiting the next live test.
+
+**The 8 refinements (5 commits):**
+- **`8b0ec74`** — header: the **top-right status** now shows the full localized "Sourced Investor Call ended,
+  AI is processing your transcript" once the source ends (was just "הסתיים"); the **behind-live** chip is now
+  localized (EN/HE) and styled as a distinct subtle pill (not plain date text); the redundant
+  **"חזרה לשידור החי"** sub-toolbar button is gone (the play-bar LIVE label covers it).
+- **`d1612d1`** — the floating **call-ended card** is subtler/less dominant (smaller, muted, lighter); the
+  **action buttons are black** (`bg-ink`) instead of orange.
+- **`5a4c7f3`** — the **buffer/pre-roll counter** message is localized (EN: "We buffer 3 minutes from the
+  sourced Investor Call to generate a live transcript").
+- **`bbf90e5`** — **chat GPT-4.1 fallback**: when Gemini is down/blips, `/api/chat` streams from OpenAI
+  `gpt-4.1` instead (same system+context+history) so the live chat doesn't die mid-call (`x-chat-fallback`).
+- **`29a1ae5`** — the **play-bar LIVE/playhead is pinned far-right** from join (YouTube-style); a real
+  seek-back (>2s behind the edge) lets the thumb track position again.
+
+**All user-facing strings go through the en/he dictionaries** (`live.endedStatus` / `live.behindLive` /
+`live.buffering`). The notification cards stay English by design (institutional). **Plan:**
+`docs/superpowers/plans/2026-06-18-live-ux-polish-pass.md`. **Next:** live test → if good, merge to `main`.
+
+---
+
 ## 2026-06-18 — Live UX: free-recording-after-end + 3 bug fixes (AWAITING FOUNDER TEST)
 
 **Status:** On `feat/live-phase2` (NOT merged to `main`). Checkpoint `c36d3e2` + **3 isolated fix commits**,
