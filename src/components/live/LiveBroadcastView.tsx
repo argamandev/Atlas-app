@@ -386,19 +386,22 @@ export function LiveBroadcastView({
             {companyName} — {quarter}
           </span>
           <span className="shrink-0 text-sm text-ink-faint">{formatDate(new Date().toISOString(), locale)}</span>
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            <span className="text-2xs font-bold tracking-wide text-live">{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
-          </span>
           {phase === 'playing' && !liveEnded && (
             <span className="shrink-0 text-xs text-ink-faint tabular-nums" dir="ltr">
               -{fmt(behind)} מאחורי שיחת המשקיעים המקורית
             </span>
           )}
         </div>
-        <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
-          <CloseIcon size={17} />
-        </IconButton>
+        {/* top-right: LIVE / ended badge + close */}
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
+            <span className="text-2xs font-bold tracking-wide text-live">{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
+          </span>
+          <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
+            <CloseIcon size={17} />
+          </IconButton>
+        </div>
       </header>
 
       {/* tabs */}
@@ -433,6 +436,11 @@ export function LiveBroadcastView({
         onMouseUp={onTextSelect}
         onScroll={() => selection && setSelection(null)}
       >
+        {phase === 'playing' && words.length === 0 && (
+          <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
+            ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+          </div>
+        )}
         <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke />
       </div>
 
