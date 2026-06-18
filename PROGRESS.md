@@ -5,6 +5,48 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-17 — 2B toolbar + live-flow bug chase; seamless live→organized hand-off (AWAITING FOUNDER TEST)
+
+**Status:** Phase **2B (toolbar on the live view) DONE + founder-approved**. Three live-flow bugs found and
+fixed during real Recall Zoom tests. The final UX gap — the live experience ending abruptly when the buffer
+drains — is **fixed (auto-swap into the organized transcript) and self-verified; awaiting the founder's joint
+test** (they're back 2026-06-17). Branch `feat/live-phase2`, **NOT yet committed**; temporary diagnostics
+still in place (remove before commit).
+
+**Shipped this session (all on `feat/live-phase2`):**
+- **2B — toolbar on live** (`LiveBroadcastView`): highlight a live caption → Save Quote / Ask Atlas / Share,
+  mirroring the finished page (reuses `TranscriptChatPanel` + `createQuote` + `TranscriptBody`).
+  Live-specific: quote `transcriptId:null` + live-playhead `startSec`; chat `transcriptId=undefined`;
+  WhatsApp-only share.
+- **Bug A (mid-call CTA):** "View organized" appeared mid-live because the finish poll keyed on the reused
+  static call id with a stale `completed` row. Fixed: gate the finish UX on THIS session's `sourceEnded`.
+- **Bug B (wrong finished transcript):** the organized view was the old demo, not this call. Fixed —
+  `runLiveBroadcastFinish` (`finishLiveCall.ts`) reads THIS airing's captured `broadcast-*.{jsonl,pcm}`,
+  waits for Recall's trailing captions to catch up to the audio, re-finishes the current call;
+  `POST /api/live/finish` re-finishes unless one is in flight. Proven server-side (Q2 2026 / 221s / 347 words).
+- **Bug C (buffer didn't survive source-end) — the big one:** replaced the fragile `endedWall`/
+  `delayedLiveEdge` drain-ramp with a **plain recording playthrough** (once `liveEnded`, the whole buffer is
+  playable; `ended = viewerEnded` only when the playhead reaches the true end). **The real blocker was a
+  STALE BROWSER BUNDLE** — cached old JS meant no fix or instrumentation ever loaded across dev restarts.
+  After a hard refresh, an auto-trace (`/api/live/debug`) proved the drain works (`behind` 50→0 at 1×, audio
+  buffered ahead, `ended` only at the true end). **Lesson: hard-refresh after every dev restart.**
+
+**This plan's fix (awaiting test):** when the buffer fully drains, **seamlessly auto-swap into the organized
+transcript** instead of a dead "ended" state. `LiveBroadcastView` already fires `onHostedOver` at drain-end;
+`LiveSession` now tracks `drainedOver`, pre-loads the organized call once the finish is `ready`, and
+auto-swaps when both hold (`shouldAutoSwapToFinished`, unit-tested). The manual CTA stays as an early exit.
+Plan: `docs/superpowers/plans/2026-06-17-seamless-drain-to-organized.md`.
+
+**Verified:** `tsc` clean · **43 tests** · clean `next build`. **NOT yet visually tested** — the founder tests
+the seamless hand-off next. **Test recipe:** restart the replay (`REPLAY_OFFSET≈90` on a recorded session,
+`scripts/live-replay-engine.mjs`) → open `/app/live/live` → **HARD REFRESH (Ctrl+Shift+R)** → join → watch
+`behind` drain to 0:00 → it should become the organized transcript with no "ended" gap.
+
+**Before commit:** strip the temp diagnostics — the dev-only green readout + the `dbgRef` trace in
+`LiveBroadcastView`, and `src/app/api/live/debug/route.ts`.
+
+---
+
 ## 2026-06-16 — Live transcript UX COMPLETE (2A transition + polish) → shipped to `main`
 
 **Status:** The live→finished "one call matures" UX is DONE and merged to `main` (from

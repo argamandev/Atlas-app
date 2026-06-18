@@ -7,6 +7,29 @@ Project memory for Claude. Read this first every session.
 > `timlul-ai.com` domain still carry the old name. Note: "תמלול" throughout this file is
 > historical *and* the everyday Hebrew noun for "transcript" — only brand-name uses were renamed.
 
+## How we work — founder context + dev workflow (READ FIRST)
+
+**Founder:** Sagi is a **solo, non-engineer founder** learning software development as he builds Atlas. He
+learns fast but is new to git, code, and architecture. **Guide proactively and educationally:** explain the
+*why* in plain language, surface risky/irreversible steps before doing them, and never assume prior
+knowledge. Always say which branch we're on and what is committed vs. uncommitted.
+
+**Work small, one step at a time:**
+- **Break every big feature into small, independently-testable mini-features.** No giant multi-day branches —
+  one clear step at a time → clean, reviewable, safe work. (This is an explicit founder instruction.)
+- **One branch per mini-feature** off `main` (`feat/<name>` / `fix/<name>`). `main` stays always-working and
+  pushed to GitHub (`origin`: github.com/argamandev/Investor-Transcript).
+- **Small, clearly-labeled commits** as we go (one logical step each) — never one giant end-of-feature commit.
+- **Test before committing/merging.** Sagi prefers to test a feature first, confirm it works, THEN commit —
+  do **not** commit unverified work. `main` only ever gets tested, working code.
+- **Claude reviews the diff before any merge to `main`.** Solo founder → formal GitHub PRs are optional; the
+  discipline that matters is branch + small commits + test-before-merge. Sync `main` into the branch before
+  merging, delete merged branches, keep `.gitignore` clean.
+
+**Homework track (Sagi is learning):** feed one topic at a time with a concrete resource + small exercise —
+git basics, working effectively with Claude Code, app architecture (Next.js client/server + Supabase), and
+security (secrets/`.env`, auth, RLS). Tie each to what we're currently building.
+
 ## What this is — the big vision
 
 **תמלול** is building the best product for the Israeli public market and its financial

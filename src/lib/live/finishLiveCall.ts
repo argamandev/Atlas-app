@@ -187,10 +187,22 @@ export async function finishLiveCall(input: FinishInput): Promise<FinishResult> 
   return { id: input.callId, url: `/app/live/${input.callId}`, audioUrl, durationSec, wordCount: words.length }
 }
 
-/** The demo finished-call id (the recorded Or-Yam session, attached to תמיס). */
+/** The synthetic finished-call id (reused across airings; the live finish overwrites this row). */
 export const DEMO_CALL_ID = 'live-finish-demo-tamis-2026-06-14'
 
 interface DemoRec { id: number; raw: string; corrected: string | null; words: { text: string; start: number }[] }
+
+/** FK-valid owner for a finished row: admin profile → newest transcript → fallback uuid. */
+async function resolveOwnerUserId(): Promise<string> {
+  const { supabaseAdmin } = await import('@/lib/supabase')
+  const { data: admin } = await supabaseAdmin
+    .from('profiles').select('id').eq('role', 'admin').limit(1).maybeSingle()
+  if (admin?.id) return admin.id as string
+  const { data: t } = await supabaseAdmin
+    .from('transcripts').select('user_id').not('user_id', 'is', null)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+  return (t?.user_id as string) ?? '00000000-0000-0000-0000-000000000000'
+}
 
 /**
  * Demo finish: read the recorded Or-Yam session, (optionally) mark a `processing` stub so a poller
@@ -221,19 +233,9 @@ export async function runDemoFinish(opts: { markProcessing?: boolean } = {}): Pr
   const words: FeedWord[] = sessRecs.flatMap((r) => r.words.map((w) => ({ text: w.text, start: w.start })))
   const rawText = sessRecs.map((r) => r.raw).join('\n\n')
 
-  // FK-valid owner: explicit uuid arg → admin profile → newest transcript → demo user.
+  // FK-valid owner: explicit uuid arg (CLI) → admin profile → newest transcript → fallback.
   const arg = process.argv[2]
-  let userId = arg && /^[0-9a-fA-F-]{36}$/.test(arg) ? arg : ''
-  if (!userId) {
-    const { data: admin } = await supabaseAdmin.from('profiles').select('id').eq('role', 'admin').limit(1).maybeSingle()
-    userId = (admin?.id as string) ?? ''
-  }
-  if (!userId) {
-    const { data: t } = await supabaseAdmin
-      .from('transcripts').select('user_id').not('user_id', 'is', null)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle()
-    userId = (t?.user_id as string) ?? '00000000-0000-0000-0000-000000000000'
-  }
+  const userId = arg && /^[0-9a-fA-F-]{36}$/.test(arg) ? arg : await resolveOwnerUserId()
 
   if (opts.markProcessing) {
     await supabaseAdmin.from('transcripts').upsert(
@@ -257,6 +259,79 @@ export async function runDemoFinish(opts: { markProcessing?: boolean } = {}): Pr
     rawText,
     words,
     pcmPath: path.join(sessDir, 'tamis-2026-06-14.pcm'),
+    sampleRate: 16000,
+    channels: 1,
+    userId,
+  })
+}
+
+/**
+ * Live finish (real call): read THIS airing's captured broadcast buffer
+ * (scripts/out/broadcast-lines.jsonl + broadcast-audio.pcm) and run the finish pipeline, overwriting
+ * the synthetic row. Recall's accuracy mode delivers transcript chunks up to ~188s AFTER the audio,
+ * so this first waits for the captions to catch up to the (now-final) audio length — otherwise the
+ * finished transcript would be truncated to whatever had arrived at source-end. Used by
+ * POST /api/live/finish. Dynamic imports keep the module top level import-safe for the unit tests.
+ */
+export async function runLiveBroadcastFinish(opts: { markProcessing?: boolean } = {}): Promise<FinishResult> {
+  const fs = await import('fs')
+  const path = await import('path')
+  const { supabaseAdmin } = await import('@/lib/supabase')
+
+  const outDir = path.join(process.cwd(), 'scripts', 'out')
+  const linesPath = path.join(outDir, 'broadcast-lines.jsonl')
+  const pcmPath = path.join(outDir, 'broadcast-audio.pcm')
+  if (!fs.existsSync(linesPath) || !fs.existsSync(pcmPath)) {
+    throw new Error('no live broadcast captured (run a live call first)')
+  }
+
+  type BLine = { raw: string; corrected: string | null; words: { text: string; start: number | null }[] }
+  const readLines = (): BLine[] =>
+    fs.readFileSync(linesPath, 'utf8').split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l) as BLine)
+  const lastWordStart = (ls: BLine[]): number => ls.at(-1)?.words?.at(-1)?.start ?? 0
+
+  const userId = await resolveOwnerUserId()
+  if (opts.markProcessing) {
+    await supabaseAdmin.from('transcripts').upsert(
+      {
+        id: DEMO_CALL_ID,
+        user_id: userId,
+        youtube_url: `live://${DEMO_CALL_ID}`,
+        youtube_title: 'תמיס Q2 2026',
+        status: 'processing',
+        processing_step: 'formatting',
+      },
+      { onConflict: 'id' },
+    )
+  }
+
+  // Audio is final once the source ended (PCM stopped growing); captions trail by up to ~188s. Wait
+  // until the transcript reaches the audio end (within 8s) or a hard cap, so nothing is truncated.
+  const pcmDurSec = fs.statSync(pcmPath).size / 2 / 16000
+  const cap = Date.now() + 220_000
+  while (Date.now() < cap) {
+    const ls = readLines()
+    if (ls.length && lastWordStart(ls) >= pcmDurSec - 8) break
+    await new Promise((r) => setTimeout(r, 4000))
+  }
+
+  const lines = readLines()
+  const words: FeedWord[] = lines.flatMap((l) =>
+    (l.words ?? [])
+      .filter((w): w is { text: string; start: number } => typeof w.start === 'number')
+      .map((w) => ({ text: w.text, start: w.start })),
+  )
+  if (!words.length) throw new Error('no words captured in the live broadcast')
+  const rawText = lines.map((l) => l.corrected || l.raw).join('\n\n')
+
+  return finishLiveCall({
+    callId: DEMO_CALL_ID,
+    companyTicker: '1097229',
+    companyName: 'תמיס',
+    quarter: 'Q2 2026',
+    rawText,
+    words,
+    pcmPath,
     sampleRate: 16000,
     channels: 1,
     userId,
