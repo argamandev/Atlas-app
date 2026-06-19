@@ -5,7 +5,31 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
-## 2026-06-19 — Keep LIVE through the buffer drain → clean finish (AWAITING FOUNDER TEST)
+## 2026-06-20 — feat/live-phase2 SHIPPED to main (real Zoom test passed)
+
+**Status:** `feat/live-phase2` **merged to `main`** and pushed to GitHub after a successful real Recall + Zoom
+test (~13-min תמיס call, 4-min buffer). 21 commits. `tsc` clean · 43 tests · clean `next build`. Branch deleted.
+
+**What the live test confirmed:**
+- **Keep-LIVE-through-the-buffer-drain works** — the view no longer cuts off when the source audio stops; it
+  stays live and drains the buffer, then becomes a finished recording → auto-swaps to the organized transcript.
+- **The wrong-transcript bug is fixed (capture reset).** The finished transcript was unmistakably THIS call
+  (תמיס, ~13 min, 1,400 words, fresh opening *"טוב, אנחנו ממש עכשיו מתחילים…"*) — not the old accumulated pile.
+- Finish fired at source-end and completed; Home/company stay live through the drain; the "AI is processing"
+  card auto-dismisses after 5s.
+
+**Shipped this branch (detail in the dated entries below):** free-recording-after-end + 3 bug fixes · the
+8-item UX polish pass · keep-LIVE-through-the-buffer-drain + clean finish · **new: pause-auto-scroll-on-manual-
+scroll + "↓ Back to live / Back to current" chip** in the shared `TranscriptBody` (covers BOTH live + finished
+pages; wheel/touch detection so our own programmatic scroll never trips it). Note: Recall accuracy-mode caption
+lag (big batches every ~2–3 min, first ~3 min) is inherent — the buffer absorbs it (captions ran ~178s ahead
+of playback during the test).
+
+**Next:** founder's slight visual refinements (a fresh small branch each).
+
+---
+
+## 2026-06-19 — Keep LIVE through the buffer drain → clean finish (SHIPPED to main 2026-06-20)
 
 **Status:** On `feat/live-phase2` (NOT merged). **7 commits** (test + engine + route + 4 UI). `tsc` clean ·
 43 tests · clean `next build`. Founder-driven after a real 4-min-buffer test confirmed the abrupt cutoff.
@@ -30,7 +54,7 @@ is a small optional follow-up. **Next:** founder live Zoom test → if good, mer
 
 ---
 
-## 2026-06-18 — Live UX polish pass: 8 founder-requested refinements (AWAITING FOUNDER TEST)
+## 2026-06-18 — Live UX polish pass: 8 founder-requested refinements (SHIPPED to main 2026-06-20)
 
 **Status:** On `feat/live-phase2` (NOT merged). **5 isolated commits** on top of the free-recording pass,
 each independently revertible. `tsc` clean · 42 tests pass · clean `next build`. Awaiting the next live test.
@@ -55,7 +79,7 @@ each independently revertible. `tsc` clean · 42 tests pass · clean `next build
 
 ---
 
-## 2026-06-18 — Live UX: free-recording-after-end + 3 bug fixes (AWAITING FOUNDER TEST)
+## 2026-06-18 — Live UX: free-recording-after-end + 3 bug fixes (SHIPPED to main 2026-06-20)
 
 **Status:** On `feat/live-phase2` (NOT merged to `main`). Checkpoint `c36d3e2` + **3 isolated fix commits**,
 awaiting the founder's feature‑by‑feature live test (test 1 → 3 → 2; `git revert` any single one that
