@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { EntityRow } from '@/components/ds/EntityRow'
+import { delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
 // Home "Live Now" — polls the live engine and surfaces the company the moment a call goes live
 // (audio flowing). This is the auto-appear behavior MAYA will drive in production; for now the
@@ -17,7 +18,11 @@ export function LiveNowPanel({ companyName, logoUrl }: { companyName: string; lo
       try {
         const r = await fetch('/api/live/state', { cache: 'no-store' })
         const st = await r.json()
-        if (alive) setLive(st.audioStartRel !== null && !st.liveEnded)
+        // Stay "live" through the whole buffer drain — live until the drain reaches the true end.
+        const edge = st.liveEdgeRel ?? 0
+        const drained = delayedLiveEdge(edge, LIVE_BUFFER_SEC, st.endedAt ?? null, Date.now())
+        const over = hostedLiveOver(!!st.liveEnded, drained, edge)
+        if (alive) setLive(st.audioStartRel !== null && !over)
       } catch {
         if (alive) setLive(false)
       }
