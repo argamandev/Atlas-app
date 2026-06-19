@@ -38,7 +38,11 @@ export function MediaPlayer(props: MediaPlayerProps) {
   const { dict, dir } = useI18n()
   const trackRef = useRef<HTMLDivElement>(null)
   const { currentTime, duration, playing, isLive } = props
-  const pct = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
+  // While live the viewer sits AT the delayed edge, so the playhead is pinned far-right (YouTube-style)
+  // from the first frame. currentTime/duration is ~0/0 at join and would otherwise drift in from the left.
+  // A real seek backwards (>2s behind the edge) leaves the live edge → the thumb tracks position again.
+  const atLiveEdge = isLive && (duration <= 0 || currentTime >= duration - 2)
+  const pct = atLiveEdge ? 100 : duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
   const remaining = Math.max(0, duration - currentTime)
 
   function seekFromEvent(e: React.MouseEvent) {

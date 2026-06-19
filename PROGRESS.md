@@ -5,6 +5,148 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-20 — feat/live-phase2 SHIPPED to main (real Zoom test passed)
+
+**Status:** `feat/live-phase2` **merged to `main`** and pushed to GitHub after a successful real Recall + Zoom
+test (~13-min תמיס call, 4-min buffer). 21 commits. `tsc` clean · 43 tests · clean `next build`. Branch deleted.
+
+**What the live test confirmed:**
+- **Keep-LIVE-through-the-buffer-drain works** — the view no longer cuts off when the source audio stops; it
+  stays live and drains the buffer, then becomes a finished recording → auto-swaps to the organized transcript.
+- **The wrong-transcript bug is fixed (capture reset).** The finished transcript was unmistakably THIS call
+  (תמיס, ~13 min, 1,400 words, fresh opening *"טוב, אנחנו ממש עכשיו מתחילים…"*) — not the old accumulated pile.
+- Finish fired at source-end and completed; Home/company stay live through the drain; the "AI is processing"
+  card auto-dismisses after 5s.
+
+**Shipped this branch (detail in the dated entries below):** free-recording-after-end + 3 bug fixes · the
+8-item UX polish pass · keep-LIVE-through-the-buffer-drain + clean finish · **new: pause-auto-scroll-on-manual-
+scroll + "↓ Back to live / Back to current" chip** in the shared `TranscriptBody` (covers BOTH live + finished
+pages; wheel/touch detection so our own programmatic scroll never trips it). Note: Recall accuracy-mode caption
+lag (big batches every ~2–3 min, first ~3 min) is inherent — the buffer absorbs it (captions ran ~178s ahead
+of playback during the test).
+
+**Next:** founder's slight visual refinements (a fresh small branch each).
+
+---
+
+## 2026-06-19 — Keep LIVE through the buffer drain → clean finish (SHIPPED to main 2026-06-20)
+
+**Status:** On `feat/live-phase2` (NOT merged). **7 commits** (test + engine + route + 4 UI). `tsc` clean ·
+43 tests · clean `next build`. Founder-driven after a real 4-min-buffer test confirmed the abrupt cutoff.
+Spec `docs/superpowers/specs/2026-06-19-live-keep-through-buffer-design.md`; plan `…/plans/2026-06-19-…md`.
+
+**The model now:** a call is **LIVE** (incl. the buffer drain) or **FINISHED** — no "processing" surface.
+This **reverts the free-recording cutoff**: when the source audio stops, the view STAYS live and drains the
+buffer at 1x (re-wiring the still-tested `delayedLiveEdge`/`hostedLiveOver`/`viewerEnded` helpers); only when
+the buffer fully drains does it flip to a finished recording → auto-swaps to the organized transcript when
+ready (raw "default text" until then). The engine now exposes `endedAt` so every client computes the same
+drain end (source-end + buffer).
+
+**Commits:** `test(live)` drain+over compose · `feat(live-engine)` expose `endedAt` + **reset capture files
+per run** (fixes the wrong/accumulated finished transcript) · `feat(live)` state proxy passes `endedAt` ·
+`feat(live)` LBV keeps LIVE through the drain, raw "over" recording at drain-end (header LIVE→no-badge, the
+#1 "ended" text now lives only in the card) · `feat(live)` LiveSession drain-end auto-swap + raw-until-ready
++ **5s card auto-dismiss** · `feat(live)` Home + company stay LIVE through the drain.
+
+**Known minor gap (flagged):** a user who navigates away and returns in the narrow post-drain/pre-organized
+window (~1–2 min) — the in-view + during-drain paths are fully covered; the latest-call-link-before-organized
+is a small optional follow-up. **Next:** founder live Zoom test → if good, merge `feat/live-phase2` to `main`.
+
+---
+
+## 2026-06-18 — Live UX polish pass: 8 founder-requested refinements (SHIPPED to main 2026-06-20)
+
+**Status:** On `feat/live-phase2` (NOT merged). **5 isolated commits** on top of the free-recording pass,
+each independently revertible. `tsc` clean · 42 tests pass · clean `next build`. Awaiting the next live test.
+
+**The 8 refinements (5 commits):**
+- **`8b0ec74`** — header: the **top-right status** now shows the full localized "Sourced Investor Call ended,
+  AI is processing your transcript" once the source ends (was just "הסתיים"); the **behind-live** chip is now
+  localized (EN/HE) and styled as a distinct subtle pill (not plain date text); the redundant
+  **"חזרה לשידור החי"** sub-toolbar button is gone (the play-bar LIVE label covers it).
+- **`d1612d1`** — the floating **call-ended card** is subtler/less dominant (smaller, muted, lighter); the
+  **action buttons are black** (`bg-ink`) instead of orange.
+- **`5a4c7f3`** — the **buffer/pre-roll counter** message is localized (EN: "We buffer 3 minutes from the
+  sourced Investor Call to generate a live transcript").
+- **`bbf90e5`** — **chat GPT-4.1 fallback**: when Gemini is down/blips, `/api/chat` streams from OpenAI
+  `gpt-4.1` instead (same system+context+history) so the live chat doesn't die mid-call (`x-chat-fallback`).
+- **`29a1ae5`** — the **play-bar LIVE/playhead is pinned far-right** from join (YouTube-style); a real
+  seek-back (>2s behind the edge) lets the thumb track position again.
+
+**All user-facing strings go through the en/he dictionaries** (`live.endedStatus` / `live.behindLive` /
+`live.buffering`). The notification cards stay English by design (institutional). **Plan:**
+`docs/superpowers/plans/2026-06-18-live-ux-polish-pass.md`. **Next:** live test → if good, merge to `main`.
+
+---
+
+## 2026-06-18 — Live UX: free-recording-after-end + 3 bug fixes (SHIPPED to main 2026-06-20)
+
+**Status:** On `feat/live-phase2` (NOT merged to `main`). Checkpoint `c36d3e2` + **3 isolated fix commits**,
+awaiting the founder's feature‑by‑feature live test (test 1 → 3 → 2; `git revert` any single one that
+misbehaves). Temp debug code stripped. `tsc` clean · tests pass · clean `next build`.
+
+**Redesign (founder‑driven, after real 3‑min Zoom tests):** the end‑of‑call is now a **free recording**, not
+a draining edge — once the SOURCE ends, the whole captured buffer is a normal recording the viewer roams
+freely (badge → gray "הסתיים", LIVE button gone, scrubber = the full call). The finish fires and the
+organized transcript is offered via a **button** (no forced auto‑swap). Hard lesson from the multi‑hour
+chase: a **stale browser bundle** masked every fix — always hard‑refresh after a dev restart.
+
+**The 3 fixes (commits, in test order):**
+- **1 `2141360`** — LIVE/ended badge moved **top‑right** (grouped with close); a "waiting for live captions…"
+  placeholder when joined before Recall's first batch (accuracy mode lags 72–188s).
+- **3 `0739635`** — removed the inline banner that blocked text; finish status now shows as **floating,
+  dismissible (✕) frosted‑light Apple cards** (processing / ready+View / failed+retry) + a gray header badge.
+- **2 `16d7778`** — live **"Ask Atlas" grounds on the on‑screen captions** (`liveContext` → `/api/chat`); and
+  `getChatContext` no longer falls back to a **different company** when a companyId is set (the wrong‑company
+  bug). Finished view + global `/chat` unaffected (additive).
+
+**Plan:** `docs/superpowers/plans/2026-06-18-live-ux-three-bugs.md`. **Next:** founder's live test → if good,
+sync `main` + merge; then 2C (quote‑anchor) / 2D (HLS migration per the Quartr research).
+
+---
+
+## 2026-06-17 — 2B toolbar + live-flow bug chase; seamless live→organized hand-off (AWAITING FOUNDER TEST)
+
+**Status:** Phase **2B (toolbar on the live view) DONE + founder-approved**. Three live-flow bugs found and
+fixed during real Recall Zoom tests. The final UX gap — the live experience ending abruptly when the buffer
+drains — is **fixed (auto-swap into the organized transcript) and self-verified; awaiting the founder's joint
+test** (they're back 2026-06-17). Branch `feat/live-phase2`, **NOT yet committed**; temporary diagnostics
+still in place (remove before commit).
+
+**Shipped this session (all on `feat/live-phase2`):**
+- **2B — toolbar on live** (`LiveBroadcastView`): highlight a live caption → Save Quote / Ask Atlas / Share,
+  mirroring the finished page (reuses `TranscriptChatPanel` + `createQuote` + `TranscriptBody`).
+  Live-specific: quote `transcriptId:null` + live-playhead `startSec`; chat `transcriptId=undefined`;
+  WhatsApp-only share.
+- **Bug A (mid-call CTA):** "View organized" appeared mid-live because the finish poll keyed on the reused
+  static call id with a stale `completed` row. Fixed: gate the finish UX on THIS session's `sourceEnded`.
+- **Bug B (wrong finished transcript):** the organized view was the old demo, not this call. Fixed —
+  `runLiveBroadcastFinish` (`finishLiveCall.ts`) reads THIS airing's captured `broadcast-*.{jsonl,pcm}`,
+  waits for Recall's trailing captions to catch up to the audio, re-finishes the current call;
+  `POST /api/live/finish` re-finishes unless one is in flight. Proven server-side (Q2 2026 / 221s / 347 words).
+- **Bug C (buffer didn't survive source-end) — the big one:** replaced the fragile `endedWall`/
+  `delayedLiveEdge` drain-ramp with a **plain recording playthrough** (once `liveEnded`, the whole buffer is
+  playable; `ended = viewerEnded` only when the playhead reaches the true end). **The real blocker was a
+  STALE BROWSER BUNDLE** — cached old JS meant no fix or instrumentation ever loaded across dev restarts.
+  After a hard refresh, an auto-trace (`/api/live/debug`) proved the drain works (`behind` 50→0 at 1×, audio
+  buffered ahead, `ended` only at the true end). **Lesson: hard-refresh after every dev restart.**
+
+**This plan's fix (awaiting test):** when the buffer fully drains, **seamlessly auto-swap into the organized
+transcript** instead of a dead "ended" state. `LiveBroadcastView` already fires `onHostedOver` at drain-end;
+`LiveSession` now tracks `drainedOver`, pre-loads the organized call once the finish is `ready`, and
+auto-swaps when both hold (`shouldAutoSwapToFinished`, unit-tested). The manual CTA stays as an early exit.
+Plan: `docs/superpowers/plans/2026-06-17-seamless-drain-to-organized.md`.
+
+**Verified:** `tsc` clean · **43 tests** · clean `next build`. **NOT yet visually tested** — the founder tests
+the seamless hand-off next. **Test recipe:** restart the replay (`REPLAY_OFFSET≈90` on a recorded session,
+`scripts/live-replay-engine.mjs`) → open `/app/live/live` → **HARD REFRESH (Ctrl+Shift+R)** → join → watch
+`behind` drain to 0:00 → it should become the organized transcript with no "ended" gap.
+
+**Before commit:** strip the temp diagnostics — the dev-only green readout + the `dbgRef` trace in
+`LiveBroadcastView`, and `src/app/api/live/debug/route.ts`.
+
+---
+
 ## 2026-06-16 — Transcription resilience + admin delete/rename (branch `fix/transcribe-fallback`)
 
 - **Root cause fixed:** a real submission (Knesset/ZIM call) died at the formatting step when

@@ -26,12 +26,15 @@ interface Msg {
 export function TranscriptChatPanel({
   companyId,
   transcriptId,
+  liveContext,
   quote,
   seedNonce,
   onClose,
 }: {
   companyId: string | null
   transcriptId: string | undefined
+  /** LIVE view only: the on-screen captions, sent as grounding context instead of a DB lookup */
+  liveContext?: string
   quote: string
   /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
@@ -83,7 +86,7 @@ export function TranscriptChatPanel({
     let full = ''
     try {
       const { source } = await streamChat(
-        { message: apiMessage, companyId: companyId ?? undefined, transcriptId, history },
+        { message: apiMessage, companyId: companyId ?? undefined, transcriptId, liveContext, history },
         (delta) => {
           full += delta
           setLast({ content: full })

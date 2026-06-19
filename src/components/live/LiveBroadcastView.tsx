@@ -1,17 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Logo } from '@/components/ds/Logo'
 import { Tabs } from '@/components/ds/Tabs'
 import { IconButton } from '@/components/ds/IconButton'
-import { CloseIcon, SyncIcon, PlayIcon } from '@/components/ds/icons'
+import { CloseIcon, SyncIcon, PlayIcon, QuoteIcon, ShareIcon, SparkleIcon, ChevronRightIcon } from '@/components/ds/icons'
 import { TranscriptBody } from './TranscriptBody'
+import { TranscriptChatPanel } from './TranscriptChatPanel'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
 import { formatDate } from '@/lib/i18n/format'
-import { interpolatedEdge, delayedLiveEdge, bufferGate, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
+import { createQuote } from '@/lib/api/quotes'
+import { interpolatedEdge, bufferGate, delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
 // LIVE broadcast — the V1 transcript page, fed by the live engine (/api/live/*). Same header,
 // tabs, karaoke TranscriptBody and MediaPlayer as the finished-transcript page; the difference
@@ -23,6 +26,7 @@ interface LiveState {
   audioStartRel: number | null
   liveEdgeRel: number | null
   liveEnded: boolean
+  endedAt: number | null
   sampleRate: number
   lines: { id: number; words: LiveWord[] }[]
   offline?: boolean
@@ -39,8 +43,7 @@ export function LiveBroadcastView({
   persistKey,
   playheadRef,
   onSourceEnded,
-  onHostedOver,
-  notice,
+  onLiveOver,
 }: {
   companyName: string
   companyId: string | null
@@ -50,8 +53,7 @@ export function LiveBroadcastView({
   persistKey?: string
   playheadRef?: React.MutableRefObject<number>
   onSourceEnded?: () => void
-  onHostedOver?: () => void
-  notice?: React.ReactNode
+  onLiveOver?: () => void
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -66,6 +68,17 @@ export function LiveBroadcastView({
   // playhead + edges, in recording-relative seconds (drive the player + karaoke)
   const [playingRel, setPlayingRel] = useState(0)
   const [liveEdge, setLiveEdge] = useState(0)
+  const [endedAt, setEndedAt] = useState<number | null>(null)
+
+  // 2B — capture/ask/share while the call airs (mirrors the finished view's toolbar)
+  const [selection, setSelection] = useState<{ text: string; top: number; left: number; speaker: string | null; segmentId: string | null } | null>(null)
+  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({ open: false, seed: '', nonce: 0 })
+  const [toast, setToast] = useState<{ text: string; action?: { label: string; href: string } } | null>(null)
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3200)
+    return () => clearTimeout(t)
+  }, [toast])
 
   const stRef = useRef<LiveState | null>(null)
   const seenLinesRef = useRef(0)
@@ -79,9 +92,7 @@ export function LiveBroadcastView({
   const pausedRef = useRef(false)
   const rawEdgeRef = useRef(0)   // last polled live edge (recording seconds)
   const edgeWallRef = useRef(0)  // wall-clock ms at that poll — to interpolate between polls
-  const endedWallRef = useRef<number | null>(null) // wall-clock ms when the source ended (else null)
   const seekTokenRef = useRef(0) // bumped on seek; an in-flight pump fetch with a stale token is discarded
-  const sawLiveRef = useRef(false) // saw the source live (vs. already ended on first load — i.e. a refresh)
   const lastSaveRef = useRef(0) // throttle playhead persistence
 
   // streaming words → a single-segment word-timed transcript (V1 karaoke renders it)
@@ -98,6 +109,12 @@ export function LiveBroadcastView({
 
   const flat = useMemo(() => flattenWords(transcript), [transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, playingRel), [flat, playingRel])
+  // The on-screen captions as plain text — fed to "Ask Atlas" so it answers about THIS live call
+  // (not a DB lookup that could hit a different company). Undefined until the first captions arrive.
+  const liveCaptionsText = useMemo(
+    () => (words.length ? `${companyName} — ${quarter}\n\n${words.map((w) => w.text).join(' ')}` : undefined),
+    [words, companyName, quarter],
+  )
 
   function flushAudio() {
     for (const s of schedRef.current) {
@@ -121,11 +138,7 @@ export function LiveBroadcastView({
         if (!alive) return
         stRef.current = st
         setLiveEnded(st.liveEnded)
-        if (!st.liveEnded) sawLiveRef.current = true
-        if (st.liveEnded && endedWallRef.current === null) {
-          // ended while watching → real-time drain; ended before we loaded (refresh) → ramp already done
-          endedWallRef.current = sawLiveRef.current ? Date.now() : Date.now() - (delaySec * 1000 + 2000)
-        }
+        setEndedAt(st.endedAt ?? null)
         rawEdgeRef.current = st.liveEdgeRel ?? 0
         edgeWallRef.current = Date.now()
 
@@ -146,7 +159,9 @@ export function LiveBroadcastView({
       const ctx = ctxRef.current
       if (!startedRef.current || pausedRef.current || !st || fetchingRef.current || !ctx) return
       if (nextAtRef.current - ctx.currentTime > 6) return
-      const allowedEnd = delayedLiveEdge(st.liveEdgeRel ?? 0, delaySec, endedWallRef.current, Date.now())
+      // delaySec behind the edge while live; after the source ends, drain at 1x toward the true end so the
+      // live UX persists through the buffer (6s cap = 1x play).
+      const allowedEnd = delayedLiveEdge(st.liveEdgeRel ?? 0, delaySec, st.endedAt ?? null, Date.now())
       const pos = playPosRef.current ?? 0
       const finalEnd = Math.min(pos + 4, allowedEnd)
       if (finalEnd - pos < 0.5) return
@@ -243,7 +258,7 @@ export function LiveBroadcastView({
     const liveEdgeRel = st?.liveEdgeRel ?? 0
     const startRel = st?.audioStartRel ?? 0
     // resume the persisted playhead across a refresh (clamped to the playable edge); else drop in at live
-    const maxEnd = delayedLiveEdge(liveEdgeRel, delaySec, endedWallRef.current, Date.now())
+    const maxEnd = st?.liveEnded ? liveEdgeRel : Math.max(0, liveEdgeRel - delaySec)
     const saved = persistKey ? Number(sessionStorage.getItem(persistKey)) : NaN
     playPosRef.current =
       Number.isFinite(saved) && saved > 0 ? Math.min(saved, Math.max(0, maxEnd)) : Math.max(startRel, liveEdgeRel - delaySec)
@@ -268,10 +283,16 @@ export function LiveBroadcastView({
     }
   }
 
+  // Front of the playable window: delaySec behind the edge while live; drains to the true end at 1x after
+  // the source stops (the live UX persists through the drain). Recomputed each render so it ramps smoothly.
+  const broadcastEdge = delayedLiveEdge(liveEdge, delaySec, endedAt, Date.now())
+  // Over = the drain reached the true end → no live left; the view becomes a finished recording.
+  const over = hostedLiveOver(liveEnded, broadcastEdge, liveEdge)
+
   function seek(t: number) {
     const ctx = ctxRef.current
     if (!ctx || playPosRef.current === null) return
-    const maxEnd = delayedLiveEdge(liveEdge, delaySec, endedWallRef.current, Date.now())
+    const maxEnd = broadcastEdge
     const target = Math.min(Math.max(0, t), Math.max(0, maxEnd))
     seekTokenRef.current++
     flushAudio()
@@ -281,8 +302,9 @@ export function LiveBroadcastView({
   }
 
   function goLive() {
-    // engine's shared edge (not the per-client interpolated one) so two viewers converge on "live"
-    seek(delayedLiveEdge(rawEdgeRef.current, delaySec, endedWallRef.current, Date.now()))
+    // snap to the front of the playable window — the draining edge (which ramps to the true end after the
+    // source stops), so "return to live" follows the buffer instead of leaping to the end.
+    seek(broadcastEdge)
   }
 
   function changeVolume(v: number) {
@@ -297,18 +319,59 @@ export function LiveBroadcastView({
     }
   }
 
+  // ── selection → Save Quote / Ask Atlas / Share (mirrors the finished view, no edit-mode) ──
+  function selectionSpeaker(sel: Selection | null): string | null {
+    let node: Node | null = sel?.anchorNode ?? null
+    while (node && node.nodeType !== 1) node = node.parentNode
+    return ((node as Element | null)?.closest('[data-segment-id]') ?? null)?.getAttribute('data-speaker') ?? null
+  }
+  function selectionSegmentId(sel: Selection | null): string | null {
+    let node: Node | null = sel?.anchorNode ?? null
+    while (node && node.nodeType !== 1) node = node.parentNode
+    return ((node as Element | null)?.closest('[data-segment-id]') ?? null)?.getAttribute('data-segment-id') ?? null
+  }
+  function onTextSelect() {
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null
+    const text = sel?.toString().trim() ?? ''
+    if (!text || !sel || sel.rangeCount === 0) { setSelection(null); return }
+    // chat open → drop the highlight straight into the composer as a reference (Claude-style)
+    if (chat.open) { setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1 })); setSelection(null); return }
+    const rect = sel.getRangeAt(0).getBoundingClientRect()
+    if (!rect || (rect.width === 0 && rect.height === 0)) { setSelection(null); return }
+    setSelection({ text, top: rect.top, left: rect.left + rect.width / 2, speaker: selectionSpeaker(sel), segmentId: selectionSegmentId(sel) })
+  }
+  async function saveSelection(sel: { text: string; speaker: string | null; segmentId: string | null }) {
+    if (!sel.text || !companyId) { setToast({ text: dict.common.error }); return }
+    try {
+      await createQuote({
+        companyId,
+        transcriptId: null, // live: no finished transcript yet — 2C links/upgrades it
+        text: sel.text,
+        speaker: sel.speaker ?? companyName,
+        quarter,
+        startSec: playingRel,
+        anchor: sel.segmentId ? { segmentId: sel.segmentId, text: sel.text.slice(0, 80) } : null,
+      })
+      setToast({ text: dict.live.quoteSaved, action: { label: dict.company.myQuotes, href: `/app/company/${companyId}?tab=quotes` } })
+    } catch (err) {
+      setToast({ text: (err as Error).message })
+    }
+  }
+  function shareSelection(text: string) {
+    const msg = `${companyName} said on ${quarter ? `the ${quarter}` : 'an'} investor call: "${text}"`
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
+  }
+
   const fmt = (s: number) => {
     s = Math.max(0, Math.round(s))
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   }
   const behind = Math.max(0, liveEdge - playingRel)
-  const broadcastEdge = delayedLiveEdge(liveEdge, delaySec, endedWallRef.current, Date.now())
-  const ended = hostedLiveOver(liveEnded, broadcastEdge, liveEdge) // finished mode once the buffer fully drained
 
-  // One-shot signals to the LiveSession wrapper: start the finish when the source ends; allow the
-  // inline swap once the buffer has fully drained. Parent guards against double-fire.
+  // Source stopped → start the finish pipeline (the wrapper shows the auto-dismissing card). View stays LIVE.
   useEffect(() => { if (liveEnded) onSourceEnded?.() }, [liveEnded]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (ended) onHostedOver?.() }, [ended]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Buffer fully drained → the live experience is over; the wrapper swaps to the finished view (when ready).
+  useEffect(() => { if (over) onLiveOver?.() }, [over]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const overlayMsg =
     phase === 'connecting'
@@ -316,7 +379,7 @@ export function LiveBroadcastView({
       : phase === 'waiting'
         ? 'ממתין לתחילת השיחה…'
         : phase === 'buffering'
-          ? `השידור יתחיל בעוד ${fmt(countdown)}`
+          ? dict.live.buffering.replace('{min}', String(Math.round(delaySec / 60)))
           : 'השידור זמין — הצטרפו לצפייה'
 
   const liveTabs = [
@@ -327,7 +390,8 @@ export function LiveBroadcastView({
   ]
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col">
+    <div className="flex h-full min-h-0 flex-1">
+      <div className="relative flex min-w-0 flex-1 flex-col">
       {/* header — same as the finished-transcript page */}
       <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -336,19 +400,28 @@ export function LiveBroadcastView({
             {companyName} — {quarter}
           </span>
           <span className="shrink-0 text-sm text-ink-faint">{formatDate(new Date().toISOString(), locale)}</span>
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            <span className="text-2xs font-bold tracking-wide text-live">{ended ? 'הסתיים' : dict.live.liveBadge}</span>
-          </span>
-          {phase === 'playing' && !ended && (
-            <span className="shrink-0 text-xs text-ink-faint tabular-nums" dir="ltr">
-              -{fmt(behind)} מאחורי שיחת המשקיעים המקורית
+          {phase === 'playing' && !over && (
+            <span
+              className="shrink-0 whitespace-nowrap rounded-full bg-subtle px-2 py-0.5 text-2xs font-medium text-ink-muted tabular-nums"
+              dir="ltr"
+            >
+              -{fmt(behind)} {dict.live.behindLive}
             </span>
           )}
         </div>
-        <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
-          <CloseIcon size={17} />
-        </IconButton>
+        {/* top-right: LIVE pill through the whole live + drain window; once the drain is over the badge
+            drops (the view becomes a finished recording; the "ended / AI processing" note lives in the card). */}
+        <div className="flex shrink-0 items-center gap-3">
+          {!over && (
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
+              <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
+            </span>
+          )}
+          <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
+            <CloseIcon size={17} />
+          </IconButton>
+        </div>
       </header>
 
       {/* tabs */}
@@ -361,34 +434,63 @@ export function LiveBroadcastView({
         <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
           <SyncIcon size={16} />
         </IconButton>
-        {phase === 'playing' && !ended && (
-          <button
-            type="button"
-            onClick={goLive}
-            className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1 text-xs font-medium text-live"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            חזרה לשידור החי
-          </button>
-        )}
       </div>
 
       {/* transcript — the real V1 karaoke body */}
-      <div className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2">
-        {notice && <div className="mb-3">{notice}</div>}
-        <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke />
+      <div
+        className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
+        onMouseUp={onTextSelect}
+        onScroll={() => selection && setSelection(null)}
+      >
+        {phase === 'playing' && words.length === 0 && (
+          <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
+            ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+          </div>
+        )}
+        <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke followLabel={dict.live.backToLive} />
       </div>
+
+      {selection && (
+        <div
+          style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
+          className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
+        >
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { void saveSelection(selection); setSelection(null) }} className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15">
+            <QuoteIcon size={13} />{dict.live.saveQuote}
+          </button>
+          <span className="h-4 w-px bg-white/15" />
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { shareSelection(selection.text); setSelection(null) }} className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15">
+            <ShareIcon size={13} />{dict.common.share}
+          </button>
+          <span className="h-4 w-px bg-white/15" />
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 })); setSelection(null) }} className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15">
+            <SparkleIcon size={14} />{dict.live.askAboutQuote}
+          </button>
+        </div>
+      )}
+      {toast && (
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-50 flex justify-center">
+          <span className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white shadow-popover">
+            {toast.text}
+            {toast.action && (
+              <Link href={toast.action.href} className="flex items-center gap-0.5 text-white/80 underline-offset-2 transition-colors hover:text-white hover:underline">
+                {toast.action.label}<ChevronRightIcon size={13} className="rtl:rotate-180" />
+              </Link>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* the audio bar */}
       <MediaPlayer
         logoUrl={logoUrl}
         title={companyName}
         subtitle={quarter}
-        chapter={ended ? undefined : 'Live session'}
+        chapter={over ? undefined : 'Live session'}
         currentTime={playingRel}
         duration={broadcastEdge}
         playing={phase === 'playing' && !paused}
-        isLive={!ended}
+        isLive={!over}
         onGoLive={goLive}
         volume={volume}
         onPlayPause={playPause}
@@ -403,7 +505,7 @@ export function LiveBroadcastView({
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-canvas/95 px-6 text-center">
           <span className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
+            <span className="text-2xs font-bold tracking-wide text-live">{over ? 'הסתיים' : dict.live.liveBadge}</span>
           </span>
           <h2 className="text-xl font-bold text-ink">{companyName} — שיחת משקיעים</h2>
           {phase === 'buffering' && (
@@ -420,6 +522,17 @@ export function LiveBroadcastView({
             הצטרפו לשידור החי
           </button>
         </div>
+      )}
+      </div>
+      {chat.open && (
+        <TranscriptChatPanel
+          companyId={companyId}
+          transcriptId={undefined}
+          liveContext={liveCaptionsText}
+          quote={chat.seed}
+          seedNonce={chat.nonce}
+          onClose={() => setChat((c) => ({ ...c, open: false }))}
+        />
       )}
     </div>
   )

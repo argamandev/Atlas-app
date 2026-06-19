@@ -17,6 +17,7 @@ export function TranscriptBody({
   onRenameSpeaker,
   searchMatches = [],
   activeMatch = -1,
+  followLabel,
 }: {
   transcript: WordTimedTranscript
   activeIndex: number
@@ -29,11 +30,15 @@ export function TranscriptBody({
   searchMatches?: number[]
   /** the global word index of the currently-focused match (next/prev) */
   activeMatch?: number
+  /** label for the "back to current word" chip shown after the user scrolls away from auto-follow */
+  followLabel?: string
 }) {
   const { dict } = useI18n()
+  const rootRef = useRef<HTMLDivElement>(null)
   const activeWordRef = useRef<HTMLSpanElement>(null)
   const activeMatchRef = useRef<HTMLSpanElement>(null)
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null)
+  const [following, setFollowing] = useState(true) // auto-scroll follows the active word; a hand scroll pauses it
   const matchSet = useMemo(() => new Set(searchMatches), [searchMatches])
 
   // starting global word index per segment
@@ -47,11 +52,30 @@ export function TranscriptBody({
     return out
   }, [transcript])
 
+  // Follow the active (spoken/played) word — but only while "following". A hand scroll pauses it.
   useEffect(() => {
-    if (autoScroll && activeWordRef.current) {
+    if (autoScroll && following && activeWordRef.current) {
       activeWordRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
     }
-  }, [activeIndex, autoScroll])
+  }, [activeIndex, autoScroll, following])
+
+  // Pause auto-follow the moment the user scrolls by hand. We listen for wheel/touch — genuine user input
+  // that is NEVER fired by our own programmatic scrollIntoView — so the page stops yanking back to the word.
+  useEffect(() => {
+    let sc: HTMLElement | null = rootRef.current?.parentElement ?? null
+    while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement
+    const target: HTMLElement | Window = sc ?? window
+    const pause = () => setFollowing(false)
+    target.addEventListener('wheel', pause, { passive: true })
+    target.addEventListener('touchmove', pause, { passive: true })
+    return () => {
+      target.removeEventListener('wheel', pause)
+      target.removeEventListener('touchmove', pause)
+    }
+  }, [])
+
+  // Toggling the master auto-scroll switch (re)engages following.
+  useEffect(() => { setFollowing(true) }, [autoScroll])
 
   useEffect(() => {
     if (activeMatch >= 0 && activeMatchRef.current) {
@@ -60,7 +84,7 @@ export function TranscriptBody({
   }, [activeMatch])
 
   return (
-    <div dir="rtl" className="space-y-7 text-right">
+    <div ref={rootRef} dir="rtl" className="space-y-7 text-right">
       {transcript.segments.map((seg, si) => (
         <div key={seg.id} data-segment-id={seg.id} data-speaker={seg.speakerName} className="flex gap-3">
           <Avatar name={seg.speakerName} size={36} className="mt-0.5" />
@@ -132,6 +156,20 @@ export function TranscriptBody({
           </div>
         </div>
       ))}
+      {autoScroll && !following && (
+        <div className="pointer-events-none sticky bottom-24 z-20 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              setFollowing(true)
+              activeWordRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+            }}
+            className="pointer-events-auto flex items-center gap-1 rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white shadow-popover transition-opacity hover:opacity-90"
+          >
+            <span aria-hidden>↓</span> {followLabel ?? dict.live.backToLive}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

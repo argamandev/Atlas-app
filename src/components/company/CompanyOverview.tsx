@@ -6,6 +6,7 @@ import { EntityRow } from '@/components/ds/EntityRow'
 import { SectionHeader } from '@/components/ds/SectionHeader'
 import { CalendarIcon } from '@/components/ds/icons'
 import { formatDate, formatTime } from '@/lib/i18n/format'
+import { delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 import type { ScheduledCall } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 
@@ -37,7 +38,11 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
       try {
         const r = await fetch('/api/live/state', { cache: 'no-store' })
         const s = await r.json()
-        if (alive) setEngineLive(s.audioStartRel !== null && !s.liveEnded)
+        // Stay "live" through the whole buffer drain — live until the drain reaches the true end.
+        const edge = s.liveEdgeRel ?? 0
+        const drained = delayedLiveEdge(edge, LIVE_BUFFER_SEC, s.endedAt ?? null, Date.now())
+        const over = hostedLiveOver(!!s.liveEnded, drained, edge)
+        if (alive) setEngineLive(s.audioStartRel !== null && !over)
       } catch {
         if (alive) setEngineLive(false)
       }

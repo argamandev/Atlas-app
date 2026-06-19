@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import OpenAI from 'openai'
 import { getChatContext } from '@/lib/chat/context'
 
 // Chat over the transcript DB (brief §5.3), now **streamed** (Feature 5). Gemini 3.5 Flash —
@@ -6,6 +7,8 @@ import { getChatContext } from '@/lib/chat/context'
 // re-emit just the text deltas as a plain-text stream so the UI renders tokens as they arrive.
 // The citation source (computed up front) rides back on the `x-chat-source` header.
 const CHAT_MODEL = 'gemini-3.5-flash'
+// GPT-4.1 backs up the chat the same way it backs up the finish formatter (transcription.ts).
+const CHAT_FALLBACK_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4.1'
 const apiKey = process.env.GEMINI_API_KEY
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
@@ -17,11 +20,68 @@ function textResponse(body: BodyInit, init?: ResponseInit) {
   })
 }
 
+// GPT-4.1 streaming fallback — fires when Gemini is unavailable (503 / network blip) so the live
+// chat keeps working mid-call. Same system + history; re-emits OpenAI deltas as the plain-text
+// stream the client already expects. Returns null when OPENAI_API_KEY is absent or init fails.
+async function openAiFallback(
+  system: string,
+  recent: ChatMessage[],
+  message: string,
+  sourceHeader: string,
+): Promise<Response | null> {
+  const key = process.env.OPENAI_API_KEY
+  if (!key) return null
+  try {
+    const openai = new OpenAI({ apiKey: key })
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: system },
+      ...recent.map((m): OpenAI.Chat.Completions.ChatCompletionMessageParam => ({ role: m.role, content: m.content })),
+      { role: 'user', content: message },
+    ]
+    const completion = await openai.chat.completions.create({
+      model: CHAT_FALLBACK_MODEL,
+      messages,
+      temperature: 0.7,
+      max_tokens: 4096,
+      stream: true,
+    })
+    console.warn('[POST /api/chat] Gemini unavailable — using OpenAI', CHAT_FALLBACK_MODEL, 'fallback')
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const encoder = new TextEncoder()
+        let emitted = false
+        try {
+          for await (const chunk of completion) {
+            const delta = chunk.choices?.[0]?.delta?.content ?? ''
+            if (delta) {
+              emitted = true
+              controller.enqueue(encoder.encode(delta))
+            }
+          }
+        } catch (err) {
+          console.error('[POST /api/chat] OpenAI fallback stream error', (err as Error).message)
+        }
+        if (!emitted) controller.enqueue(encoder.encode('לא הצלחתי להפיק תשובה לשאלה הזו.'))
+        controller.close()
+      },
+    })
+    return textResponse(stream as unknown as BodyInit, {
+      headers: { 'x-chat-source': sourceHeader, 'x-chat-fallback': 'openai' },
+    })
+  } catch (err) {
+    console.error('[POST /api/chat] OpenAI fallback init failed', (err as Error).message)
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const message: string = body?.message
   const companyId: string | undefined = body?.companyId || undefined
   const transcriptId: string | undefined = body?.transcriptId || undefined
+  // The LIVE view sends the on-screen captions directly (there's no completed transcript yet) so the
+  // chat is grounded on the call in front of the user — not a DB lookup that could hit another company.
+  const liveContext: string | undefined = body?.liveContext || undefined
   const history: ChatMessage[] = Array.isArray(body?.history) ? body.history : []
   if (!message) return NextResponse.json({ error: 'message required' }, { status: 400 })
 
@@ -29,7 +89,9 @@ export async function POST(req: NextRequest) {
     return textResponse('The chat model isn’t configured yet (missing GEMINI_API_KEY).')
   }
 
-  const ctx = await getChatContext(companyId, transcriptId)
+  const ctx = liveContext
+    ? { text: liveContext.slice(0, 40_000), source: null }
+    : await getChatContext(companyId, transcriptId)
 
   const system =
     'You are Atlas, a research assistant for Israeli public-company investor calls. ' +
@@ -50,7 +112,7 @@ export async function POST(req: NextRequest) {
 
   const sourceHeader = ctx.source ? encodeURIComponent(JSON.stringify(ctx.source)) : ''
 
-  let upstream: Response
+  let upstream: Response | null = null
   try {
     upstream = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${CHAT_MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`,
@@ -67,12 +129,16 @@ export async function POST(req: NextRequest) {
     )
   } catch (err) {
     console.error('[POST /api/chat] upstream fetch failed', (err as Error).message)
-    return NextResponse.json({ error: 'Chat is temporarily unavailable.' }, { status: 500 })
   }
 
-  if (!upstream.ok || !upstream.body) {
-    const detail = await upstream.text().catch(() => '')
-    console.error('[POST /api/chat] Gemini', upstream.status, detail.slice(0, 300))
+  if (!upstream || !upstream.ok || !upstream.body) {
+    if (upstream && !upstream.ok) {
+      const detail = await upstream.text().catch(() => '')
+      console.error('[POST /api/chat] Gemini', upstream.status, detail.slice(0, 300))
+    }
+    // Gemini down or blipped → GPT-4.1 so the chat doesn't die mid-call.
+    const fallback = await openAiFallback(system, recent, message, sourceHeader)
+    if (fallback) return fallback
     return NextResponse.json({ error: 'Chat is temporarily unavailable.' }, { status: 500 })
   }
 
