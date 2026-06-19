@@ -154,12 +154,6 @@ export function LiveTranscriptView({
     setTab(key)
   }
 
-  function openInChat() {
-    if (!call.companyId) return
-    const tid = call.id === 'demo' ? '' : `&transcript=${encodeURIComponent(call.id)}`
-    router.push(`/app/chat?company=${call.companyId}${tid}`)
-  }
-
   async function copyAll() {
     const text = call.transcript.segments.map((s) => s.words.map((w) => w.text).join(' ')).join('\n\n')
     try {
@@ -387,7 +381,7 @@ export function LiveTranscriptView({
             <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
               <CopyTextIcon size={16} />
             </IconButton>
-            <IconButton label={dict.company.openInChat} size={30} onClick={openInChat}>
+            <IconButton label={dict.company.openInChat} size={30} onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}>
               <SparkleIcon size={16} />
             </IconButton>
             {canEdit && (
