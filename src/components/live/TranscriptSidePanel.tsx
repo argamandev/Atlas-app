@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Avatar } from '@/components/ds/Avatar'
 import { SectionHeader } from '@/components/ds/SectionHeader'
+import { CollapseIcon, ChevronRightIcon } from '@/components/ds/icons'
 import { formatClock } from '@/lib/i18n/format'
 import type { WordTimedTranscript } from '@/lib/live/syncEngine'
 
@@ -26,6 +27,7 @@ export function TranscriptSidePanel({
   isLive?: boolean
 }) {
   const { dict } = useI18n()
+  const [collapsed, setCollapsed] = useState(false)
 
   // Group consecutive same-speaker segments into "sections" (one navigable part each).
   const parts = useMemo(() => {
@@ -56,11 +58,34 @@ export function TranscriptSidePanel({
     }
   }
 
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        title={companyName}
+        className="hidden w-10 shrink-0 items-start justify-center border-e border-hairline bg-panel pt-3 text-ink-faint transition-colors hover:text-ink lg:flex"
+      >
+        <ChevronRightIcon size={18} className="rtl:rotate-180" />
+      </button>
+    )
+  }
+
   return (
     <aside dir="rtl" className="app-scroll hidden w-[300px] shrink-0 flex-col overflow-y-auto border-e border-hairline bg-panel lg:flex">
-      <div className="px-4 pb-1 pt-4">
-        <h2 className="truncate text-base font-bold text-ink">{companyName}</h2>
-        {sub && <div className="mt-0.5 truncate text-xs text-ink-faint">{sub}</div>}
+      <div className="flex items-start justify-between px-4 pb-1 pt-4">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-bold text-ink">{companyName}</h2>
+          {sub && <div className="mt-0.5 truncate text-xs text-ink-faint">{sub}</div>}
+        </div>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          title={dict.nav.collapseSidebar}
+          className="shrink-0 text-ink-faint transition-colors hover:text-ink"
+        >
+          <CollapseIcon size={15} />
+        </button>
       </div>
 
       <div className="px-3 pb-8">
