@@ -42,6 +42,12 @@
     background: rgba(192, 74, 0, 0.25);
     color: #FFFFFF;
   }
+
+  /* Transcript text uses a yellow highlighter when you select/mark words. */
+  .select-mark ::selection {
+    background: #FDE047;
+    color: #1A1A1A;
+  }
 }
 
 @layer utilities {
