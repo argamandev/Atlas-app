@@ -57,3 +57,24 @@ test('hostedLiveOver: false while live, false mid-drain, true once the buffer re
   assert.equal(hostedLiveOver(true, 463, 463), true)
   assert.equal(hostedLiveOver(true, 0, 0), false) // ended with no audio → not over
 })
+
+test('live → drains for bufferSec after end → over (compose delayedLiveEdge + hostedLiveOver)', () => {
+  const buffer = 180
+  const liveEdge = 600 // frozen at end
+  const endedAt = 1_000_000
+
+  // while live (endedAt null): edge held bufferSec behind, not over
+  const liveNow = delayedLiveEdge(liveEdge, buffer, null, endedAt)
+  assert.equal(liveNow, liveEdge - buffer)
+  assert.equal(hostedLiveOver(true, liveNow, liveEdge), false)
+
+  // 1 min into the drain: edge advanced ~60s, still not over
+  const mid = delayedLiveEdge(liveEdge, buffer, endedAt, endedAt + 60_000)
+  assert.equal(Math.round(mid), liveEdge - buffer + 60)
+  assert.equal(hostedLiveOver(true, mid, liveEdge), false)
+
+  // bufferSec after end: edge reached the true end → over
+  const end = delayedLiveEdge(liveEdge, buffer, endedAt, endedAt + buffer * 1000)
+  assert.equal(end, liveEdge)
+  assert.equal(hostedLiveOver(true, end, liveEdge), true)
+})
