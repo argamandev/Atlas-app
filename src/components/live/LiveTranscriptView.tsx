@@ -456,6 +456,7 @@ export function LiveTranscriptView({
                 onRenameSpeaker={renameSpeaker}
                 searchMatches={matches}
                 activeMatch={matches[matchPos] ?? -1}
+                followLabel={dict.live.backToPlaying}
               />
             </>
           ) : (

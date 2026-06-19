@@ -155,6 +155,8 @@ export const en = {
     endedStatus: 'Sourced Investor Call ended, AI is processing your transcript',
     behindLive: 'behind the sourced Investor Call',
     buffering: 'We buffer {min} minutes from the sourced Investor Call to generate a live transcript',
+    backToLive: 'Back to live',
+    backToPlaying: 'Back to current',
   },
   player: {
     rewind15: 'Back 15s',

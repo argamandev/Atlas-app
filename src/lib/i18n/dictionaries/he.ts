@@ -154,6 +154,8 @@ export const he: Dictionary = {
     endedStatus: 'שיחת המקור הסתיימה, ה-AI מעבד את התמלול',
     behindLive: 'מאחורי שיחת המשקיעים המקורית',
     buffering: 'אנחנו משהים {min} דק׳ משיחת המקור כדי להפיק תמלול חי',
+    backToLive: 'חזרה לחי',
+    backToPlaying: 'חזרה לנוכחי',
   },
   player: {
     rewind15: '15 שניות אחורה',

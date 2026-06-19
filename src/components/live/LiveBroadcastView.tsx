@@ -447,7 +447,7 @@ export function LiveBroadcastView({
             ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
           </div>
         )}
-        <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke />
+        <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke followLabel={dict.live.backToLive} />
       </div>
 
       {selection && (
