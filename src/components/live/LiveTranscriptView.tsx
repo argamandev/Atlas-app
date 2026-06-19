@@ -62,6 +62,7 @@ export function LiveTranscriptView({
 
   const [tab, setTab] = useState('transcript')
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
+  const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
   const [toast, setToast] = useState<Toast | null>(null)
   const [selection, setSelection] = useState<
     {
@@ -316,18 +317,18 @@ export function LiveTranscriptView({
 
   return (
     <div className="flex h-full min-h-0 flex-1">
-      {/* context panel — chapters/sections + speakers (RTL Hebrew). Hidden while the
-          in-transcript chat is open, to give the transcript + chat room. */}
-      {!chat.open && (
-        <TranscriptSidePanel
-          transcript={call.transcript}
-          activeSegmentIndex={activeSegmentIndex}
-          onSeek={seek}
-          companyName={name}
-          sub={[call.quarter, formatDate(call.date, locale)].filter(Boolean).join(' · ')}
-          isLive={call.isLive}
-        />
-      )}
+      {/* context panel — chapters/sections + speakers (RTL Hebrew). Minimizes to a thin rail while the
+          in-transcript chat is open (one click from returning), instead of unmounting. */}
+      <TranscriptSidePanel
+        transcript={call.transcript}
+        activeSegmentIndex={activeSegmentIndex}
+        onSeek={seek}
+        companyName={name}
+        sub={[call.quarter, formatDate(call.date, locale)].filter(Boolean).join(' · ')}
+        isLive={call.isLive}
+        collapsed={chat.open || panelCollapsed}
+        onToggleCollapsed={() => setPanelCollapsed((v) => !v)}
+      />
 
       {/* main column — header, tabs, transcript (the player is now the global docked bar) */}
       <div className="relative flex min-w-0 flex-1 flex-col">

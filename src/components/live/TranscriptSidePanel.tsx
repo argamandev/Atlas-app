@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Avatar } from '@/components/ds/Avatar'
 import { SectionHeader } from '@/components/ds/SectionHeader'
@@ -18,6 +18,8 @@ export function TranscriptSidePanel({
   companyName,
   sub,
   isLive = false,
+  collapsed,
+  onToggleCollapsed,
 }: {
   transcript: WordTimedTranscript
   activeSegmentIndex: number
@@ -25,9 +27,10 @@ export function TranscriptSidePanel({
   companyName: string
   sub?: string
   isLive?: boolean
+  collapsed: boolean
+  onToggleCollapsed: () => void
 }) {
   const { dict } = useI18n()
-  const [collapsed, setCollapsed] = useState(false)
 
   // Group consecutive same-speaker segments into "sections" (one navigable part each).
   const parts = useMemo(() => {
@@ -62,7 +65,7 @@ export function TranscriptSidePanel({
     return (
       <button
         type="button"
-        onClick={() => setCollapsed(false)}
+        onClick={onToggleCollapsed}
         title={companyName}
         className="hidden w-10 shrink-0 items-start justify-center border-e border-hairline bg-panel pt-3 text-ink-faint transition-colors hover:text-ink lg:flex"
       >
@@ -80,7 +83,7 @@ export function TranscriptSidePanel({
         </div>
         <button
           type="button"
-          onClick={() => setCollapsed(true)}
+          onClick={onToggleCollapsed}
           title={dict.nav.collapseSidebar}
           className="shrink-0 text-ink-faint transition-colors hover:text-ink"
         >
