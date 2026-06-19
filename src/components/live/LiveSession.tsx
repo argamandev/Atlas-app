@@ -77,13 +77,6 @@ export function LiveSession(props: {
     return () => { alive = false }
   }, [finishStatus, finishedCall])
 
-  // The "source ended — AI is processing" card is a transient heads-up: auto-close after 5s (or ✕).
-  useEffect(() => {
-    if (!(sourceEnded && phase === 'live' && finishStatus === 'processing' && !dismissed['processing'])) return
-    const t = setTimeout(() => setDismissed((d) => ({ ...d, processing: true })), 5000)
-    return () => clearTimeout(t)
-  }, [sourceEnded, phase, finishStatus, dismissed])
-
   // Stay LIVE through the whole drain (liveOver=false). Once the drain is over AND the organized transcript
   // is ready, swap to the finished view in place. If it's not ready yet, the drained LiveBroadcastView (now
   // a raw, badge-less recording) stays until it is — "default text" first, organized when it lands.
@@ -134,8 +127,8 @@ export function LiveSession(props: {
   }
 
   // Floating, dismissible notification card (frosted light, ✕ to close). Shown only after THIS session saw
-  // the source end. The processing card is a transient heads-up (auto-dismisses after 5s); the header stays
-  // LIVE through the drain, so this card is the only "source ended / AI processing" cue.
+  // the source end. It stays until the user closes it (✕) — it's important. The header stays LIVE through
+  // the drain, so this card is the only "source ended / AI processing" cue.
   const cardKey = finishStatus
   const showCard =
     sourceEnded &&
@@ -162,7 +155,8 @@ export function LiveSession(props: {
           {finishStatus === 'processing' && (
             <span className="flex items-center gap-2">
               <span className="h-1 w-1 animate-pulse rounded-full bg-ink-faint" />
-              Investor call ended — AI is processing your transcript. This takes a few minutes; we&apos;ll notify you.
+              Investor call ended — AI is processing your transcript. This takes a few minutes; we&apos;ll notify
+              you. On our platform the call is still LIVE until we finish the 4-minute buffer.
             </span>
           )}
           {finishStatus === 'ready' && (
