@@ -14,7 +14,7 @@ import {
   ChevronRightIcon,
   SyncIcon,
   RefreshIcon,
-  CopyIcon,
+  CopyTextIcon,
   SearchIcon,
   QuoteIcon,
   ShareIcon,
@@ -387,7 +387,7 @@ export function LiveTranscriptView({
               <RefreshIcon size={16} />
             </IconButton>
             <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
-              <CopyIcon size={16} />
+              <CopyTextIcon size={16} />
             </IconButton>
             <IconButton label={dict.company.openInChat} size={30} onClick={openInChat}>
               <SparkleIcon size={16} />

@@ -112,6 +112,9 @@ export const RefreshIcon = (p: IconProps) => (
 export const CopyIcon = (p: IconProps) => (
   <Base {...p}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a1 1 0 01-1-1V5a1 1 0 011-1h9a1 1 0 011 1v1" /></Base>
 )
+export const CopyTextIcon = (p: IconProps) => (
+  <Base {...p}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a1 1 0 01-1-1V5a1 1 0 011-1h9a1 1 0 011 1v1" /><path d="M11.8 13H17.2M14.5 13V17.5" /></Base>
+)
 export const QuoteIcon = (p: IconProps) => (
   <Base {...p}><path d="M9 7c-2.2 0-3.5 1.6-3.5 3.6 0 1.9 1.3 3.1 3 3.1.3 1.6-.6 2.6-2 3.3M18 7c-2.2 0-3.5 1.6-3.5 3.6 0 1.9 1.3 3.1 3 3.1.3 1.6-.6 2.6-2 3.3" /></Base>
 )
