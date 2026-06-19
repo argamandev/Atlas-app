@@ -18,6 +18,7 @@ export async function GET() {
       audioStartRel: null,
       liveEdgeRel: null,
       liveEnded: false,
+      endedAt: null,
       sampleRate: 16000,
       lines: [],
       offline: true,
