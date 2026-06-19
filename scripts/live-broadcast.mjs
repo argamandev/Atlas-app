@@ -30,6 +30,10 @@ const PORT = 8788
 const SAMPLE_RATE = 16000
 const DEFAULT_DELAY = 300 // seconds behind live
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true })
+// Each engine run = one call (we restart the engine per call). Reset the capture so the finish
+// organizes ONLY this call, never the accumulated history of every past call.
+writeFileSync(LINES_FILE, '')
+writeFileSync(PCM_FILE, Buffer.alloc(0))
 
 function loadEnv() {
   const out = {}
@@ -121,6 +125,7 @@ const pcmChunks = [] // Buffer[]
 let pcmBytes = 0
 let audioStartRel = null // relative seconds of first audio packet
 let liveEnded = false
+let endedAt = null // wall-clock ms when the source audio stopped (drives the client buffer drain)
 const lines = [] // {id, raw, corrected, words:[{text, rawText, start}]}
 let nextId = 1
 const queue = []
@@ -185,7 +190,7 @@ const server = createServer((req, res) => {
   }
   if (url.pathname === '/state') {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
-    res.end(JSON.stringify({ audioStartRel, liveEdgeRel: liveEdgeRel(), liveEnded, sampleRate: SAMPLE_RATE, lines }))
+    res.end(JSON.stringify({ audioStartRel, liveEdgeRel: liveEdgeRel(), liveEnded, endedAt, sampleRate: SAMPLE_RATE, lines }))
     return
   }
   if (url.pathname === '/pcm') {
@@ -229,6 +234,7 @@ wss.on('connection', (sock) => {
   sock.on('close', () => {
     console.log('[audio] websocket closed (call likely ended)')
     liveEnded = true
+    if (endedAt === null) endedAt = Date.now()
   })
 })
 
