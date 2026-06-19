@@ -14,7 +14,7 @@ import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
 import { formatDate } from '@/lib/i18n/format'
 import { createQuote } from '@/lib/api/quotes'
-import { interpolatedEdge, bufferGate, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
+import { interpolatedEdge, bufferGate, delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
 // LIVE broadcast — the V1 transcript page, fed by the live engine (/api/live/*). Same header,
 // tabs, karaoke TranscriptBody and MediaPlayer as the finished-transcript page; the difference
@@ -26,6 +26,7 @@ interface LiveState {
   audioStartRel: number | null
   liveEdgeRel: number | null
   liveEnded: boolean
+  endedAt: number | null
   sampleRate: number
   lines: { id: number; words: LiveWord[] }[]
   offline?: boolean
@@ -42,6 +43,7 @@ export function LiveBroadcastView({
   persistKey,
   playheadRef,
   onSourceEnded,
+  onLiveOver,
 }: {
   companyName: string
   companyId: string | null
@@ -51,6 +53,7 @@ export function LiveBroadcastView({
   persistKey?: string
   playheadRef?: React.MutableRefObject<number>
   onSourceEnded?: () => void
+  onLiveOver?: () => void
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -65,6 +68,7 @@ export function LiveBroadcastView({
   // playhead + edges, in recording-relative seconds (drive the player + karaoke)
   const [playingRel, setPlayingRel] = useState(0)
   const [liveEdge, setLiveEdge] = useState(0)
+  const [endedAt, setEndedAt] = useState<number | null>(null)
 
   // 2B — capture/ask/share while the call airs (mirrors the finished view's toolbar)
   const [selection, setSelection] = useState<{ text: string; top: number; left: number; speaker: string | null; segmentId: string | null } | null>(null)
@@ -134,6 +138,7 @@ export function LiveBroadcastView({
         if (!alive) return
         stRef.current = st
         setLiveEnded(st.liveEnded)
+        setEndedAt(st.endedAt ?? null)
         rawEdgeRef.current = st.liveEdgeRel ?? 0
         edgeWallRef.current = Date.now()
 
@@ -154,9 +159,9 @@ export function LiveBroadcastView({
       const ctx = ctxRef.current
       if (!startedRef.current || pausedRef.current || !st || fetchingRef.current || !ctx) return
       if (nextAtRef.current - ctx.currentTime > 6) return
-      // delaySec behind the edge while airing; once the source ends, the whole captured buffer is a
-      // complete recording — playable to the true end so the viewer can roam freely (6s cap = 1x play).
-      const allowedEnd = st.liveEnded ? (st.liveEdgeRel ?? 0) : Math.max(0, (st.liveEdgeRel ?? 0) - delaySec)
+      // delaySec behind the edge while live; after the source ends, drain at 1x toward the true end so the
+      // live UX persists through the buffer (6s cap = 1x play).
+      const allowedEnd = delayedLiveEdge(st.liveEdgeRel ?? 0, delaySec, st.endedAt ?? null, Date.now())
       const pos = playPosRef.current ?? 0
       const finalEnd = Math.min(pos + 4, allowedEnd)
       if (finalEnd - pos < 0.5) return
@@ -278,10 +283,16 @@ export function LiveBroadcastView({
     }
   }
 
+  // Front of the playable window: delaySec behind the edge while live; drains to the true end at 1x after
+  // the source stops (the live UX persists through the drain). Recomputed each render so it ramps smoothly.
+  const broadcastEdge = delayedLiveEdge(liveEdge, delaySec, endedAt, Date.now())
+  // Over = the drain reached the true end → no live left; the view becomes a finished recording.
+  const over = hostedLiveOver(liveEnded, broadcastEdge, liveEdge)
+
   function seek(t: number) {
     const ctx = ctxRef.current
     if (!ctx || playPosRef.current === null) return
-    const maxEnd = liveEnded ? liveEdge : Math.max(0, liveEdge - delaySec)
+    const maxEnd = broadcastEdge
     const target = Math.min(Math.max(0, t), Math.max(0, maxEnd))
     seekTokenRef.current++
     flushAudio()
@@ -291,9 +302,9 @@ export function LiveBroadcastView({
   }
 
   function goLive() {
-    // jump to the live edge (delaySec behind real-time). Only shown while airing — once the source ends
-    // it becomes a recording with free navigation, so there's no "live" to return to.
-    seek(Math.max(0, rawEdgeRef.current - delaySec))
+    // snap to the front of the playable window — the draining edge (which ramps to the true end after the
+    // source stops), so "return to live" follows the buffer instead of leaping to the end.
+    seek(broadcastEdge)
   }
 
   function changeVolume(v: number) {
@@ -356,12 +367,11 @@ export function LiveBroadcastView({
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   }
   const behind = Math.max(0, liveEdge - playingRel)
-  // Front of the playable window: delaySec behind the live edge while airing; the WHOLE recording once
-  // the source ends (free navigation). The bar's currentTime/duration follow from this.
-  const broadcastEdge = liveEnded ? liveEdge : Math.max(0, liveEdge - delaySec)
 
-  // Tell the LiveSession wrapper to start the finish pipeline the moment the source ends.
+  // Source stopped → start the finish pipeline (the wrapper shows the auto-dismissing card). View stays LIVE.
   useEffect(() => { if (liveEnded) onSourceEnded?.() }, [liveEnded]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Buffer fully drained → the live experience is over; the wrapper swaps to the finished view (when ready).
+  useEffect(() => { if (over) onLiveOver?.() }, [over]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const overlayMsg =
     phase === 'connecting'
@@ -390,7 +400,7 @@ export function LiveBroadcastView({
             {companyName} — {quarter}
           </span>
           <span className="shrink-0 text-sm text-ink-faint">{formatDate(new Date().toISOString(), locale)}</span>
-          {phase === 'playing' && !liveEnded && (
+          {phase === 'playing' && !over && (
             <span
               className="shrink-0 whitespace-nowrap rounded-full bg-subtle px-2 py-0.5 text-2xs font-medium text-ink-muted tabular-nums"
               dir="ltr"
@@ -399,14 +409,10 @@ export function LiveBroadcastView({
             </span>
           )}
         </div>
-        {/* top-right: LIVE pill while airing → full "ended, AI is processing" status once the source ends */}
+        {/* top-right: LIVE pill through the whole live + drain window; once the drain is over the badge
+            drops (the view becomes a finished recording; the "ended / AI processing" note lives in the card). */}
         <div className="flex shrink-0 items-center gap-3">
-          {liveEnded ? (
-            <span className="flex items-center gap-1.5 whitespace-nowrap text-2xs font-medium text-ink-faint">
-              <span className="h-1.5 w-1.5 rounded-full bg-ink-faint" />
-              {dict.live.endedStatus}
-            </span>
-          ) : (
+          {!over && (
             <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
               <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
               <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
@@ -480,11 +486,11 @@ export function LiveBroadcastView({
         logoUrl={logoUrl}
         title={companyName}
         subtitle={quarter}
-        chapter={liveEnded ? undefined : 'Live session'}
+        chapter={over ? undefined : 'Live session'}
         currentTime={playingRel}
         duration={broadcastEdge}
         playing={phase === 'playing' && !paused}
-        isLive={!liveEnded}
+        isLive={!over}
         onGoLive={goLive}
         volume={volume}
         onPlayPause={playPause}
@@ -499,7 +505,7 @@ export function LiveBroadcastView({
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-canvas/95 px-6 text-center">
           <span className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            <span className="text-2xs font-bold tracking-wide text-live">{liveEnded ? 'הסתיים' : dict.live.liveBadge}</span>
+            <span className="text-2xs font-bold tracking-wide text-live">{over ? 'הסתיים' : dict.live.liveBadge}</span>
           </span>
           <h2 className="text-xl font-bold text-ink">{companyName} — שיחת משקיעים</h2>
           {phase === 'buffering' && (
