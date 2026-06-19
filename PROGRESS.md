@@ -5,6 +5,33 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-20 — Transcript UI polish (live + offline) — BUILT, AWAITING FOUNDER REVIEW
+
+**Status:** On branch `feat/transcript-ui-polish` (off `main`). **8 commits**, each isolated. `tsc` clean ·
+43 tests · clean `next build`. **NOT pushed/merged** — founder reviews at `:3000` first, then we push + I
+review/test. Spec/plan: `docs/superpowers/plans/2026-06-20-transcript-ui-polish.md`.
+
+**Changes (founder-approved):**
+- **Chat button on Live** — opens the existing Ask-Atlas side panel directly (no selection needed).
+- **Yellow text selection** in both views — `.select-mark ::selection` on the shared `TranscriptBody`
+  (the *act of selecting* text → highlighter yellow; karaoke highlight unchanged).
+- **Live notification** — appends "On our platform the call is still LIVE until we finish the 4-minute
+  buffer." and **no longer auto-dismisses** (reverts the 5s close; stays until ✕).
+- **Minimizable speaker/timeline panel** (offline) — collapses to a thin rail like `CollapsiblePanel`.
+- **Removed two dead buttons** (offline) — the auto-scroll toggle (redundant now: the scroll-pause + "↓ Back
+  to current" chip manages it) + the page-refresh.
+- **Copy icon shows a "T"** (offline) — `CopyTextIcon`.
+- **Universal audio-bar fix** — the "white block" was `ShellChrome`'s full-width reserved band (`pb-[84px]`);
+  removed it so side panels run full-height + the black pill floats (the pill itself unchanged). Transcript
+  scroll areas keep their own transparent bottom padding so last lines clear the pill. Bar is now **chat-aware**
+  (`chatOpen` on the player context → `MediaPlayer` adds `lg:pe-[396px]`), so the offline chat opens like Live
+  — and Live inherits it when it later adopts the global bar.
+
+**To verify in review:** Home + Chat pages with a loaded call — confirm no important bottom content hides
+behind the floating pill (add page-level bottom padding if so). **Next:** founder review → push → review/test.
+
+---
+
 ## 2026-06-20 — feat/live-phase2 SHIPPED to main (real Zoom test passed)
 
 **Status:** `feat/live-phase2` **merged to `main`** and pushed to GitHub after a successful real Recall + Zoom
