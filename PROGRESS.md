@@ -27,8 +27,16 @@ review/test. Spec/plan: `docs/superpowers/plans/2026-06-20-transcript-ui-polish.
   (`chatOpen` on the player context → `MediaPlayer` adds `lg:pe-[396px]`), so the offline chat opens like Live
   — and Live inherits it when it later adopts the global bar.
 
-**To verify in review:** Home + Chat pages with a loaded call — confirm no important bottom content hides
-behind the floating pill (add page-level bottom padding if so). **Next:** founder review → push → review/test.
+**Founder review (2026-06-20): looks good.** 4 follow-ups queued on the SAME branch before push (#1/#2 are
+fixes to this pass): (1) finished view — chat open should **minimize** the speaker panel (it currently
+unmounts it); (2) the offline chat button should **open the side panel**, not navigate to `/app/chat`;
+(3) a slick **"Open audio bar"** chip to reopen the docked bar after ✕ (resume position, no refresh);
+(4) **drag-to-scrub** the audio timeline (currently click-only). Still verify: Home/Chat bottom content behind
+the floating pill.
+
+**Pipeline ahead (founder's framing):** finish this UI polish → **make the LIVE audio bar global** (hear the
+call across pages, like the offline player) → then the **second big part: a more advanced investor-call
+product built on top of this layer.**
 
 ---
 

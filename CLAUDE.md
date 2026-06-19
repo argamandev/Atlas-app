@@ -176,6 +176,24 @@ uses `PlayerProvider.viewingId` (URL-independent) so it hides during the inline 
 (merged): GPT-4.1 formatter when Gemini 503s + accurate-IVRIT default + backoff (`transcription.ts`).
 NEXT: Phase 2B toolbar-on-live → 2C quote-anchor → 2D unified player.
 
+**Update (2026-06-20, live feature solid + transcript UI polish):** The live experience is now robust and
+**proven on a real ~13-min Zoom test**. Shipped to `main`: **keep-LIVE-through-the-buffer-drain** — when the
+source audio stops the view STAYS live and drains the buffer (reverting the brief "free-recording" cutoff),
+then becomes a finished recording → **auto-swaps to the organized transcript**; the engine exposes `endedAt`
+so all clients (incl. Home/Company "Live Now") compute the same drain end. **Capture-reset bug fixed**: the
+engine truncates `scripts/out/broadcast-*` per run, so the finished transcript is THIS call, not the
+accumulated pile. Plus **scroll-pause + "↓ Back to current" chip** (auto-scroll no longer yanks while reading)
+and a **GPT-4.1 fallback for live chat**. (The `feat/live-phase2` merge also brought in the separately-landed
+**admin delete/rename** + **transcription-resilience** Gemini→GPT-4.1 formatter fallback.) **In progress** on
+`feat/transcript-ui-polish` (built, founder-reviewed, not pushed): chat button on Live, **yellow text-selection**,
+persistent (no-auto-dismiss) live notification, **minimizable speaker panel**, copy "T" icon, and a **universal
+audio-bar fix** — the "white block" was `ShellChrome`'s full-width reserved band; removed it so the black pill
+floats over full-height panels, and the bar is **chat-aware** (`chatOpen` on `PlayerProvider` → `MediaPlayer`
+narrows left of the chat). 4 follow-ups queued there (minimize-not-close the panel on chat-open; the offline
+chat button opens the side panel; an "Open audio bar" chip to reopen after ✕; drag-to-scrub). **Roadmap:**
+finish this polish → **make the LIVE audio bar global** (hear the call across pages, like the offline player) →
+then the **second big part: a more advanced investor-call product built on this layer.**
+
 ## Stack
 
 - **Next.js 14 (App Router)** — server components + route handlers; TypeScript; deployed on **Railway**.
