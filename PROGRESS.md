@@ -5,6 +5,31 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-19 — Keep LIVE through the buffer drain → clean finish (AWAITING FOUNDER TEST)
+
+**Status:** On `feat/live-phase2` (NOT merged). **7 commits** (test + engine + route + 4 UI). `tsc` clean ·
+43 tests · clean `next build`. Founder-driven after a real 4-min-buffer test confirmed the abrupt cutoff.
+Spec `docs/superpowers/specs/2026-06-19-live-keep-through-buffer-design.md`; plan `…/plans/2026-06-19-…md`.
+
+**The model now:** a call is **LIVE** (incl. the buffer drain) or **FINISHED** — no "processing" surface.
+This **reverts the free-recording cutoff**: when the source audio stops, the view STAYS live and drains the
+buffer at 1x (re-wiring the still-tested `delayedLiveEdge`/`hostedLiveOver`/`viewerEnded` helpers); only when
+the buffer fully drains does it flip to a finished recording → auto-swaps to the organized transcript when
+ready (raw "default text" until then). The engine now exposes `endedAt` so every client computes the same
+drain end (source-end + buffer).
+
+**Commits:** `test(live)` drain+over compose · `feat(live-engine)` expose `endedAt` + **reset capture files
+per run** (fixes the wrong/accumulated finished transcript) · `feat(live)` state proxy passes `endedAt` ·
+`feat(live)` LBV keeps LIVE through the drain, raw "over" recording at drain-end (header LIVE→no-badge, the
+#1 "ended" text now lives only in the card) · `feat(live)` LiveSession drain-end auto-swap + raw-until-ready
++ **5s card auto-dismiss** · `feat(live)` Home + company stay LIVE through the drain.
+
+**Known minor gap (flagged):** a user who navigates away and returns in the narrow post-drain/pre-organized
+window (~1–2 min) — the in-view + during-drain paths are fully covered; the latest-call-link-before-organized
+is a small optional follow-up. **Next:** founder live Zoom test → if good, merge `feat/live-phase2` to `main`.
+
+---
+
 ## 2026-06-18 — Live UX polish pass: 8 founder-requested refinements (AWAITING FOUNDER TEST)
 
 **Status:** On `feat/live-phase2` (NOT merged). **5 isolated commits** on top of the free-recording pass,
