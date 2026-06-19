@@ -42,7 +42,7 @@ export default async function HomePage() {
           </div>
 
           {/* upcoming investor calls */}
-          <div className="mt-[9vh] pb-16">
+          <div className="mt-[9vh] pb-16 pb-dock">
             <SectionHeader label={dict.home.upcomingCalls} className="mb-3" />
             {upcoming.length === 0 ? (
               <p className="px-2.5 py-6 text-sm text-ink-faint">{dict.home.noUpcoming}</p>

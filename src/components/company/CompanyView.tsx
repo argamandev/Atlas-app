@@ -119,7 +119,7 @@ export function CompanyView({
   }
 
   return (
-    <div className="app-scroll flex-1 overflow-y-auto">
+    <div className="app-scroll flex-1 overflow-y-auto pb-dock">
       {/* header — identity on the leading edge (top-left in EN, top-right in HE) */}
       <header className="border-b border-hairline">
         <div className="mx-auto flex max-w-4xl animate-fade-up items-start justify-between gap-4 px-8 py-5">

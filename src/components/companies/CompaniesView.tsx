@@ -56,7 +56,7 @@ export function CompaniesView({ transcripts }: CompaniesViewProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-8 max-w-5xl mx-auto w-full" dir="rtl">
+    <div className="flex-1 overflow-y-auto px-6 py-8 max-w-5xl mx-auto w-full pb-dock" dir="rtl">
       <div className="mb-6">
         <p className="text-xs text-accent tracking-wide uppercase mb-1 font-medium">חברות</p>
         <h1 className="text-2xl font-bold text-text-primary tracking-tight">החברות שלי</h1>

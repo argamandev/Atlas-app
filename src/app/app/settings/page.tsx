@@ -16,7 +16,7 @@ export default function SettingsPage() {
 
   return (
     <AppPage>
-      <div className="app-scroll flex-1 overflow-y-auto px-8 py-8">
+      <div className="app-scroll flex-1 overflow-y-auto px-8 py-8 pb-dock">
         <div className="mx-auto w-full max-w-2xl">
           <h1 className="text-2xl font-bold text-ink">{dict.settings.title}</h1>
 

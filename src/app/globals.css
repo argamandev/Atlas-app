@@ -50,6 +50,11 @@
   }
 }
 
+/* Pages clear the floating docked player bar — only when a recorded call is loaded (data-dock on the shell). */
+[data-dock='open'] .pb-dock {
+  padding-bottom: 7rem;
+}
+
 @layer utilities {
   .hero-grid {
     background-image:

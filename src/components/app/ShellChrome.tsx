@@ -15,7 +15,7 @@ export function ShellChrome({ children }: { children: React.ReactNode }) {
   const dockOpen = !!call && !call.isLive
 
   return (
-    <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div data-dock={dockOpen ? 'open' : undefined} className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
       {children}
       {dockOpen && <GlobalPlayer />}
       <ReturnToTranscriptChip />

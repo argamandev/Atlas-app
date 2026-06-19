@@ -232,7 +232,7 @@ export function ChatView({
           )}
         </div>
       </div>
-      <div className="px-6 pb-5">{composer}</div>
+      <div className="px-6 pb-5 pb-dock">{composer}</div>
     </div>
   )
 

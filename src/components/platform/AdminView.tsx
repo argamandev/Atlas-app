@@ -46,7 +46,7 @@ export function AdminView() {
   const reviewed = requests.filter(r => r.status !== 'pending')
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-8 max-w-3xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto px-6 py-8 max-w-3xl mx-auto w-full pb-dock">
       <div className="mb-8">
         <p className="font-mono-num text-xs text-accent tracking-widest uppercase mb-1">// ADMIN</p>
         <h2 className="text-xl font-bold text-text-primary tracking-tight">בקשות גישה</h2>

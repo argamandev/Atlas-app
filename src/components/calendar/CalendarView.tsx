@@ -73,7 +73,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   const today = new Date()
 
   return (
-    <div className="app-scroll flex-1 overflow-y-auto px-8 py-6">
+    <div className="app-scroll flex-1 overflow-y-auto px-8 py-6 pb-dock">
       <div className="mx-auto w-full max-w-4xl animate-fade-up">
         {/* header: title + mode toggle */}
         <div className="mb-5 flex items-center justify-between">
