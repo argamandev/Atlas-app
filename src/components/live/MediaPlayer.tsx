@@ -40,6 +40,7 @@ export interface MediaPlayerProps {
 export function MediaPlayer(props: MediaPlayerProps) {
   const { dict, dir } = useI18n()
   const trackRef = useRef<HTMLDivElement>(null)
+  const draggingRef = useRef(false)
   const { currentTime, duration, playing, isLive } = props
   // While live the viewer sits AT the delayed edge, so the playhead is pinned far-right (YouTube-style)
   // from the first frame. currentTime/duration is ~0/0 at join and would otherwise drift in from the left.
@@ -48,12 +49,11 @@ export function MediaPlayer(props: MediaPlayerProps) {
   const pct = atLiveEdge ? 100 : duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0
   const remaining = Math.max(0, duration - currentTime)
 
-  function seekFromEvent(e: React.MouseEvent) {
+  function seekFromClientX(clientX: number) {
     const el = trackRef.current
     if (!el || duration <= 0) return
-    if (e.detail === 0) return // keyboard-activated click (Enter/Space) has clientX 0 — ignore
     const rect = el.getBoundingClientRect()
-    let ratio = (e.clientX - rect.left) / rect.width
+    let ratio = (clientX - rect.left) / rect.width
     if (dir === 'rtl') ratio = 1 - ratio // scrubber follows reading direction
     props.onSeek(Math.min(duration, Math.max(0, ratio * duration)))
   }
@@ -98,9 +98,19 @@ export function MediaPlayer(props: MediaPlayerProps) {
           <button
             ref={trackRef as unknown as React.RefObject<HTMLButtonElement>}
             type="button"
-            onClick={seekFromEvent}
+            onPointerDown={(e) => {
+              if (duration <= 0) return
+              draggingRef.current = true
+              e.currentTarget.setPointerCapture(e.pointerId)
+              seekFromClientX(e.clientX)
+            }}
+            onPointerMove={(e) => { if (draggingRef.current) seekFromClientX(e.clientX) }}
+            onPointerUp={(e) => {
+              draggingRef.current = false
+              try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+            }}
             aria-label={dict.live.searchTranscript}
-            className="group relative h-3 w-full cursor-pointer"
+            className="group relative h-3 w-full cursor-pointer touch-none"
           >
             {isLive ? (
               <>
