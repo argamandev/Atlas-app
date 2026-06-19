@@ -78,6 +78,11 @@ export function LiveTranscriptView({
   const [matchPos, setMatchPos] = useState(0)
   // in-transcript side chat (Feature 6): open + the seeded quote + a nonce so re-starring re-seeds
   const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({ open: false, seed: '', nonce: 0 })
+  // side chat open → tell the global docked bar to narrow to its left (so offline = live)
+  useEffect(() => {
+    player.setChatOpen(chat.open)
+    return () => player.setChatOpen(false)
+  }, [chat.open, player.setChatOpen])
   // diarization edit mode (Feature 1) — finished, real transcripts only
   const [editMode, setEditMode] = useState(false)
   const canEdit = call.companyId != null && call.id !== 'demo'

@@ -45,6 +45,9 @@ interface PlayerApi {
   subscribeTime: (cb: () => void) => () => void
   viewingId: string | null
   setViewing: (id: string | null) => void
+  /** the in-transcript side chat is open → the docked bar narrows to sit left of it */
+  chatOpen: boolean
+  setChatOpen: (v: boolean) => void
 }
 
 const Ctx = createContext<PlayerApi | null>(null)
@@ -68,6 +71,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(1)
   const [viewingId, setViewingId] = useState<string | null>(null) // call a LiveTranscriptView is displaying (URL-independent)
+  const [chatOpen, setChatOpen] = useState(false) // in-transcript side chat open → narrow the docked bar
 
   // time store — a mutable ref + listener set, driven by rAF while playing + timeupdate.
   const timeRef = useRef(0)
@@ -186,6 +190,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     subscribeTime,
     viewingId,
     setViewing,
+    chatOpen,
+    setChatOpen,
   }
 
   return (

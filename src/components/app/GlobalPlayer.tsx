@@ -25,6 +25,7 @@ export function GlobalPlayer() {
       onSkip={p.skip}
       onVolumeChange={p.setVolume}
       onClose={p.close}
+      chatNarrow={p.chatOpen}
     />
   )
 }

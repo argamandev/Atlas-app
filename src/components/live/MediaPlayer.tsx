@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Logo } from '@/components/ds/Logo'
 import { formatClock } from '@/lib/i18n/format'
@@ -32,6 +33,8 @@ export interface MediaPlayerProps {
   onVolumeChange: (v: number) => void
   onClose?: () => void
   onGoLive?: () => void
+  /** offline global bar only: narrow the bar to the left when the side chat panel is open */
+  chatNarrow?: boolean
 }
 
 export function MediaPlayer(props: MediaPlayerProps) {
@@ -56,7 +59,7 @@ export function MediaPlayer(props: MediaPlayerProps) {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4">
+    <div className={cn('pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4', props.chatNarrow && 'lg:pe-[396px]')}>
       <div className="pointer-events-auto flex w-full max-w-[1080px] items-center gap-4 rounded-pill bg-player px-4 py-2.5 shadow-player">
         {/* zone 1 — identity */}
         <div className="flex min-w-0 shrink-0 items-center gap-2.5">
