@@ -431,9 +431,14 @@ export function LiveBroadcastView({
 
       {/* sub-toolbar */}
       <div className="flex items-center justify-between px-6 py-2">
-        <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
-          <SyncIcon size={16} />
-        </IconButton>
+        <div className="flex items-center gap-0.5">
+          <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
+            <SyncIcon size={16} />
+          </IconButton>
+          <IconButton label={dict.live.askAboutQuote} size={30} onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}>
+            <SparkleIcon size={16} />
+          </IconButton>
+        </div>
       </div>
 
       {/* transcript — the real V1 karaoke body */}
