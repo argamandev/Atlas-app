@@ -12,8 +12,6 @@ import {
   CloseIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  SyncIcon,
-  RefreshIcon,
   CopyTextIcon,
   SearchIcon,
   QuoteIcon,
@@ -63,7 +61,7 @@ export function LiveTranscriptView({
   }, [call.id, player.setViewing])
 
   const [tab, setTab] = useState('transcript')
-  const [autoScroll, setAutoScroll] = useState(true)
+  const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [toast, setToast] = useState<Toast | null>(null)
   const [selection, setSelection] = useState<
     {
@@ -380,12 +378,6 @@ export function LiveTranscriptView({
         {/* sub-toolbar */}
         <div className="flex items-center justify-between px-6 py-2">
           <div className="flex items-center gap-0.5">
-            <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
-              <SyncIcon size={16} />
-            </IconButton>
-            <IconButton label={dict.live.refresh} size={30} onClick={() => router.refresh()}>
-              <RefreshIcon size={16} />
-            </IconButton>
             <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
               <CopyTextIcon size={16} />
             </IconButton>
