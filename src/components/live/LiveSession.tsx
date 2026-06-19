@@ -6,10 +6,10 @@ import { LiveTranscriptView } from './LiveTranscriptView'
 import { ChevronRightIcon, CloseIcon } from '@/components/ds/icons'
 import type { LiveCall } from '@/lib/live/loadCall'
 
-// Wraps the live broadcast. While airing it's held delaySec behind real-time. The moment the SOURCE
-// ends, the captured buffer becomes a complete recording the viewer can roam freely (handled in
-// LiveBroadcastView), we fire the finish pipeline, and once it's ready a "View the organized transcript"
-// button swaps in place (audio continues from the playhead). Refresh-safe; playhead persisted via persistKey.
+// Wraps the live broadcast. While airing it's held delaySec behind real-time. When the SOURCE stops we fire
+// the finish pipeline, but the view STAYS LIVE and drains the buffer (handled in LiveBroadcastView). Once the
+// buffer fully drains (onLiveOver), it becomes a finished recording → auto-swaps to the organized transcript
+// the moment it's ready. Refresh-safe; playhead persisted via persistKey.
 export function LiveSession(props: {
   companyName: string
   companyId: string | null
@@ -24,6 +24,7 @@ export function LiveSession(props: {
   // live source end — NOT on the polled status. The call id is reused across airings (and is static
   // for the demo), so a completed row from a prior run must never surface the CTA while we're live.
   const [sourceEnded, setSourceEnded] = useState(false)
+  const [liveOver, setLiveOver] = useState(false) // the buffer fully drained → the live experience is over
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({}) // notification cards closed by the user
 
   const playheadRef = useRef(0)
@@ -76,6 +77,20 @@ export function LiveSession(props: {
     return () => { alive = false }
   }, [finishStatus, finishedCall])
 
+  // The "source ended — AI is processing" card is a transient heads-up: auto-close after 5s (or ✕).
+  useEffect(() => {
+    if (!(sourceEnded && phase === 'live' && finishStatus === 'processing' && !dismissed['processing'])) return
+    const t = setTimeout(() => setDismissed((d) => ({ ...d, processing: true })), 5000)
+    return () => clearTimeout(t)
+  }, [sourceEnded, phase, finishStatus, dismissed])
+
+  // Stay LIVE through the whole drain (liveOver=false). Once the drain is over AND the organized transcript
+  // is ready, swap to the finished view in place. If it's not ready yet, the drained LiveBroadcastView (now
+  // a raw, badge-less recording) stays until it is — "default text" first, organized when it lands.
+  useEffect(() => {
+    if (liveOver && finishedCall) setPhase('finished')
+  }, [liveOver, finishedCall])
+
   function onSourceEnded() {
     setSourceEnded(true) // unlocks the finish UX; set before the guard so a pre-loaded 'ready' still reveals
     if (finishStatus !== 'idle') return // already triggered/known (e.g. after a refresh)
@@ -118,15 +133,17 @@ export function LiveSession(props: {
     return <LiveTranscriptView call={finishedCall} initialSeek={playheadRef.current} />
   }
 
-  // Floating, dismissible Apple-style notification card (frosted light, ✕ to close) — NOT an inline
-  // banner that blocks the transcript. Shown only after THIS session saw the source end; the header
-  // already shows a calm gray "הסתיים" badge, so these cards just announce the finish progress.
+  // Floating, dismissible notification card (frosted light, ✕ to close). Shown only after THIS session saw
+  // the source end. The processing card is a transient heads-up (auto-dismisses after 5s); the header stays
+  // LIVE through the drain, so this card is the only "source ended / AI processing" cue.
   const cardKey = finishStatus
   const showCard =
     sourceEnded &&
     phase === 'live' &&
     !dismissed[cardKey] &&
-    (finishStatus === 'processing' || finishStatus === 'ready' || finishStatus === 'failed')
+    // during the drain show only the (auto-dismissing) processing card — never a "View" that would skip the
+    // live experience. The ready/failed cards appear only once the drain is over.
+    (finishStatus === 'processing' || (liveOver && (finishStatus === 'ready' || finishStatus === 'failed')))
 
   return (
     <>
@@ -135,6 +152,7 @@ export function LiveSession(props: {
         persistKey={`live-pos:${props.companyId ?? 'demo'}`}
         playheadRef={playheadRef}
         onSourceEnded={onSourceEnded}
+        onLiveOver={() => setLiveOver(true)}
       />
       {showCard && (
         <div
