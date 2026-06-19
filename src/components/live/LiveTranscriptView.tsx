@@ -430,7 +430,7 @@ export function LiveTranscriptView({
 
         {/* body */}
         <div
-          className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-2"
+          className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-2"
           onMouseUp={tab === 'transcript' ? onTextSelect : undefined}
           onScroll={() => selection && setSelection(null)}
         >

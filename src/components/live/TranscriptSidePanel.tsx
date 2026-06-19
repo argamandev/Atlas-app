@@ -88,7 +88,7 @@ export function TranscriptSidePanel({
         </button>
       </div>
 
-      <div className="px-3 pb-8">
+      <div className="px-3 pb-24">
         <SectionHeader label={dict.live.parts} className="px-2 pb-1 pt-4" />
         {parts.map((p) => {
           const active = activeSegmentIndex >= p.from && activeSegmentIndex <= p.to
