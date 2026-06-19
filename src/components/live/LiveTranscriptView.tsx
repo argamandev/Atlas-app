@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
@@ -52,6 +52,9 @@ export function LiveTranscriptView({
   const playing = player.playing
   const isActiveCall = player.call?.id === call.id
   const effTime = isActiveCall ? currentTime : 0
+  // remember the last playhead so the "Open audio bar" chip can resume where the user closed it
+  const lastPosRef = useRef(0)
+  useEffect(() => { if (isActiveCall) lastPosRef.current = currentTime }, [isActiveCall, currentTime])
 
   // Tell the player this call is being displayed (URL-independent) so the Return-to-transcript chip
   // hides while we're on it — including the inline live→finished swap, where the URL stays /app/live/live.
@@ -537,6 +540,31 @@ export function LiveTranscriptView({
                 </Link>
               )}
             </span>
+          </div>
+        )}
+
+        {/* "Open audio bar" — reopen the docked bar after ✕, resuming where you left off */}
+        {call.audioUrl && !isActiveCall && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                player.load({
+                  id: call.id,
+                  companyId: call.companyId,
+                  title: name,
+                  subtitle: call.quarter,
+                  logoUrl: call.logoUrl,
+                  audioUrl: call.audioUrl!,
+                  isLive: false,
+                  duration: call.transcript.durationSec || undefined,
+                  startAt: lastPosRef.current,
+                })
+              }
+              className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white shadow-popover transition-opacity hover:opacity-90"
+            >
+              <PlayIcon size={13} /> {dict.live.openAudioBar}
+            </button>
           </div>
         )}
       </div>

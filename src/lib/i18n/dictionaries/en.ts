@@ -160,6 +160,7 @@ export const en = {
     buffering: 'We buffer {min} minutes from the sourced Investor Call to generate a live transcript',
     backToLive: 'Back to live',
     backToPlaying: 'Back to current',
+    openAudioBar: 'Open audio bar',
   },
   player: {
     rewind15: 'Back 15s',

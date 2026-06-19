@@ -159,6 +159,7 @@ export const he: Dictionary = {
     buffering: 'אנחנו משהים {min} דק׳ משיחת המקור כדי להפיק תמלול חי',
     backToLive: 'חזרה לחי',
     backToPlaying: 'חזרה לנוכחי',
+    openAudioBar: 'פתחו את נגן השמע',
   },
   player: {
     rewind15: '15 שניות אחורה',
