@@ -71,128 +71,56 @@ Three-layer RTL sidebar (icon rail → expanded panel → content). Pages:
 - Profile & settings at sidebar bottom.
 
 **V1 data layer (LIVE in Supabase, migration `20260611_006`)**: `companies` (4 real seeded:
-תיגבור 1105022, תמיס 1097229 נדל"ן, רג"א, קווליטאו 1083955; logos in `public/logos/`, תמיס logo
-pending manual) + `scheduled_calls` (4 mock Q2-2026 calls: תיגבור+רג"א both 19.6 — deliberate
+תיגבור 1105022, תמיס 1097229 נדל"ן, רג"א, קווליטאו 1083955; logos in `public/logos/`)
++ `scheduled_calls` (4 mock Q2-2026 calls: תיגבור+רג"א both 19.6 — deliberate
 simultaneous-calls test, תמיס 20.6, קווליטאו 29.6; `source='mock'` until MAYA) +
 `transcripts.company_id` FK. **MayaClient interface plan**: downstream code talks to the
 interface; mock impl reads seeds, real impl polls the TASE Data Hub API (10 req/2s limit) for
-call announcements → upserts `scheduled_calls` with `source='maya'`. Known gap: click-word-to-
-seek needs per-word timestamps — Recall calls have them; YouTube/IVRIT path doesn't yet
-(IVRIT supports word timestamps, never requested). New backend to build with frontend: quotes
-table, chat endpoints, live productionization (see Core 1).
+call announcements → upserts `scheduled_calls` with `source='maya'`. Click-word-to-seek needs
+per-word timestamps — Recall calls have them, and the submit pipeline now persists IVRIT
+`word_segments` too (legacy rows pre-date that; backfilled via `scripts/reprocess-audio.mjs`).
+New backend to build with frontend: quotes table, chat endpoints, live productionization (see Core 1).
 
-**V1 status (2026-06-13):** Frontend is at an OK-and-improving baseline (full-screen shell,
-slim nav, bilingual EN/HE). Current focus = **Spec 1: transcript experience + chat**
-(`docs/superpowers/specs/2026-06-13-transcript-experience-and-chat-design.md`): a YouTube→text
-transcript with no audio/sync is poor UX; the product's value is the **synced audio + caption**
-experience. The submit pipeline now persists `audio_url` + IVRIT `word_segments` (so the
-"YouTube/IVRIT path doesn't have word timestamps" gap above is closed for new transcripts);
-legacy rows (e.g. Tigbur Q4) predate that and are re-processed in place via
-`scripts/reprocess-audio.mjs`. Locked Spec-2 decisions: **raw-live + polish-after** (Recall raw
-captions live, Gemini only after the call), **Railway** as host (permanent webhook URL),
-**Zoom Webinars** via Recall (attendee join; registration link + passcode).
+**V1 status — current state (2026-06-22):** Spec 1 shipped; the app is **deployed on Railway →
+`timlul-ai.com`** (legacy product at root routes; V1 under `/app/*`, login → `/app/home`). The synced
+**audio + caption** experience — not plain text — is the product's value. Locked Spec-2 decisions still
+in force: **raw-live + polish-after** (Recall raw captions live, Gemini polishes only after the call),
+**Railway** host (permanent webhook URL), **Zoom Webinars** via Recall (attendee join; registration link
++ passcode). The blow-by-blow history lives in **`PROGRESS.md`** — this is the synthesis.
 
-**Update (2026-06-14):** Spec 1 shipped and **deployed on Railway → `timlul-ai.com`** (old
-product still lives at root routes; new V1 is under `/app/*`, login lands at `/app/home`). Chat
-now runs on **Gemini 3.5 Flash**. **Core 1 live-broadcast is integrated into the platform**: the
-home "Live Now" + company Overview **auto-detect** a live call (poll `/api/live/state`), and
-`/app/live/live` is the V1 transcript page in a streaming "live mode" (`LiveBroadcastView` — real
-header/tabs/`TranscriptBody`/`MediaPlayer`, Web-Audio scheduled, buffered, **joins at the live
-edge** `liveEdge − buffer`). Data flows via same-origin proxy routes (`/api/live/state`, `/pcm`)
-to the live engine (`LIVE_ENGINE_URL`, default the local spike `live-broadcast.mjs`; tunnelled for
-the deploy). **First real תמיס Zoom test passed** — full loop + audio↔text sync proven. Test the
-rebuilt page on a real call next; see PROGRESS.md for known refinements (live captions are one
-block until we capture Recall's per-word speaker; 5-min buffer needed for caption-readiness;
-sentence-level correction for big chunks). `scripts/live-replay-engine.mjs` replays a recorded
-session as a fake-live feed for testing without Zoom.
+**What exists now (key anchors):**
+- **Live transcript — productionized, proven on a real ~13-min Zoom test.** One unified live view
+  (`LiveSession`/`LiveBroadcastView`) shared by Home + Company "Live Now" (auto-detect via
+  `/api/live/state`); single `LIVE_BUFFER_SEC` buffer (env `NEXT_PUBLIC_LIVE_BUFFER_SEC`); pure
+  unit-tested timing in `src/lib/live/liveTiming.ts` (`delayedLiveEdge` drains the buffer at 1× after the
+  source ends; `hostedLiveOver` = drain-based finished mode). Same-origin proxy routes → live engine
+  (`LIVE_ENGINE_URL`, default `scripts/live-broadcast.mjs`). Source ends → view **stays live, drains the
+  buffer** → finished recording → **auto-swaps in place to the organized transcript** (audio continues).
+  Engine truncates `scripts/out/broadcast-*` per run so the finished transcript is THIS call.
+  `scripts/live-replay-engine.mjs` fakes a live feed without Zoom.
+- **Live → finished hand-off** (`src/lib/live/finishLiveCall.ts`): an ended live call → a normal finished
+  `transcripts` row (raw text → Gemini `formatTranscript`; captured words → `word_segments`; PCM → MP3 →
+  `audio_url`; no IVRIT/YouTube), rendered by the same `LiveTranscriptView`. Inline-swap wiring:
+  `POST/GET /api/live/finish` (non-auth poll), `GET /api/live/finished-call/[id]`; refresh-safe
+  (sessionStorage playhead + on-mount status re-derive).
+- **Chat** on **Gemini 3.5 Flash**, **streaming** (`/api/chat` proxies `streamGenerateContent` SSE → token
+  stream), **markdown-rendered** (`react-markdown` + `remark-gfm`), content-driven RTL (`detectDir`),
+  **GPT-4.1 fallback**. In-transcript **side chat** (`TranscriptChatPanel`) + the unified `ChatComposer`
+  reference box; highlight → "Ask Atlas".
+- **Global persistent audio player** (`src/lib/player/PlayerProvider.tsx`): recorded-call audio keeps
+  playing across navigation + while chatting; `LiveTranscriptView` consumes it. The floating black audio
+  pill is chat-aware (`chatOpen` → narrows left of the chat).
+- **Diarization editing** (finished transcripts): additive `transcripts.speaker_edits` overlay;
+  `applySpeakerEdits` re-segments the flat word stream (pure passthrough when absent → no regression);
+  `PATCH /api/transcripts/[id]/diarization`. **My-Quotes folders** (`quote_folders` + `quotes.folder_id`).
 
-**Update (2026-06-14, design pass + chat/player/diarization features):** A V1 **design pass**
-folded the Claude-Design look into the working product (refined sizing/motion/shadows; flat-at-rest
-+ hover-shadow cards; calendar polish) — see PROGRESS.md. Then four features shipped (branch
-`feat/product-enhancements`, merged to `main`):
-- **Global persistent audio player** (`src/lib/player/PlayerProvider.tsx` in the app shell + one
-  hidden `<audio>`; `GlobalPlayer`, `ShellChrome`, `ReturnToTranscriptChip`): recorded-call audio
-  keeps playing across navigation + while chatting. `LiveTranscriptView` now *consumes* the global
-  player (no own `<audio>`); `usePlayer`/`usePlayerTime` keep tick re-renders local. Live-broadcast
-  view keeps its own Web-Audio engine (separate). Save-quote toast → clickable "My Quotes" (`?tab=quotes`).
-- **Streaming chat** — `/api/chat` proxies Gemini `streamGenerateContent` (SSE) → plain-text token
-  stream (`x-chat-source` header); client `streamChat()`; **markdown rendered** via `react-markdown`
-  + `remark-gfm` + shared `Markdown` (`.md` styles in globals.css). Streams plain+caret, renders
-  rich text once settled. Thinking-dots indicator.
-- **In-transcript side chat** (`TranscriptChatPanel`) — highlight → ✦ "Ask about this" → side panel
-  beside the transcript (audio keeps playing); while open, highlighting auto-references into the
-  composer. The composer (`ChatComposer`) is a **unified two-toned box** (warm reference header +
-  white input) à la Claude — used by both chats.
-- **Diarization editing** (Feature 1) — finished transcripts only: an additive overlay column
-  `transcripts.speaker_edits` (`{boundaries:[{atWordIndex,speakerId}]}`); `applySpeakerEdits` in
-  `syncEngine` re-segments the flat word stream (pure passthrough when absent → no regression);
-  `PATCH /api/transcripts/[id]/diarization` recomputes the full overlay; "Edit speakers" mode in
-  the transcript reassigns a selected run to a speaker. **My-Quotes folders** also added earlier
-  (`quote_folders` table + `quotes.folder_id`). NEXT: **test the live feature on a real call**.
+**Now / next:** transcript-UI polish (yellow text-selection, minimizable speaker panel, drag-to-scrub bar,
+chat-button-on-live, "Open audio bar" chip) is shipped to `main`. Roadmap: **make the LIVE audio bar global**
+(hear the call across pages, like the offline player) → then **the second big part: a more advanced
+investor-call product built on this layer.**
 
-**Update (2026-06-15, chat polish):** The chat logic + conversation are **starting to get good** —
-markdown rendering, streaming, RTL output and the quote-reference flow work and feel much closer to
-a real assistant. **Overall the chat interface looks okay right now** — it'll be **better shaped
-later and adjusted to match Claude's interface** more precisely. Done this session: dynamic
-content-driven RTL on chat output (`detectDir`, not `dir="auto"`); `<br>`-in-table-cell rendering
-(tiny self-contained remark plugin, only touches `<br>`, no new dep); flattened the history
-reference block (`TranscriptChatPanel`); and the `ChatComposer` reference state **re-done to the
-native Claude look** (`Product Reference/refernce chat interface/side-chat-refernce.jpeg`) — flat,
-predominantly white, a faint 1px hairline dividing the reference row from the input + a thin outer
-hairline border (NOT the earlier grey "sleeve"/puffy card), with the excerpt wrapped in **both an
-opening and a closing quote**. *These changes are in the working tree, not yet committed.*
-**Known open item (parked):** Hebrew inside a markdown **table** still aligns left instead of hugging
-the right — to revisit later.
-
-**Update (2026-06-15, rebrand → Atlas):** Product rebranded תמלול/Timlul → **Atlas** (Hebrew UI:
-**אטלס**) across the **V1 app only**. Wordmark = the real logo image via the `BrandWordmark` DS
-component (trimmed transparent PNG used as a `currentColor` CSS mask → ink on light, light on dark);
-favicon traced from the logo's actual "A" glyph (`scripts/prep-brand-assets.mjs` → `src/app/icon.png`);
-locale-aware `<title>`; and Atlas now has a **voice** in chat ("Ask Atlas…" placeholder, "Ask Atlas"
-highlight action, "You are Atlas…" prompt). **Colors untouched.** Renamed brand-name uses only — never
-the Hebrew noun תמלול ("transcript"). See PROGRESS.md. **Parked (revisit later):** chat visuals/UX +
-the Atlas name context keep evolving, and the **in-transcript side-chat** gets its own visual + naming
-pass (Atlas will fit there perfectly) — deferred while we build bigger features.
-
-**Update (2026-06-16, Thread A Phase 1 — live→finished "one call"):** Built the **finish hand-off**
-(`src/lib/live/finishLiveCall.ts`): an ended live call → a normal finished `transcripts` row (raw text →
-Gemini `formatTranscript`; captured words → `word_segments`; captured PCM → MP3 → `audio_url`; **no IVRIT,
-no YouTube**), so the existing `loadCompletedCall` → `LiveTranscriptView` renders it with synced-audio
-karaoke + the Save-Quote/Ask-Atlas/Share toolbar for free — wiring Core 3's missing input (live output,
-not just YouTube). Run/demoed against the recorded session via `scripts/finish-live-call.ts`. Executed +
-self-verified — **awaiting admin test** at `/app/live/live-finish-demo-tamis-2026-06-14`. Spec/plan under
-`docs/superpowers/`. Phase 2 (live-mode richness) next. See PROGRESS.md.
-
-**Update (2026-06-16, live UX 2A + polish SHIPPED to `main`):** The live→finished transition is live.
-One **unified live view** (`LiveSession`/`LiveBroadcastView`; single `LIVE_BUFFER_SEC` buffer, env-overridable
-via `NEXT_PUBLIC_LIVE_BUFFER_SEC`) shared by the Home + Company entries. Pure, unit-tested timing in
-`src/lib/live/liveTiming.ts` (interpolated edge for smooth timers; `delayedLiveEdge` drains the buffer at
-1x after the source ends — no cutoff/jump; `hostedLiveOver` = drain-based finished mode). The **inline
-swap**: source ends → `POST /api/live/finish` (idempotent; fires `finishLiveCall`) → client polls the
-**non-auth** `GET /api/live/finish` → "View the organized transcript" button → renders `LiveTranscriptView`
-in place at the same URL (audio continues via `initialSeek`); `GET /api/live/finished-call/[id]` returns
-the `LiveCall`. Refresh-safe (sessionStorage playhead + on-mount status re-derive). `ReturnToTranscriptChip`
-uses `PlayerProvider.viewingId` (URL-independent) so it hides during the inline swap. **Gemini fallback**
-(merged): GPT-4.1 formatter when Gemini 503s + accurate-IVRIT default + backoff (`transcription.ts`).
-NEXT: Phase 2B toolbar-on-live → 2C quote-anchor → 2D unified player.
-
-**Update (2026-06-20, live feature solid + transcript UI polish):** The live experience is now robust and
-**proven on a real ~13-min Zoom test**. Shipped to `main`: **keep-LIVE-through-the-buffer-drain** — when the
-source audio stops the view STAYS live and drains the buffer (reverting the brief "free-recording" cutoff),
-then becomes a finished recording → **auto-swaps to the organized transcript**; the engine exposes `endedAt`
-so all clients (incl. Home/Company "Live Now") compute the same drain end. **Capture-reset bug fixed**: the
-engine truncates `scripts/out/broadcast-*` per run, so the finished transcript is THIS call, not the
-accumulated pile. Plus **scroll-pause + "↓ Back to current" chip** (auto-scroll no longer yanks while reading)
-and a **GPT-4.1 fallback for live chat**. (The `feat/live-phase2` merge also brought in the separately-landed
-**admin delete/rename** + **transcription-resilience** Gemini→GPT-4.1 formatter fallback.) **In progress** on
-`feat/transcript-ui-polish` (built, founder-reviewed, not pushed): chat button on Live, **yellow text-selection**,
-persistent (no-auto-dismiss) live notification, **minimizable speaker panel**, copy "T" icon, and a **universal
-audio-bar fix** — the "white block" was `ShellChrome`'s full-width reserved band; removed it so the black pill
-floats over full-height panels, and the bar is **chat-aware** (`chatOpen` on `PlayerProvider` → `MediaPlayer`
-narrows left of the chat). 4 follow-ups queued there (minimize-not-close the panel on chat-open; the offline
-chat button opens the side panel; an "Open audio bar" chip to reopen after ✕; drag-to-scrub). **Roadmap:**
-finish this polish → **make the LIVE audio bar global** (hear the call across pages, like the offline player) →
-then the **second big part: a more advanced investor-call product built on this layer.**
+**Parked (revisit later):** Hebrew inside a markdown **table** still aligns left, not right; chat visuals/UX
++ the in-transcript side-chat get their own visual + naming pass (Atlas will fit there perfectly).
 
 ## Stack
 
@@ -207,6 +135,18 @@ then the **second big part: a more advanced investor-call product built on this 
   format re-runs as a cheap reformat-only pass (no re-download/transcribe; `scripts/reformat.mjs`).
 - **Audio**: `yt-dlp` + `ffmpeg` download to 32 kbps mono MP3 @ 16 kHz. On Windows uses `bin/yt-dlp.exe`.
 - **Styling**: Tailwind. Brand font **IBM Plex Sans Hebrew**. Dark theme, accent `#C04A00`.
+
+## Commands
+
+```bash
+npm run dev    # Next.js dev server (localhost:3000)
+npm run build  # installs yt-dlp, then `next build`
+npm start      # serve the production build
+npm test       # unit suites: correction, transcription, measure-core, finishLiveCall, liveTiming
+```
+
+Live spike engine (real-call testing): `node scripts/live-broadcast.mjs`. The `/live-test` skill drives
+a full real Zoom test; `scripts/live-replay-engine.mjs` fakes a live feed without Zoom.
 
 ## Architecture map
 
