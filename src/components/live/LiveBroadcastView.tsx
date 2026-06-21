@@ -14,25 +14,18 @@ import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
 import { formatDate } from '@/lib/i18n/format'
 import { createQuote } from '@/lib/api/quotes'
-import { interpolatedEdge, bufferGate, delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
+import { useLiveAudio } from '@/lib/live/LiveAudioProvider'
+import { LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
 // LIVE broadcast — the V1 transcript page, fed by the live engine (/api/live/*). Same header,
 // tabs, karaoke TranscriptBody and MediaPlayer as the finished-transcript page; the difference
 // is the data streams in and the audio is scheduled through Web Audio, held `delaySec` behind
 // live. Joining drops you at the LIVE edge (liveEdge − delaySec), not the start of the call.
-
-type LiveWord = { text: string; rawText?: string; start: number | null }
-interface LiveState {
-  audioStartRel: number | null
-  liveEdgeRel: number | null
-  liveEnded: boolean
-  endedAt: number | null
-  sampleRate: number
-  lines: { id: number; words: LiveWord[] }[]
-  offline?: boolean
-}
-
-const SR = 16000
+//
+// The audio engine now lives in LiveAudioProvider (app shell) so it persists across navigation
+// (Global Live Call). This component is a CONSUMER: it starts the engine on mount, renders the
+// transcript + in-page controls from the provider, and keeps only UI-local state (selection,
+// chat, toast, autoScroll). When you navigate away, the global live bar + return chip take over.
 
 export function LiveBroadcastView({
   companyName,
@@ -58,19 +51,32 @@ export function LiveBroadcastView({
   const { dict, locale } = useI18n()
   const router = useRouter()
 
-  const [words, setWords] = useState<LiveWord[]>([])
-  const [phase, setPhase] = useState<'connecting' | 'waiting' | 'buffering' | 'ready' | 'playing'>('connecting')
-  const [countdown, setCountdown] = useState(delaySec)
-  const [liveEnded, setLiveEnded] = useState(false)
-  const [autoScroll, setAutoScroll] = useState(true)
-  const [volume, setVolume] = useState(1)
-  const [paused, setPaused] = useState(false)
-  // playhead + edges, in recording-relative seconds (drive the player + karaoke)
-  const [playingRel, setPlayingRel] = useState(0)
-  const [liveEdge, setLiveEdge] = useState(0)
-  const [endedAt, setEndedAt] = useState<number | null>(null)
+  // The live audio engine (global, app-shell). This view consumes it.
+  const live = useLiveAudio()
+  const {
+    words,
+    phase,
+    countdown,
+    liveEnded,
+    paused,
+    volume,
+    playingRel,
+    broadcastEdge,
+    over,
+    behind,
+    start,
+    join,
+    playPause,
+    seek,
+    goLive,
+    setVolume,
+    stop,
+    setViewing,
+    setChatOpen,
+  } = live
 
-  // 2B — capture/ask/share while the call airs (mirrors the finished view's toolbar)
+  // UI-only local state (selection, chat, toast, autoScroll) stays in the view.
+  const [autoScroll, setAutoScroll] = useState(true)
   const [selection, setSelection] = useState<{ text: string; top: number; left: number; speaker: string | null; segmentId: string | null } | null>(null)
   const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({ open: false, seed: '', nonce: 0 })
   const [toast, setToast] = useState<{ text: string; action?: { label: string; href: string } } | null>(null)
@@ -80,20 +86,33 @@ export function LiveBroadcastView({
     return () => clearTimeout(t)
   }, [toast])
 
-  const stRef = useRef<LiveState | null>(null)
-  const seenLinesRef = useRef(0)
-  const ctxRef = useRef<AudioContext | null>(null)
-  const gainRef = useRef<GainNode | null>(null)
-  const schedRef = useRef<AudioBufferSourceNode[]>([])
-  const playPosRef = useRef<number | null>(null)
-  const nextAtRef = useRef(0)
-  const fetchingRef = useRef(false)
-  const startedRef = useRef(false)
-  const pausedRef = useRef(false)
-  const rawEdgeRef = useRef(0)   // last polled live edge (recording seconds)
-  const edgeWallRef = useRef(0)  // wall-clock ms at that poll — to interpolate between polls
-  const seekTokenRef = useRef(0) // bumped on seek; an in-flight pump fetch with a stale token is discarded
-  const lastSaveRef = useRef(0) // throttle playhead persistence
+  // Start the engine on mount (idempotent — a no-op if we navigated back to a still-running call).
+  useEffect(() => {
+    start({ companyName, companyId, quarter, logoUrl, delaySec, persistKey })
+  }, [start, companyName, companyId, quarter, logoUrl, delaySec, persistKey])
+
+  // Tell the provider this view is displaying the call → the global bar + return chip hide while here.
+  useEffect(() => {
+    setViewing(true)
+    return () => setViewing(false)
+  }, [setViewing])
+
+  // Side chat open → the global bar narrows to its left (mirrors the finished view).
+  useEffect(() => {
+    setChatOpen(chat.open)
+    return () => setChatOpen(false)
+  }, [chat.open, setChatOpen])
+
+  // Keep LiveSession's playhead ref current (it seeds the finished view's initial seek on swap).
+  useEffect(() => {
+    if (playheadRef) playheadRef.current = playingRel
+  }, [playingRel, playheadRef])
+
+  // On unmount: tear the engine down ONLY if the live experience is fully over (drain done → swap to
+  // the finished view). Plain navigation (over=false) leaves the engine running so audio persists.
+  const overRef = useRef(false)
+  useEffect(() => { overRef.current = over }, [over])
+  useEffect(() => () => { if (overRef.current) stop() }, [stop])
 
   // streaming words → a single-segment word-timed transcript (V1 karaoke renders it)
   const transcript = useMemo<WordTimedTranscript>(() => {
@@ -115,202 +134,6 @@ export function LiveBroadcastView({
     () => (words.length ? `${companyName} — ${quarter}\n\n${words.map((w) => w.text).join(' ')}` : undefined),
     [words, companyName, quarter],
   )
-
-  function flushAudio() {
-    for (const s of schedRef.current) {
-      try {
-        s.stop()
-      } catch {
-        /* already stopped */
-      }
-    }
-    schedRef.current = []
-  }
-
-  // poll engine + schedule audio
-  useEffect(() => {
-    let alive = true
-
-    async function refresh() {
-      try {
-        const r = await fetch('/api/live/state', { cache: 'no-store' })
-        const st: LiveState = await r.json()
-        if (!alive) return
-        stRef.current = st
-        setLiveEnded(st.liveEnded)
-        setEndedAt(st.endedAt ?? null)
-        rawEdgeRef.current = st.liveEdgeRel ?? 0
-        edgeWallRef.current = Date.now()
-
-        const newLines = st.lines.slice(seenLinesRef.current)
-        if (newLines.length) {
-          const add: LiveWord[] = []
-          for (const l of newLines) for (const w of l.words) add.push(w)
-          setWords((prev) => [...prev, ...add])
-          seenLinesRef.current = st.lines.length
-        }
-      } catch {
-        /* keep last state */
-      }
-    }
-
-    async function pump() {
-      const st = stRef.current
-      const ctx = ctxRef.current
-      if (!startedRef.current || pausedRef.current || !st || fetchingRef.current || !ctx) return
-      if (nextAtRef.current - ctx.currentTime > 6) return
-      // delaySec behind the edge while live; after the source ends, drain at 1x toward the true end so the
-      // live UX persists through the buffer (6s cap = 1x play).
-      const allowedEnd = delayedLiveEdge(st.liveEdgeRel ?? 0, delaySec, st.endedAt ?? null, Date.now())
-      const pos = playPosRef.current ?? 0
-      const finalEnd = Math.min(pos + 4, allowedEnd)
-      if (finalEnd - pos < 0.5) return
-      fetchingRef.current = true
-      const token = seekTokenRef.current
-      try {
-        const r = await fetch(`/api/live/pcm?from=${pos}&to=${finalEnd}`, { cache: 'no-store' })
-        if (seekTokenRef.current === token && r.status === 200) {
-          const i16 = new Int16Array(await r.arrayBuffer())
-          if (i16.length) {
-            const buf = ctx.createBuffer(1, i16.length, SR)
-            const ch = buf.getChannelData(0)
-            for (let i = 0; i < i16.length; i++) ch[i] = i16[i] / 32768
-            const src = ctx.createBufferSource()
-            src.buffer = buf
-            src.connect(gainRef.current ?? ctx.destination)
-            if (nextAtRef.current < ctx.currentTime) nextAtRef.current = ctx.currentTime + 0.05
-            src.start(nextAtRef.current)
-            schedRef.current.push(src)
-            src.onended = () => {
-              schedRef.current = schedRef.current.filter((s) => s !== src)
-            }
-            nextAtRef.current += buf.duration
-            playPosRef.current = pos + buf.duration
-          }
-        }
-      } catch {
-        /* transient */
-      } finally {
-        fetchingRef.current = false
-      }
-    }
-
-    const iv = setInterval(() => {
-      if (alive) void refresh().then(pump)
-    }, 1500)
-    void refresh()
-
-    // 10fps tick: interpolate the live edge smoothly between the 1.5s polls (kills the "behind live"
-    // + remaining-time sawtooth), drive phase/countdown, and advance the playhead.
-    const ph = setInterval(() => {
-      const st = stRef.current
-      const ended = !!st?.liveEnded
-      const edge =
-        edgeWallRef.current === 0
-          ? rawEdgeRef.current
-          : interpolatedEdge(rawEdgeRef.current, edgeWallRef.current, Date.now(), ended)
-      setLiveEdge((prev) => (ended ? edge : Math.max(prev, edge)))
-
-      if (startedRef.current) {
-        const ctx = ctxRef.current
-        if (ctx && playPosRef.current !== null) {
-          const ph = Math.max(0, playPosRef.current - (nextAtRef.current - ctx.currentTime))
-          setPlayingRel(ph)
-          if (playheadRef) playheadRef.current = ph
-          if (persistKey && Date.now() - lastSaveRef.current > 1000) {
-            lastSaveRef.current = Date.now()
-            try { sessionStorage.setItem(persistKey, String(ph)) } catch { /* ignore */ }
-          }
-        }
-        setPhase('playing')
-        return
-      }
-      if (!st) {
-        setPhase('connecting')
-        return
-      }
-      if (st.offline || st.audioStartRel === null) {
-        setPhase('waiting')
-        return
-      }
-      const g = bufferGate(st.audioStartRel, edge, delaySec, st.liveEnded)
-      setPhase(g.phase)
-      setCountdown(g.countdown)
-    }, 100)
-
-    return () => {
-      alive = false
-      clearInterval(iv)
-      clearInterval(ph)
-    }
-  }, [delaySec])
-
-  function join() {
-    const st = stRef.current
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new Ctx()
-    const gain = ctx.createGain()
-    gain.gain.value = volume
-    gain.connect(ctx.destination)
-    ctxRef.current = ctx
-    gainRef.current = gain
-    // drop in at the LIVE edge (delaySec behind the call), not the start
-    const liveEdgeRel = st?.liveEdgeRel ?? 0
-    const startRel = st?.audioStartRel ?? 0
-    // resume the persisted playhead across a refresh (clamped to the playable edge); else drop in at live
-    const maxEnd = st?.liveEnded ? liveEdgeRel : Math.max(0, liveEdgeRel - delaySec)
-    const saved = persistKey ? Number(sessionStorage.getItem(persistKey)) : NaN
-    playPosRef.current =
-      Number.isFinite(saved) && saved > 0 ? Math.min(saved, Math.max(0, maxEnd)) : Math.max(startRel, liveEdgeRel - delaySec)
-    nextAtRef.current = ctx.currentTime + 0.2
-    startedRef.current = true
-    pausedRef.current = false
-    setPaused(false)
-    setPhase('playing')
-  }
-
-  function playPause() {
-    const ctx = ctxRef.current
-    if (!ctx) return
-    if (pausedRef.current) {
-      void ctx.resume()
-      pausedRef.current = false
-      setPaused(false)
-    } else {
-      void ctx.suspend()
-      pausedRef.current = true
-      setPaused(true)
-    }
-  }
-
-  // Front of the playable window: delaySec behind the edge while live; drains to the true end at 1x after
-  // the source stops (the live UX persists through the drain). Recomputed each render so it ramps smoothly.
-  const broadcastEdge = delayedLiveEdge(liveEdge, delaySec, endedAt, Date.now())
-  // Over = the drain reached the true end → no live left; the view becomes a finished recording.
-  const over = hostedLiveOver(liveEnded, broadcastEdge, liveEdge)
-
-  function seek(t: number) {
-    const ctx = ctxRef.current
-    if (!ctx || playPosRef.current === null) return
-    const maxEnd = broadcastEdge
-    const target = Math.min(Math.max(0, t), Math.max(0, maxEnd))
-    seekTokenRef.current++
-    flushAudio()
-    playPosRef.current = target
-    nextAtRef.current = ctx.currentTime + 0.1
-    setPlayingRel(target)
-  }
-
-  function goLive() {
-    // snap to the front of the playable window — the draining edge (which ramps to the true end after the
-    // source stops), so "return to live" follows the buffer instead of leaping to the end.
-    seek(broadcastEdge)
-  }
-
-  function changeVolume(v: number) {
-    setVolume(v)
-    if (gainRef.current) gainRef.current.gain.value = v
-  }
 
   function onTab(key: string) {
     if (key === 'overview') {
@@ -366,7 +189,6 @@ export function LiveBroadcastView({
     s = Math.max(0, Math.round(s))
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   }
-  const behind = Math.max(0, liveEdge - playingRel)
 
   // Source stopped → start the finish pipeline (the wrapper shows the auto-dismissing card). View stays LIVE.
   useEffect(() => { if (liveEnded) onSourceEnded?.() }, [liveEnded]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -486,7 +308,7 @@ export function LiveBroadcastView({
         </div>
       )}
 
-      {/* the audio bar */}
+      {/* the audio bar (in-view, on the live page; the global bar takes over once you navigate away) */}
       <MediaPlayer
         logoUrl={logoUrl}
         title={companyName}
@@ -501,7 +323,7 @@ export function LiveBroadcastView({
         onPlayPause={playPause}
         onSeek={seek}
         onSkip={(d) => seek(playingRel + d)}
-        onVolumeChange={changeVolume}
+        onVolumeChange={setVolume}
         onClose={() => router.push('/app/home')}
       />
 
