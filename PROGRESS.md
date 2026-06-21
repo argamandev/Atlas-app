@@ -5,6 +5,37 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-06-22 — Global Live Call: live audio persists across navigation — BUILT, AWAITING LIVE TEST
+
+**Status:** On branch `feat/global-live-call` (off `main`). **5 commits**, each isolated. `tsc` clean · 43
+tests · clean `next build`. **NOT pushed/merged** — the only true validation is a real live Zoom test with the
+founder (the engine relocation can't be proven by tsc/build alone). Plan: `docs/superpowers/plans/2026-06-20-global-live-call.md`.
+
+**What shipped (mirrors the recorded global player):**
+- **`LiveAudioProvider`** (`src/lib/live/LiveAudioProvider.tsx`) — app-shell context that OWNS the live
+  Web-Audio engine (AudioContext, `/api/live/state` poll, PCM pump, 100ms ticker, buffer/drain math). Engine
+  internals moved **verbatim** out of `LiveBroadcastView` (relocation, not rewrite); added a `start/join/stop/
+  active` lifecycle + `viewing`/`chatOpen` flags. Mounted in `app/app/layout.tsx` beside `PlayerProvider`.
+- **`LiveBroadcastView` is now a consumer** — deletes its engine, reads state + controls from `useLiveAudio()`.
+  UI is byte-for-byte the same. Starts the engine on mount (idempotent), flags `viewing` so the global bar/chip
+  hide while on the live page, and tears the engine down on unmount **only when the call is fully over** (drain
+  done → swap to finished); plain navigation leaves it running so audio persists. `LiveSession`'s finish
+  pipeline is unchanged (`onSourceEnded`/`onLiveOver` still fire from provider `liveEnded`/`over`).
+- **`GlobalLiveBar` + `ReturnToLiveChip`** in `ShellChrome`, gated on `active && !viewing` — navigate away from
+  the live page and the audio bar docks at the bottom (its ✕ ends the call) with a "Return to live" chip back to
+  `/app/live/live`, audio playing the whole time. i18n `live.returnToLive` (EN/HE).
+
+**Build-time decision (plan flagged "one bar vs two"):** chose **Option B** — the live page keeps its existing
+in-column bar; the global bar shows only once you leave it. Lowest-risk to the crown-jewel live page (its
+layout/overlay/bar are untouched); both bars read the same provider so the playhead is continuous. Can unify to
+a single persistent bar later if desired.
+
+**Live-test checklist (with founder):** join a real Zoom call → audio + captions sync → navigate Home/Company/
+Chat with audio still playing → "Return to live" chip brings you back at the live edge → source ends → drains →
+auto-swaps to the finished transcript (live engine stops, recorded player takes over, no double audio).
+
+---
+
 ## 2026-06-20 — Transcript UI polish (live + offline) — BUILT, AWAITING FOUNDER REVIEW
 
 **Status:** On branch `feat/transcript-ui-polish` (off `main`). **8 commits**, each isolated. `tsc` clean ·
