@@ -149,6 +149,7 @@ export const he: Dictionary = {
     speakers: 'דוברים',
     liveNowShort: 'משודר',
     returnToTranscript: 'חזרה לתמלול',
+    returnToLive: 'חזרה לשידור החי',
     askAboutQuote: 'שאלו את אטלס',
     askAboutQuoteHint: 'שאלו כל דבר על הקטע שסימנתם — השמע ממשיך לנגן.',
     editSpeakers: 'עריכת דוברים',

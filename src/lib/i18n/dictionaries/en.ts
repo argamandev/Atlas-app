@@ -150,6 +150,7 @@ export const en = {
     speakers: 'Speakers',
     liveNowShort: 'Live',
     returnToTranscript: 'Return to transcript',
+    returnToLive: 'Return to live',
     askAboutQuote: 'Ask Atlas',
     askAboutQuoteHint: 'Ask anything about the excerpt you highlighted — the audio keeps playing.',
     editSpeakers: 'Edit speakers',
