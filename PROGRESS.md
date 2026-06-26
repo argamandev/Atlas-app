@@ -5,11 +5,23 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
-## 2026-06-22 — Global Live Call: live audio persists across navigation — BUILT, AWAITING LIVE TEST
+## 2026-06-22 — Global Live Call: live audio persists across navigation — LIVE-TESTED ✓, MERGED TO MAIN
 
-**Status:** On branch `feat/global-live-call` (off `main`). **5 commits**, each isolated. `tsc` clean · 43
-tests · clean `next build`. **NOT pushed/merged** — the only true validation is a real live Zoom test with the
-founder (the engine relocation can't be proven by tsc/build alone). Plan: `docs/superpowers/plans/2026-06-20-global-live-call.md`.
+**Status:** **Merged to `main` (not pushed/deployed)** on 2026-06-26 after a real live Zoom test passed. `tsc`
+clean · 43 tests · clean `next build`. Plan: `docs/superpowers/plans/2026-06-20-global-live-call.md`.
+
+**Live test (2026-06-26, real Zoom call — תמיס Q2 2026, ~8 min):** PASSED end-to-end. Joined at the live edge →
+**navigated across the app with audio still playing** + the **"Return to live"** chip brought you back → source
+ended → buffer drained → finish pipeline produced the correct organized transcript (תמיס, Q2 2026, ~8.1 min,
+real audio). The crown-jewel feature held up; the engine relocation didn't regress the live experience.
+
+**Known follow-up (non-blocking):** the "call ended → trigger finish pipeline" effect lives on the live *page*
+(`LiveBroadcastView`). If a user is navigated **away** at the moment a call ends, the finish/auto-swap won't
+fire until they return to the live page. Fine at single-call scale; handle before report-season concurrency.
+
+**Build-time decision NOTE:** branched off the *old* `main` (031164e), parallel to the design overhaul
+`feat/atlas-ui-kit` (also unmerged). The design work did **not** touch the 3 core global-live files; reconcile
+`feat/atlas-ui-kit` onto the new `main` next.
 
 **What shipped (mirrors the recorded global player):**
 - **`LiveAudioProvider`** (`src/lib/live/LiveAudioProvider.tsx`) — app-shell context that OWNS the live
