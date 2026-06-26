@@ -5,10 +5,31 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
-## 2026-06-22 — Global Live Call: live audio persists across navigation — LIVE-TESTED ✓, MERGED TO MAIN
+## 2026-06-27 — "Latest call" shows the just-ended call during finish + SHIPPED to production
 
-**Status:** **Merged to `main` (not pushed/deployed)** on 2026-06-26 after a real live Zoom test passed. `tsc`
-clean · 43 tests · clean `next build`. Plan: `docs/superpowers/plans/2026-06-20-global-live-call.md`.
+**Status:** **Pushed to `origin/main` → deployed to timlul-ai.com** (Global Live Call + this fix together), after a
+cold-context `reviewer` pass returned **SHIP**. `tsc` clean · 44 tests · clean `next build`.
+
+**Fix:** the company "Latest call" was hard-filtered to `status='completed'`, so a just-ended call (in `processing`
+for the drain+polish window) was missing from that slot until the polished transcript landed. New pure helper
+`companyLiveDisplay()` (`liveTiming.ts`, unit-tested) + `CompanyOverview` now polls `/api/live/finish` and surfaces
+the in-flight call as "Latest call" linked to the live/raw view, then `router.refresh()`es to the finished row when
+polishing completes. i18n `live.preparing`.
+
+**Reviewer follow-ups (non-blocking, deferred — none break correctness):**
+- *HIGH (tech debt):* `LiveAudioProvider` puts 10fps values in context → its consumers re-render 10×/s. Safe today
+  (page tree referentially stable), but port `PlayerProvider`'s `useSyncExternalStore` pattern before adding more consumers.
+- *MEDIUM:* recorded + live global bars/chips can overlap if both are active at once (rare); `live.active` doesn't
+  auto-clear when a call is fully `over` while the user is away (bar/chip linger, engine keeps polling); `endedInFlight`
+  stays true on a `failed` polish (shows "being prepared" forever) — treat `failed` like `completed`.
+- *LOW/NIT:* unused `getPlayingRel`; "Return to live" copy after `over`; `?delay=` override sticks across re-`start()`.
+
+---
+
+## 2026-06-22 — Global Live Call: live audio persists across navigation — LIVE-TESTED ✓, SHIPPED
+
+**Status:** **Shipped to production (origin/main) on 2026-06-27** after a real live Zoom test (2026-06-26) + a passing
+reviewer pass. `tsc` clean · 44 tests · clean `next build`. Plan: `docs/superpowers/plans/2026-06-20-global-live-call.md`.
 
 **Live test (2026-06-26, real Zoom call — תמיס Q2 2026, ~8 min):** PASSED end-to-end. Joined at the live edge →
 **navigated across the app with audio still playing** + the **"Return to live"** chip brought you back → source
