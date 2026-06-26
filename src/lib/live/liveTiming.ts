@@ -58,6 +58,31 @@ export function hostedLiveOver(backendEnded: boolean, delayedEdge: number, liveE
   return backendEnded && liveEdge > 0 && delayedEdge >= liveEdge - epsilon
 }
 
+/**
+ * Company-overview live display. From the engine `/api/live/state` + the finish status, decide:
+ *  - `liveBanner` — show the "Live Now" banner (the call has started and the buffer hasn't fully drained), and
+ *  - `endedInFlight` — the just-ended call should be surfaced as the (raw, still-being-polished) "Latest call":
+ *    it has started AND the source ended, but the polished transcript isn't `completed` yet. This spans the
+ *    whole window from source-end through the drain and the Gemini polish, so the latest-call slot reflects the
+ *    new call immediately (linked to the live/raw view) instead of going blank until the finish lands. Pure.
+ */
+export function companyLiveDisplay(
+  s: { audioStartRel: number | null; liveEdgeRel: number | null; liveEnded: boolean; endedAt: number | null },
+  finishStatus: string,
+  nowMs: number,
+  bufferSec: number = LIVE_BUFFER_SEC,
+): { liveBanner: boolean; endedInFlight: boolean } {
+  const started = s.audioStartRel !== null
+  const edge = s.liveEdgeRel ?? 0
+  const drained = delayedLiveEdge(edge, bufferSec, s.endedAt ?? null, nowMs)
+  const over = hostedLiveOver(!!s.liveEnded, drained, edge)
+  const completed = finishStatus === 'completed'
+  return {
+    liveBanner: started && !over,
+    endedInFlight: started && !!s.liveEnded && !completed,
+  }
+}
+
 export function bufferGate(
   audioStartRel: number | null,
   edge: number,

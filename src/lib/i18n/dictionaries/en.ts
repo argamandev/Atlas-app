@@ -131,6 +131,7 @@ export const en = {
     slides: 'Slides',
     report: 'Report',
     liveBadge: 'LIVE',
+    preparing: 'Transcript being prepared',
     pauseAudio: 'Pause audio',
     playAudio: 'Play audio',
     autoScroll: 'Auto-scroll',

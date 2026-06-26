@@ -130,6 +130,7 @@ export const he: Dictionary = {
     slides: 'מצגת',
     report: 'דוח',
     liveBadge: 'חי',
+    preparing: 'התמלול בהכנה',
     pauseAudio: 'השהיית אודיו',
     playAudio: 'הפעלת אודיו',
     autoScroll: 'גלילה אוטומטית',
