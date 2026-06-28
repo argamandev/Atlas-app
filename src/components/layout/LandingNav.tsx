@@ -1,9 +1,10 @@
 'use client'
+// ⚠️ LEGACY (Timlul) — slated for deletion ~2026-07. Do NOT use as a pattern for Atlas. See LEGACY.md
 
 import Link from 'next/link'
 import { useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { LanguageToggle } from '@/components/ui/LanguageToggle'
+import { LanguageToggle } from '@/components/ds/LanguageToggle'
 
 export function LandingNav() {
   const [mobileOpen, setMobileOpen] = useState(false)

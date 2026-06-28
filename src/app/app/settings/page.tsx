@@ -2,7 +2,7 @@ import { getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { AppPage } from '@/components/app/AppPage'
 import { Surface } from '@/components/ds/Surface'
-import { LanguageToggle } from '@/components/ui/LanguageToggle'
+import { LanguageToggle } from '@/components/ds/LanguageToggle'
 
 export default function SettingsPage() {
   const dict = getDictionary(getLocale())
