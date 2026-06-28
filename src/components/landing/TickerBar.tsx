@@ -1,3 +1,4 @@
+// ⚠️ LEGACY (Timlul) — slated for deletion ~2026-07. Do NOT use as a pattern for Atlas. See LEGACY.md
 const STOCKS = [
   { ticker: 'TEVA',  name: 'טבע',        price: '18.42',  change: '+0.84%', up: true  },
   { ticker: 'CHKP',  name: "צ'קפוינט",   price: '152.30', change: '-0.32%', up: false },

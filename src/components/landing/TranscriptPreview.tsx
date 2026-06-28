@@ -1,3 +1,4 @@
+// ⚠️ LEGACY (Timlul) — slated for deletion ~2026-07. Do NOT use as a pattern for Atlas. See LEGACY.md
 const previewLines = [
   {
     time: '00:01:48',

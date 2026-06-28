@@ -1,4 +1,5 @@
 'use client'
+// ⚠️ LEGACY (Timlul) — slated for deletion ~2026-07. Do NOT use as a pattern for Atlas. See LEGACY.md
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'

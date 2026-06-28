@@ -1,3 +1,4 @@
+// ⚠️ LEGACY (Timlul) — slated for deletion ~2026-07. Do NOT use as a pattern for Atlas. See LEGACY.md
 import Link from 'next/link'
 import type { RecentTranscript } from '@/lib/types'
 import { UrlInputBar } from '@/components/dashboard/UrlInputBar'

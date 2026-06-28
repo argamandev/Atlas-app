@@ -1,4 +1,5 @@
 'use client'
+// ⚠️ GATEWAY (legacy-styled) — keep until Atlas has its own login/landing, then delete. See LEGACY.md
 
 import { useState } from 'react'
 import { DottedSurface } from '@/components/ui/dotted-surface'

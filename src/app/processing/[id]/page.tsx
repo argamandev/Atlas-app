@@ -1,4 +1,5 @@
 'use client'
+// ⚠️ LEGACY (Timlul) — slated for deletion ~2026-07. Do NOT use as a pattern for Atlas. See LEGACY.md
 
 import { useParams } from 'next/navigation'
 import { useState, useEffect } from 'react'

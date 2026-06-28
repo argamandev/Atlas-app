@@ -1,4 +1,6 @@
 'use client'
+// ⚠️ GATEWAY (legacy-styled) — keep until Atlas has its own login/landing, then delete. See LEGACY.md
+
 import { cn } from '@/lib/utils'
 import React, { useEffect, useRef } from 'react'
 import * as THREE from 'three'
