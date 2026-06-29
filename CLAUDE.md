@@ -1,4 +1,4 @@
-# CLAUDE.md — תמלול (Timlul)
+# CLAUDE.md — Atlas (אטלס)
 
 Project memory for Claude. Read this first every session.
 
@@ -32,11 +32,13 @@ security (secrets/`.env`, auth, RLS). Tie each to what we're currently building.
 
 ## What this is — the big vision
 
-**תמלול** is building the best product for the Israeli public market and its financial
-institutions — think **Quartr, but Hebrew-native and institutional-only** (no retail). The core
+**Atlas** is building the best product for the Israeli public market and its financial
+institutions — think **Quartr, but English -Hebrew-native and institutional-only** (no retail). The core
 problem: during report season every hedge fund drowns in 200+ investor calls in a few weeks.
 The product lets institutional investors track, consume, and extract insights from **every**
-Israeli public company's investor calls — live and after the fact — so they can outperform.
+Israeli public company's investor calls — live and after the fact — so they can outperform. 
+Atlas also innovates with a new way to recieve insights, ideas and deeper insights from the public
+Israeli market - with Chat and Agents feature.
 
 What that means concretely:
 - **A profile for every Israeli public company** (pulled from the TASE/MAYA API), with its
@@ -50,7 +52,7 @@ What that means concretely:
 
 Origin story (why we're confident): started as a tool for the founder's brother at a hedge fund;
 his fund manager's feedback was so strong they partnered up. Adoption strategy is prestige,
-high-end users only. The UI is **RTL Hebrew**; quality and polish matter.
+high-end users only. The UI is **Ltr english with optionality to move to hebrew with RTL-Hebrew interface**; quality and polish matter.
 
 ## V1 product (frontend + design system incoming, ~2026-06-13)
 
