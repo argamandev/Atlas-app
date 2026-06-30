@@ -2,6 +2,14 @@
 
 Project memory for Claude. Read this first every session.
 
+> **⚡ ACTIVE INITIATIVE (2026-06-30) — "Atlas Clean Start."** This folder
+> (`C:\Users\Sagi\Desktop\Atlas` → `github.com/argamandev/Atlas-app`, private) is the **clean
+> clone** that becomes the one true home of Atlas. The old repo (`Investor-Transcript`) is frozen
+> as a backup and stays on Railway serving legacy Timlul. **Before doing anything, read
+> `docs/superpowers/specs/2026-06-30-atlas-clean-start-design.md`** — it has the locked decisions
+> and the phased roadmap (Phase 1 = remove Timlul via `LEGACY.md`). Develop on localhost; Railway
+> untouched. Supabase is shared with the old repo → no destructive migrations.
+
 > **Brand (2026-06-15):** the product is now **Atlas** (Hebrew UI: **אטלס**), rebranded from
 > תמלול/Timlul across the **V1 app (`/app/*`)** only. The legacy root product and the
 > `timlul-ai.com` domain still carry the old name. Note: "תמלול" throughout this file is
