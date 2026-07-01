@@ -236,9 +236,10 @@ produces the polished transcript → stored forever in our DB.
    artifact in recording_config) → Gemini 3.5 Flash live correction (company-context prompt,
    constrained fix-words-only, `thinkingBudget: 0` — thinking MUST be off or reasoning leaks
    into captions; 1.5–6s/chunk on paid tier) → buffered broadcast: audio + karaoke captions
-   synced, playing ~5 min behind live.** Spike servers: `scripts/live-broadcast.mjs` (the full
-   loop incl. viewer page), `scripts/live-player.mjs` (replay player), `scripts/live-bakeoff.mjs`
-   (engine A/B harness). **Engine bake-off verdict (measured)**: Recall-accuracy = best Hebrew,
+   synced, playing ~5 min behind live.** Live engine: `scripts/live-broadcast.mjs` (the full
+   loop incl. viewer page); replay without Zoom via `scripts/live-replay-engine.mjs`. (The old
+   bake-off/replay spikes were deleted 2026-07-02 — conclusions preserved below and in PROGRESS.md.)
+   **Engine bake-off verdict (measured)**: Recall-accuracy = best Hebrew,
    chunks arrive rolling 72–188s — fits the buffer; Gladia = 2.7s median but error-dense
    (fallback/"instant mode" option); ElevenLabs = no-show ×3, disqualified; IVRIT 45s-chunks =
    close 2nd on quality (~62s delay) but needs audio infra we don't want to run. Post-Gemini,
