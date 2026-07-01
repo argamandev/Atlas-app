@@ -2,13 +2,16 @@
 
 Project memory for Claude. Read this first every session.
 
-> **⚡ ACTIVE INITIATIVE (2026-06-30) — "Atlas Clean Start."** This folder
+> **⚡ ACTIVE INITIATIVE (2026-06-30, updated 2026-07-02) — "Atlas Clean Start."** This folder
 > (`C:\Users\Sagi\Desktop\Atlas` → `github.com/argamandev/Atlas-app`, private) is the **clean
-> clone** that becomes the one true home of Atlas. The old repo (`Investor-Transcript`) is frozen
-> as a backup and stays on Railway serving legacy Timlul. **Before doing anything, read
-> `docs/superpowers/specs/2026-06-30-atlas-clean-start-design.md`** — it has the locked decisions
-> and the phased roadmap (Phase 1 = remove Timlul via `LEGACY.md`). Develop on localhost; Railway
-> untouched. Supabase is shared with the old repo → no destructive migrations.
+> clone** — the one true home of Atlas. The old repo (`Investor-Transcript`) is frozen as a
+> backup and stays on Railway serving legacy Timlul. Locked decisions + roadmap:
+> `docs/superpowers/specs/2026-06-30-atlas-clean-start-design.md`. **Status: Timlul Wave 1
+> DELETED (2026-07-02, verified incl. a real live-call test) + scripts/ triaged; remaining =
+> Wave 2 login gateway (needs an Atlas login first, see `LEGACY.md`). Next missions (founder
+> brief 2026-07-02): smart harness → import Claude Design frontend → live pipeline (IVRIT
+> audio-only + multi-view transcript/report/slides + Zoom webinars).** Develop on localhost;
+> Railway untouched. Supabase is shared with the old repo → no destructive migrations.
 
 > **Brand (2026-06-15):** the product is now **Atlas** (Hebrew UI: **אטלס**), rebranded from
 > תמלול/Timlul across the **V1 app (`/app/*`)** only. The legacy root product and the
@@ -167,10 +170,11 @@ a full real Zoom test; `scripts/live-replay-engine.mjs` fakes a live feed withou
   `transcribeAudio` (returns `{ text, engine, model }`) → `formatTranscript` → store `formatted_data`,
   `status='completed'`. Writes `processing_step` at each stage for the UI to poll.
 - **Poll**: `GET /api/transcripts/[id]` returns the full row (incl. `status`, `processing_step`,
-  `formatted_data`). Frontend `useProcessingTimer` polls every ~3s.
-- **View/Edit**: `src/app/transcript/[id]/page.tsx` reads `formatted_data` directly via
-  `supabaseAdmin`, renders `TranscriptEditor` (inline edit of company/quarter/speakers/lines +
-  highlights, saved via `PUT /api/transcripts/[id]`).
+  `formatted_data`). (The legacy processing/progress UI was deleted with Timlul 2026-07-02;
+  Atlas's `AddInvestorCall` shows "queued · id" — a native Atlas progress surface is a future
+  mini-feature.)
+- **View**: finished calls render in Atlas via `loadCompletedCall` → `LiveTranscriptView`
+  (`/app/live/[id]`), with karaoke word-sync, quotes, share, and Ask Atlas.
 - **Admin delete/rename** (V1, admin-only via `profiles.role='admin'`): `DELETE /api/transcripts/[id]`
   (nulls `scheduled_calls.transcript_id` — that FK has no cascade — deletes the row, quotes
   auto-detach, best-effort removes the `audio-temp` object) and `PATCH /api/transcripts/[id]`
@@ -191,7 +195,10 @@ a full real Zoom test; `scripts/live-replay-engine.mjs` fakes a live feed withou
   (`sections[].lines[].text` is the transcript body; `speakers[]`; admin diagnostics `engine`/`model`/
   `processingSecs`).
 - **Auth**: `src/lib/auth.ts` (`getCurrentUser`), `src/lib/supabase.ts` (`createServerSupabase`
-  cookie client + `supabaseAdmin` service-role client). `src/middleware.ts` protects app routes.
+  cookie client + `supabaseAdmin` service-role client). **No middleware** — the legacy
+  `src/middleware.ts` only guarded deleted Timlul routes and was removed with them (2026-07-02).
+  ⚠️ Known gap: `/app/*` pages have no hard login gate (API routes ARE auth-gated) — flagged for a
+  dedicated auth/security pass before launch.
 
 ## Conventions
 
@@ -236,9 +243,10 @@ produces the polished transcript → stored forever in our DB.
    artifact in recording_config) → Gemini 3.5 Flash live correction (company-context prompt,
    constrained fix-words-only, `thinkingBudget: 0` — thinking MUST be off or reasoning leaks
    into captions; 1.5–6s/chunk on paid tier) → buffered broadcast: audio + karaoke captions
-   synced, playing ~5 min behind live.** Spike servers: `scripts/live-broadcast.mjs` (the full
-   loop incl. viewer page), `scripts/live-player.mjs` (replay player), `scripts/live-bakeoff.mjs`
-   (engine A/B harness). **Engine bake-off verdict (measured)**: Recall-accuracy = best Hebrew,
+   synced, playing ~5 min behind live.** Live engine: `scripts/live-broadcast.mjs` (the full
+   loop incl. viewer page); replay without Zoom via `scripts/live-replay-engine.mjs`. (The old
+   bake-off/replay spikes were deleted 2026-07-02 — conclusions preserved below and in PROGRESS.md.)
+   **Engine bake-off verdict (measured)**: Recall-accuracy = best Hebrew,
    chunks arrive rolling 72–188s — fits the buffer; Gladia = 2.7s median but error-dense
    (fallback/"instant mode" option); ElevenLabs = no-show ×3, disqualified; IVRIT 45s-chunks =
    close 2nd on quality (~62s delay) but needs audio infra we don't want to run. Post-Gemini,
