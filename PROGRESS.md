@@ -5,6 +5,27 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-02 — Timlul Wave 1 DELETED (clean-start Phase 1) — merged to main, pushed
+
+**Status:** merged to `main` (`bd7a951`) and pushed to `Atlas-app`. −2,584 lines / 29 files, +3 lines.
+Verified: `tsc` clean · 45 tests · clean `next build` (34 routes) · founder click-through · **a real
+Recall+Zoom live test end-to-end on the cleaned tree** (bot → captions → 4-min buffer → drain →
+finish `completed`, correct call: 2026-07-01, 382.6s).
+
+- **Deleted per `LEGACY.md` Wave 1:** legacy routes (`/home /dashboard /companies /processing /transcript`),
+  components (`landing dashboard transcript processing companies platform layout`, `ui/Button`, `ui/Badge`),
+  orphaned `useProcessingTimer`, and `src/middleware.ts` (its matcher only guarded deleted legacy routes).
+- **Login repointed first** (the trap the guard test can't see — string navigation): `LoginForm` +
+  `auth/callback` redirected to the legacy `/dashboard` → now land on **`/app/home`**. PROGRESS had
+  claimed this was already done; the code disagreed — fixed for real now.
+- **Wave 2 gateway kept** (4 files: `/` page, `LoginForm`, `JoinForm`, `dotted-surface`) until Atlas
+  has its own login/landing.
+- **Flagged for a dedicated pass (not fixed here):** `/app/*` has no middleware auth gate (the deleted
+  middleware never covered it either — pre-existing); ARCHITECTURE.md still lists deleted files
+  (Phase 4 rewrite covers it).
+
+---
+
 ## 2026-06-27 — "Latest call" shows the just-ended call during finish + SHIPPED to production
 
 **Status:** **Pushed to `origin/main` → deployed to timlul-ai.com** (Global Live Call + this fix together), after a
