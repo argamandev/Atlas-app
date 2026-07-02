@@ -5,6 +5,31 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-02 — Knowledge-compounding upgrades SHIPPED (Karpathy-lens advisory R1-R5)
+
+**Status:** merged to `main` (`e55c6c5`) + pushed, after a two-round atlas-reviewer gate
+(CHANGES: 5 findings → all fixed → APPROVED with the reviewer re-running evidence itself).
+Advisory source: an independent agent given Karpathy's LLM-wiki doc + the full environment.
+
+- **`/fleet-lint` skill** — the missing "lint" operation: periodic sweep (every 2-3 merges) for
+  board-vs-git drift, doc staleness, contradictions, un-graduated lessons, queue hygiene,
+  repeated FINDING classes, un-filed decisions. Timing law: lint BEFORE recycling any memory.
+- **Nothing evaporates anymore:** reviewer findings persist as greppable `FINDING` lines in
+  ready-queue.md (repeat classes graduate into rules); founder decisions file immediately as
+  `DECISION` lines in cross-cutting.md (typed prefixes on both logs); nontrivial answers are
+  FILED into docs, not spoken ("chat is not storage" — rules/parallel-work.md).
+- **Gate fire-test suite checked into the repo** (`.claude/hooks/gate-tests.mjs`, 36 cases) —
+  was previously in session-temp scratch, a dangling pointer the reviewer caught. Meta-proof
+  moment: the knowledge-consistency branch was itself caught violating its own new rule.
+- **Mission 5 design hook planted:** per-company knowledge wiki added to VISION roadmap
+  (Karpathy's pattern as Atlas's intelligence layer); Lane M's prompt now shapes the documents
+  table + chat context for a future `company_knowledge` interface.
+- Advisor's NOT-now list honored: no search infra, no unified log, no metadata/graph frontmatter,
+  no cron-lint — foundation first. Obsidian: adopted as founder's read-only dashboard (pin the
+  board + logs + PROGRESS in a vault; full graph workflow waits for Mission 5).
+
+---
+
 ## 2026-07-02 — Harness audit fixes + brain upgrades SHIPPED (reviewer-APPROVED)
 
 **Status:** merged to `main` (`bf66d79`) + pushed. An unbiased cold audit (founder-ordered) graded
