@@ -14,7 +14,9 @@ main is always working. Only the supervisor pushes it. There are two roles:
 2. `git fetch origin && git merge origin/main` into your branch; resolve; re-run everything.
 3. Battery: `npm test` (all pass) · `npx tsc --noEmit` (clean) · `npm run build` (green) ·
    `/verify-app` (clean pass with screenshots).
-4. Small labeled commits only — split anything mixed.
+4. Small labeled commits only — split anything mixed. Stage paths explicitly (`git add <paths>`),
+   never `git add -A`/`git add .` — a blanket add swept untracked editor config into a commit
+   once (2026-07-03); check `git status` for stowaways before every commit.
 5. Push YOUR BRANCH: `git push -u origin <your-branch>` (pushing main is hook-blocked).
 6. APPEND to `agent-memory/ready-queue.md`: timestamp · lane · branch · what it does · how
    verified (evidence refs) · any migrations/shared-surface changes. Append-only, never rewrite.

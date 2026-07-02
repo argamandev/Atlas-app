@@ -5,6 +5,25 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-03 — Doc-growth guards SHIPPED (reviewer-APPROVED, 1 nit fixed pre-merge)
+
+**Status:** merged to `main` (`5fb8f6b`) + pushed. Founder-ordered after the supervisor's honest
+audit of the md structure named the three ways the docs will rot as the fleet scales — each
+weakness filed as a lesson, not left in chat.
+
+- **fleet-lint check 8 — PROGRESS.md compaction:** >1000 lines (884 today) → propose era
+  compaction to the founder (distill oldest era + archive raw entries; append-only stays law).
+- **fleet-lint check 9 + ship retirement step — stale-plan banners:** shipped plans/specs get a
+  `STATUS: SHIPPED` historical banner so no future session executes a dead plan. Stamped in
+  place, never moved (moves break cross-doc references). One-time sweep stamped all 30 existing
+  files; reviewer verified every stamp.
+- **fleet-lint check 5 hardened — ARCHITECTURE.md drift bar:** concrete minimum per lint —
+  sample ≥5 named paths (must exist) + verify 1 behavioral claim against code.
+- Also: `.obsidian/` gitignored (editor config nearly leaked into a commit via `git add -A` —
+  lesson graduated into the ship skill: stage explicitly).
+
+---
+
 ## 2026-07-02 — Knowledge-compounding upgrades SHIPPED (Karpathy-lens advisory R1-R5)
 
 **Status:** merged to `main` (`e55c6c5`) + pushed, after a two-round atlas-reviewer gate
