@@ -2,8 +2,15 @@
   "permissions": {
     "allow": [
       "mcp__recall-ai__list_webhook_endpoints",
-      "mcp__recall-ai__search_docs",
-      "Bash(node scripts/llm-correct-spike.mjs push claude scripts/fixtures/claude-BkBi6pGLyUc.txt)"
+      "mcp__recall-ai__search_docs"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-bash-gate.mjs" }]
+      }
     ]
   }
 }
