@@ -25,7 +25,7 @@
         "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-bash-gate.mjs" }]
       },
       {
-        "matcher": "mcp__supabase__execute_sql|mcp__supabase__apply_migration",
+        "matcher": "mcp__supabase__.*",
         "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-bash-gate.mjs" }]
       }
     ],

@@ -25,12 +25,16 @@ function block(reason) {
 
 // Destructive-SQL detector — shared by the Bash door and the MCP door.
 // Additive DDL (CREATE TABLE / ADD COLUMN / CREATE INDEX) passes; destruction does not.
+// Checks run PER STATEMENT so a later WHERE can't shadow an earlier bare DELETE/UPDATE,
+// and an additive ALTER isn't blocked by the word "drop" in a later statement or comment.
 function sqlIsDestructive(text) {
-  return (
-    /\b(drop\s+(table|column|schema|database|index|trigger|function|policy)|truncate\s+|alter\s+table[\s\S]*\bdrop\b)/i.test(text) ||
-    /\bdelete\s+from\b(?![\s\S]*\bwhere\b)/i.test(text) || // DELETE without WHERE
-    /\bupdate\s+[\w".]+\s+set\b(?![\s\S]*\bwhere\b)/i.test(text) // UPDATE without WHERE
-  )
+  if (/\b(drop\s+(table|column|schema|database|index|trigger|function|policy)|truncate\s+)/i.test(text)) return true
+  for (const stmt of text.split(';')) {
+    if (/\balter\s+table\b[^]*\bdrop\b/i.test(stmt)) return true
+    if (/\bdelete\s+from\b/i.test(stmt) && !/\bwhere\b/i.test(stmt)) return true
+    if (/\bupdate\s+[\w".]+\s+set\b/i.test(stmt) && !/\bwhere\b/i.test(stmt)) return true
+  }
+  return false
 }
 
 // ---- Door 2: Supabase MCP tools (execute_sql / apply_migration) ----
@@ -49,13 +53,15 @@ if (sqlIsDestructive(cmd))
   block('destructive SQL (DROP/TRUNCATE/ALTER-DROP/unfiltered DELETE/UPDATE). DB is shared with production. See .claude/rules/db.md')
 if (/\bsupabase\s+db\s+reset\b/i.test(cmd)) block('supabase db reset would wipe the shared-with-production database')
 
-// 2. Recursive force deletes outside safe targets (short OR long flags, any order; PowerShell too)
+// 2. Recursive force deletes outside safe targets (short OR long flags, any order; PowerShell + cmd too)
 const isRm = /\brm\b/.test(cmd) || /\bremove-item\b/i.test(cmd)
 const hasRecursive = /(^|\s)-[a-zA-Z]*[rR]|--recursive|-Recurse/i.test(cmd)
 const hasForce = /(^|\s)-[a-zA-Z]*[fF]\b|--force|-Force/i.test(cmd)
-if (isRm && hasRecursive && hasForce) {
+const isRmdirS = /\brmdir\b/i.test(cmd) && /\s\/s\b/i.test(cmd) // Windows cmd recursive delete
+if ((isRm && hasRecursive && hasForce) || isRmdirS) {
   const targets = cmd
-    .replace(/^.*\b(rm|remove-item)\b/i, '')
+    .replace(/^.*\b(rm|remove-item|rmdir)\b/i, '')
+    .replace(/\s\/[sq]\b/gi, '')
     .split(/\s+/)
     .filter((t) => t && !t.startsWith('-'))
   const SAFE = /^\.?\/?(\.next|node_modules|dist|scripts\/out)([/\\]|$)|appdata[/\\]local[/\\]temp[/\\]claude/i
