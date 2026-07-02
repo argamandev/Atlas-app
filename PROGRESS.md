@@ -5,6 +5,35 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-02 — Mission 2 SHIPPED: the Atlas smart environment (fleet harness)
+
+**Status:** merged to `main` and pushed. Spec `docs/superpowers/specs/2026-07-02-smart-environment-design.md`
+(founder-approved via interactive brainstorm) · plan `docs/superpowers/plans/2026-07-02-smart-environment.md`.
+Built overnight per founder pre-approval; fleet launches in the morning via `docs/LAUNCH-KIT.md`.
+
+- **Two enforcement hooks, fire-tested:** `pre-bash-gate.mjs` (blocks destructive SQL vs the shared
+  DB, unsafe `rm -rf`, `.env` shell access, force-push, lane-push-to-main; 15-case matrix; it
+  blocked this session's own test command live) and `post-edit-verify.mjs` (prettier + incremental
+  tsc on every edit; broken-file test surfaced the exact error). Two real bugs caught by testing:
+  lane *branch* pushes must be allowed, and `Atlas-frontend` passed a naive `startsWith` supervisor
+  check (path-prefix bug).
+- **The shared brain:** `agent-memory/BOARD.md` + per-lane state files — git-ignored, ONE physical
+  copy in the main checkout, reached by absolute path from all worktrees (proven: instant
+  cross-worktree sync). Harness itself (settings/hooks/rules/skills) now **tracked in git** so
+  every worktree runs identical enforcement (was `.claude/*`-ignored — would have shipped lanes
+  with no hooks).
+- **Context diet:** CLAUDE.md 279→54 lines (standing facts + doc map); vision/roadmap →
+  `docs/VISION.md`; gotchas → `.claude/rules/{parallel-work,db,live}.md`. Cold-session dry run
+  PASSED: a fresh agent oriented fully from the environment alone (rules, board, ship flow).
+- **Skills:** `/verify-app` (self-seeing loop + per-lane recipes) and `/ship` (lane/supervisor
+  ritual) — this very merge was `/ship`'s first real run. One-time prettier baseline (134 files,
+  behavior-neutral, 45 tests re-verified) so the format hook never creates diff noise.
+- **Assets staged for the lanes:** yesterday's real-call capture archived to
+  `scripts/out/sessions/2026-07-01-tamis-live/` (Lane I's test bench). Founder drops
+  `design-import/` + `local-assets/demo-report.pdf` in the morning (Lane F / Lane M inputs).
+
+---
+
 ## 2026-07-02 — Timlul Wave 1 DELETED (clean-start Phase 1) — merged to main, pushed
 
 **Status:** merged to `main` (`bd7a951`) and pushed to `Atlas-app`. −2,584 lines / 29 files, +3 lines.
