@@ -1,5 +1,7 @@
 # Product Enhancements — Plan (Features 1, 4, 5, 6)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 _Branch: `feat/product-enhancements`. Authored autonomously 2026-06-14 (overnight), blanket-approved
 by the founder. Constraint: **do not break the working product** — every feature ends in a green
 build + its own commit; production (`main` → Railway) is untouched until reviewed._

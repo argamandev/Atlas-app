@@ -1,5 +1,7 @@
 # Transcript UI Follow-ups (4 small changes) — Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** superpowers:executing-plans. Each task = its own commit on `feat/transcript-ui-polish`.
 > Founder-approved descriptions. NOT pushed — founder reviews.
 

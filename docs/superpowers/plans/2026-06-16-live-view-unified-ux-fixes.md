@@ -1,5 +1,7 @@
 # Live View — Unified Professional UX Fixes Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans (inline, this session).
 > Steps use checkbox (`- [ ]`) syntax. **COMMITS ARE DEFERRED** — build into the working tree; do
 > NOT `git commit` (founder reviews the tree; the tree has prior uncommitted work).

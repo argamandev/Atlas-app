@@ -1,5 +1,7 @@
 # Transcript UI Polish (Live + Offline) Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans. Each task = its own commit on a
 > NEW branch `feat/transcript-ui-polish` off `main`. **Do NOT push/merge** — founder reviews first.
 

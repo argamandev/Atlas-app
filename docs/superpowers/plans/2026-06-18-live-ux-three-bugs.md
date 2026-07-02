@@ -1,5 +1,7 @@
 # Live‑UX Three‑Bug Fix Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB‑SKILL: superpowers:executing-plans. Steps use checkbox (`- [ ]`).
 > Order: **1 → 3 → 2**, each its own commit (founder wants per‑feature test + revert). Checkpoint commit
 > `c36d3e2` is the restore point. Nothing merges to `main` until the founder tests.

@@ -40,3 +40,4 @@ scripts/fixtures/*.pdf
 agent-memory/
 design-import/
 local-assets/
+.obsidian/

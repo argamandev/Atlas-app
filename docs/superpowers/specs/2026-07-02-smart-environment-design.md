@@ -1,5 +1,7 @@
 # Atlas Smart Environment — Design (2026-07-02)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **Mission 2 of the founder's build brief.** Build the working environment that lets a fleet of
 > parallel Claude sessions develop Atlas's three big features safely, self-verifying, and
 > compounding what they learn — with this design as the contract. Founder approved 2026-07-02

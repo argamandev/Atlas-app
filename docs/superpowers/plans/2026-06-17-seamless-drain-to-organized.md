@@ -1,5 +1,7 @@
 # Seamless Drain → Organized Transcript — Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** When the live buffer finishes draining (the viewer has heard the entire call), the view should

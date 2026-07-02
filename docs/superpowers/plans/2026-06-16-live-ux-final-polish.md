@@ -1,5 +1,7 @@
 # Live UX — Final Polish (sync, visuals, chip) + merge Gemini fallback
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > Inline execution. **COMMITS as we go** (founder asked to push everything to main after a final test).
 
 **Goal:** Close out the live-transcript UX: pragmatic cross-client convergence, the two visual/text

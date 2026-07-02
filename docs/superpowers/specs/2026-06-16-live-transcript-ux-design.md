@@ -1,5 +1,7 @@
 # Live Transcript UX — "one call that matures" (design)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-06-16
 **Status:** Design approved by founder (brainstorm). Phase 1 being built + executed for an
 overnight admin test. Phase 2 specced here but not built.

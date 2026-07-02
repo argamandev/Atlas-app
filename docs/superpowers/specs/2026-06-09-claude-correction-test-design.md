@@ -1,5 +1,7 @@
 # Claude-based Transcript Correction — Test Spec (V1 + V2)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-06-09 · **Branch:** `feat/correction-v2`
 **Goal:** A/B test **Claude Sonnet 4.6** as the post-IVRIT correction brain (vs GPT-4o/5.5, which over-reached), on the *same* stored IVRIT raw transcript, and produce **viewable** transcripts on the site for אמפא — V1 (no report) and V2 (+ report) — scored against the gold.
 

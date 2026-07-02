@@ -1,5 +1,7 @@
 # Timlul Frontend (Quartr-style, bilingual) Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** Steps use checkbox (`- [ ]`) syntax for tracking. This plan is
 > executed inline by the authoring session (the user is away and asked for an autonomous build +
 > self-test). Verify after every phase: `npx tsc --noEmit`, then a dev-server smoke test.

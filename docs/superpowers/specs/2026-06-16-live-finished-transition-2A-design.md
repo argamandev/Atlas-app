@@ -1,5 +1,7 @@
 # Phase 2A — Live→Finished Transition (inline swap) — design
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-06-16
 **Status:** Design approved by founder (inline-swap architecture). Spec → plan → build → test.
 **Builds on:** the live-view fixes (`liveTiming.ts`, `LiveBroadcastView`) and Phase 1's finish

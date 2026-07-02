@@ -46,6 +46,9 @@ main is always working. Only the supervisor pushes it. There are two roles:
 1. Confirm the last piece merged and the milestone was founder-tested.
 2. Distill the lane's state file one final time: general lessons → skills/rules.
 3. Append the feature's story to PROGRESS.md (the permanent compact record).
+   Stamp the feature's plan/spec files in `docs/superpowers/` with the historical banner
+   (`> STATUS: SHIPPED — historical record, do not execute; current truth lives in
+   ARCHITECTURE.md + PROGRESS.md`) — stamped in place, never moved (moves break references).
 4. Archive the state file → `agent-memory/archive/state-<lane>-<feature>-<date>.md`; create a
    fresh empty state file for the seat.
 5. Reset the lane's board section to `idle — awaiting next assignment` and update MISSION.

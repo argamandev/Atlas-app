@@ -1,5 +1,7 @@
 # Live: keep "LIVE" through the buffer drain → clean finish — Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans. Steps use `- [ ]`. Each task is
 > its own commit on `feat/live-phase2` (NOT merged to main until the founder tests). Spec:
 > `docs/superpowers/specs/2026-06-19-live-keep-through-buffer-design.md`.

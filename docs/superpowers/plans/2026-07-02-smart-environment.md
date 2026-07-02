@@ -1,5 +1,7 @@
 # Atlas Smart Environment Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the harness (memory, hooks, rules, skills, slim context, launch kit) that lets 3 parallel worktree sessions develop Atlas's big features safely and self-verifyingly, gated by a supervisor session.
