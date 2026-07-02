@@ -82,6 +82,15 @@ stored forever. On top: chat, multi-view, workspace, agents.
 4. **Mission 4 — Multi-view investor call**: transcript + MAYA report PDF + slides subpanels,
    mark-text + Ask Atlas in every panel (see the 2026-07-02 build brief and
    `docs/superpowers/specs/2026-07-02-smart-environment-design.md` §Goal).
+5. **Mission 5+ — the per-company knowledge wiki (the intelligence layer).** Karpathy's
+   LLM-wiki pattern as Atlas's moat: every finished transcript + every MAYA report is
+   INGESTED into a maintained per-company knowledge page (people, dated guidance claims,
+   recurring topics, contradictions flagged across quarters — "compiled once, kept current").
+   Chat reads the compiled knowledge before raw context-stuffing; Agents stand on it; Ask-Atlas
+   answers get filed back into it. **Design hook for Mission 4 (Lane M): shape the `documents`
+   table and `src/lib/chat/context.ts` so a `company_knowledge` layer can slot in behind a
+   clean interface later — interface now, implementation at Mission 5.** This is the same
+   architecture as our dev smart environment (docs/ENVIRONMENT.md §6) — deliberately so.
 
 ## Transcript-quality gate
 

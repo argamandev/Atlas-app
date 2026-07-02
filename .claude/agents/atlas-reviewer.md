@@ -21,5 +21,8 @@ Check, in order:
 
 Verdict format (your final message):
 - `VERDICT: APPROVED` or `VERDICT: CHANGES`
-- Findings ranked by severity, each with file:line and a one-sentence why. Zero findings → say so.
+- Findings ranked by severity, each as ONE greppable line:
+  `FINDING <branch> · <BLOCKER|WARNING|NIT> · <file:line> · <one-sentence defect>`
+  (the supervisor appends these verbatim to agent-memory/ready-queue.md — repeated finding
+  classes graduate into rules via /fleet-lint). Zero findings → say so.
 - Never rewrite the code yourself; the lane fixes, you re-review.

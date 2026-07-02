@@ -54,7 +54,8 @@
    ENFORCEMENT (deterministic, can't be talked past — .claude/hooks/):
    pre-bash-gate.mjs  → blocks destructive SQL (Bash AND Supabase MCP doors),
                         unsafe recursive deletes, .env access, force-push,
-                        lane-pushes-to-main            [35-case fire-test matrix]
+                        lane-pushes-to-main   [fire-test suite: node
+                        .claude/hooks/gate-tests.mjs — re-run + EXTEND on every hook change]
    post-edit-verify.mjs → prettier + incremental tsc after EVERY edit
 ```
 
@@ -62,10 +63,10 @@
 
 | Layer | Files | Nature |
 |---|---|---|
-| **Constitution** | `CLAUDE.md` (~430 tokens) | Standing facts only; auto-read every session; points everywhere else |
+| **Constitution** | `CLAUDE.md` (kept under ~500 tokens — /fleet-lint checks) | Standing facts only; auto-read every session; points everywhere else |
 | **Laws** | `.claude/rules/` — parallel-work · db · live · app | Scoped truths, read before touching their area |
 | **Enforcement** | `.claude/hooks/` — 2 sharp hooks | Physics, not suggestions; exit 2 blocks |
-| **Procedures** | `.claude/skills/` — verify-app · ship · live-test · transcript-review | The reusable, *accumulating* unit — lessons graduate INTO these |
+| **Procedures** | `.claude/skills/` — verify-app · ship · fleet-lint · live-test · transcript-review | The reusable, *accumulating* unit — lessons graduate INTO these |
 | **Fresh eyes** | `.claude/agents/atlas-reviewer.md` | Independent grader on every merge |
 | **Working memory** | `agent-memory/` (git-ignored) | Real-time, shared, recycled per feature |
 | **Permanent memory** | `PROGRESS.md` · `docs/VISION.md` · `ARCHITECTURE.md` · specs/plans | Git-tracked history and maps |
@@ -82,8 +83,11 @@
     ↓      (only permanent standing facts — rare)
  forever   CLAUDE.md         stays ~1 page, forever
 ```
-Plus: every ship appends one compact entry to `PROGRESS.md` (the story), and doc-vs-code drift
-is a review criterion at the gate. Knowledge climbs; noise dies at the bottom.
+Plus: every ship appends one compact entry to `PROGRESS.md` (the story), reviewer findings and
+founder decisions persist as greppable `FINDING`/`DECISION` log lines (they never evaporate
+into chat), nontrivial answers get FILED into docs (not spoken and lost), and **/fleet-lint**
+sweeps the whole memory every few merges for drift, contradictions, and un-graduated lessons.
+Knowledge climbs; noise dies at the bottom.
 
 ## 4. The feature lifecycle (lanes are SEATS, not features)
 
