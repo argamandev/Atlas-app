@@ -40,8 +40,8 @@ steps) — never just listed.
    Append-only stays the law for current entries; compaction only ever touches the old tail,
    and only with founder approval.
 9. **Stale plans/specs** — every file in `docs/superpowers/plans/` and `docs/superpowers/specs/`
-   whose feature already shipped must carry the historical banner as its first line after the
-   title (`> STATUS: SHIPPED — historical record, do not execute; current truth lives in
+   whose feature already shipped must carry the historical banner as its first content line
+   after the title (blank line between) (`> STATUS: SHIPPED — historical record, do not execute; current truth lives in
    ARCHITECTURE.md + PROGRESS.md`). Any shipped plan missing it → stamp it now. Files are
    stamped, never moved — moving breaks references from other docs.
 
