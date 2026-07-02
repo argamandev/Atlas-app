@@ -11,6 +11,12 @@
         "matcher": "Bash",
         "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-bash-gate.mjs" }]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/post-edit-verify.mjs" }]
+      }
     ]
   }
 }
