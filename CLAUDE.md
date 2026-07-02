@@ -42,7 +42,7 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
 - `docs/VISION.md` — product vision, V1 description, roadmap
 - `docs/ENVIRONMENT.md` — how this smart environment works + the dev↔product mapping
 - `docs/LAUNCH-KIT.md` — fleet setup: worktrees + the 3 lane opening prompts
-- `PROGRESS.md` — decision log (append at ship time)
+- `PROGRESS.md` — decision log (append at ship time; compacted-era raw entries → `docs/archive/`)
 - `.claude/rules/` — parallel-work · db · live · app (read before touching those areas)
 - `LEGACY.md` — the 4-file Wave-2 login gateway (only legacy left)
 - Skills: `/verify-app` · `/ship` · `/fleet-lint` · `/live-test` · `/transcript-review` ·
