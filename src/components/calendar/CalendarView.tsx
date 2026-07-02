@@ -82,7 +82,12 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
             <button
               type="button"
               onClick={() => setMode('all')}
-              className={cn('rounded-full px-3.5 py-1.5 text-sm transition-colors', mode === 'all' ? 'bg-canvas font-medium text-ink shadow-card' : 'text-ink-muted hover:text-ink')}
+              className={cn(
+                'rounded-full px-3.5 py-1.5 text-sm transition-colors',
+                mode === 'all'
+                  ? 'bg-canvas font-medium text-ink shadow-card'
+                  : 'text-ink-muted hover:text-ink'
+              )}
             >
               {dict.calendar.allCalls}
             </button>
@@ -102,8 +107,10 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
               }}
               className={cn(
                 'rounded-full px-3.5 py-1.5 text-sm transition-colors',
-                mode === 'mine' ? 'bg-canvas font-medium text-ink shadow-card' : 'text-ink-muted hover:text-ink',
-                dropActive && 'ring-2 ring-ink/40',
+                mode === 'mine'
+                  ? 'bg-canvas font-medium text-ink shadow-card'
+                  : 'text-ink-muted hover:text-ink',
+                dropActive && 'ring-2 ring-ink/40'
               )}
             >
               {dict.calendar.myCalendar}
@@ -113,11 +120,23 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
 
         {/* month nav */}
         <div className="mb-3 flex items-center gap-3">
-          <button type="button" onClick={() => setMonth(new Date(year, monthIdx - 1, 1))} aria-label="Previous month" className="grid h-7 w-7 place-items-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink">
+          <button
+            type="button"
+            onClick={() => setMonth(new Date(year, monthIdx - 1, 1))}
+            aria-label="Previous month"
+            className="grid h-7 w-7 place-items-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
+          >
             <ChevronLeftIcon size={18} />
           </button>
-          <span className="min-w-[160px] text-center text-sm font-semibold text-ink">{formatMonthYear(month, locale)}</span>
-          <button type="button" onClick={() => setMonth(new Date(year, monthIdx + 1, 1))} aria-label="Next month" className="grid h-7 w-7 place-items-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink">
+          <span className="min-w-[160px] text-center text-sm font-semibold text-ink">
+            {formatMonthYear(month, locale)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMonth(new Date(year, monthIdx + 1, 1))}
+            aria-label="Next month"
+            className="grid h-7 w-7 place-items-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
+          >
             <ChevronRightIcon size={18} />
           </button>
           <span className="ms-auto text-xs text-ink-faint">{dict.calendar.dragHint}</span>
@@ -132,17 +151,23 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
           ))}
           {cells.map((day, i) => {
             const k = day ? localKey(year, monthIdx, day) : `blank-${i}`
-            const dayCalls = day ? byDay.get(k) ?? [] : []
+            const dayCalls = day ? (byDay.get(k) ?? []) : []
             const isToday =
-              day != null && year === today.getFullYear() && monthIdx === today.getMonth() && day === today.getDate()
+              day != null &&
+              year === today.getFullYear() &&
+              monthIdx === today.getMonth() &&
+              day === today.getDate()
             return (
-              <div key={k} className={cn('min-h-[96px] bg-canvas p-1.5', isToday && 'ring-1 ring-inset ring-ink/30')}>
+              <div
+                key={k}
+                className={cn('min-h-[96px] bg-canvas p-1.5', isToday && 'ring-1 ring-inset ring-ink/30')}
+              >
                 {day && (
                   <div className="mb-1 flex px-0.5">
                     <span
                       className={cn(
                         'grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs tabular-nums',
-                        isToday ? 'bg-ink font-semibold text-white' : 'text-ink-faint',
+                        isToday ? 'bg-ink font-semibold text-white' : 'text-ink-faint'
                       )}
                     >
                       {day}
@@ -173,7 +198,9 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                           aria-label={isFollowed ? dict.common.remove : dict.common.add}
                           className={cn(
                             'grid h-4 w-4 shrink-0 place-items-center rounded-full',
-                            isFollowed ? 'bg-ink text-white' : 'text-ink-faint opacity-0 group-hover:opacity-100',
+                            isFollowed
+                              ? 'bg-ink text-white'
+                              : 'text-ink-faint opacity-0 group-hover:opacity-100'
                           )}
                         >
                           {isFollowed ? <CheckIcon size={11} /> : <PlusIcon size={11} />}

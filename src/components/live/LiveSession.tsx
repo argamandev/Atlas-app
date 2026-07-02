@@ -39,9 +39,19 @@ export function LiveSession(props: {
         // non-auth status endpoint (GET /api/transcripts/[id] is auth-gated → 401s a stale session)
         const r = await fetch('/api/live/finish', { cache: 'no-store' })
         const row = (await r.json()) as { status?: string }
-        if (row.status === 'completed') { setFinishStatus('ready'); pollingRef.current = false; return }
-        if (row.status === 'failed') { setFinishStatus('failed'); pollingRef.current = false; return }
-      } catch { /* keep polling */ }
+        if (row.status === 'completed') {
+          setFinishStatus('ready')
+          pollingRef.current = false
+          return
+        }
+        if (row.status === 'failed') {
+          setFinishStatus('failed')
+          pollingRef.current = false
+          return
+        }
+      } catch {
+        /* keep polling */
+      }
       setTimeout(tick, 3000)
     }
     void tick()
@@ -57,10 +67,16 @@ export function LiveSession(props: {
       .then(({ id, status }: { id: string; status: string }) => {
         if (!alive) return
         idRef.current = id
-        if (status === 'processing') { setSourceEnded(true); setFinishStatus('processing'); startPolling() }
+        if (status === 'processing') {
+          setSourceEnded(true)
+          setFinishStatus('processing')
+          startPolling()
+        }
       })
       .catch(() => {})
-    return () => { alive = false }
+    return () => {
+      alive = false
+    }
   }, [])
 
   // Pre-load the organized call the moment the finish is ready, so both the manual CTA and the seamless
@@ -72,9 +88,13 @@ export function LiveSession(props: {
     let alive = true
     fetch(`/api/live/finished-call/${id}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((c) => { if (alive && c) setFinishedCall(c as LiveCall) })
+      .then((c) => {
+        if (alive && c) setFinishedCall(c as LiveCall)
+      })
       .catch(() => {})
-    return () => { alive = false }
+    return () => {
+      alive = false
+    }
   }, [finishStatus, finishedCall])
 
   // Stay LIVE through the whole drain (liveOver=false). Once the drain is over AND the organized transcript
@@ -111,7 +131,10 @@ export function LiveSession(props: {
   }
 
   async function viewOrganized() {
-    if (finishedCall) { setPhase('finished'); return } // pre-loaded → instant
+    if (finishedCall) {
+      setPhase('finished')
+      return
+    } // pre-loaded → instant
     const id = idRef.current
     if (!id) return
     try {
@@ -119,7 +142,9 @@ export function LiveSession(props: {
       if (!r.ok) return
       setFinishedCall((await r.json()) as LiveCall)
       setPhase('finished')
-    } catch { /* stay on live; user can retry */ }
+    } catch {
+      /* stay on live; user can retry */
+    }
   }
 
   if (phase === 'finished' && finishedCall) {
@@ -155,8 +180,8 @@ export function LiveSession(props: {
           {finishStatus === 'processing' && (
             <span className="flex items-center gap-2">
               <span className="h-1 w-1 animate-pulse rounded-full bg-ink-faint" />
-              Investor call ended — AI is processing your transcript. This takes a few minutes; we&apos;ll notify
-              you. On our platform the call is still LIVE until we finish the 4-minute buffer.
+              Investor call ended — AI is processing your transcript. This takes a few minutes; we&apos;ll
+              notify you. On our platform the call is still LIVE until we finish the 4-minute buffer.
             </span>
           )}
           {finishStatus === 'ready' && (
@@ -167,7 +192,8 @@ export function LiveSession(props: {
                 onClick={viewOrganized}
                 className="flex items-center gap-1 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90"
               >
-                View<ChevronRightIcon size={13} className="rtl:rotate-180" />
+                View
+                <ChevronRightIcon size={13} className="rtl:rotate-180" />
               </button>
             </>
           )}

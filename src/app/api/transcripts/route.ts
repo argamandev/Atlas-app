@@ -86,7 +86,10 @@ export async function POST(req: NextRequest) {
     setImmediate(() => {
       runPipeline(retryId, url).catch(async (err: Error) => {
         console.error('[pipeline] FAILED:', err.message)
-        await supabaseAdmin.from('transcripts').update({ status: 'failed', error_message: err.message }).eq('id', retryId)
+        await supabaseAdmin
+          .from('transcripts')
+          .update({ status: 'failed', error_message: err.message })
+          .eq('id', retryId)
       })
     })
     return NextResponse.json({ id: retryId })
@@ -102,7 +105,9 @@ export async function POST(req: NextRequest) {
       if (ageMs < 10 * 60 * 1000) {
         return NextResponse.json({ id: videoId })
       }
-      console.log(`[POST] record ${videoId} stuck in processing for ${Math.round(ageMs / 60000)}m — restarting pipeline`)
+      console.log(
+        `[POST] record ${videoId} stuck in processing for ${Math.round(ageMs / 60000)}m — restarting pipeline`
+      )
       await supabaseAdmin
         .from('transcripts')
         .update({ status: 'processing', processing_step: 'downloading', error_message: null })
@@ -123,22 +128,31 @@ export async function POST(req: NextRequest) {
     const hasTranscript = !!existing.raw_transcript
     const { error: updateErr } = await supabaseAdmin
       .from('transcripts')
-      .update({ status: 'processing', processing_step: hasTranscript ? 'formatting' : 'downloading', error_message: null })
+      .update({
+        status: 'processing',
+        processing_step: hasTranscript ? 'formatting' : 'downloading',
+        error_message: null,
+      })
       .eq('id', videoId)
     if (updateErr) {
       console.error('[POST] update failed:', updateErr)
       return NextResponse.json({ error: `Supabase update failed: ${updateErr.message}` }, { status: 500 })
     }
   } else {
-    const { data: insertedRows, error: insertErr } = await supabaseAdmin.from('transcripts').insert({
-      id: videoId,
-      youtube_url: url,
-      status: 'processing',
-      processing_step: 'downloading',
-      user_id: userId,
-      company_id: companyId ?? null,
-    }).select()
-    console.log(`[POST] insert result: data=${JSON.stringify(insertedRows)}, error=${JSON.stringify(insertErr)}`)
+    const { data: insertedRows, error: insertErr } = await supabaseAdmin
+      .from('transcripts')
+      .insert({
+        id: videoId,
+        youtube_url: url,
+        status: 'processing',
+        processing_step: 'downloading',
+        user_id: userId,
+        company_id: companyId ?? null,
+      })
+      .select()
+    console.log(
+      `[POST] insert result: data=${JSON.stringify(insertedRows)}, error=${JSON.stringify(insertErr)}`
+    )
     if (insertErr) {
       console.error('[POST] insert failed:', insertErr)
       return NextResponse.json({ error: `Supabase insert failed: ${insertErr.message}` }, { status: 500 })
@@ -200,11 +214,18 @@ async function runPipeline(videoId: string, url: string) {
     if (upd2err) console.error(`[pipeline:${videoId}] update2 error:`, upd2err)
 
     const { text: rawText, engine, model, segments, audioUrl } = await transcribeAudio(audioPath)
-    console.log(`[pipeline:${videoId}] transcription OK (${elapsed()}) — ${rawText.length} chars via ${engine} (${model})`)
+    console.log(
+      `[pipeline:${videoId}] transcription OK (${elapsed()}) — ${rawText.length} chars via ${engine} (${model})`
+    )
 
     const { error: upd3err } = await supabaseAdmin
       .from('transcripts')
-      .update({ raw_transcript: rawText, word_segments: segments ?? null, audio_url: audioUrl ?? null, processing_step: 'formatting' })
+      .update({
+        raw_transcript: rawText,
+        word_segments: segments ?? null,
+        audio_url: audioUrl ?? null,
+        processing_step: 'formatting',
+      })
       .eq('id', videoId)
       .select()
     if (upd3err) console.error(`[pipeline:${videoId}] update3 error:`, upd3err)
@@ -248,7 +269,12 @@ async function reformatPipeline(videoId: string) {
   }
 
   const engine = row.word_segments ? 'ivrit' : 'whisper'
-  const formatted = await formatTranscript(row.raw_transcript as string, videoId, (row.youtube_title as string) ?? '', { engine })
+  const formatted = await formatTranscript(
+    row.raw_transcript as string,
+    videoId,
+    (row.youtube_title as string) ?? '',
+    { engine }
+  )
   formatted.processingSecs = Math.round((Date.now() - t0) / 1000)
 
   const { error: updErr } = await supabaseAdmin

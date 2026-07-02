@@ -26,7 +26,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
       credentials: 'include',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
-    }),
+    })
   )
 }
 
@@ -37,7 +37,7 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
       credentials: 'include',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
-    }),
+    })
   )
 }
 

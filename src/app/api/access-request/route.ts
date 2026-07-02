@@ -8,16 +8,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  const { error } = await supabaseAdmin
-    .from('access_requests')
-    .insert({
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      fund_name: fundName || null,
-      job_title: jobTitle || null,
-      num_employees: numEmployees || null,
-    })
+  const { error } = await supabaseAdmin.from('access_requests').insert({
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    fund_name: fundName || null,
+    job_title: jobTitle || null,
+    num_employees: numEmployees || null,
+  })
 
   if (error) {
     const code = error.code === '23505' ? 'duplicate' : 'db_error'

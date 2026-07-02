@@ -127,7 +127,9 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
             name={companyName}
             className="transition-all duration-200 hover:-translate-y-px hover:shadow-float"
             secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
-            secondary={[latest.quarter, formatDate(latest.date || latest.createdAt, locale)].filter(Boolean).join(' · ')}
+            secondary={[latest.quarter, formatDate(latest.date || latest.createdAt, locale)]
+              .filter(Boolean)
+              .join(' · ')}
             meta={latest.duration ? <span dir="ltr">{latest.duration}</span> : undefined}
           />
         )}

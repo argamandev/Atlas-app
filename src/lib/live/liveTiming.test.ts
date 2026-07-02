@@ -1,6 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { interpolatedEdge, viewerEnded, delayedLiveEdge, bufferGate, hostedLiveOver, companyLiveDisplay, LIVE_BUFFER_SEC } from './liveTiming'
+import {
+  interpolatedEdge,
+  viewerEnded,
+  delayedLiveEdge,
+  bufferGate,
+  hostedLiveOver,
+  companyLiveDisplay,
+  LIVE_BUFFER_SEC,
+} from './liveTiming'
 
 test('interpolatedEdge advances by wall-clock while live', () => {
   assert.equal(interpolatedEdge(100, 1000, 1000, false), 100)
@@ -64,32 +72,57 @@ test('companyLiveDisplay: live banner while airing/draining; in-flight latest fr
 
   // no call has started → neither the banner nor an in-flight latest
   assert.deepEqual(
-    companyLiveDisplay({ audioStartRel: null, liveEdgeRel: null, liveEnded: false, endedAt: null }, 'none', 0, buffer),
-    { liveBanner: false, endedInFlight: false },
+    companyLiveDisplay(
+      { audioStartRel: null, liveEdgeRel: null, liveEnded: false, endedAt: null },
+      'none',
+      0,
+      buffer
+    ),
+    { liveBanner: false, endedInFlight: false }
   )
 
   // airing live (not ended) → banner on, no in-flight latest yet
   assert.deepEqual(
-    companyLiveDisplay({ audioStartRel: 0, liveEdgeRel: 200, liveEnded: false, endedAt: null }, 'none', 0, buffer),
-    { liveBanner: true, endedInFlight: false },
+    companyLiveDisplay(
+      { audioStartRel: 0, liveEdgeRel: 200, liveEnded: false, endedAt: null },
+      'none',
+      0,
+      buffer
+    ),
+    { liveBanner: true, endedInFlight: false }
   )
 
   // ended, mid-drain, polishing → banner still on (buffer not drained) AND surfaced as in-flight latest
   assert.deepEqual(
-    companyLiveDisplay({ audioStartRel: 0, liveEdgeRel: 600, liveEnded: true, endedAt }, 'processing', endedAt + 60_000, buffer),
-    { liveBanner: true, endedInFlight: true },
+    companyLiveDisplay(
+      { audioStartRel: 0, liveEdgeRel: 600, liveEnded: true, endedAt },
+      'processing',
+      endedAt + 60_000,
+      buffer
+    ),
+    { liveBanner: true, endedInFlight: true }
   )
 
   // drain finished but polished transcript not ready → banner gone, still in-flight latest (the tail)
   assert.deepEqual(
-    companyLiveDisplay({ audioStartRel: 0, liveEdgeRel: 600, liveEnded: true, endedAt }, 'processing', endedAt + 180_000, buffer),
-    { liveBanner: false, endedInFlight: true },
+    companyLiveDisplay(
+      { audioStartRel: 0, liveEdgeRel: 600, liveEnded: true, endedAt },
+      'processing',
+      endedAt + 180_000,
+      buffer
+    ),
+    { liveBanner: false, endedInFlight: true }
   )
 
   // polished transcript completed → no in-flight latest (show the canonical finished row instead)
   assert.deepEqual(
-    companyLiveDisplay({ audioStartRel: 0, liveEdgeRel: 600, liveEnded: true, endedAt }, 'completed', endedAt + 180_000, buffer),
-    { liveBanner: false, endedInFlight: false },
+    companyLiveDisplay(
+      { audioStartRel: 0, liveEdgeRel: 600, liveEnded: true, endedAt },
+      'completed',
+      endedAt + 180_000,
+      buffer
+    ),
+    { liveBanner: false, endedInFlight: false }
   )
 })
 

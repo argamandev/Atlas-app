@@ -6,7 +6,7 @@ import type { RecentTranscript, TranscriptStatus } from '@/lib/types'
 export async function getUserTranscripts(
   userId: string | null,
   isAdmin: boolean,
-  limit = 200,
+  limit = 200
 ): Promise<RecentTranscript[]> {
   // Defensive: a non-admin without a user id must never see other users' data.
   if (!isAdmin && !userId) return []

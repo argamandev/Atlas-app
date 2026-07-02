@@ -18,7 +18,9 @@ export async function getRequestUserId(req: NextRequest): Promise<string | null>
 
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   return session?.user?.id ?? null
 }
 
@@ -33,7 +35,9 @@ export interface CurrentUser {
 export async function getCurrentUser(): Promise<CurrentUser> {
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
   if (!session?.user) {
     return { userId: null, userName: 'משתמש', isAdmin: false }
@@ -45,8 +49,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     .eq('id', session.user.id)
     .single()
 
-  const userName =
-    profile?.first_name || session.user.email?.split('@')[0] || 'משתמש'
+  const userName = profile?.first_name || session.user.email?.split('@')[0] || 'משתמש'
 
   return {
     userId: session.user.id,

@@ -59,7 +59,12 @@ export function MediaPlayer(props: MediaPlayerProps) {
   }
 
   return (
-    <div className={cn('pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4', props.chatNarrow && 'lg:pe-[396px]')}>
+    <div
+      className={cn(
+        'pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4',
+        props.chatNarrow && 'lg:pe-[396px]'
+      )}
+    >
       <div className="pointer-events-auto flex w-full max-w-[1080px] items-center gap-4 rounded-pill bg-player px-4 py-2.5 shadow-player">
         {/* zone 1 — identity */}
         <div className="flex min-w-0 shrink-0 items-center gap-2.5">
@@ -73,7 +78,9 @@ export function MediaPlayer(props: MediaPlayerProps) {
         {/* zone 2 — scrubber + timing */}
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex items-center gap-1.5 text-2xs text-player-faint">
-            <span dir="ltr" className="tabular-nums">{formatClock(currentTime)}</span>
+            <span dir="ltr" className="tabular-nums">
+              {formatClock(currentTime)}
+            </span>
             {props.chapter && (
               <>
                 <span>·</span>
@@ -91,7 +98,9 @@ export function MediaPlayer(props: MediaPlayerProps) {
                 LIVE
               </button>
             ) : (
-              <span dir="ltr" className="ms-auto tabular-nums">-{formatClock(remaining)}</span>
+              <span dir="ltr" className="ms-auto tabular-nums">
+                -{formatClock(remaining)}
+              </span>
             )}
           </div>
 
@@ -104,10 +113,16 @@ export function MediaPlayer(props: MediaPlayerProps) {
               e.currentTarget.setPointerCapture(e.pointerId)
               seekFromClientX(e.clientX)
             }}
-            onPointerMove={(e) => { if (draggingRef.current) seekFromClientX(e.clientX) }}
+            onPointerMove={(e) => {
+              if (draggingRef.current) seekFromClientX(e.clientX)
+            }}
             onPointerUp={(e) => {
               draggingRef.current = false
-              try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+              try {
+                e.currentTarget.releasePointerCapture(e.pointerId)
+              } catch {
+                /* ignore */
+              }
             }}
             aria-label={dict.live.searchTranscript}
             className="group relative h-3 w-full cursor-pointer touch-none"
@@ -115,8 +130,14 @@ export function MediaPlayer(props: MediaPlayerProps) {
             {isLive ? (
               <>
                 <span className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-player-track" />
-                <span className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-live" style={{ insetInlineStart: 0, width: `${pct}%` }} />
-                <span className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-live shadow" style={{ insetInlineStart: `calc(${pct}% - 6px)` }} />
+                <span
+                  className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-live"
+                  style={{ insetInlineStart: 0, width: `${pct}%` }}
+                />
+                <span
+                  className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-live shadow"
+                  style={{ insetInlineStart: `calc(${pct}% - 6px)` }}
+                />
               </>
             ) : (
               <span className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-between">
@@ -171,7 +192,12 @@ export function MediaPlayer(props: MediaPlayerProps) {
           </div>
 
           {props.onClose && (
-            <button type="button" onClick={props.onClose} aria-label={dict.player.close} className="ms-1 grid h-7 w-7 place-items-center text-player-faint hover:text-player-ink">
+            <button
+              type="button"
+              onClick={props.onClose}
+              aria-label={dict.player.close}
+              className="ms-1 grid h-7 w-7 place-items-center text-player-faint hover:text-player-ink"
+            >
               <CloseIcon size={16} />
             </button>
           )}
@@ -181,7 +207,15 @@ export function MediaPlayer(props: MediaPlayerProps) {
   )
 }
 
-function IconCircleLabel({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+function IconCircleLabel({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
   return (
     <button
       type="button"
@@ -190,7 +224,10 @@ function IconCircleLabel({ label, onClick, children }: { label: string; onClick:
       className="relative grid h-7 w-7 place-items-center text-player-faint hover:text-player-ink"
     >
       {children}
-      <span className="pointer-events-none absolute inset-0 grid place-items-center text-[7px] font-semibold" dir="ltr">
+      <span
+        className="pointer-events-none absolute inset-0 grid place-items-center text-[7px] font-semibold"
+        dir="ltr"
+      >
         15
       </span>
     </button>

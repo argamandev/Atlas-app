@@ -5,7 +5,18 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Surface } from '@/components/ds/Surface'
 import { IconButton } from '@/components/ds/IconButton'
-import { QuoteIcon, SparkleIcon, ShareIcon, ChevronRightIcon, CopyIcon, TrashIcon, FolderIcon, FolderPlusIcon, CheckIcon, CloseIcon } from '@/components/ds/icons'
+import {
+  QuoteIcon,
+  SparkleIcon,
+  ShareIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  TrashIcon,
+  FolderIcon,
+  FolderPlusIcon,
+  CheckIcon,
+  CloseIcon,
+} from '@/components/ds/icons'
 import { deleteQuote } from '@/lib/api/quotes'
 import type { Quote } from '@/lib/api/types'
 
@@ -95,7 +106,10 @@ export function QuoteCard({
   if (removed) return null
 
   return (
-    <Surface tone="canvas" className="group relative border border-hairline p-3.5 transition-shadow hover:shadow-popover">
+    <Surface
+      tone="canvas"
+      className="group relative border border-hairline p-3.5 transition-shadow hover:shadow-popover"
+    >
       {toast && (
         <span className="pointer-events-none absolute end-3 top-3 rounded-full bg-ink px-2 py-0.5 text-2xs font-medium text-white">
           {toast}
@@ -134,12 +148,22 @@ export function QuoteCard({
             </IconButton>
             {showFolders && (
               <span className="relative">
-                <IconButton label={dict.company.addToFolder} size={28} active={folderOpen} onClick={() => setFolderOpen((o) => !o)}>
+                <IconButton
+                  label={dict.company.addToFolder}
+                  size={28}
+                  active={folderOpen}
+                  onClick={() => setFolderOpen((o) => !o)}
+                >
                   <FolderIcon size={15} />
                 </IconButton>
                 {folderOpen && (
-                  <Surface elevation="popover" className="absolute bottom-full end-0 z-50 mb-1 w-52 p-1 text-start">
-                    <div className="px-2 py-1 text-2xs font-medium text-ink-faint">{dict.company.addToFolder}</div>
+                  <Surface
+                    elevation="popover"
+                    className="absolute bottom-full end-0 z-50 mb-1 w-52 p-1 text-start"
+                  >
+                    <div className="px-2 py-1 text-2xs font-medium text-ink-faint">
+                      {dict.company.addToFolder}
+                    </div>
                     {folders!.map((f) => {
                       const on = f.id === folderId
                       return (

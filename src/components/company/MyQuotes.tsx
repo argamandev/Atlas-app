@@ -49,7 +49,7 @@ export function MyQuotes({
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
 
-  const folderOf = (q: Quote): string | null => (q.id in assign ? assign[q.id] : q.folderId ?? null)
+  const folderOf = (q: Quote): string | null => (q.id in assign ? assign[q.id] : (q.folderId ?? null))
 
   async function createFolder(name: string): Promise<string | null> {
     const trimmed = name.trim()

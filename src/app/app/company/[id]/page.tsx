@@ -27,7 +27,8 @@ export default async function CompanyPage({
   const userId = user.userId ?? DEMO_USER_ID
   const [quotes, folders] = await Promise.all([listQuotes(userId, params.id), listFolders(userId, params.id)])
 
-  const initialTab = searchParams.tab === 'quotes' || searchParams.tab === 'calls' ? searchParams.tab : 'overview'
+  const initialTab =
+    searchParams.tab === 'quotes' || searchParams.tab === 'calls' ? searchParams.tab : 'overview'
 
   return (
     <AppPage>

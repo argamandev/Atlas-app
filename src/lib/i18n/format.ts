@@ -25,7 +25,7 @@ export function formatTime(d: Date | string, locale: Locale): string {
 export function formatDate(
   d: Date | string,
   locale: Locale,
-  opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' },
+  opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
 ): string {
   const date = typeof d === 'string' ? new Date(d) : d
   return new Intl.DateTimeFormat(localeTag[locale], opts).format(date)

@@ -54,7 +54,9 @@ export function LiveTranscriptView({
   const effTime = isActiveCall ? currentTime : 0
   // remember the last playhead so the "Open audio bar" chip can resume where the user closed it
   const lastPosRef = useRef(0)
-  useEffect(() => { if (isActiveCall) lastPosRef.current = currentTime }, [isActiveCall, currentTime])
+  useEffect(() => {
+    if (isActiveCall) lastPosRef.current = currentTime
+  }, [isActiveCall, currentTime])
 
   // Tell the player this call is being displayed (URL-independent) so the Return-to-transcript chip
   // hides while we're on it — including the inline live→finished swap, where the URL stays /app/live/live.
@@ -67,21 +69,23 @@ export function LiveTranscriptView({
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
   const [toast, setToast] = useState<Toast | null>(null)
-  const [selection, setSelection] = useState<
-    {
-      text: string
-      top: number
-      left: number
-      speaker: string | null
-      segmentId: string | null
-      fromWord?: number
-      toWord?: number
-    } | null
-  >(null)
+  const [selection, setSelection] = useState<{
+    text: string
+    top: number
+    left: number
+    speaker: string | null
+    segmentId: string | null
+    fromWord?: number
+    toWord?: number
+  } | null>(null)
   const [query, setQuery] = useState('')
   const [matchPos, setMatchPos] = useState(0)
   // in-transcript side chat (Feature 6): open + the seeded quote + a nonce so re-starring re-seeds
-  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({ open: false, seed: '', nonce: 0 })
+  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({
+    open: false,
+    seed: '',
+    nonce: 0,
+  })
   // side chat open → tell the global docked bar to narrow to its left (so offline = live)
   useEffect(() => {
     player.setChatOpen(chat.open)
@@ -94,7 +98,7 @@ export function LiveTranscriptView({
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = useMemo(() => activeWordIndex(flat, effTime), [flat, effTime])
   const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
-  const name = locale === 'en' ? call.companyNameEn ?? call.companyName : call.companyName
+  const name = locale === 'en' ? (call.companyNameEn ?? call.companyName) : call.companyName
   const title = `${name} — ${call.quarter}`
   const activeSegmentIndex = flat[activeIndex]?.segmentIndex ?? 0
   const activeSpeaker = call.transcript.segments[activeSegmentIndex]?.speakerName ?? null
@@ -384,15 +388,28 @@ export function LiveTranscriptView({
             <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
               <CopyTextIcon size={16} />
             </IconButton>
-            <IconButton label={dict.company.openInChat} size={30} onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}>
+            <IconButton
+              label={dict.company.openInChat}
+              size={30}
+              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
+            >
               <SparkleIcon size={16} />
             </IconButton>
             {canEdit && (
-              <IconButton label={dict.live.editSpeakers} active={editMode} size={30} onClick={() => setEditMode((v) => !v)}>
+              <IconButton
+                label={dict.live.editSpeakers}
+                active={editMode}
+                size={30}
+                onClick={() => setEditMode((v) => !v)}
+              >
                 <PencilIcon size={16} />
               </IconButton>
             )}
-            {editMode && <span className="ms-1 hidden text-2xs text-ink-faint sm:inline">{dict.live.editSpeakersHint}</span>}
+            {editMode && (
+              <span className="ms-1 hidden text-2xs text-ink-faint sm:inline">
+                {dict.live.editSpeakersHint}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <SearchIcon size={15} className="text-ink-faint" />
@@ -440,7 +457,9 @@ export function LiveTranscriptView({
           {tab === 'transcript' ? (
             <>
               {!call.transcript.hasWordTimings && (
-                <p className="mb-4 rounded-md bg-subtle px-3 py-2 text-xs text-ink-muted">{dict.live.noWordTimings}</p>
+                <p className="mb-4 rounded-md bg-subtle px-3 py-2 text-xs text-ink-muted">
+                  {dict.live.noWordTimings}
+                </p>
               )}
               <TranscriptBody
                 transcript={call.transcript}
@@ -455,7 +474,9 @@ export function LiveTranscriptView({
               />
             </>
           ) : (
-            <div className="grid h-full place-items-center text-sm text-ink-faint">{dict.common.comingSoon}</div>
+            <div className="grid h-full place-items-center text-sm text-ink-faint">
+              {dict.common.comingSoon}
+            </div>
           )}
         </div>
 
@@ -463,7 +484,12 @@ export function LiveTranscriptView({
         {selection &&
           (editMode && selection.fromWord != null ? (
             <div
-              style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
+              style={{
+                position: 'fixed',
+                top: selection.top,
+                left: selection.left,
+                transform: 'translate(-50%, -120%)',
+              }}
               className="z-50 flex max-w-[320px] flex-wrap items-center gap-1 rounded-2xl bg-player px-2 py-1.5 shadow-player"
             >
               <span className="px-1 text-2xs font-medium text-player-faint">{dict.live.assignToSpeaker}</span>
@@ -481,7 +507,12 @@ export function LiveTranscriptView({
             </div>
           ) : (
             <div
-              style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
+              style={{
+                position: 'fixed',
+                top: selection.top,
+                left: selection.left,
+                transform: 'translate(-50%, -120%)',
+              }}
               className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
             >
               <button
@@ -491,35 +522,35 @@ export function LiveTranscriptView({
                   void saveSelection(selection)
                   setSelection(null)
                 }}
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
-            >
-              <QuoteIcon size={13} />
-              {dict.live.saveQuote}
-            </button>
-            <span className="h-4 w-px bg-white/15" />
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                shareSelection(selection.text)
-                setSelection(null)
-              }}
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
-            >
-              <ShareIcon size={13} />
-              {dict.common.share}
-            </button>
-            <span className="h-4 w-px bg-white/15" />
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 }))
-                setSelection(null)
-              }}
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
-            >
-              <SparkleIcon size={14} />
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+              >
+                <QuoteIcon size={13} />
+                {dict.live.saveQuote}
+              </button>
+              <span className="h-4 w-px bg-white/15" />
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  shareSelection(selection.text)
+                  setSelection(null)
+                }}
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+              >
+                <ShareIcon size={13} />
+                {dict.common.share}
+              </button>
+              <span className="h-4 w-px bg-white/15" />
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 }))
+                  setSelection(null)
+                }}
+                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+              >
+                <SparkleIcon size={14} />
                 {dict.live.askAboutQuote}
               </button>
             </div>

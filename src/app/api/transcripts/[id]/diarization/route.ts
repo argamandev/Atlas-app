@@ -11,7 +11,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const fromWord = Number(body?.fromWord)
   const toWord = Number(body?.toWord)
   const speakerId: string | undefined = body?.speakerId
-  if (!Number.isInteger(fromWord) || !Number.isInteger(toWord) || !speakerId || fromWord < 0 || toWord < fromWord) {
+  if (
+    !Number.isInteger(fromWord) ||
+    !Number.isInteger(toWord) ||
+    !speakerId ||
+    fromWord < 0 ||
+    toWord < fromWord
+  ) {
     return NextResponse.json({ error: 'fromWord, toWord and speakerId required' }, { status: 400 })
   }
 
@@ -29,7 +35,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const end = Math.min(toWord, spk.length - 1)
   for (let i = fromWord; i <= end; i++) spk[i] = speakerId
   const boundaries: SpeakerEdits['boundaries'] = []
-  for (let i = 0; i < spk.length; i++) if (i === 0 || spk[i] !== spk[i - 1]) boundaries.push({ atWordIndex: i, speakerId: spk[i] })
+  for (let i = 0; i < spk.length; i++)
+    if (i === 0 || spk[i] !== spk[i - 1]) boundaries.push({ atWordIndex: i, speakerId: spk[i] })
 
   try {
     await saveSpeakerEdits(params.id, { boundaries })

@@ -65,13 +65,26 @@ export function ChatComposer({
       />
       <div className="mt-2 flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <button type="button" aria-label="Add" className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink">
+          <button
+            type="button"
+            aria-label="Add"
+            className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink"
+          >
             <PlusIcon size={18} />
           </button>
-          <button type="button" onClick={onAt} aria-label="Mention" className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink">
+          <button
+            type="button"
+            onClick={onAt}
+            aria-label="Mention"
+            className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink"
+          >
             <AtIcon size={18} />
           </button>
-          <button type="button" aria-label="Commands" className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink">
+          <button
+            type="button"
+            aria-label="Commands"
+            className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink"
+          >
             <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] ring-[1.4px] ring-current">
               <SlashIcon size={12} />
             </span>
@@ -93,12 +106,18 @@ export function ChatComposer({
   )
 
   return (
-    <Surface elevation="popover" className={cn('overflow-hidden rounded-bubble', reference && 'border border-hairline')}>
+    <Surface
+      elevation="popover"
+      className={cn('overflow-hidden rounded-bubble', reference && 'border border-hairline')}
+    >
       {reference && (
         // Reference row — native-Claude style: flat, white, separated from the input by a faint
         // 1px hairline (NOT a grey sleeve or a puffy floating card). The excerpt is wrapped in an
         // opening + closing quote; in Hebrew RTL the opening sits on the right, the closing on the left.
-        <div dir={detectDir(reference)} className="flex items-start gap-2 border-b border-hairline px-3.5 py-2.5">
+        <div
+          dir={detectDir(reference)}
+          className="flex items-start gap-2 border-b border-hairline px-3.5 py-2.5"
+        >
           <p className="line-clamp-3 flex-1 text-[13px] leading-relaxed text-ink-muted">
             {'"'}
             {reference}

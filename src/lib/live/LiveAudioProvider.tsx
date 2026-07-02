@@ -2,7 +2,13 @@
 
 import * as React from 'react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { interpolatedEdge, bufferGate, delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
+import {
+  interpolatedEdge,
+  bufferGate,
+  delayedLiveEdge,
+  hostedLiveOver,
+  LIVE_BUFFER_SEC,
+} from '@/lib/live/liveTiming'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global LIVE audio engine. Mirrors the recorded-call PlayerProvider: lifts the
@@ -338,7 +344,9 @@ export function LiveAudioProvider({ children }: { children: React.ReactNode }) {
 
   const join = useCallback(() => {
     const st = stRef.current
-    const Ctx2 = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    const Ctx2 =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     const ctx = new Ctx2()
     const gain = ctx.createGain()
     gain.gain.value = volumeRef.current
@@ -353,7 +361,9 @@ export function LiveAudioProvider({ children }: { children: React.ReactNode }) {
     const maxEnd = st?.liveEnded ? liveEdgeRel : Math.max(0, liveEdgeRel - d)
     const saved = persistKeyRef.current ? Number(sessionStorage.getItem(persistKeyRef.current)) : NaN
     playPosRef.current =
-      Number.isFinite(saved) && saved > 0 ? Math.min(saved, Math.max(0, maxEnd)) : Math.max(startRel, liveEdgeRel - d)
+      Number.isFinite(saved) && saved > 0
+        ? Math.min(saved, Math.max(0, maxEnd))
+        : Math.max(startRel, liveEdgeRel - d)
     nextAtRef.current = ctx.currentTime + 0.2
     startedRef.current = true
     pausedRef.current = false

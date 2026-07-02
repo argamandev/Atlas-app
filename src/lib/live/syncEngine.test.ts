@@ -26,8 +26,22 @@ const fakeTranscript: WordTimedTranscript = {
   hasWordTimings: true,
   durationSec: 10,
   segments: [
-    { id: 's0', speakerId: 'a', speakerName: 'A', words: [{ text: 'hi', start: 0, end: 1 }], start: 0, end: 1 },
-    { id: 's1', speakerId: 'b', speakerName: 'B', words: [{ text: 'there', start: 5, end: 6 }], start: 5, end: 6 },
+    {
+      id: 's0',
+      speakerId: 'a',
+      speakerName: 'A',
+      words: [{ text: 'hi', start: 0, end: 1 }],
+      start: 0,
+      end: 1,
+    },
+    {
+      id: 's1',
+      speakerId: 'b',
+      speakerName: 'B',
+      words: [{ text: 'there', start: 5, end: 6 }],
+      start: 5,
+      end: 6,
+    },
   ],
 }
 test('activeSegmentIndex: picks the last started segment', () => {
@@ -46,5 +60,7 @@ test('recall adapter: parses the real spike fixture with word timings', async ()
   // every word is start-sorted globally enough for binary search within the transcript
   assert.ok(t.durationSec > 0, 'has a positive duration')
   // eslint-disable-next-line no-console
-  console.log(`[recall fixture] segments=${t.segments.length} words=${flat.length} duration=${t.durationSec.toFixed(1)}s speakers=${[...new Set(t.segments.map((s) => s.speakerName))].join(', ')}`)
+  console.log(
+    `[recall fixture] segments=${t.segments.length} words=${flat.length} duration=${t.durationSec.toFixed(1)}s speakers=${[...new Set(t.segments.map((s) => s.speakerName))].join(', ')}`
+  )
 })

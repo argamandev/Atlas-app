@@ -28,6 +28,14 @@ scripts/.live-broadcast.json
 # large test-fixture source PDFs (keep the extracted .txt the harness reads)
 scripts/fixtures/*.pdf
 
-# claude — ignore local settings but keep shared project skills
+# claude — track the shared harness (settings, hooks, rules, skills); ignore local-only files
 .claude/*
+!.claude/settings.json
 !.claude/skills/
+!.claude/rules/
+!.claude/hooks/
+
+# fleet memory + founder-provided inputs (one physical copy, main checkout)
+agent-memory/
+design-import/
+local-assets/

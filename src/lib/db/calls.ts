@@ -39,7 +39,9 @@ export interface ListCallsOptions {
   companyId?: string
 }
 
-export async function listCalls({ scope = 'all', companyId }: ListCallsOptions = {}): Promise<ScheduledCall[]> {
+export async function listCalls({ scope = 'all', companyId }: ListCallsOptions = {}): Promise<
+  ScheduledCall[]
+> {
   let query = supabaseAdmin
     .from('scheduled_calls')
     .select(`${CALL_COLS}, companies(${LITE_COLS})`)

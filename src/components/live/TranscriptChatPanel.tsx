@@ -91,7 +91,7 @@ export function TranscriptChatPanel({
           full += delta
           setLast({ content: full })
           scrollToEnd()
-        },
+        }
       )
       setLast({ content: full, source, streaming: false })
     } catch (err) {
@@ -140,7 +140,10 @@ export function TranscriptChatPanel({
                   <p className="line-clamp-3 text-xs leading-relaxed text-ink-muted">{m.reference}</p>
                 </div>
               )}
-              <div dir="auto" className="max-w-[92%] rounded-bubble bg-subtle px-3.5 py-2 text-sm leading-relaxed text-ink">
+              <div
+                dir="auto"
+                className="max-w-[92%] rounded-bubble bg-subtle px-3.5 py-2 text-sm leading-relaxed text-ink"
+              >
                 {m.content}
               </div>
             </div>
@@ -158,7 +161,7 @@ export function TranscriptChatPanel({
               )}
               {m.source && !m.streaming && <CitationChip source={m.source} />}
             </div>
-          ),
+          )
         )}
       </div>
 

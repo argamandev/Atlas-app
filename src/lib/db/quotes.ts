@@ -49,7 +49,8 @@ function mapQuote(r: Row): Quote {
 }
 
 // columns selected for a Quote row (kept in one place — every read uses the same shape)
-const QUOTE_COLS = 'id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, folder_id, created_at'
+const QUOTE_COLS =
+  'id, company_id, transcript_id, text, speaker, quarter, start_sec, anchor, folder_id, created_at'
 
 export interface NewQuote {
   companyId: string
@@ -125,14 +126,14 @@ export async function deleteQuote(userId: string, id: string): Promise<void> {
   const arr = quoteMem.get(userId) ?? []
   quoteMem.set(
     userId,
-    arr.filter((q) => q.id !== id),
+    arr.filter((q) => q.id !== id)
   )
 }
 
 export async function updateQuote(
   userId: string,
   id: string,
-  fields: { text?: string; folderId?: string | null },
+  fields: { text?: string; folderId?: string | null }
 ): Promise<Quote | null> {
   // build the column patch from only the keys actually provided (folderId:null = unfile)
   const patch: Record<string, unknown> = {}
@@ -162,7 +163,11 @@ export async function updateQuote(
 }
 
 // Keep saved quotes in sync when a speaker is renamed in the transcript.
-export async function renameSpeakerInQuotes(transcriptId: string, oldName: string, newName: string): Promise<void> {
+export async function renameSpeakerInQuotes(
+  transcriptId: string,
+  oldName: string,
+  newName: string
+): Promise<void> {
   if (!flags.quotes) {
     const { error } = await supabaseAdmin
       .from('quotes')
@@ -192,12 +197,18 @@ export async function listFollowedCallIds(userId: string): Promise<string[]> {
 export async function followCall(userId: string, callId: string, follow: boolean): Promise<void> {
   if (!flags.follows) {
     if (follow) {
-      const { error } = await supabaseAdmin.from('followed_calls').upsert({ user_id: userId, call_id: callId })
+      const { error } = await supabaseAdmin
+        .from('followed_calls')
+        .upsert({ user_id: userId, call_id: callId })
       if (!error) return
       if (!missingTable(error)) throw new Error(error.message)
       flags.follows = true
     } else {
-      const { error } = await supabaseAdmin.from('followed_calls').delete().eq('user_id', userId).eq('call_id', callId)
+      const { error } = await supabaseAdmin
+        .from('followed_calls')
+        .delete()
+        .eq('user_id', userId)
+        .eq('call_id', callId)
       if (!error) return
       if (!missingTable(error)) throw new Error(error.message)
       flags.follows = true

@@ -37,7 +37,7 @@ export function LocaleProvider({
       dict,
       t: (path: string) => resolvePath(dict, path),
     }),
-    [locale, dict],
+    [locale, dict]
   )
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>

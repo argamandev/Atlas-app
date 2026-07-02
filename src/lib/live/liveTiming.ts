@@ -11,7 +11,12 @@ export const LIVE_BUFFER_SEC = Number(process.env.NEXT_PUBLIC_LIVE_BUFFER_SEC) |
  * stops "behind live" + the scrubber duration from stepping/sawtoothing each poll. Frozen once the
  * backend call has ended (the edge no longer advances). Never advances on a stale/future anchor.
  */
-export function interpolatedEdge(rawEdge: number, anchorWallMs: number, nowMs: number, ended: boolean): number {
+export function interpolatedEdge(
+  rawEdge: number,
+  anchorWallMs: number,
+  nowMs: number,
+  ended: boolean
+): number {
   if (ended) return rawEdge
   return rawEdge + Math.max(0, (nowMs - anchorWallMs) / 1000)
 }
@@ -37,7 +42,7 @@ export function delayedLiveEdge(
   liveEdge: number,
   bufferSec: number,
   endedAtWallMs: number | null,
-  nowMs: number,
+  nowMs: number
 ): number {
   const frozen = Math.max(0, liveEdge - bufferSec)
   if (endedAtWallMs === null) return frozen
@@ -54,7 +59,12 @@ export function delayedLiveEdge(
  * there's no live edge left to chase. Monotonic (delayedLiveEdge is capped at liveEdge), so once true
  * it stays true: drives the switch to finished mode and removes the "return to live" affordance.
  */
-export function hostedLiveOver(backendEnded: boolean, delayedEdge: number, liveEdge: number, epsilon = 1): boolean {
+export function hostedLiveOver(
+  backendEnded: boolean,
+  delayedEdge: number,
+  liveEdge: number,
+  epsilon = 1
+): boolean {
   return backendEnded && liveEdge > 0 && delayedEdge >= liveEdge - epsilon
 }
 
@@ -70,7 +80,7 @@ export function companyLiveDisplay(
   s: { audioStartRel: number | null; liveEdgeRel: number | null; liveEnded: boolean; endedAt: number | null },
   finishStatus: string,
   nowMs: number,
-  bufferSec: number = LIVE_BUFFER_SEC,
+  bufferSec: number = LIVE_BUFFER_SEC
 ): { liveBanner: boolean; endedInFlight: boolean } {
   const started = s.audioStartRel !== null
   const edge = s.liveEdgeRel ?? 0
@@ -87,7 +97,7 @@ export function bufferGate(
   audioStartRel: number | null,
   edge: number,
   bufferSec: number,
-  backendEnded: boolean,
+  backendEnded: boolean
 ): { phase: 'waiting' | 'buffering' | 'ready'; countdown: number } {
   if (audioStartRel === null) return { phase: 'waiting', countdown: bufferSec }
   const buffered = edge - audioStartRel

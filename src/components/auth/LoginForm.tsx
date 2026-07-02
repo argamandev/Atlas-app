@@ -38,7 +38,7 @@ export function LoginForm() {
           type="email"
           required
           value={email}
-          onChange={e => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
           placeholder="email@company.com"
           dir="ltr"
           className="w-full bg-card border border-border px-4 py-3 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/60 font-mono-num transition-colors"
@@ -50,15 +50,13 @@ export function LoginForm() {
           type="password"
           required
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           dir="ltr"
           className="w-full bg-card border border-border px-4 py-3 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/60 font-mono-num transition-colors"
         />
       </div>
-      {error && (
-        <p className="font-mono-num text-xs text-error tracking-wide">{error}</p>
-      )}
+      {error && <p className="font-mono-num text-xs text-error tracking-wide">{error}</p>}
       <button
         type="submit"
         disabled={loading}

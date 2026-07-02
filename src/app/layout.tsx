@@ -14,11 +14,7 @@ export function generateMetadata(): Metadata {
   }
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = getLocale()
   const dir = getDirection(locale)
   const dict = getDictionary(locale)

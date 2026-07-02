@@ -44,7 +44,11 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ])
 }
 
-async function runWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T, i: number) => Promise<R>): Promise<R[]> {
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, i: number) => Promise<R>
+): Promise<R[]> {
   const results: R[] = new Array(items.length)
   let next = 0
   async function worker() {
@@ -70,7 +74,7 @@ export async function downloadAudio(url: string): Promise<string> {
 
   const tmpDir = os.tmpdir()
   const prefix = path.basename(base)
-  const files = fs.readdirSync(tmpDir).filter(f => f.startsWith(prefix))
+  const files = fs.readdirSync(tmpDir).filter((f) => f.startsWith(prefix))
   if (files.length === 0) throw new Error('Audio download produced no file')
 
   const actualPath = path.join(tmpDir, files[0])
@@ -118,7 +122,8 @@ async function whisperFile(filePath: string): Promise<string> {
       file: fs.createReadStream(filePath) as unknown as File,
       model: 'whisper-1',
       language: 'he',
-      prompt: 'שיחת משקיעים רבעונית. מונחים נפוצים: רבעון, תשואה, EBITDA, תזרים מזומנים, הכנסות, רווח גולמי, הוצאות תפעול, חוב פיננסי, הון עצמי, דיבידנד, מניה, בורסה, תל אביב, דוח כספי, מאזן, התחייבויות, נכסים, השקעות, פחת והפחתות, מגה-וואט, ג\'יגה-וואט, ייזום, מימון, אגרות חוב, ריבית, גידור, נגזרים, אנליסט, תחזית, הנחיה שנתית, צמיחה, שוליים, תפעולי, רווחיות, נזילות, מינוף, CAPEX, OPEX, DCF, IPO, M&A, FFO, NOI.',
+      prompt:
+        "שיחת משקיעים רבעונית. מונחים נפוצים: רבעון, תשואה, EBITDA, תזרים מזומנים, הכנסות, רווח גולמי, הוצאות תפעול, חוב פיננסי, הון עצמי, דיבידנד, מניה, בורסה, תל אביב, דוח כספי, מאזן, התחייבויות, נכסים, השקעות, פחת והפחתות, מגה-וואט, ג'יגה-וואט, ייזום, מימון, אגרות חוב, ריבית, גידור, נגזרים, אנליסט, תחזית, הנחיה שנתית, צמיחה, שוליים, תפעולי, רווחיות, נזילות, מינוף, CAPEX, OPEX, DCF, IPO, M&A, FFO, NOI.",
     }),
     5 * 60 * 1000,
     `Whisper (${path.basename(filePath)})`
@@ -209,9 +214,15 @@ function parseIvritSegments(output: unknown): IvritSegment[] {
     if (start == null) continue
     const end = asNum(s.end) ?? start
     const extra = (s.extra_data ?? {}) as Record<string, unknown>
-    const wordsRaw = (Array.isArray(s.words) ? s.words : Array.isArray(extra.words) ? extra.words : []) as Record<string, unknown>[]
+    const wordsRaw = (
+      Array.isArray(s.words) ? s.words : Array.isArray(extra.words) ? extra.words : []
+    ) as Record<string, unknown>[]
     const words: IvritWord[] = wordsRaw
-      .map((w) => ({ word: String(w.word ?? w.text ?? '').trim(), start: asNum(w.start) ?? start, end: asNum(w.end) ?? asNum(w.start) ?? end }))
+      .map((w) => ({
+        word: String(w.word ?? w.text ?? '').trim(),
+        start: asNum(w.start) ?? start,
+        end: asNum(w.end) ?? asNum(w.start) ?? end,
+      }))
       .filter((w) => w.word)
     // IVRIT diarization exposes the speaker as a segment-level `speakers: [label]` array
     // (and per-word `speaker`); fall back through the singular forms. Reading only `s.speaker`
@@ -224,7 +235,13 @@ function parseIvritSegments(output: unknown): IvritSegment[] {
       (Array.isArray(extra.speakers) ? (extra.speakers as unknown[])[0] : undefined) ??
       firstWordSpeaker ??
       null
-    segs.push({ text: String(s.text ?? '').trim(), start, end, speaker: speakerRaw != null ? String(speakerRaw) : null, words })
+    segs.push({
+      text: String(s.text ?? '').trim(),
+      start,
+      end,
+      speaker: speakerRaw != null ? String(speakerRaw) : null,
+      words,
+    })
   }
   return segs.filter((s) => s.text || s.words.length)
 }
@@ -232,35 +249,55 @@ function parseIvritSegments(output: unknown): IvritSegment[] {
 // Plain-text fallback extraction (string result / {text} / segment arrays).
 function extractIvritText(output: unknown): string {
   const segs = parseIvritSegments(output)
-  if (segs.length) return segs.map((s) => s.text).join(' ').trim()
+  if (segs.length)
+    return segs
+      .map((s) => s.text)
+      .join(' ')
+      .trim()
   const data = Array.isArray(output) ? (output as unknown[])[0] : output
   const result = (data as { result?: unknown } | undefined)?.result
   if (typeof result === 'string') return result.trim()
-  if (result && typeof result === 'object' && 'text' in result) return String((result as { text: unknown }).text).trim()
+  if (result && typeof result === 'object' && 'text' in result)
+    return String((result as { text: unknown }).text).trim()
   return ''
 }
 
 // Run the rich→plain attempts against ONE model. Throws if both yield nothing.
-async function ivritTranscribeWithModel(publicUrl: string, model: string): Promise<{ text: string; segments?: IvritSegment[] }> {
+async function ivritTranscribeWithModel(
+  publicUrl: string,
+  model: string
+): Promise<{ text: string; segments?: IvritSegment[] }> {
   // Attempt 1: rich request — per-word timestamps (+ optional diarization). Drives the karaoke.
   try {
-    const output = await runIvritJob({
-      url: publicUrl,
-      language: 'he',
-      ...(IVRIT_DIARIZE ? { diarize: true } : {}),
-      output_options: { word_timestamps: true, extra_data: true },
-    }, model)
+    const output = await runIvritJob(
+      {
+        url: publicUrl,
+        language: 'he',
+        ...(IVRIT_DIARIZE ? { diarize: true } : {}),
+        output_options: { word_timestamps: true, extra_data: true },
+      },
+      model
+    )
     console.log(`[ivrit:${model}] raw output (rich): ${JSON.stringify(output).slice(0, 800)}`)
     const segments = parseIvritSegments(output)
-    const text = segments.length ? segments.map((s) => s.text).join(' ').trim() : extractIvritText(output)
+    const text = segments.length
+      ? segments
+          .map((s) => s.text)
+          .join(' ')
+          .trim()
+      : extractIvritText(output)
     const withWords = segments.filter((s) => s.words.length).length
     if (text) {
-      console.log(`[ivrit:${model}] rich done — ${text.length} chars, ${segments.length} segs, ${withWords} with word timings`)
+      console.log(
+        `[ivrit:${model}] rich done — ${text.length} chars, ${segments.length} segs, ${withWords} with word timings`
+      )
       return { text, segments: withWords ? segments : undefined }
     }
     console.warn(`[ivrit:${model}] rich request returned no text — falling back to plain_text`)
   } catch (err) {
-    console.warn(`[ivrit:${model}] rich request failed — falling back to plain_text: ${(err as Error).message}`)
+    console.warn(
+      `[ivrit:${model}] rich request failed — falling back to plain_text: ${(err as Error).message}`
+    )
   }
 
   // Attempt 2 (safe fallback): the original plain-text request — never breaks existing transcription.
@@ -271,7 +308,9 @@ async function ivritTranscribeWithModel(publicUrl: string, model: string): Promi
   return { text }
 }
 
-async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; segments?: IvritSegment[]; audioUrl: string; model: string }> {
+async function transcribeWithIvrit(
+  audioPath: string
+): Promise<{ text: string; segments?: IvritSegment[]; audioUrl: string; model: string }> {
   // Audio is uploaded to Storage AND kept (not deleted) so the live page can play it back.
   const { publicUrl } = await uploadAudioToStorage(audioPath)
   console.log(`[ivrit] uploaded audio (persisted), size: ${fs.statSync(audioPath).size} bytes`)
@@ -282,7 +321,9 @@ async function transcribeWithIvrit(audioPath: string): Promise<{ text: string; s
     return { text, segments, audioUrl: publicUrl, model: IVRIT_MODEL }
   } catch (err) {
     if (IVRIT_MODEL === IVRIT_FALLBACK_MODEL) throw err
-    console.warn(`[ivrit] model ${IVRIT_MODEL} failed — retrying with ${IVRIT_FALLBACK_MODEL}: ${(err as Error).message}`)
+    console.warn(
+      `[ivrit] model ${IVRIT_MODEL} failed — retrying with ${IVRIT_FALLBACK_MODEL}: ${(err as Error).message}`
+    )
     const { text, segments } = await ivritTranscribeWithModel(publicUrl, IVRIT_FALLBACK_MODEL)
     return { text, segments, audioUrl: publicUrl, model: IVRIT_FALLBACK_MODEL }
   }
@@ -319,12 +360,30 @@ export async function transcribeAudio(audioPath: string): Promise<TranscriptionR
   return { text, engine: 'whisper', model: 'whisper-1' }
 }
 
-interface Speaker { id: string; name: string; role: string; title: string; affiliation: string }
-interface Line { id: string; speakerId: string; timestamp: string; text: string }
+interface Speaker {
+  id: string
+  name: string
+  role: string
+  title: string
+  affiliation: string
+}
+interface Line {
+  id: string
+  speakerId: string
+  timestamp: string
+  text: string
+}
 
 // Parse company name and quarter directly from the YouTube video title — no LLM needed
-function parseTitleMeta(videoTitle: string, today: string): {
-  company: string; business: string; ticker: string; quarter: string; date: string
+function parseTitleMeta(
+  videoTitle: string,
+  today: string
+): {
+  company: string
+  business: string
+  ticker: string
+  quarter: string
+  date: string
   speakers: Array<{ name: string; role: string; title: string }>
 } {
   let title = videoTitle
@@ -343,13 +402,25 @@ function parseTitleMeta(videoTitle: string, today: string): {
       title = title.replace(qHe[0], '')
     } else {
       const yr = title.match(/\b(20\d{2})\b/)
-      if (yr) { quarter = yr[1]; title = title.replace(yr[0], '') }
+      if (yr) {
+        quarter = yr[1]
+        title = title.replace(yr[0], '')
+      }
     }
   }
 
   // Strip boilerplate
-  for (const b of ['שיחת משקיעים', 'שיחת ועידה', 'תוצאות', 'סיכום', 'מצגת', 'דוח רבעוני',
-    'investor call', 'earnings call', 'conference call']) {
+  for (const b of [
+    'שיחת משקיעים',
+    'שיחת ועידה',
+    'תוצאות',
+    'סיכום',
+    'מצגת',
+    'דוח רבעוני',
+    'investor call',
+    'earnings call',
+    'conference call',
+  ]) {
     title = title.replace(new RegExp(b, 'gi'), '')
   }
   title = title
@@ -407,12 +478,12 @@ async function formatWithGeminiFlash(rawText: string, company: string, business:
         3 * 60 * 1000,
         'Gemini format'
       )
-      const json = await res.json() as {
+      const json = (await res.json()) as {
         candidates?: Array<{ content: { parts: Array<{ text?: string }> } }>
         error?: unknown
       }
       if (!res.ok) throw new Error(`Gemini ${res.status}: ${JSON.stringify(json.error ?? json)}`)
-      const text = (json.candidates?.[0]?.content?.parts ?? []).map(p => p.text ?? '').join('')
+      const text = (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('')
       if (!text) throw new Error('Gemini returned empty response')
       console.log(`[format] Gemini output: ${text.length} chars`)
       return text
@@ -420,8 +491,10 @@ async function formatWithGeminiFlash(rawText: string, company: string, business:
       lastErr = err as Error
       if (attempt < 4) {
         const wait = backoffsMs[attempt - 1]
-        console.warn(`[format] Gemini attempt ${attempt} failed — retrying in ${wait / 1000}s: ${lastErr.message}`)
-        await new Promise(r => setTimeout(r, wait))
+        console.warn(
+          `[format] Gemini attempt ${attempt} failed — retrying in ${wait / 1000}s: ${lastErr.message}`
+        )
+        await new Promise((r) => setTimeout(r, wait))
       }
     }
   }
@@ -432,7 +505,8 @@ async function formatWithGeminiFlash(rawText: string, company: string, business:
 // the Whisper fallback). GPT-4.1 has 32k output tokens — comfortable for real calls.
 async function formatWithGPT(rawText: string, company: string, business: string): Promise<string> {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set')
-  const prompt = buildFormatPrompt(rawText, company, business) +
+  const prompt =
+    buildFormatPrompt(rawText, company, business) +
     `\n\nFormat the result as Markdown: begin each speaker's turn with a header line "## <speaker name>" on its own line, followed by that speaker's paragraphs. Use the speaker names exactly as they appear in the text. Do not add any commentary before or after the transcript.`
 
   const res = await withTimeout(
@@ -457,11 +531,17 @@ async function formatWithGPT(rawText: string, company: string, business: string)
 // Parse Gemini's markdown output (bold "**Name:**" or "## Name" headers) into structured lines
 export function parseGeminiOutput(
   text: string,
-  metaSpeakers: Array<{ name: string; role: string; title: string }>,
+  metaSpeakers: Array<{ name: string; role: string; title: string }>
 ): { mgmtLines: Line[]; qaLines: Line[]; speakers: Speaker[] } {
   const registry: Record<string, Speaker> = {}
   const speakers: Speaker[] = (metaSpeakers ?? []).map((s, i) => {
-    const sp: Speaker = { id: `sp${i + 1}`, name: s.name, role: s.role, title: s.title ?? s.name, affiliation: '' }
+    const sp: Speaker = {
+      id: `sp${i + 1}`,
+      name: s.name,
+      role: s.role,
+      title: s.title ?? s.name,
+      affiliation: '',
+    }
     registry[s.name] = sp
     return sp
   })
@@ -469,7 +549,9 @@ export function parseGeminiOutput(
   function getSpeaker(displayName: string): Speaker {
     if (registry[displayName]) return registry[displayName]
     const tok = displayName.split(' ')[0]
-    const partial = speakers.find(s => s.name.startsWith(tok) || displayName.startsWith(s.name.split(' ')[0]))
+    const partial = speakers.find(
+      (s) => s.name.startsWith(tok) || displayName.startsWith(s.name.split(' ')[0])
+    )
     if (partial) return partial
     const id = `sp${speakers.length + 1}`
     let role = 'analyst'
@@ -503,8 +585,8 @@ export function parseGeminiOutput(
     const paragraphs = afterHeader
       .replace(/\n---+\n/g, '\n\n')
       .split(/\n\n+/)
-      .map(p => p.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim())
-      .filter(p => p && !/^\*{3}/.test(p) && !/^---/.test(p) && !/^#{1,3}/.test(p))
+      .map((p) => p.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim())
+      .filter((p) => p && !/^\*{3}/.test(p) && !/^---/.test(p) && !/^#{1,3}/.test(p))
 
     for (const para of paragraphs) {
       lineCounter++
@@ -521,12 +603,20 @@ export function parseGeminiOutput(
 
   // Fallback Q&A section detection
   if (qaLines.length === 0) {
-    const QA_PATTERNS = ['ונעבור כרגע לשאלות', 'נעבור לשאלות', 'נפתח לשאלות', 'נשמח לקבל שאלות', 'שאלות ותשובות']
-    const splitIdx = mgmtLines.findIndex(l => QA_PATTERNS.some(p => l.text.includes(p)))
+    const QA_PATTERNS = [
+      'ונעבור כרגע לשאלות',
+      'נעבור לשאלות',
+      'נפתח לשאלות',
+      'נשמח לקבל שאלות',
+      'שאלות ותשובות',
+    ]
+    const splitIdx = mgmtLines.findIndex((l) => QA_PATTERNS.some((p) => l.text.includes(p)))
     if (splitIdx !== -1) {
       console.log(`[format] Q&A fallback — splitting at line ${splitIdx + 1}`)
       qaLines.push(...mgmtLines.splice(splitIdx))
-      ;[...mgmtLines, ...qaLines].forEach((l, i) => { l.id = `L${String(i + 1).padStart(4, '0')}` })
+      ;[...mgmtLines, ...qaLines].forEach((l, i) => {
+        l.id = `L${String(i + 1).padStart(4, '0')}`
+      })
     }
   }
 
@@ -538,7 +628,7 @@ export async function formatTranscript(
   rawText: string,
   videoId: string,
   videoTitle: string,
-  opts: { engine?: string; model?: string } = {},
+  opts: { engine?: string; model?: string } = {}
 ): Promise<Transcript> {
   const now = new Date().toISOString()
   const today = now.split('T')[0]
@@ -547,7 +637,6 @@ export async function formatTranscript(
   const meta = parseTitleMeta(videoTitle, today)
   console.log(`[format] meta — company: "${meta.company}"  quarter: "${meta.quarter}"`)
 
-
   // Step 2: format and organize — Gemini 3.5 Flash, with a GPT-4.1 fallback if Gemini is down.
   console.log('[format] formatting with Gemini 3.5 Flash...')
   let formattedMarkdown: string
@@ -555,7 +644,9 @@ export async function formatTranscript(
     formattedMarkdown = await formatWithGeminiFlash(rawText, meta.company ?? '', meta.business ?? '')
     console.log('[format] formatted via gemini')
   } catch (gemErr) {
-    console.warn(`[format] Gemini failed after retries — falling back to ${FORMAT_FALLBACK_MODEL}: ${(gemErr as Error).message}`)
+    console.warn(
+      `[format] Gemini failed after retries — falling back to ${FORMAT_FALLBACK_MODEL}: ${(gemErr as Error).message}`
+    )
     formattedMarkdown = await formatWithGPT(rawText, meta.company ?? '', meta.business ?? '')
     console.log(`[format] formatted via ${FORMAT_FALLBACK_MODEL}`)
   }
@@ -574,7 +665,7 @@ function buildTranscript(
   speakers: Speaker[],
   mgmtLines: Line[],
   qaLines: Line[],
-  opts: { engine?: string; model?: string; corrections?: CorrectionDiag[]; entities?: string[] } = {},
+  opts: { engine?: string; model?: string; corrections?: CorrectionDiag[]; entities?: string[] } = {}
 ): Transcript {
   return {
     id: videoId,

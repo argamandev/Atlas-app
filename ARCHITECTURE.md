@@ -255,13 +255,25 @@ additive migrations only.**
 `package.json` · `tsconfig.json` · `next.config.js` · `tailwind.config.ts` · `postcss.config.js` ·
 `nixpacks.toml` (Railway build) · `CLAUDE.md` · `PROGRESS.md` · `LEGACY.md` · this file.
 
-### Harness — `.claude/`
+### Harness — `.claude/` (the smart environment, built 2026-07-02)
 | File | What it does |
 |---|---|
-| `settings.json` | Project permissions. **No hooks yet** — the smart harness is Mission 2. |
-| `settings.local.json` | Machine-local permissions (not shared). |
-| `skills/live-test/SKILL.md` | `/live-test` — run a real Recall+Zoom live test end-to-end. |
-| `skills/transcript-review/SKILL.md` | `/transcript-review` — the transcript-quality gate. |
+| `settings.json` | Permissions (safe pre-approvals + secret denies) + the two hook wirings. Tracked in git so every worktree gets the same harness. |
+| `settings.local.json` | Machine-local permissions (git-ignored). |
+| `hooks/pre-bash-gate.mjs` | PreToolUse gate: blocks destructive SQL, unsafe `rm -rf`, `.env` shell access, force-pushes, lane-pushes-to-main. Fire-tested (15-case matrix). |
+| `hooks/post-edit-verify.mjs` | PostToolUse: auto-formats every edited `.ts/.tsx` + incremental typecheck; errors feed straight back to the session. |
+| `rules/parallel-work.md` | Fleet law: ports, board protocol, engine ownership, shared-surface posts. |
+| `rules/db.md` | Shared-with-production DB: additive-only migration law. |
+| `rules/live.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). |
+| `skills/verify-app/` | `/verify-app` — self-seeing verification loop (Chrome MCP screenshots) + per-lane recipes. |
+| `skills/ship/` | `/ship` — the lane/supervisor shipping ritual (only the supervisor pushes main). |
+| `skills/live-test/` | `/live-test` — run a real Recall+Zoom live test end-to-end. |
+| `skills/transcript-review/` | `/transcript-review` — the transcript-quality gate. |
+
+**Fleet memory (git-ignored, main checkout only):** `agent-memory/BOARD.md` (the shared brain —
+all sessions read/write live via absolute path) + `state-<lane>.md` per session. Founder-provided
+inputs: `design-import/` (Claude Design export), `local-assets/` (demo PDF). Fleet setup:
+`docs/LAUNCH-KIT.md`.
 
 ### Docs — `docs/`
 `docs/superpowers/{specs,plans}/` = the dated spec/plan for each feature built (history — keep).
