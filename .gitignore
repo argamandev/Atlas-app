@@ -34,3 +34,8 @@ scripts/fixtures/*.pdf
 !.claude/skills/
 !.claude/rules/
 !.claude/hooks/
+
+# fleet memory + founder-provided inputs (one physical copy, main checkout)
+agent-memory/
+design-import/
+local-assets/
