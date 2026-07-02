@@ -75,7 +75,9 @@ export function TranscriptBody({
   }, [])
 
   // Toggling the master auto-scroll switch (re)engages following.
-  useEffect(() => { setFollowing(true) }, [autoScroll])
+  useEffect(() => {
+    setFollowing(true)
+  }, [autoScroll])
 
   useEffect(() => {
     if (activeMatch >= 0 && activeMatchRef.current) {
@@ -98,7 +100,8 @@ export function TranscriptBody({
                   onChange={(e) => setEditing({ id: seg.id, value: e.target.value })}
                   onBlur={() => {
                     const v = editing.value.trim()
-                    if (v && v !== seg.speakerName) onRenameSpeaker?.(seg.id, seg.speakerId, seg.speakerName, v)
+                    if (v && v !== seg.speakerName)
+                      onRenameSpeaker?.(seg.id, seg.speakerId, seg.speakerName, v)
                     setEditing(null)
                   }}
                   onKeyDown={(e) => {

@@ -34,13 +34,29 @@ export function TranscriptSidePanel({
 
   // Group consecutive same-speaker segments into "sections" (one navigable part each).
   const parts = useMemo(() => {
-    const out: { key: string; speaker: string; role: string | null; start: number; segmentId: string; from: number; to: number }[] = []
+    const out: {
+      key: string
+      speaker: string
+      role: string | null
+      start: number
+      segmentId: string
+      from: number
+      to: number
+    }[] = []
     transcript.segments.forEach((seg, i) => {
       const last = out[out.length - 1]
       if (last && last.speaker === seg.speakerName) {
         last.to = i
       } else {
-        out.push({ key: seg.id, speaker: seg.speakerName, role: seg.role ?? null, start: seg.start, segmentId: seg.id, from: i, to: i })
+        out.push({
+          key: seg.id,
+          speaker: seg.speakerName,
+          role: seg.role ?? null,
+          start: seg.start,
+          segmentId: seg.id,
+          from: i,
+          to: i,
+        })
       }
     })
     return out
@@ -49,7 +65,8 @@ export function TranscriptSidePanel({
   const speakers = useMemo(() => {
     const seen = new Map<string, { name: string; role: string | null }>()
     for (const seg of transcript.segments) {
-      if (!seen.has(seg.speakerName)) seen.set(seg.speakerName, { name: seg.speakerName, role: seg.role ?? null })
+      if (!seen.has(seg.speakerName))
+        seen.set(seg.speakerName, { name: seg.speakerName, role: seg.role ?? null })
     }
     return Array.from(seen.values())
   }, [transcript])
@@ -57,7 +74,9 @@ export function TranscriptSidePanel({
   function jump(part: { start: number; segmentId: string }) {
     onSeek(part.start)
     if (typeof document !== 'undefined') {
-      document.querySelector(`[data-segment-id="${CSS.escape(part.segmentId)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      document
+        .querySelector(`[data-segment-id="${CSS.escape(part.segmentId)}"]`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
     }
   }
 
@@ -75,7 +94,10 @@ export function TranscriptSidePanel({
   }
 
   return (
-    <aside dir="rtl" className="app-scroll hidden w-[300px] shrink-0 flex-col overflow-y-auto border-e border-hairline bg-panel lg:flex">
+    <aside
+      dir="rtl"
+      className="app-scroll hidden w-[300px] shrink-0 flex-col overflow-y-auto border-e border-hairline bg-panel lg:flex"
+    >
       <div className="flex items-start justify-between px-4 pb-1 pt-4">
         <div className="min-w-0">
           <h2 className="truncate text-base font-bold text-ink">{companyName}</h2>
@@ -107,7 +129,9 @@ export function TranscriptSidePanel({
                   active ? (isLive ? 'bg-live animate-pulse-live' : 'bg-ink') : 'bg-ink-faint/40'
                 }`}
               />
-              <span className={`min-w-0 flex-1 truncate text-sm ${active ? 'font-semibold text-ink' : 'font-medium text-ink-muted'}`}>
+              <span
+                className={`min-w-0 flex-1 truncate text-sm ${active ? 'font-semibold text-ink' : 'font-medium text-ink-muted'}`}
+              >
                 {p.speaker}
               </span>
               <span className="shrink-0 text-xs text-ink-faint tabular-nums" dir="ltr">

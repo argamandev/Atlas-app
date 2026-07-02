@@ -65,7 +65,7 @@ export function EntityRow({
   const cls = cn(
     'flex items-center gap-3 rounded-md px-2.5 py-2',
     interactive && selectionClasses(active),
-    className,
+    className
   )
 
   if (href) {

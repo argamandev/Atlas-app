@@ -62,7 +62,10 @@ export interface QuoteFolder {
 }
 
 // Localized display helpers — pick the right name for the active locale.
-export function companyDisplayName(c: { displayName: string; nameEn: string | null }, locale: 'en' | 'he'): string {
+export function companyDisplayName(
+  c: { displayName: string; nameEn: string | null },
+  locale: 'en' | 'he'
+): string {
   if (locale === 'en' && c.nameEn) return c.nameEn
   return c.displayName
 }

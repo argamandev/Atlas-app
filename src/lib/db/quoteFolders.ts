@@ -20,7 +20,13 @@ function missingTable(err: { code?: string; message?: string } | null): boolean 
   if (!err) return false
   const code = err.code ?? ''
   const msg = err.message ?? ''
-  return code === '42P01' || code === 'PGRST205' || /does not exist/i.test(msg) || /could not find the table/i.test(msg) || /schema cache/i.test(msg)
+  return (
+    code === '42P01' ||
+    code === 'PGRST205' ||
+    /does not exist/i.test(msg) ||
+    /could not find the table/i.test(msg) ||
+    /schema cache/i.test(msg)
+  )
 }
 
 export async function listFolders(userId: string, companyId?: string): Promise<QuoteFolder[]> {
@@ -38,7 +44,11 @@ export async function listFolders(userId: string, companyId?: string): Promise<Q
   return (data ?? []).map(mapFolder)
 }
 
-export async function createFolder(userId: string, companyId: string | null, name: string): Promise<QuoteFolder> {
+export async function createFolder(
+  userId: string,
+  companyId: string | null,
+  name: string
+): Promise<QuoteFolder> {
   const { data, error } = await supabaseAdmin
     .from('quote_folders')
     .insert({ user_id: userId, company_id: companyId, name })

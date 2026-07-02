@@ -8,7 +8,7 @@ export function ExpandedPanel({ children, className }: { children: React.ReactNo
     <aside
       className={cn(
         'app-scroll hidden w-[320px] shrink-0 flex-col gap-2 overflow-y-auto p-3 lg:flex',
-        className,
+        className
       )}
     >
       {children}

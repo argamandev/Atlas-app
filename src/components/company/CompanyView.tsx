@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { companyDisplayName, type Company, type ScheduledCall, type Quote, type QuoteFolder } from '@/lib/api/types'
+import {
+  companyDisplayName,
+  type Company,
+  type ScheduledCall,
+  type Quote,
+  type QuoteFolder,
+} from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 import { Tabs } from '@/components/ds/Tabs'
 import { Logo } from '@/components/ds/Logo'
@@ -30,7 +36,15 @@ function groupByQuarter<T extends { quarter?: string | null }>(items: T[]): [str
   return Array.from(map.entries()).sort((a, b) => quarterSortKey(b[0]) - quarterSortKey(a[0]))
 }
 
-function CallMenu({ onChat, moreLabel, chatLabel }: { onChat: () => void; moreLabel: string; chatLabel: string }) {
+function CallMenu({
+  onChat,
+  moreLabel,
+  chatLabel,
+}: {
+  onChat: () => void
+  moreLabel: string
+  chatLabel: string
+}) {
   const [open, setOpen] = useState(false)
   return (
     <span className="relative">
@@ -93,7 +107,9 @@ export function CompanyView({
       secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
       secondary={`${call.quarter} · ${formatDate(call.scheduledAt, locale)}`}
       meta={<span dir="ltr">{formatTime(call.scheduledAt, locale)}</span>}
-      trailing={<CallMenu onChat={openInChat} moreLabel={dict.common.more} chatLabel={dict.company.openInChat} />}
+      trailing={
+        <CallMenu onChat={openInChat} moreLabel={dict.common.more} chatLabel={dict.company.openInChat} />
+      }
     />
   )
 

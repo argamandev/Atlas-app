@@ -7,7 +7,15 @@ import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Logo } from '@/components/ds/Logo'
 import { Tabs } from '@/components/ds/Tabs'
 import { IconButton } from '@/components/ds/IconButton'
-import { CloseIcon, SyncIcon, PlayIcon, QuoteIcon, ShareIcon, SparkleIcon, ChevronRightIcon } from '@/components/ds/icons'
+import {
+  CloseIcon,
+  SyncIcon,
+  PlayIcon,
+  QuoteIcon,
+  ShareIcon,
+  SparkleIcon,
+  ChevronRightIcon,
+} from '@/components/ds/icons'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
 import { MediaPlayer } from './MediaPlayer'
@@ -77,8 +85,18 @@ export function LiveBroadcastView({
 
   // UI-only local state (selection, chat, toast, autoScroll) stays in the view.
   const [autoScroll, setAutoScroll] = useState(true)
-  const [selection, setSelection] = useState<{ text: string; top: number; left: number; speaker: string | null; segmentId: string | null } | null>(null)
-  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({ open: false, seed: '', nonce: 0 })
+  const [selection, setSelection] = useState<{
+    text: string
+    top: number
+    left: number
+    speaker: string | null
+    segmentId: string | null
+  } | null>(null)
+  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({
+    open: false,
+    seed: '',
+    nonce: 0,
+  })
   const [toast, setToast] = useState<{ text: string; action?: { label: string; href: string } } | null>(null)
   useEffect(() => {
     if (!toast) return
@@ -111,15 +129,30 @@ export function LiveBroadcastView({
   // On unmount: tear the engine down ONLY if the live experience is fully over (drain done → swap to
   // the finished view). Plain navigation (over=false) leaves the engine running so audio persists.
   const overRef = useRef(false)
-  useEffect(() => { overRef.current = over }, [over])
-  useEffect(() => () => { if (overRef.current) stop() }, [stop])
+  useEffect(() => {
+    overRef.current = over
+  }, [over])
+  useEffect(
+    () => () => {
+      if (overRef.current) stop()
+    },
+    [stop]
+  )
 
   // streaming words → a single-segment word-timed transcript (V1 karaoke renders it)
   const transcript = useMemo<WordTimedTranscript>(() => {
     const w = words.map((x) => ({ text: x.text, start: x.start ?? 0, end: x.start ?? 0 }))
     return {
       segments: [
-        { id: 'live', speakerId: 'live', speakerName: companyName, role: null, words: w, start: 0, end: w.at(-1)?.start ?? 0 },
+        {
+          id: 'live',
+          speakerId: 'live',
+          speakerName: companyName,
+          role: null,
+          words: w,
+          start: 0,
+          end: w.at(-1)?.start ?? 0,
+        },
       ],
       durationSec: w.at(-1)?.start ?? 0,
       hasWordTimings: true,
@@ -132,7 +165,7 @@ export function LiveBroadcastView({
   // (not a DB lookup that could hit a different company). Undefined until the first captions arrive.
   const liveCaptionsText = useMemo(
     () => (words.length ? `${companyName} — ${quarter}\n\n${words.map((w) => w.text).join(' ')}` : undefined),
-    [words, companyName, quarter],
+    [words, companyName, quarter]
   )
 
   function onTab(key: string) {
@@ -146,25 +179,49 @@ export function LiveBroadcastView({
   function selectionSpeaker(sel: Selection | null): string | null {
     let node: Node | null = sel?.anchorNode ?? null
     while (node && node.nodeType !== 1) node = node.parentNode
-    return ((node as Element | null)?.closest('[data-segment-id]') ?? null)?.getAttribute('data-speaker') ?? null
+    return (
+      ((node as Element | null)?.closest('[data-segment-id]') ?? null)?.getAttribute('data-speaker') ?? null
+    )
   }
   function selectionSegmentId(sel: Selection | null): string | null {
     let node: Node | null = sel?.anchorNode ?? null
     while (node && node.nodeType !== 1) node = node.parentNode
-    return ((node as Element | null)?.closest('[data-segment-id]') ?? null)?.getAttribute('data-segment-id') ?? null
+    return (
+      ((node as Element | null)?.closest('[data-segment-id]') ?? null)?.getAttribute('data-segment-id') ??
+      null
+    )
   }
   function onTextSelect() {
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     const text = sel?.toString().trim() ?? ''
-    if (!text || !sel || sel.rangeCount === 0) { setSelection(null); return }
+    if (!text || !sel || sel.rangeCount === 0) {
+      setSelection(null)
+      return
+    }
     // chat open → drop the highlight straight into the composer as a reference (Claude-style)
-    if (chat.open) { setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1 })); setSelection(null); return }
+    if (chat.open) {
+      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1 }))
+      setSelection(null)
+      return
+    }
     const rect = sel.getRangeAt(0).getBoundingClientRect()
-    if (!rect || (rect.width === 0 && rect.height === 0)) { setSelection(null); return }
-    setSelection({ text, top: rect.top, left: rect.left + rect.width / 2, speaker: selectionSpeaker(sel), segmentId: selectionSegmentId(sel) })
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
+      setSelection(null)
+      return
+    }
+    setSelection({
+      text,
+      top: rect.top,
+      left: rect.left + rect.width / 2,
+      speaker: selectionSpeaker(sel),
+      segmentId: selectionSegmentId(sel),
+    })
   }
   async function saveSelection(sel: { text: string; speaker: string | null; segmentId: string | null }) {
-    if (!sel.text || !companyId) { setToast({ text: dict.common.error }); return }
+    if (!sel.text || !companyId) {
+      setToast({ text: dict.common.error })
+      return
+    }
     try {
       await createQuote({
         companyId,
@@ -175,7 +232,10 @@ export function LiveBroadcastView({
         startSec: playingRel,
         anchor: sel.segmentId ? { segmentId: sel.segmentId, text: sel.text.slice(0, 80) } : null,
       })
-      setToast({ text: dict.live.quoteSaved, action: { label: dict.company.myQuotes, href: `/app/company/${companyId}?tab=quotes` } })
+      setToast({
+        text: dict.live.quoteSaved,
+        action: { label: dict.company.myQuotes, href: `/app/company/${companyId}?tab=quotes` },
+      })
     } catch (err) {
       setToast({ text: (err as Error).message })
     }
@@ -191,9 +251,13 @@ export function LiveBroadcastView({
   }
 
   // Source stopped → start the finish pipeline (the wrapper shows the auto-dismissing card). View stays LIVE.
-  useEffect(() => { if (liveEnded) onSourceEnded?.() }, [liveEnded]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (liveEnded) onSourceEnded?.()
+  }, [liveEnded]) // eslint-disable-line react-hooks/exhaustive-deps
   // Buffer fully drained → the live experience is over; the wrapper swaps to the finished view (when ready).
-  useEffect(() => { if (over) onLiveOver?.() }, [over]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (over) onLiveOver?.()
+  }, [over]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const overlayMsg =
     phase === 'connecting'
@@ -214,142 +278,198 @@ export function LiveBroadcastView({
   return (
     <div className="flex h-full min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
-      {/* header — same as the finished-transcript page */}
-      <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <Logo src={logoUrl} name={companyName} size={32} />
-          <span className="truncate font-bold text-ink">
-            {companyName} — {quarter}
-          </span>
-          <span className="shrink-0 text-sm text-ink-faint">{formatDate(new Date().toISOString(), locale)}</span>
-          {phase === 'playing' && !over && (
-            <span
-              className="shrink-0 whitespace-nowrap rounded-full bg-subtle px-2 py-0.5 text-2xs font-medium text-ink-muted tabular-nums"
-              dir="ltr"
-            >
-              -{fmt(behind)} {dict.live.behindLive}
+        {/* header — same as the finished-transcript page */}
+        <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Logo src={logoUrl} name={companyName} size={32} />
+            <span className="truncate font-bold text-ink">
+              {companyName} — {quarter}
             </span>
-          )}
-        </div>
-        {/* top-right: LIVE pill through the whole live + drain window; once the drain is over the badge
+            <span className="shrink-0 text-sm text-ink-faint">
+              {formatDate(new Date().toISOString(), locale)}
+            </span>
+            {phase === 'playing' && !over && (
+              <span
+                className="shrink-0 whitespace-nowrap rounded-full bg-subtle px-2 py-0.5 text-2xs font-medium text-ink-muted tabular-nums"
+                dir="ltr"
+              >
+                -{fmt(behind)} {dict.live.behindLive}
+              </span>
+            )}
+          </div>
+          {/* top-right: LIVE pill through the whole live + drain window; once the drain is over the badge
             drops (the view becomes a finished recording; the "ended / AI processing" note lives in the card). */}
-        <div className="flex shrink-0 items-center gap-3">
-          {!over && (
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-              <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
-            </span>
+          <div className="flex shrink-0 items-center gap-3">
+            {!over && (
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
+                <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
+              </span>
+            )}
+            <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
+              <CloseIcon size={17} />
+            </IconButton>
+          </div>
+        </header>
+
+        {/* tabs */}
+        <div className="px-6">
+          <Tabs activeKey="transcript" onChange={onTab} items={liveTabs} />
+        </div>
+
+        {/* sub-toolbar */}
+        <div className="flex items-center justify-between px-6 py-2">
+          <div className="flex items-center gap-0.5">
+            <IconButton
+              label={dict.live.autoScroll}
+              active={autoScroll}
+              size={30}
+              onClick={() => setAutoScroll((v) => !v)}
+            >
+              <SyncIcon size={16} />
+            </IconButton>
+            <IconButton
+              label={dict.live.askAboutQuote}
+              size={30}
+              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
+            >
+              <SparkleIcon size={16} />
+            </IconButton>
+          </div>
+        </div>
+
+        {/* transcript — the real V1 karaoke body */}
+        <div
+          className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
+          onMouseUp={onTextSelect}
+          onScroll={() => selection && setSelection(null)}
+        >
+          {phase === 'playing' && words.length === 0 && (
+            <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
+              ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+            </div>
           )}
-          <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
-            <CloseIcon size={17} />
-          </IconButton>
+          <TranscriptBody
+            transcript={transcript}
+            activeIndex={activeIndex}
+            autoScroll={autoScroll}
+            onWordClick={seek}
+            karaoke
+            followLabel={dict.live.backToLive}
+          />
         </div>
-      </header>
 
-      {/* tabs */}
-      <div className="px-6">
-        <Tabs activeKey="transcript" onChange={onTab} items={liveTabs} />
-      </div>
-
-      {/* sub-toolbar */}
-      <div className="flex items-center justify-between px-6 py-2">
-        <div className="flex items-center gap-0.5">
-          <IconButton label={dict.live.autoScroll} active={autoScroll} size={30} onClick={() => setAutoScroll((v) => !v)}>
-            <SyncIcon size={16} />
-          </IconButton>
-          <IconButton label={dict.live.askAboutQuote} size={30} onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}>
-            <SparkleIcon size={16} />
-          </IconButton>
-        </div>
-      </div>
-
-      {/* transcript — the real V1 karaoke body */}
-      <div
-        className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
-        onMouseUp={onTextSelect}
-        onScroll={() => selection && setSelection(null)}
-      >
-        {phase === 'playing' && words.length === 0 && (
-          <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
-            ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+        {selection && (
+          <div
+            style={{
+              position: 'fixed',
+              top: selection.top,
+              left: selection.left,
+              transform: 'translate(-50%, -120%)',
+            }}
+            className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
+          >
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                void saveSelection(selection)
+                setSelection(null)
+              }}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+            >
+              <QuoteIcon size={13} />
+              {dict.live.saveQuote}
+            </button>
+            <span className="h-4 w-px bg-white/15" />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                shareSelection(selection.text)
+                setSelection(null)
+              }}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+            >
+              <ShareIcon size={13} />
+              {dict.common.share}
+            </button>
+            <span className="h-4 w-px bg-white/15" />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 }))
+                setSelection(null)
+              }}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+            >
+              <SparkleIcon size={14} />
+              {dict.live.askAboutQuote}
+            </button>
           </div>
         )}
-        <TranscriptBody transcript={transcript} activeIndex={activeIndex} autoScroll={autoScroll} onWordClick={seek} karaoke followLabel={dict.live.backToLive} />
-      </div>
+        {toast && (
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-50 flex justify-center">
+            <span className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white shadow-popover">
+              {toast.text}
+              {toast.action && (
+                <Link
+                  href={toast.action.href}
+                  className="flex items-center gap-0.5 text-white/80 underline-offset-2 transition-colors hover:text-white hover:underline"
+                >
+                  {toast.action.label}
+                  <ChevronRightIcon size={13} className="rtl:rotate-180" />
+                </Link>
+              )}
+            </span>
+          </div>
+        )}
 
-      {selection && (
-        <div
-          style={{ position: 'fixed', top: selection.top, left: selection.left, transform: 'translate(-50%, -120%)' }}
-          className="z-50 flex items-center gap-0.5 rounded-full bg-player px-1 py-1 shadow-player"
-        >
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { void saveSelection(selection); setSelection(null) }} className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15">
-            <QuoteIcon size={13} />{dict.live.saveQuote}
-          </button>
-          <span className="h-4 w-px bg-white/15" />
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { shareSelection(selection.text); setSelection(null) }} className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15">
-            <ShareIcon size={13} />{dict.common.share}
-          </button>
-          <span className="h-4 w-px bg-white/15" />
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 })); setSelection(null) }} className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15">
-            <SparkleIcon size={14} />{dict.live.askAboutQuote}
-          </button>
-        </div>
-      )}
-      {toast && (
-        <div className="pointer-events-none absolute inset-x-0 top-3 z-50 flex justify-center">
-          <span className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white shadow-popover">
-            {toast.text}
-            {toast.action && (
-              <Link href={toast.action.href} className="flex items-center gap-0.5 text-white/80 underline-offset-2 transition-colors hover:text-white hover:underline">
-                {toast.action.label}<ChevronRightIcon size={13} className="rtl:rotate-180" />
-              </Link>
+        {/* the audio bar (in-view, on the live page; the global bar takes over once you navigate away) */}
+        <MediaPlayer
+          logoUrl={logoUrl}
+          title={companyName}
+          subtitle={quarter}
+          chapter={over ? undefined : 'Live session'}
+          currentTime={playingRel}
+          duration={broadcastEdge}
+          playing={phase === 'playing' && !paused}
+          isLive={!over}
+          onGoLive={goLive}
+          volume={volume}
+          onPlayPause={playPause}
+          onSeek={seek}
+          onSkip={(d) => seek(playingRel + d)}
+          onVolumeChange={setVolume}
+          onClose={() => router.push('/app/home')}
+        />
+
+        {/* buffering / join overlay */}
+        {phase !== 'playing' && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-canvas/95 px-6 text-center">
+            <span className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
+              <span className="text-2xs font-bold tracking-wide text-live">
+                {over ? 'הסתיים' : dict.live.liveBadge}
+              </span>
+            </span>
+            <h2 className="text-xl font-bold text-ink">{companyName} — שיחת משקיעים</h2>
+            {phase === 'buffering' && (
+              <div className="text-4xl font-bold tabular-nums text-ink">{fmt(countdown)}</div>
             )}
-          </span>
-        </div>
-      )}
-
-      {/* the audio bar (in-view, on the live page; the global bar takes over once you navigate away) */}
-      <MediaPlayer
-        logoUrl={logoUrl}
-        title={companyName}
-        subtitle={quarter}
-        chapter={over ? undefined : 'Live session'}
-        currentTime={playingRel}
-        duration={broadcastEdge}
-        playing={phase === 'playing' && !paused}
-        isLive={!over}
-        onGoLive={goLive}
-        volume={volume}
-        onPlayPause={playPause}
-        onSeek={seek}
-        onSkip={(d) => seek(playingRel + d)}
-        onVolumeChange={setVolume}
-        onClose={() => router.push('/app/home')}
-      />
-
-      {/* buffering / join overlay */}
-      {phase !== 'playing' && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-canvas/95 px-6 text-center">
-          <span className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-            <span className="text-2xs font-bold tracking-wide text-live">{over ? 'הסתיים' : dict.live.liveBadge}</span>
-          </span>
-          <h2 className="text-xl font-bold text-ink">{companyName} — שיחת משקיעים</h2>
-          {phase === 'buffering' && (
-            <div className="text-4xl font-bold tabular-nums text-ink">{fmt(countdown)}</div>
-          )}
-          <p className="text-sm text-ink-muted">{overlayMsg}</p>
-          <button
-            type="button"
-            onClick={join}
-            disabled={phase !== 'ready'}
-            className="flex items-center gap-2 rounded-full bg-[#C04A00] px-7 py-3 text-[15px] font-semibold text-white transition-opacity disabled:bg-subtle disabled:text-ink-faint"
-          >
-            <PlayIcon size={16} />
-            הצטרפו לשידור החי
-          </button>
-        </div>
-      )}
+            <p className="text-sm text-ink-muted">{overlayMsg}</p>
+            <button
+              type="button"
+              onClick={join}
+              disabled={phase !== 'ready'}
+              className="flex items-center gap-2 rounded-full bg-[#C04A00] px-7 py-3 text-[15px] font-semibold text-white transition-opacity disabled:bg-subtle disabled:text-ink-faint"
+            >
+              <PlayIcon size={16} />
+              הצטרפו לשידור החי
+            </button>
+          </div>
+        )}
       </div>
       {chat.open && (
         <TranscriptChatPanel

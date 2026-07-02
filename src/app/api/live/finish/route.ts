@@ -11,13 +11,19 @@ export const dynamic = 'force-dynamic'
 // Status-only (no trigger) — lets the client re-derive finish state after a refresh.
 export async function GET() {
   const { data } = await supabaseAdmin
-    .from('transcripts').select('status').eq('id', DEMO_CALL_ID).maybeSingle()
+    .from('transcripts')
+    .select('status')
+    .eq('id', DEMO_CALL_ID)
+    .maybeSingle()
   return NextResponse.json({ id: DEMO_CALL_ID, status: data?.status ?? 'none' })
 }
 
 export async function POST() {
   const { data } = await supabaseAdmin
-    .from('transcripts').select('status').eq('id', DEMO_CALL_ID).maybeSingle()
+    .from('transcripts')
+    .select('status')
+    .eq('id', DEMO_CALL_ID)
+    .maybeSingle()
   // Already running → don't fire a second pipeline; the poll will see completion.
   if (data?.status === 'processing') {
     return NextResponse.json({ id: DEMO_CALL_ID, status: 'processing' })
@@ -26,12 +32,16 @@ export async function POST() {
   // Flip to processing synchronously so the poll/banner reflects it immediately (the row exists from a
   // prior airing; runLiveBroadcastFinish also upserts it for the first-ever case).
   await supabaseAdmin
-    .from('transcripts').update({ status: 'processing', processing_step: 'formatting' }).eq('id', DEMO_CALL_ID)
+    .from('transcripts')
+    .update({ status: 'processing', processing_step: 'formatting' })
+    .eq('id', DEMO_CALL_ID)
   setImmediate(() => {
     runLiveBroadcastFinish({ markProcessing: true }).catch(async (err: Error) => {
       console.error('[live/finish] FAILED:', err.message)
       await supabaseAdmin
-        .from('transcripts').update({ status: 'failed', error_message: err.message }).eq('id', DEMO_CALL_ID)
+        .from('transcripts')
+        .update({ status: 'failed', error_message: err.message })
+        .eq('id', DEMO_CALL_ID)
     })
   })
   return NextResponse.json({ id: DEMO_CALL_ID, status: 'processing' })

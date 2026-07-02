@@ -1,7 +1,15 @@
 'use client'
 
 import * as React from 'react'
-import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global audio player (Feature 4). Lifts the recorded-call player out of the
@@ -150,7 +158,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       timeRef.current = clamped
       notify()
     },
-    [notify],
+    [notify]
   )
   const skip = useCallback(
     (delta: number) => {
@@ -158,7 +166,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!a) return
       seek(Math.min(a.duration || Infinity, Math.max(0, a.currentTime + delta)))
     },
-    [seek],
+    [seek]
   )
   const setVolume = useCallback((v: number) => {
     const a = audioRef.current

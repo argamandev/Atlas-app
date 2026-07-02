@@ -30,10 +30,18 @@ export default async function ChatPage({
       .eq('id', searchParams.transcript)
       .maybeSingle()
     const fd = data?.formatted_data as { company?: string; quarter?: string } | undefined
-    if (fd) initialTranscript = { id: data!.id as string, label: `${fd.company ?? ''} · ${fd.quarter ?? ''}`.trim() }
+    if (fd)
+      initialTranscript = {
+        id: data!.id as string,
+        label: `${fd.company ?? ''} · ${fd.quarter ?? ''}`.trim(),
+      }
   }
 
   return (
-    <ChatView initialCompany={initialCompany} initialQuote={initialQuote} initialTranscript={initialTranscript} />
+    <ChatView
+      initialCompany={initialCompany}
+      initialQuote={initialQuote}
+      initialTranscript={initialTranscript}
+    />
   )
 }

@@ -23,9 +23,7 @@ export function CitationChip({ source }: { source: ChatSource }) {
       <div className="pointer-events-none absolute bottom-full start-0 z-50 mb-2 hidden w-72 group-hover:block">
         <Surface elevation="popover" className="pointer-events-auto p-3 text-start">
           <div className="text-xs font-medium text-ink-faint">{dict.chat.source}</div>
-          <p className="mt-1 text-sm text-ink">
-            {dict.chat.subhead}
-          </p>
+          <p className="mt-1 text-sm text-ink">{dict.chat.subhead}</p>
           <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-subtle px-2 py-0.5 text-xs text-ink-muted">
             <span className="font-medium">{source.company}</span>
             <span className="text-ink-faint">· {source.quarter}</span>

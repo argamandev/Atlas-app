@@ -19,7 +19,7 @@ function getYtDlpBin(): string {
     if (!fs.existsSync(winPath)) {
       throw new Error(
         `yt-dlp.exe not found at ${winPath}. ` +
-        `Download from https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe`
+          `Download from https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe`
       )
     }
     return winPath
@@ -58,12 +58,16 @@ function getCookiesPath(): string | null {
 function commonFlags(): string[] {
   const flags = [
     '--no-playlist',
-    '--retries', '10',
-    '--fragment-retries', '10',
-    '--socket-timeout', '30',
+    '--retries',
+    '10',
+    '--fragment-retries',
+    '10',
+    '--socket-timeout',
+    '30',
     '--no-check-certificate',
     '--no-warnings',
-    '--js-runtimes', 'node',
+    '--js-runtimes',
+    'node',
   ]
   const cookies = getCookiesPath()
   if (cookies) flags.push('--cookies', cookies)
@@ -85,11 +89,7 @@ function ytDlpError(err: unknown, context: string): Error {
 export async function getVideoInfo(url: string) {
   const bin = getYtDlpBin()
   try {
-    const { stdout } = await execFileAsync(bin, [
-      '--dump-json',
-      ...commonFlags(),
-      url,
-    ], EXEC_OPTS)
+    const { stdout } = await execFileAsync(bin, ['--dump-json', ...commonFlags(), url], EXEC_OPTS)
     const info = JSON.parse(stdout)
     return {
       title: info.title as string,
@@ -104,18 +104,28 @@ export async function getVideoInfo(url: string) {
 export async function downloadAudio(url: string, outputTemplate: string): Promise<void> {
   const bin = getYtDlpBin()
   try {
-    await execFileAsync(bin, [
-      url,
-      ...commonFlags(),
-      '--ffmpeg-location', ffmpegBin,
-      '-f', 'bestaudio',
-      '-x',
-      '--audio-format', 'mp3',
-      '--audio-quality', '32K',
-      '--postprocessor-args', 'ffmpeg:-ac 1 -ar 16000',
-      '--no-progress',
-      '-o', outputTemplate,
-    ], EXEC_OPTS)
+    await execFileAsync(
+      bin,
+      [
+        url,
+        ...commonFlags(),
+        '--ffmpeg-location',
+        ffmpegBin,
+        '-f',
+        'bestaudio',
+        '-x',
+        '--audio-format',
+        'mp3',
+        '--audio-quality',
+        '32K',
+        '--postprocessor-args',
+        'ffmpeg:-ac 1 -ar 16000',
+        '--no-progress',
+        '-o',
+        outputTemplate,
+      ],
+      EXEC_OPTS
+    )
   } catch (err) {
     throw ytDlpError(err, 'download')
   }

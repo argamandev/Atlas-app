@@ -64,7 +64,10 @@ export function MentionDropdown({
   if (results.length === 0) return null
 
   return (
-    <Surface elevation="popover" className="absolute bottom-full inset-x-0 mb-2 max-h-72 overflow-y-auto p-1.5 text-start">
+    <Surface
+      elevation="popover"
+      className="absolute bottom-full inset-x-0 mb-2 max-h-72 overflow-y-auto p-1.5 text-start"
+    >
       <div className="px-2 py-1 text-xs font-medium text-ink-faint">{dict.chat.watchlists}</div>
       {results.map((c, i) => (
         <button

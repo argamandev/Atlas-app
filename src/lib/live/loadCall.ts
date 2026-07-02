@@ -84,7 +84,15 @@ function buildFromIvrit(segs: IvritSegment[], overrides: Record<string, string> 
         if (cur) segments.push(cur)
         if (!spkIndex.has(key)) spkIndex.set(key, spkIndex.size + 1)
         const label: string = overrides[key] ?? `Speaker ${spkIndex.get(key)}`
-        cur = { id: `seg-${segments.length}`, speakerId: key, speakerName: label, role: null, words: [], start: s.start, end: s.end }
+        cur = {
+          id: `seg-${segments.length}`,
+          speakerId: key,
+          speakerName: label,
+          role: null,
+          words: [],
+          start: s.start,
+          end: s.end,
+        }
       }
       cur.words.push(...toWords(s))
       cur.end = cur.words[cur.words.length - 1]?.end ?? s.end
@@ -103,7 +111,7 @@ function buildFromIvrit(segs: IvritSegment[], overrides: Record<string, string> 
 function buildFromIvritWithGeminiNames(
   segs: IvritSegment[],
   fd: Transcript,
-  overrides: Record<string, string> = {},
+  overrides: Record<string, string> = {}
 ): WordTimedTranscript {
   const timed: { text: string; start: number; end: number }[] = []
   for (const s of segs) {
@@ -137,7 +145,15 @@ function buildFromIvritWithGeminiNames(
     const w = timed[i]
     if (!cur || cur.speakerId !== sid) {
       if (cur) segments.push(cur)
-      cur = { id: `seg-${segments.length}`, speakerId: sid, speakerName: nameOf(sid), role: roleOf(sid), words: [], start: w.start, end: w.end }
+      cur = {
+        id: `seg-${segments.length}`,
+        speakerId: sid,
+        speakerName: nameOf(sid),
+        role: roleOf(sid),
+        words: [],
+        start: w.start,
+        end: w.end,
+      }
     }
     cur.words.push({ text: w.text, start: w.start, end: w.end })
     cur.end = w.end
@@ -153,7 +169,9 @@ function buildFromIvritWithGeminiNames(
 export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
   const { data } = await supabaseAdmin
     .from('transcripts')
-    .select('id, formatted_data, duration, company_id, audio_url, word_segments, speaker_names, speaker_edits')
+    .select(
+      'id, formatted_data, duration, company_id, audio_url, word_segments, speaker_names, speaker_edits'
+    )
     .eq('id', id)
     .maybeSingle()
   if (!data?.formatted_data) return null
@@ -195,7 +213,15 @@ export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
     const start = parseTs(line.timestamp)
     if (!cur || cur.speakerId !== line.speakerId) {
       if (cur) segments.push(cur)
-      cur = { id: `seg-${segments.length}`, speakerId: line.speakerId, speakerName: nameOf(line.speakerId), role: roleOf(line.speakerId), words: [], start, end: start }
+      cur = {
+        id: `seg-${segments.length}`,
+        speakerId: line.speakerId,
+        speakerName: nameOf(line.speakerId),
+        role: roleOf(line.speakerId),
+        words: [],
+        start,
+        end: start,
+      }
     }
     cur.words.push({ text: line.text, start, end: start })
     cur.end = start

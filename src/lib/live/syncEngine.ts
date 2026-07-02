@@ -49,12 +49,16 @@ export interface SpeakerEdits {
 // Re-segment a word-timed transcript by a manual overlay. Word timings/order are preserved
 // (karaoke unaffected) — only the speaker turns change. A pure passthrough when there are no
 // boundaries, so an un-edited transcript renders identically to before.
-export function applySpeakerEdits(t: WordTimedTranscript, edits: SpeakerEdits | null | undefined): WordTimedTranscript {
+export function applySpeakerEdits(
+  t: WordTimedTranscript,
+  edits: SpeakerEdits | null | undefined
+): WordTimedTranscript {
   if (!edits?.boundaries?.length) return t
 
   // registry (speakerId -> name/role) from the current derived segments
   const reg = new Map<string, { name: string; role: string | null }>()
-  for (const s of t.segments) if (!reg.has(s.speakerId)) reg.set(s.speakerId, { name: s.speakerName, role: s.role ?? null })
+  for (const s of t.segments)
+    if (!reg.has(s.speakerId)) reg.set(s.speakerId, { name: s.speakerName, role: s.role ?? null })
 
   const flat = t.segments.flatMap((s) => s.words.map((w) => ({ w, speakerId: s.speakerId })))
   const bounds = [...edits.boundaries].sort((a, b) => a.atWordIndex - b.atWordIndex)

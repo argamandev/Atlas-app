@@ -54,13 +54,15 @@ export function buildWordSegments(words: FeedWord[], tailPad = 0.5): IvritSegmen
   // survived normalization can't desync the highlight.
   const sorted = [...words].sort((a, b) => a.start - b.start)
   const iwords = synthesizeWordEnds(sorted, tailPad)
-  return [{
-    text: iwords.map((w) => w.word).join(' '),
-    start: iwords[0].start,
-    end: iwords[iwords.length - 1].end,
-    speaker: null,
-    words: iwords,
-  }]
+  return [
+    {
+      text: iwords.map((w) => w.word).join(' '),
+      start: iwords[0].start,
+      end: iwords[iwords.length - 1].end,
+      speaker: null,
+      words: iwords,
+    },
+  ]
 }
 
 /** Captured span in seconds — the max word end (order-independent). Pure. */
@@ -75,17 +77,17 @@ export function pcmByteLength(durationSec: number, sampleRate = 16000, bytesPerF
 }
 
 export interface FinishInput {
-  callId: string                    // synthetic transcripts id (idempotent upsert key)
-  companyTicker?: string | null     // links company_id via companies.tase_security_id
-  companyName: string               // header + Gemini context
-  quarter: string                   // e.g. "Q1 2026"
-  rawText: string                   // fed to Gemini
-  words: FeedWord[]                 // feed words -> word_segments (karaoke)
+  callId: string // synthetic transcripts id (idempotent upsert key)
+  companyTicker?: string | null // links company_id via companies.tase_security_id
+  companyName: string // header + Gemini context
+  quarter: string // e.g. "Q1 2026"
+  rawText: string // fed to Gemini
+  words: FeedWord[] // feed words -> word_segments (karaoke)
   pcmPath: string
-  sampleRate?: number               // default 16000
-  channels?: number                 // default 1
+  sampleRate?: number // default 16000
+  channels?: number // default 1
   userId: string
-  tailPad?: number                  // default 0.5
+  tailPad?: number // default 0.5
 }
 
 export interface FinishResult {
@@ -154,7 +156,8 @@ export async function finishLiveCall(input: FinishInput): Promise<FinishResult> 
   // 2. Gemini polish — same formatter as the IVRIT path. Title yields company + quarter.
   const title = `${input.companyName} ${input.quarter}`.trim()
   const formatted = await formatTranscript(input.rawText, input.callId, title, {
-    engine: 'recall-live', model: 'live-finish',
+    engine: 'recall-live',
+    model: 'live-finish',
   })
   const durationStr = formatDuration(Math.round(durationSec))
   formatted.duration = durationStr
@@ -163,44 +166,69 @@ export async function finishLiveCall(input: FinishInput): Promise<FinishResult> 
   let companyId: string | null = null
   if (input.companyTicker) {
     const { data } = await supabaseAdmin
-      .from('companies').select('id').eq('tase_security_id', input.companyTicker).maybeSingle()
+      .from('companies')
+      .select('id')
+      .eq('tase_security_id', input.companyTicker)
+      .maybeSingle()
     companyId = (data?.id as string) ?? null
   }
 
   // 4. upsert the completed row (idempotent on id)
-  const { error } = await supabaseAdmin.from('transcripts').upsert({
-    id: input.callId,
-    youtube_url: `live://${input.callId}`,
-    youtube_title: title,
-    status: 'completed',
-    processing_step: 'completed',
-    user_id: input.userId,
-    company_id: companyId,
-    raw_transcript: input.rawText,
-    formatted_data: formatted,
-    audio_url: audioUrl,
-    word_segments: segments,
-    duration: durationStr,
-  }, { onConflict: 'id' })
+  const { error } = await supabaseAdmin.from('transcripts').upsert(
+    {
+      id: input.callId,
+      youtube_url: `live://${input.callId}`,
+      youtube_title: title,
+      status: 'completed',
+      processing_step: 'completed',
+      user_id: input.userId,
+      company_id: companyId,
+      raw_transcript: input.rawText,
+      formatted_data: formatted,
+      audio_url: audioUrl,
+      word_segments: segments,
+      duration: durationStr,
+    },
+    { onConflict: 'id' }
+  )
   if (error) throw new Error(`transcripts upsert failed: ${error.message}`)
 
-  return { id: input.callId, url: `/app/live/${input.callId}`, audioUrl, durationSec, wordCount: words.length }
+  return {
+    id: input.callId,
+    url: `/app/live/${input.callId}`,
+    audioUrl,
+    durationSec,
+    wordCount: words.length,
+  }
 }
 
 /** The synthetic finished-call id (reused across airings; the live finish overwrites this row). */
 export const DEMO_CALL_ID = 'live-finish-demo-tamis-2026-06-14'
 
-interface DemoRec { id: number; raw: string; corrected: string | null; words: { text: string; start: number }[] }
+interface DemoRec {
+  id: number
+  raw: string
+  corrected: string | null
+  words: { text: string; start: number }[]
+}
 
 /** FK-valid owner for a finished row: admin profile → newest transcript → fallback uuid. */
 async function resolveOwnerUserId(): Promise<string> {
   const { supabaseAdmin } = await import('@/lib/supabase')
   const { data: admin } = await supabaseAdmin
-    .from('profiles').select('id').eq('role', 'admin').limit(1).maybeSingle()
+    .from('profiles')
+    .select('id')
+    .eq('role', 'admin')
+    .limit(1)
+    .maybeSingle()
   if (admin?.id) return admin.id as string
   const { data: t } = await supabaseAdmin
-    .from('transcripts').select('user_id').not('user_id', 'is', null)
-    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    .from('transcripts')
+    .select('user_id')
+    .not('user_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
   return (t?.user_id as string) ?? '00000000-0000-0000-0000-000000000000'
 }
 
@@ -247,7 +275,7 @@ export async function runDemoFinish(opts: { markProcessing?: boolean } = {}): Pr
         status: 'processing',
         processing_step: 'formatting',
       },
-      { onConflict: 'id' },
+      { onConflict: 'id' }
     )
   }
 
@@ -287,7 +315,11 @@ export async function runLiveBroadcastFinish(opts: { markProcessing?: boolean } 
 
   type BLine = { raw: string; corrected: string | null; words: { text: string; start: number | null }[] }
   const readLines = (): BLine[] =>
-    fs.readFileSync(linesPath, 'utf8').split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l) as BLine)
+    fs
+      .readFileSync(linesPath, 'utf8')
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as BLine)
   const lastWordStart = (ls: BLine[]): number => ls.at(-1)?.words?.at(-1)?.start ?? 0
 
   const userId = await resolveOwnerUserId()
@@ -301,7 +333,7 @@ export async function runLiveBroadcastFinish(opts: { markProcessing?: boolean } 
         status: 'processing',
         processing_step: 'formatting',
       },
-      { onConflict: 'id' },
+      { onConflict: 'id' }
     )
   }
 
@@ -319,7 +351,7 @@ export async function runLiveBroadcastFinish(opts: { markProcessing?: boolean } 
   const words: FeedWord[] = lines.flatMap((l) =>
     (l.words ?? [])
       .filter((w): w is { text: string; start: number } => typeof w.start === 'number')
-      .map((w) => ({ text: w.text, start: w.start })),
+      .map((w) => ({ text: w.text, start: w.start }))
   )
   if (!words.length) throw new Error('no words captured in the live broadcast')
   const rawText = lines.map((l) => l.corrected || l.raw).join('\n\n')

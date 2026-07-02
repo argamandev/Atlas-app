@@ -16,7 +16,11 @@ type ChatMessage = { role: 'user' | 'assistant'; content: string }
 function textResponse(body: BodyInit, init?: ResponseInit) {
   return new Response(body, {
     ...init,
-    headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', ...(init?.headers ?? {}) },
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+      ...(init?.headers ?? {}),
+    },
   })
 }
 
@@ -27,7 +31,7 @@ async function openAiFallback(
   system: string,
   recent: ChatMessage[],
   message: string,
-  sourceHeader: string,
+  sourceHeader: string
 ): Promise<Response | null> {
   const key = process.env.OPENAI_API_KEY
   if (!key) return null
@@ -35,7 +39,10 @@ async function openAiFallback(
     const openai = new OpenAI({ apiKey: key })
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: system },
-      ...recent.map((m): OpenAI.Chat.Completions.ChatCompletionMessageParam => ({ role: m.role, content: m.content })),
+      ...recent.map((m): OpenAI.Chat.Completions.ChatCompletionMessageParam => ({
+        role: m.role,
+        content: m.content,
+      })),
       { role: 'user', content: message },
     ]
     const completion = await openai.chat.completions.create({
@@ -123,9 +130,13 @@ export async function POST(req: NextRequest) {
           systemInstruction: { parts: [{ text: system }] },
           contents,
           // thinkingBudget: 0 — CLAUDE.md gotcha: thinking eats the output budget + leaks reasoning.
-          generationConfig: { maxOutputTokens: 4096, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } },
+          generationConfig: {
+            maxOutputTokens: 4096,
+            temperature: 0.7,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
         }),
-      },
+      }
     )
   } catch (err) {
     console.error('[POST /api/chat] upstream fetch failed', (err as Error).message)

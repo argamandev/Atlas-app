@@ -72,7 +72,9 @@ export function AddInvestorCall({ companyId }: { companyId?: string }) {
             </button>
           </div>
           {message && (
-            <p className={`mt-2 px-1 text-xs ${status === 'error' ? 'text-live' : 'text-ink-muted'}`}>{message}</p>
+            <p className={`mt-2 px-1 text-xs ${status === 'error' ? 'text-live' : 'text-ink-muted'}`}>
+              {message}
+            </p>
           )}
         </Surface>
       )}

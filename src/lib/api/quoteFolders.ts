@@ -2,7 +2,9 @@ import { apiGet, apiPost, apiPatch, apiDelete } from './client'
 import type { QuoteFolder } from './types'
 
 export function fetchFolders(companyId?: string): Promise<QuoteFolder[]> {
-  return apiGet<QuoteFolder[]>(`/api/quote-folders${companyId ? `?companyId=${encodeURIComponent(companyId)}` : ''}`)
+  return apiGet<QuoteFolder[]>(
+    `/api/quote-folders${companyId ? `?companyId=${encodeURIComponent(companyId)}` : ''}`
+  )
 }
 
 export function createFolder(companyId: string, name: string): Promise<QuoteFolder> {

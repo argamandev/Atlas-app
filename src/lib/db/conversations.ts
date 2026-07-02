@@ -75,7 +75,7 @@ export async function getConversation(userId: string, id: string): Promise<Conve
 
 export async function createConversation(
   userId: string,
-  input: { title?: string; companyId?: string | null; transcriptId?: string | null },
+  input: { title?: string; companyId?: string | null; transcriptId?: string | null }
 ): Promise<Conversation> {
   const now = new Date().toISOString()
   if (!flag.on) {
@@ -109,12 +109,21 @@ export async function createConversation(
   return conv
 }
 
-export async function saveMessages(userId: string, id: string, messages: ChatMsg[], title?: string): Promise<void> {
+export async function saveMessages(
+  userId: string,
+  id: string,
+  messages: ChatMsg[],
+  title?: string
+): Promise<void> {
   const now = new Date().toISOString()
   if (!flag.on) {
     const patch: Row = { messages, updated_at: now }
     if (title) patch.title = title
-    const { error } = await supabaseAdmin.from('chat_conversations').update(patch).eq('id', id).eq('user_id', userId)
+    const { error } = await supabaseAdmin
+      .from('chat_conversations')
+      .update(patch)
+      .eq('id', id)
+      .eq('user_id', userId)
     if (!error) return
     if (!missingTable(error)) throw new Error(error.message)
     flag.on = true
@@ -130,7 +139,11 @@ export async function saveMessages(userId: string, id: string, messages: ChatMsg
 
 export async function deleteConversation(userId: string, id: string): Promise<void> {
   if (!flag.on) {
-    const { error } = await supabaseAdmin.from('chat_conversations').delete().eq('id', id).eq('user_id', userId)
+    const { error } = await supabaseAdmin
+      .from('chat_conversations')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
     if (!error) return
     if (!missingTable(error)) throw new Error(error.message)
     flag.on = true
@@ -138,7 +151,7 @@ export async function deleteConversation(userId: string, id: string): Promise<vo
   const arr = convMem.get(userId) ?? []
   convMem.set(
     userId,
-    arr.filter((c) => c.id !== id),
+    arr.filter((c) => c.id !== id)
   )
 }
 

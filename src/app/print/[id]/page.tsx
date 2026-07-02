@@ -18,7 +18,9 @@ export default async function TranscriptPrintPage({ params }: { params: { id: st
       <PrintTrigger label="הדפסה / שמירה כ-PDF" />
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '52px 40px' }}>
         <header style={{ borderBottom: '1px solid #e8e8e6', paddingBottom: 20, marginBottom: 30 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>{call.companyName}</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+            {call.companyName}
+          </h1>
           <p style={{ fontSize: 14, color: '#888', marginTop: 6 }}>
             {call.quarter}
             {call.date ? ` · ${formatDate(call.date, 'he')}` : ''}
@@ -29,9 +31,13 @@ export default async function TranscriptPrintPage({ params }: { params: { id: st
           <div key={seg.id} style={{ marginBottom: 22, breakInside: 'avoid' }}>
             <div style={{ marginBottom: 5 }}>
               <span style={{ fontWeight: 700, fontSize: 15, color: '#C04A00' }}>{seg.speakerName}</span>
-              {seg.role && <span style={{ fontSize: 12, color: '#999', marginInlineStart: 8 }}>{seg.role}</span>}
+              {seg.role && (
+                <span style={{ fontSize: 12, color: '#999', marginInlineStart: 8 }}>{seg.role}</span>
+              )}
             </div>
-            <p style={{ fontSize: 15, lineHeight: 1.85, margin: 0 }}>{seg.words.map((w) => w.text).join(' ')}</p>
+            <p style={{ fontSize: 15, lineHeight: 1.85, margin: 0 }}>
+              {seg.words.map((w) => w.text).join(' ')}
+            </p>
           </div>
         ))}
       </div>

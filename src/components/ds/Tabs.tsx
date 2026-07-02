@@ -36,7 +36,7 @@ export function Tabs({
                 '-mb-px border-b-2 pb-2.5 pt-1 text-sm transition-colors',
                 active
                   ? 'border-ink font-semibold text-ink'
-                  : 'border-transparent font-medium text-ink-faint hover:text-ink-muted',
+                  : 'border-transparent font-medium text-ink-faint hover:text-ink-muted'
               )}
             >
               {t.label}

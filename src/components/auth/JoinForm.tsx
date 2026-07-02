@@ -44,7 +44,8 @@ export function JoinForm() {
     )
   }
 
-  const inputCls = 'w-full bg-card border border-border px-4 py-3 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/60 transition-colors rounded'
+  const inputCls =
+    'w-full bg-card border border-border px-4 py-3 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent/60 transition-colors rounded'
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
@@ -52,53 +53,90 @@ export function JoinForm() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-muted block mb-1.5">שם פרטי</label>
-          <input type="text" required value={firstName} onChange={e => setFirstName(e.target.value)}
-            placeholder="ישראל" dir="rtl" className={inputCls} />
+          <input
+            type="text"
+            required
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="ישראל"
+            dir="rtl"
+            className={inputCls}
+          />
         </div>
         <div>
           <label className="text-xs text-muted block mb-1.5">שם משפחה</label>
-          <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)}
-            placeholder="ישראלי" dir="rtl" className={inputCls} />
+          <input
+            type="text"
+            required
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="ישראלי"
+            dir="rtl"
+            className={inputCls}
+          />
         </div>
       </div>
 
       {/* Email */}
       <div>
         <label className="text-xs text-muted block mb-1.5">אימייל</label>
-        <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-          placeholder="email@company.com" dir="ltr" className={inputCls} />
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="email@company.com"
+          dir="ltr"
+          className={inputCls}
+        />
       </div>
 
       {/* Fund name */}
       <div>
         <label className="text-xs text-muted block mb-1.5">שם הקרן / החברה</label>
-        <input type="text" value={fundName} onChange={e => setFundName(e.target.value)}
-          placeholder="קרן לדוגמא" dir="rtl" className={inputCls} />
+        <input
+          type="text"
+          value={fundName}
+          onChange={(e) => setFundName(e.target.value)}
+          placeholder="קרן לדוגמא"
+          dir="rtl"
+          className={inputCls}
+        />
       </div>
 
       {/* Role */}
       <div>
         <label className="text-xs text-muted block mb-1.5">תפקיד</label>
-        <input type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)}
-          placeholder="מנהל השקעות" dir="rtl" className={inputCls} />
+        <input
+          type="text"
+          value={jobTitle}
+          onChange={(e) => setJobTitle(e.target.value)}
+          placeholder="מנהל השקעות"
+          dir="rtl"
+          className={inputCls}
+        />
       </div>
 
       {/* Num employees */}
       <div>
         <label className="text-xs text-muted block mb-1.5">כמות עובדים</label>
-        <select value={numEmployees} onChange={e => setNumEmployees(e.target.value)}
-          className={`${inputCls} cursor-pointer`} dir="rtl">
+        <select
+          value={numEmployees}
+          onChange={(e) => setNumEmployees(e.target.value)}
+          className={`${inputCls} cursor-pointer`}
+          dir="rtl"
+        >
           <option value="">בחרו טווח</option>
-          {numEmployeesOptions.map(o => <option key={o} value={o}>{o}</option>)}
+          {numEmployeesOptions.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
         </select>
       </div>
 
-      {state === 'duplicate' && (
-        <p className="text-xs text-amber-400">המייל הזה כבר הגיש בקשה.</p>
-      )}
-      {state === 'error' && (
-        <p className="text-xs text-error">שגיאה. נסה שוב.</p>
-      )}
+      {state === 'duplicate' && <p className="text-xs text-amber-400">המייל הזה כבר הגיש בקשה.</p>}
+      {state === 'error' && <p className="text-xs text-error">שגיאה. נסה שוב.</p>}
 
       <button
         type="submit"

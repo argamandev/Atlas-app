@@ -20,7 +20,10 @@ export function ShellChrome({ children }: { children: React.ReactNode }) {
   const liveDockOpen = live.active && !live.viewing // live bar takes over once you leave the live page
 
   return (
-    <div data-dock={dockOpen || liveDockOpen ? 'open' : undefined} className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div
+      data-dock={dockOpen || liveDockOpen ? 'open' : undefined}
+      className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+    >
       {children}
       {dockOpen && <GlobalPlayer />}
       {liveDockOpen && <GlobalLiveBar />}

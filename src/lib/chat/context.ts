@@ -22,7 +22,9 @@ function buildText(fd: Transcript): string {
   return `${header}\n\n${body}`.slice(0, MAX_CONTEXT_CHARS)
 }
 
-async function latestCompleted(companyId?: string): Promise<{ id: string; formatted_data: Transcript } | null> {
+async function latestCompleted(
+  companyId?: string
+): Promise<{ id: string; formatted_data: Transcript } | null> {
   let q = supabaseAdmin
     .from('transcripts')
     .select('id, formatted_data')
@@ -42,7 +44,8 @@ async function byId(transcriptId: string): Promise<{ id: string; formatted_data:
     .select('id, formatted_data')
     .eq('id', transcriptId)
     .maybeSingle()
-  if (data?.formatted_data) return { id: data.id as string, formatted_data: data.formatted_data as Transcript }
+  if (data?.formatted_data)
+    return { id: data.id as string, formatted_data: data.formatted_data as Transcript }
   return null
 }
 

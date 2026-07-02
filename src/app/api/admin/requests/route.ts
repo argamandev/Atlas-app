@@ -8,7 +8,9 @@ export const dynamic = 'force-dynamic'
 async function requireAdmin() {
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   if (!session) return null
 
   const { data: profile } = await supabaseAdmin
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
   const session = await requireAdmin()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { requestId, action } = await req.json() as { requestId: string; action: 'approve' | 'reject' }
+  const { requestId, action } = (await req.json()) as { requestId: string; action: 'approve' | 'reject' }
 
   // Fetch the request
   const { data: accessReq, error: fetchErr } = await supabaseAdmin
@@ -51,16 +53,13 @@ export async function POST(req: NextRequest) {
   if (fetchErr || !accessReq) return NextResponse.json({ error: 'Request not found' }, { status: 404 })
 
   if (action === 'approve') {
-    const { error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      accessReq.email,
-      {
-        data: {
-          first_name: accessReq.first_name,
-          last_name: accessReq.last_name,
-          role: 'user',
-        },
-      }
-    )
+    const { error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(accessReq.email, {
+      data: {
+        first_name: accessReq.first_name,
+        last_name: accessReq.last_name,
+        role: 'user',
+      },
+    })
     if (inviteErr) return NextResponse.json({ error: inviteErr.message }, { status: 500 })
   }
 

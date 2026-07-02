@@ -12,7 +12,7 @@ export function isValidYouTubeUrl(url: string): boolean {
     /^https?:\/\/youtu\.be\/[\w-]{11}/,
     /^https?:\/\/(www\.)?youtube\.com\/live\/[\w-]{11}/,
     /^https?:\/\/(www\.)?youtube\.com\/embed\/[\w-]{11}/,
-  ].some(p => p.test(trimmed))
+  ].some((p) => p.test(trimmed))
 }
 
 export function isValidVimeoUrl(url: string): boolean {
@@ -21,7 +21,7 @@ export function isValidVimeoUrl(url: string): boolean {
     /^https?:\/\/(www\.)?vimeo\.com\/\d+/,
     /^https?:\/\/player\.vimeo\.com\/video\/\d+/,
     /^https?:\/\/(www\.)?vimeo\.com\/channels\/[\w-]+\/\d+/,
-  ].some(p => p.test(trimmed))
+  ].some((p) => p.test(trimmed))
 }
 
 export function isValidVideoUrl(url: string): boolean {
@@ -43,11 +43,7 @@ export function extractYouTubeId(url: string): string | null {
 }
 
 export function extractVimeoId(url: string): string | null {
-  const patterns = [
-    /vimeo\.com\/video\/(\d+)/,
-    /vimeo\.com\/channels\/[\w-]+\/(\d+)/,
-    /vimeo\.com\/(\d+)/,
-  ]
+  const patterns = [/vimeo\.com\/video\/(\d+)/, /vimeo\.com\/channels\/[\w-]+\/(\d+)/, /vimeo\.com\/(\d+)/]
   for (const p of patterns) {
     const m = url.match(p)
     if (m) return `vimeo-${m[1]}`
@@ -68,7 +64,8 @@ export function generateTranscriptId(url: string): string {
 // number: year*10 + quarter. Higher = newer. Returns 0 when unparseable.
 export function quarterSortKey(quarter: string | undefined | null): number {
   if (!quarter) return 0
-  const m = quarter.match(/(?:Q|רבעון)\s*([1-4]).*?(\d{4})/i) ?? quarter.match(/(\d{4}).*?(?:Q|רבעון)\s*([1-4])/i)
+  const m =
+    quarter.match(/(?:Q|רבעון)\s*([1-4]).*?(\d{4})/i) ?? quarter.match(/(\d{4}).*?(?:Q|רבעון)\s*([1-4])/i)
   if (!m) {
     const yearOnly = quarter.match(/(\d{4})/)
     return yearOnly ? parseInt(yearOnly[1], 10) * 10 : 0

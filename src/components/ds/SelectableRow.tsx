@@ -13,7 +13,7 @@ export interface SelectableRowProps extends React.ButtonHTMLAttributes<HTMLButto
 
 export const SelectableRow = React.forwardRef<HTMLButtonElement, SelectableRowProps>(function SelectableRow(
   { active, className, children, type, ...rest },
-  ref,
+  ref
 ) {
   return (
     <button
@@ -22,7 +22,7 @@ export const SelectableRow = React.forwardRef<HTMLButtonElement, SelectableRowPr
       className={cn(
         'flex w-full items-center gap-3 rounded-md text-start transition-colors',
         selectionClasses(active),
-        className,
+        className
       )}
       {...rest}
     >

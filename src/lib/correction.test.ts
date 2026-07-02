@@ -10,11 +10,13 @@ test('chunkByWords groups words into N-word chunks', () => {
 })
 
 test('parseCorrectionItems reads items, defaults certainty, drops invalid', () => {
-  const raw = JSON.stringify({ items: [
-    { original: 'אישר', corrected: 'קשרי', kind: 'homophone', certainty: 'confident', reason: 'x' },
-    { corrected: 'oops' },                         // no original -> dropped
-    { original: '180%', kind: 'number', reason: 'לא הגיוני' }, // certainty defaults
-  ] })
+  const raw = JSON.stringify({
+    items: [
+      { original: 'אישר', corrected: 'קשרי', kind: 'homophone', certainty: 'confident', reason: 'x' },
+      { corrected: 'oops' }, // no original -> dropped
+      { original: '180%', kind: 'number', reason: 'לא הגיוני' }, // certainty defaults
+    ],
+  })
   const items = parseCorrectionItems(raw)
   assert.equal(items.length, 2)
   assert.equal(items[1].certainty, 'uncertain')
@@ -38,7 +40,7 @@ test('routeItems applies confident word fixes, flags uncertain + all numbers', (
   assert.ok(r.text.includes('אמפתי'), 'uncertain NOT changed')
   assert.equal(r.applied.length, 1)
   assert.equal(r.flags.length, 2) // the number + the uncertain name
-  assert.ok(r.flags.some(f => f.text === '180%'))
+  assert.ok(r.flags.some((f) => f.text === '180%'))
 })
 
 test('confident name is applied ONLY when it matches a provided entity (else flagged)', () => {
@@ -49,7 +51,10 @@ test('confident name is applied ONLY when it matches a provided entity (else fla
   const r = routeItems('דיברנו על אמפתי ועל שייקס רובר', items, ['אמפא TLV'])
   assert.ok(r.text.includes('אמפא TLV'), 'name matching the entity list is applied')
   assert.ok(r.text.includes('שייקס רובר'), 'name NOT in the list is left unchanged (never guessed)')
-  assert.ok(r.flags.some(f => f.text === 'שייקס רובר'), 'unmatched name is flagged instead')
+  assert.ok(
+    r.flags.some((f) => f.text === 'שייקס רובר'),
+    'unmatched name is flagged instead'
+  )
 })
 
 test('flags spanning a whole clause (>8 words) are dropped (kept precise)', () => {
@@ -65,10 +70,19 @@ test('a name correction may not reduce word count (never drops "ראול")', () 
   ] as any
   const r = routeItems('עובד עם ראול סרוגו שנים', items, ['סרוגו'])
   assert.ok(r.text.includes('ראול סרוגו'), 'word-dropping name fix is NOT applied')
-  assert.ok(r.flags.some(f => f.text === 'ראול סרוגו'), 'it is flagged instead')
+  assert.ok(
+    r.flags.some((f) => f.text === 'ראול סרוגו'),
+    'it is flagged instead'
+  )
 })
 
-import { correctTranscript, buildCorrectionPrompt, attachFlags, generateEntities, chunkByWords } from './correction'
+import {
+  correctTranscript,
+  buildCorrectionPrompt,
+  attachFlags,
+  generateEntities,
+  chunkByWords,
+} from './correction'
 
 test('chunkByWords overlaps windows so segment edges keep context', () => {
   const text = Array.from({ length: 10 }, (_, i) => `w${i}`).join(' ')
@@ -79,12 +93,20 @@ test('chunkByWords overlaps windows so segment edges keep context', () => {
 
 test('generateEntities parses, trims, de-dupes, drops non-strings', async () => {
   const fake = async () => JSON.stringify({ entities: ['ToHa', 'מיטאון', 'ToHa', 123, '  אמפא קפיטל  '] })
-  const ents = await generateEntities('raw', { company: 'אמפא', business: '', quarter: '', speakers: '' }, fake)
+  const ents = await generateEntities(
+    'raw',
+    { company: 'אמפא', business: '', quarter: '', speakers: '' },
+    fake
+  )
   assert.deepEqual(ents, ['ToHa', 'מיטאון', 'אמפא קפיטל'])
 })
 
 test('generateEntities returns [] on bad JSON (never throws)', async () => {
-  const ents = await generateEntities('raw', { company: 'X', business: '', quarter: '', speakers: '' }, async () => 'not json')
+  const ents = await generateEntities(
+    'raw',
+    { company: 'X', business: '', quarter: '', speakers: '' },
+    async () => 'not json'
+  )
   assert.deepEqual(ents, [])
 })
 
@@ -92,7 +114,7 @@ test('buildCorrectionPrompt includes profile, entities, chunk and the JSON contr
   const p = buildCorrectionPrompt(
     { company: 'אמפא', business: 'נדל"ן מניב', quarter: 'Q1 2026', speakers: 'זוהר רדי (ceo)' },
     ['ToHa', 'אמפא TLV'],
-    'דרך אישר משקיעים',
+    'דרך אישר משקיעים'
   )
   assert.ok(p.includes('אמפא'))
   assert.ok(p.includes('ToHa'))
@@ -101,10 +123,19 @@ test('buildCorrectionPrompt includes profile, entities, chunk and the JSON contr
 })
 
 test('correctTranscript applies confident fixes from a fake GPT and collects flags', async () => {
-  const fakeGpt = async () => JSON.stringify({ items: [
-    { original: 'אישר משקיעים', corrected: 'קשרי משקיעים', kind: 'homophone', certainty: 'confident', reason: '' },
-    { original: '180%', kind: 'number', certainty: 'confident', reason: 'מעל 100%' },
-  ] })
+  const fakeGpt = async () =>
+    JSON.stringify({
+      items: [
+        {
+          original: 'אישר משקיעים',
+          corrected: 'קשרי משקיעים',
+          kind: 'homophone',
+          certainty: 'confident',
+          reason: '',
+        },
+        { original: '180%', kind: 'number', certainty: 'confident', reason: 'מעל 100%' },
+      ],
+    })
   const profile = { company: 'אמפא', business: '', quarter: '', speakers: '' }
   const r = await correctTranscript('דרך אישר משקיעים ל180% מההכנסות', profile, [], fakeGpt)
   assert.ok(r.text.includes('קשרי משקיעים'))
@@ -113,7 +144,10 @@ test('correctTranscript applies confident fixes from a fake GPT and collects fla
 })
 
 test('attachFlags puts each flag on the first line containing its text', () => {
-  const lines = [{ id: 'L1', text: 'שורה אחת' }, { id: 'L2', text: 'יש כאן 180% מההכנסות' }] as any
+  const lines = [
+    { id: 'L1', text: 'שורה אחת' },
+    { id: 'L2', text: 'יש כאן 180% מההכנסות' },
+  ] as any
   attachFlags(lines, [{ text: '180%', reason: 'בדיקה' }])
   assert.equal(lines[0].flags, undefined)
   assert.equal(lines[1].flags.length, 1)

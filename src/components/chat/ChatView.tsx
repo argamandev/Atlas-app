@@ -81,7 +81,11 @@ export function ChatView({
     // grounding context, but only the user's typed text shows in the bubble. One turn only.
     const apiMessage = quote ? `Regarding this quote from the investor call: "${quote}"\n\n${text}` : text
     // Push the user message + an empty assistant message we stream tokens into.
-    setMessages((prev) => [...prev, { role: 'user', content: text }, { role: 'assistant', content: '', streaming: true }])
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '', streaming: true },
+    ])
     setInput('')
     setMentionQuery(null)
     setQuote(null)
@@ -103,7 +107,7 @@ export function ChatView({
           full += delta
           setLastAssistant({ content: full })
           scrollToEnd()
-        },
+        }
       )
       setLastAssistant({ content: full, source, streaming: false })
 
@@ -115,7 +119,10 @@ export function ChatView({
       ]
       let cid = conversationId
       if (!cid) {
-        const conv = await createConversation({ companyId: companyId ?? null, transcriptId: transcript?.id ?? null })
+        const conv = await createConversation({
+          companyId: companyId ?? null,
+          transcriptId: transcript?.id ?? null,
+        })
         cid = conv.id
         setConversationId(cid)
       }
@@ -164,7 +171,11 @@ export function ChatView({
         </div>
       )}
       {mentionQuery !== null && (
-        <MentionDropdown query={mentionQuery} onSelect={onSelectMention} onClose={() => setMentionQuery(null)} />
+        <MentionDropdown
+          query={mentionQuery}
+          onSelect={onSelectMention}
+          onClose={() => setMentionQuery(null)}
+        />
       )}
       <ChatComposer
         inputRef={inputRef}
@@ -209,7 +220,10 @@ export function ChatView({
               // dir="auto" lets a Hebrew message read RTL even in English mode; ml-auto keeps
               // the user's own bubble on the trailing (right) edge in both directions.
               <div key={i} className="flex animate-fade-up">
-                <div dir="auto" className="ml-auto max-w-[85%] rounded-bubble bg-subtle px-4 py-2.5 text-[15px] leading-relaxed text-ink">
+                <div
+                  dir="auto"
+                  className="ml-auto max-w-[85%] rounded-bubble bg-subtle px-4 py-2.5 text-[15px] leading-relaxed text-ink"
+                >
                   {m.content}
                 </div>
               </div>
@@ -228,7 +242,7 @@ export function ChatView({
                 )}
                 {m.source && !m.streaming && <CitationChip source={m.source} />}
               </div>
-            ),
+            )
           )}
         </div>
       </div>
@@ -241,7 +255,12 @@ export function ChatView({
       title={dict.chat.chats}
       panel={
         <div className="flex h-full flex-col gap-4">
-          <ChatHistory activeId={conversationId} onNew={newChat} onOpen={openConversation} refreshKey={historyKey} />
+          <ChatHistory
+            activeId={conversationId}
+            onNew={newChat}
+            onOpen={openConversation}
+            refreshKey={historyKey}
+          />
           <div className="mt-auto space-y-4">
             <div>
               <SectionHeader label={dict.chat.myAgents} className="mb-1" />

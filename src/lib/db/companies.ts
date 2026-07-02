@@ -40,7 +40,14 @@ function mapCompany(r: Row): Company {
 }
 
 export function toCompanyLite(c: Company): CompanyLite {
-  return { id: c.id, name: c.name, displayName: c.displayName, nameEn: c.nameEn, logoUrl: c.logoUrl, ticker: c.ticker }
+  return {
+    id: c.id,
+    name: c.name,
+    displayName: c.displayName,
+    nameEn: c.nameEn,
+    logoUrl: c.logoUrl,
+    ticker: c.ticker,
+  }
 }
 
 export async function listCompanies(): Promise<Company[]> {
@@ -56,7 +63,11 @@ export async function getCompany(id: string): Promise<Company | null> {
 }
 
 export async function getCompanyByTicker(ticker: string): Promise<Company | null> {
-  const { data, error } = await supabaseAdmin.from('companies').select(COLS).eq('tase_security_id', ticker).maybeSingle()
+  const { data, error } = await supabaseAdmin
+    .from('companies')
+    .select(COLS)
+    .eq('tase_security_id', ticker)
+    .maybeSingle()
   if (error) throw new Error(error.message)
   return data ? mapCompany(data as Row) : null
 }
@@ -65,7 +76,10 @@ export async function searchCompanies(q: string): Promise<Company[]> {
   // Strip characters that are syntactically meaningful inside a PostgREST `.or()` filter
   // (comma = clause separator, parens = grouping, `*`/`%` = wildcards) so user input can't
   // break or alter the query.
-  const term = q.trim().replace(/[,()*%]/g, ' ').trim()
+  const term = q
+    .trim()
+    .replace(/[,()*%]/g, ' ')
+    .trim()
   if (!term) return listCompanies()
   const like = `%${term}%`
   const { data, error } = await supabaseAdmin

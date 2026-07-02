@@ -12,7 +12,10 @@ export interface CorrectionItem {
   reason: string
 }
 
-export interface Flag { text: string; reason: string }
+export interface Flag {
+  text: string
+  reason: string
+}
 
 export interface CorrectionResult {
   text: string
@@ -24,7 +27,7 @@ export interface Profile {
   company: string
   business: string
   quarter: string
-  speakers: string   // "זוהר רדי (ceo), שירן (moderator)"
+  speakers: string // "זוהר רדי (ceo), שירן (moderator)"
 }
 
 export type GptChunkFn = (prompt: string) => Promise<string>
@@ -63,7 +66,11 @@ export function chunkByWords(text: string, wordsPerChunk = 400, overlap = 0): st
 
 export function parseCorrectionItems(raw: string): CorrectionItem[] {
   let parsed: unknown
-  try { parsed = JSON.parse(raw) } catch { return [] }
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return []
+  }
   const items = (parsed as { items?: unknown }).items
   if (!Array.isArray(items)) return []
   const out: CorrectionItem[] = []
@@ -89,7 +96,7 @@ export function isSafeCorrection(wrong: string, correct: string): boolean {
   if (wrong.length > 35 || correct.length > 35) return false
   const w = wrong.trim().split(/\s+/).length
   const c = correct.trim().split(/\s+/).length
-  const maxIncrease = w === 1 ? 1 : 0   // one word may split into two; no balloon growth
+  const maxIncrease = w === 1 ? 1 : 0 // one word may split into two; no balloon growth
   if (c > w + maxIncrease) return false
   if (c < w - 1) return false
   return true
@@ -101,17 +108,18 @@ export function isSafeCorrection(wrong: string, correct: string): boolean {
 function applyConfident(
   text: string,
   items: CorrectionItem[],
-  entities: string[],
+  entities: string[]
 ): { text: string; applied: CorrectionItem[] } {
   const entitySet = new Set(entities)
   const appliable = items
-    .filter(i =>
-      i.certainty === 'confident' &&
-      i.kind !== 'number' &&
-      i.corrected &&
-      isSafeCorrection(i.original, i.corrected) &&
-      // names: only to a known entity, and never by DROPPING a word (no "ראול סרוגו"->"סרוגו")
-      (i.kind !== 'name' || (entitySet.has(i.corrected) && wordCount(i.corrected) >= wordCount(i.original))),
+    .filter(
+      (i) =>
+        i.certainty === 'confident' &&
+        i.kind !== 'number' &&
+        i.corrected &&
+        isSafeCorrection(i.original, i.corrected) &&
+        // names: only to a known entity, and never by DROPPING a word (no "ראול סרוגו"->"סרוגו")
+        (i.kind !== 'name' || (entitySet.has(i.corrected) && wordCount(i.corrected) >= wordCount(i.original)))
     )
     .sort((a, b) => b.original.length - a.original.length)
   let result = text
@@ -130,16 +138,18 @@ export function routeItems(text: string, items: CorrectionItem[], entities: stri
   const r = applyConfident(text, items, entities)
   const appliedSet = new Set(r.applied)
   const flags: Flag[] = items
-    .filter(i => !appliedSet.has(i) && (i.kind === 'number' || i.certainty === 'uncertain' || i.kind === 'name'))
+    .filter(
+      (i) => !appliedSet.has(i) && (i.kind === 'number' || i.certainty === 'uncertain' || i.kind === 'name')
+    )
     // keep flags precise: a flag spanning a whole clause isn't actionable as a yellow highlight
-    .filter(i => wordCount(i.original) <= 8)
-    .map(i => ({ text: i.original, reason: i.reason }))
+    .filter((i) => wordCount(i.original) <= 8)
+    .map((i) => ({ text: i.original, reason: i.reason }))
   return { text: r.text, applied: r.applied, flags }
 }
 
 export function buildCorrectionPrompt(profile: Profile, entities: string[], chunk: string): string {
   const entityBlock = entities.length
-    ? `\nרשימת שמות נכונים של החברה (השתמש בה לתיקון שמות בלבד, בהקשר):\n${entities.map(e => `- ${e}`).join('\n')}\n`
+    ? `\nרשימת שמות נכונים של החברה (השתמש בה לתיקון שמות בלבד, בהקשר):\n${entities.map((e) => `- ${e}`).join('\n')}\n`
     : ''
   return `אתה מתקן שגיאות תמלול אוטומטי (ASR) של שיחת משקיעים בעברית. תמלול גולמי, ללא הקשר חיצוני.
 
@@ -171,7 +181,7 @@ export async function correctTranscript(
   entities: string[],
   gpt: GptChunkFn,
   wordsPerChunk = 400,
-  overlap = 0,
+  overlap = 0
 ): Promise<CorrectionResult> {
   const chunks = chunkByWords(rawText, wordsPerChunk, overlap)
   const perChunk = await mapLimit(chunks, 6, async (chunk) => {
@@ -185,14 +195,18 @@ export async function correctTranscript(
   const all = perChunk.flat()
   // De-dupe identical originals (keep the first), then apply to the full text.
   const seen = new Set<string>()
-  const deduped = all.filter(i => (seen.has(i.original) ? false : (seen.add(i.original), true)))
+  const deduped = all.filter((i) => (seen.has(i.original) ? false : (seen.add(i.original), true)))
   return routeItems(rawText, deduped, entities)
 }
 
 /** STAGE 1 (V2): read the whole transcript + use world knowledge of the company to produce the
  *  canonical correct spellings of its entities (subsidiaries, buildings, people, products).
  *  Conservative: omit a name when unsure of its correct spelling rather than invent one. */
-export async function generateEntities(rawText: string, profile: Profile, gpt: GptChunkFn): Promise<string[]> {
+export async function generateEntities(
+  rawText: string,
+  profile: Profile,
+  gpt: GptChunkFn
+): Promise<string[]> {
   const sample = rawText.split(/\s+/).slice(0, 4000).join(' ')
   const prompt = `אתה מומחה לחברה הציבורית הישראלית "${profile.company}" (תחום: ${profile.business || 'לא ידוע'}).
 לפניך תמלול גולמי (מ-ASR, עם שגיאות תעתיק) של שיחת משקיעים שלה — הוא נועד רק כדי לדעת אילו ישויות מוזכרות.
@@ -213,7 +227,7 @@ ${sample}`
     const ents = Array.isArray(parsed.entities)
       ? parsed.entities.filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
       : []
-    return Array.from(new Set(ents.map(e => e.trim())))
+    return Array.from(new Set(ents.map((e) => e.trim())))
   } catch (err) {
     console.warn('[entities] generation failed:', (err as Error).message)
     return []
@@ -222,8 +236,12 @@ ${sample}`
 
 /** STAGE 0 (report-grounded V2): extract canonical entity names from the company's official
  *  quarterly report (authoritative written Hebrew — includes the niche names GPT's memory lacks). */
-export async function generateEntitiesFromReport(reportText: string, profile: Profile, gpt: GptChunkFn): Promise<string[]> {
-  const sample = reportText.slice(0, 55000)   // entity-dense first half; also fits a 30k TPM cap
+export async function generateEntitiesFromReport(
+  reportText: string,
+  profile: Profile,
+  gpt: GptChunkFn
+): Promise<string[]> {
+  const sample = reportText.slice(0, 55000) // entity-dense first half; also fits a 30k TPM cap
   const prompt = `הטקסט שלהלן הוא דוח רבעוני רשמי של החברה הציבורית "${profile.company}" (תחום: ${profile.business || 'לא ידוע'}).
 
 המטרה: רשימה ממוקדת של שמות שסביר שיוזכרו בעל-פה בשיחת משקיעים — חברת האם, חברות-בנות עיקריות, בניינים/פרויקטים מרכזיים, ומנהלים בכירים.
@@ -243,7 +261,7 @@ ${sample}`
     const ents = Array.isArray(parsed.entities)
       ? parsed.entities.filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
       : []
-    return Array.from(new Set(ents.map(e => e.trim())))
+    return Array.from(new Set(ents.map((e) => e.trim())))
   } catch (err) {
     console.warn('[entities/report] generation failed:', (err as Error).message)
     return []
@@ -253,7 +271,7 @@ ${sample}`
 /** Attach each flag to the first line whose text contains the flag's span. */
 export function attachFlags(lines: { text: string; flags?: Flag[] }[], flags: Flag[]): void {
   for (const flag of flags) {
-    const line = lines.find(l => l.text.includes(flag.text))
+    const line = lines.find((l) => l.text.includes(flag.text))
     if (line) (line.flags ??= []).push(flag)
   }
 }

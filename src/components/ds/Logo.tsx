@@ -23,7 +23,7 @@ export function Logo({
     <span
       className={cn(
         'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-subtle text-ink-muted',
-        className,
+        className
       )}
       style={{ width: size, height: size }}
     >

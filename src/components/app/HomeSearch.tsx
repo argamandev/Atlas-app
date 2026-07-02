@@ -65,7 +65,10 @@ export function HomeSearch() {
       </div>
 
       {open && results.length > 0 && (
-        <Surface elevation="popover" className="absolute inset-x-0 top-full z-50 mt-2 animate-pop-in p-1.5 text-start">
+        <Surface
+          elevation="popover"
+          className="absolute inset-x-0 top-full z-50 mt-2 animate-pop-in p-1.5 text-start"
+        >
           {results.map((c) => (
             <EntityRow
               key={c.id}

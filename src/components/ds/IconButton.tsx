@@ -22,7 +22,7 @@ const variantClass: Record<Variant, string> = {
 
 export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
   { label, variant = 'line', active = false, size = 32, className, children, type, ...rest },
-  ref,
+  ref
 ) {
   return (
     <button
@@ -35,7 +35,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(f
         variantClass[variant],
         variant === 'primary' && (active ? 'bg-ink' : 'bg-ink-faint hover:bg-ink-muted'),
         variant === 'line' && active && 'text-ink bg-subtle',
-        className,
+        className
       )}
       style={{ width: size, height: size }}
       {...rest}

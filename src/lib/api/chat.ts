@@ -14,7 +14,10 @@ export interface ChatInput {
 
 // Streamed chat (Feature 5): POST to /api/chat, read the plain-text token stream and call
 // onToken for each delta as it arrives. The citation source rides on the x-chat-source header.
-export async function streamChat(input: ChatInput, onToken: (delta: string) => void): Promise<{ source: ChatSource | null }> {
+export async function streamChat(
+  input: ChatInput,
+  onToken: (delta: string) => void
+): Promise<{ source: ChatSource | null }> {
   const res = await fetch('/api/chat', {
     method: 'POST',
     credentials: 'include',
@@ -33,7 +36,9 @@ export async function streamChat(input: ChatInput, onToken: (delta: string) => v
   }
 
   const srcHeader = res.headers.get('x-chat-source')
-  const source: ChatSource | null = srcHeader ? (JSON.parse(decodeURIComponent(srcHeader)) as ChatSource) : null
+  const source: ChatSource | null = srcHeader
+    ? (JSON.parse(decodeURIComponent(srcHeader)) as ChatSource)
+    : null
 
   if (!res.body) {
     // no stream (shouldn't happen) — fall back to the whole body as one token

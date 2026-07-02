@@ -1,0 +1,7 @@
+.next
+node_modules
+scripts/out
+public
+supabase
+docs
+*.md

@@ -26,10 +26,14 @@ export interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(function Surface(
   { tone = 'canvas', elevation = 'none', className, children, ...rest },
-  ref,
+  ref
 ) {
   return (
-    <div ref={ref} className={cn('rounded-card', toneClass[tone], elevationClass[elevation], className)} {...rest}>
+    <div
+      ref={ref}
+      className={cn('rounded-card', toneClass[tone], elevationClass[elevation], className)}
+      {...rest}
+    >
       {children}
     </div>
   )

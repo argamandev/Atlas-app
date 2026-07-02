@@ -13,44 +13,51 @@ const highlightSchema = z.object({
 
 // Lenient — real/legacy data has role "unknown" and empty/null optional fields.
 // We keep a structural sanity check but accept the data as stored.
-const speakerSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  role: z.string(),
-  title: z.string().optional().nullable(),
-  affiliation: z.string().optional().nullable(),
-}).passthrough()
-
-const lineSchema = z.object({
-  id: z.string(),
-  speakerId: z.string(),
-  timestamp: z.string(),
-  text: z.string(),
-  highlights: z.array(highlightSchema).optional(),
-}).passthrough()
-
-const transcriptSchema = z.object({
-  id: z.string(),
-  company: z.string(),
-  ticker: z.string().optional().nullable(),
-  quarter: z.string(),
-  date: z.string(),
-  duration: z.string(),
-  youtubeUrl: z.string().optional().nullable(),
-  status: z.string(),
-  createdAt: z.string(),
-  speakers: z.array(speakerSchema),
-  sections: z.array(z.object({
+const speakerSchema = z
+  .object({
     id: z.string(),
-    title: z.string(),
-    lines: z.array(lineSchema),
-  }).passthrough()),
-}).passthrough()
+    name: z.string(),
+    role: z.string(),
+    title: z.string().optional().nullable(),
+    affiliation: z.string().optional().nullable(),
+  })
+  .passthrough()
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } },
-) {
+const lineSchema = z
+  .object({
+    id: z.string(),
+    speakerId: z.string(),
+    timestamp: z.string(),
+    text: z.string(),
+    highlights: z.array(highlightSchema).optional(),
+  })
+  .passthrough()
+
+const transcriptSchema = z
+  .object({
+    id: z.string(),
+    company: z.string(),
+    ticker: z.string().optional().nullable(),
+    quarter: z.string(),
+    date: z.string(),
+    duration: z.string(),
+    youtubeUrl: z.string().optional().nullable(),
+    status: z.string(),
+    createdAt: z.string(),
+    speakers: z.array(speakerSchema),
+    sections: z.array(
+      z
+        .object({
+          id: z.string(),
+          title: z.string(),
+          lines: z.array(lineSchema),
+        })
+        .passthrough()
+    ),
+  })
+  .passthrough()
+
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const userId = await getRequestUserId(req)
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   console.log(`[GET /api/transcripts/${params.id}] querying supabase...`)
@@ -59,7 +66,9 @@ export async function GET(
     .select('*')
     .eq('id', params.id)
     .limit(1)
-  console.log(`[GET /api/transcripts/${params.id}] result: rows=${JSON.stringify(rows)}, error=${JSON.stringify(error)}`)
+  console.log(
+    `[GET /api/transcripts/${params.id}] result: rows=${JSON.stringify(rows)}, error=${JSON.stringify(error)}`
+  )
   const data = rows?.[0] ?? null
 
   if (error) {
@@ -75,13 +84,12 @@ export async function GET(
   })
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Fetch the row owner — authorization gate (we use supabaseAdmin which bypasses RLS)
@@ -123,9 +131,15 @@ export async function PUT(
 // Admin gate shared by DELETE + PATCH: cookie session → profiles.role === 'admin'.
 async function requireAdmin(): Promise<NextResponse | null> {
   const supabase = createServerSupabase(cookies())
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', session.user.id).single()
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single()
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   return null
 }
@@ -136,7 +150,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   if (denied) return denied
 
   // Grab the audio URL for best-effort storage cleanup.
-  const { data: row } = await supabaseAdmin.from('transcripts').select('audio_url').eq('id', params.id).maybeSingle()
+  const { data: row } = await supabaseAdmin
+    .from('transcripts')
+    .select('audio_url')
+    .eq('id', params.id)
+    .maybeSingle()
 
   // scheduled_calls.transcript_id has no ON DELETE rule → null it first or the delete is rejected.
   await supabaseAdmin.from('scheduled_calls').update({ transcript_id: null }).eq('transcript_id', params.id)
@@ -173,7 +191,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'company or quarter required' }, { status: 400 })
   }
 
-  const { data: row } = await supabaseAdmin.from('transcripts').select('formatted_data').eq('id', params.id).maybeSingle()
+  const { data: row } = await supabaseAdmin
+    .from('transcripts')
+    .select('formatted_data')
+    .eq('id', params.id)
+    .maybeSingle()
   if (!row?.formatted_data) return NextResponse.json({ error: 'לא נמצא' }, { status: 404 })
   const fd = row.formatted_data as Record<string, unknown>
   if (company !== undefined) fd.company = company
