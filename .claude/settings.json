@@ -23,6 +23,10 @@
       {
         "matcher": "Bash",
         "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-bash-gate.mjs" }]
+      },
+      {
+        "matcher": "mcp__supabase__execute_sql|mcp__supabase__apply_migration",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-bash-gate.mjs" }]
       }
     ],
     "PostToolUse": [
