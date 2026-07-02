@@ -51,15 +51,15 @@ before walking away.
 
 MISSION: import the Claude Design frontend exactly. The export lives at
 C:/Users/Sagi/Desktop/Atlas/design-import/ — it is the source of truth. Replicate the design
-faithfully into this codebase (components/ds and the app shell are yours to evolve — post any
-design-token or shared-component change to the board's CROSS-CUTTING first). The new
+faithfully into this codebase (components/ds and the app shell are yours to evolve — append any
+design-token or shared-component change to agent-memory/cross-cutting.md first). The new
 Workspace and Agents pages are FRONTEND-ONLY for now: build them on stub data behind one
 clean data-interface module each, so wiring real backends later is a swap, not a rebuild.
 
 WORK LAW: one small independently-testable step at a time. Before claiming ANY page done, run
 /verify-app — screenshot your page next to its design-import reference, compare structure/
 spacing/typography/colors, check EN + HE (RTL flip), zero console errors. When a piece is
-ready, finish it with /ship (battery → push your branch → post READY-FOR-REVIEW on the board).
+ready, finish it with /ship (battery → push your branch → append to agent-memory/ready-queue.md).
 Never push main. MILESTONE 1: the improved chat frontend shell (New chat / Projects /
 Workspace / Agents in the top-left) imported and verified, navigable to stub Workspace and
 Agents pages. Start by reading the export and posting your build order to your board section.
@@ -90,7 +90,7 @@ of liveTiming.test.ts asserting: word timestamps strictly non-decreasing; word c
 audio duration; caption-vs-audio drift within the buffer budget. Compare your transcript
 against the Recall captions on the same audio (scripts/run-experiment.ts pattern) and report
 the quality delta on the board. Then /verify-app: watch the karaoke mid-replay with your own
-eyes. The live engine :8788 is single-owner — claim it in CROSS-CUTTING before starting it.
+eyes. The live engine :8788 is single-owner — claim it in agent-memory/cross-cutting.md first.
 Finish pieces with /ship; never push main. MILESTONE 1: replayed archived audio → IVRIT text
 with word timings → karaoke renders in sync, with the invariants unit-tested.
 ```
@@ -110,7 +110,8 @@ quarterly report PDF and slides beside the transcript, scroll them, MARK TEXT IN
 and Ask Atlas about the marked passage (the exact UX the transcript already has via
 TranscriptBody selection → TranscriptChatPanel → /api/chat). The design glue comes later from
 Lane F — you build the engine: (1) document ingest+store (Supabase Storage + an additive
-documents table — post the migration to CROSS-CUTTING before applying, see rules/db.md);
+documents table — append the migration to agent-memory/cross-cutting.md before applying,
+see rules/db.md);
 (2) per-page text extraction persisted server-side; (3) pdf.js (pdfjs-dist is already in
 node_modules) rendering with a selectable text layer in a bare test page; (4) selection →
 Ask Atlas wired through the existing /api/chat with the marked passage + page context.
@@ -128,15 +129,17 @@ marked passage, end to end on the test page.
 
 ## Step 4 — What the supervisor (main chat) does all day
 
-Watches the board · picks up READY-FOR-REVIEW entries · cold-reviews each diff · merges small
-and often · runs the battery on main · pushes · logs PROGRESS.md · resolves CROSS-CUTTING
-conflicts · brings you MILESTONES to product-test · distills every lesson a lane learns into
-the skills and rules so the whole fleet gets sharper.
+Watches the board + logs · processes the ready queue: **dispatches the atlas-reviewer agent
+(fresh eyes) on every diff, then does its own mission-fit pass** · merges small and often ·
+runs the battery on main · pushes · logs PROGRESS.md · resolves cross-cutting conflicts ·
+maintains the MISSION section (north star + each lane's contribution) · brings you MILESTONES
+to product-test · retires finished features (distill → archive → reset the seat) and intakes
+new ones · distills every lesson a lane learns into skills and rules so the fleet gets sharper.
 
 ## House rules recap (enforced, not suggested)
 
-- Destructive SQL, `.env` reads, force-pushes, lane-pushes-to-main: **hook-blocked**.
+- Destructive SQL (Bash AND Supabase MCP), `.env` reads, force-pushes, lane-pushes-to-main: **hook-blocked**.
 - Every edit is auto-formatted + typechecked by the PostToolUse hook.
-- DB is shared with production: additive-only, posted to the board first.
+- DB is shared with production: additive-only, appended to cross-cutting.md first.
 - One lane = one port; live engine :8788 claimed on the board.
 - Nothing is "done" without /verify-app evidence; nothing reaches main except through /ship.
