@@ -1,5 +1,7 @@
 # Perfect Transcripts — V1: Post-IVRIT Correction Layer (words + numbers)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-06-08
 **Status:** Design approved in brainstorm; pending spec review → implementation plan
 **Scope of V1:** Implement *only* the post-IVRIT correction **logic** (words + numbers), wired

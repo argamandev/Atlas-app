@@ -1,5 +1,7 @@
 # Global Investor Call — Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** superpowers:executing-plans. Branch `feat/global-live-call` (off
 > `feat/transcript-ui-polish`). **Isolated, rewindable** — NOT pushed/merged until the founder live-tests it.
 > Guiding constraint: **do not regress the live experience** (it's excellent). Verify `tsc`/`build` at each

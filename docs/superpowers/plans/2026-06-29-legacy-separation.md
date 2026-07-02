@@ -1,5 +1,7 @@
 # Legacy (Timlul) Separation — Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** steps use checkbox (`- [ ]`) syntax. Execution: inline, single session
 > (founder pre-approved the full loop, one notification at the end).
 

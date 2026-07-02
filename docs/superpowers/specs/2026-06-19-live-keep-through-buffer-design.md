@@ -1,5 +1,7 @@
 # Live: keep "LIVE" through the buffer drain → clean finish — Design
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-06-19 · **Status:** approved by founder, ready for implementation plan
 **Branch target:** `feat/live-phase2` (continues the phase-2 live work; not merged to `main` until tested)
 

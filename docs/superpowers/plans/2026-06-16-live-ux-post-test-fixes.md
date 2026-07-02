@@ -1,5 +1,7 @@
 # Live UX — Post-2A-Test Fixes Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > Inline execution, this session. **COMMITS DEFERRED.** Fixes the 3 founder bug reports from the
 > first 2A live test.
 

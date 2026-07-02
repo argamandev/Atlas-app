@@ -1,5 +1,7 @@
 # Phase 2B — Toolbar on the Live View Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > Inline execution on `feat/live-phase2`. **COMMITS as we go.** Approach: incremental — duplicate the
 > small selection+toolbar glue into `LiveBroadcastView`, reuse the shared `TranscriptChatPanel` +
 > `createQuote` (+ the already-shared `TranscriptBody`). The 2D unify will delete the duplication.

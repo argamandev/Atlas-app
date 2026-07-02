@@ -1,5 +1,7 @@
 # Transcription Resilience Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stop the finished-transcript pipeline from discarding a successful IVRIT transcription when the formatter (Gemini) hits a transient outage, default IVRIT to the accurate model, and make failed/retried calls cheap to re-run.

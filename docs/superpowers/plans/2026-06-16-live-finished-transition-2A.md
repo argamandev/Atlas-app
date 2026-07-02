@@ -1,5 +1,7 @@
 # Phase 2A — Live→Finished Inline-Swap Transition Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans (inline, this session).
 > Steps use checkbox (`- [ ]`). **COMMITS DEFERRED** — build into the working tree; do NOT `git commit`
 > (founder reviews; tree has prior uncommitted work). Spec:

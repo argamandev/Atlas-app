@@ -1,5 +1,7 @@
 # Transcription Resilience — accurate IVRIT, formatter fallback, cheap re-runs
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-06-16
 **Status:** Approved design → ready for implementation plan
 **Author:** Claude + Sagi (founder)

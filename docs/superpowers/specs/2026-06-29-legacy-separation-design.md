@@ -1,5 +1,7 @@
 # Spec — Legacy (Timlul) ↔ Atlas separation & clean-deletion contract
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-06-29
 **Status:** approved (founder)
 **Goal:** Make the legacy תמלול/Timlul product **safely deletable in one pass** — zero code or

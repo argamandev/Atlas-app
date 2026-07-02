@@ -1,5 +1,7 @@
 # Atlas Clean Start — Design & Handoff (2026-06-30)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **Read this first if you're a fresh Claude session in `C:\Users\Sagi\Desktop\Atlas`.**
 > This repo is the **clean clone** of the old Atlas/Timlul project. It was created on
 > 2026-06-30 to become the one true home of Atlas. Below is *why it exists, what was

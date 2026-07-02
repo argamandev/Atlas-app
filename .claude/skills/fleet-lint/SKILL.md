@@ -23,14 +23,27 @@ steps) — never just listed.
    anything general still sitting there? Graduate it to the right skill/rule.
 5. **Doc-vs-code drift** — spot-check ARCHITECTURE.md and docs/ENVIRONMENT.md claims against
    the tree (files that no longer exist, counts/numbers that rotted, harness rows vs actual
-   .claude/ contents). CLAUDE.md: does every doc-map entry exist? Does every doc in docs/
-   appear in the map (or is it deliberately unindexed history under superpowers/)? Is
-   CLAUDE.md still under its ~500-token budget (`wc -w CLAUDE.md` ≲ 380 words)?
+   .claude/ contents). ARCHITECTURE.md minimum bar (it's the doc most likely to rot once
+   lanes build in parallel): sample ≥5 file paths it names and confirm each exists, and
+   verify ONE behavioral claim against the actual code. CLAUDE.md: does every doc-map entry
+   exist? Does every doc in docs/ appear in the map (or is it deliberately unindexed history
+   under superpowers/)? Is CLAUDE.md still under its ~500-token budget
+   (`wc -w CLAUDE.md` ≲ 380 words)?
 6. **Contradictions** — do CLAUDE.md, rules/, skills/, and LAUNCH-KIT.md disagree anywhere
    (ports, paths, protocol names, who-may-do-what)?
 7. **Decision capture** — skim recent founder conversations you know of: any decision made
    in chat that never landed as a `DECISION` line in cross-cutting.md (its one home; ship
    rolls decisions into PROGRESS.md)?
+8. **PROGRESS.md compaction** — `wc -l PROGRESS.md` > 1000? Propose a compaction to the
+   founder: distill the oldest era into a short "era summary" section at the bottom and move
+   its raw entries to `docs/archive/PROGRESS-<from>-<to>.md` (linked from the summary).
+   Append-only stays the law for current entries; compaction only ever touches the old tail,
+   and only with founder approval.
+9. **Stale plans/specs** — every file in `docs/superpowers/plans/` and `docs/superpowers/specs/`
+   whose feature already shipped must carry the historical banner as its first line after the
+   title (`> STATUS: SHIPPED — historical record, do not execute; current truth lives in
+   ARCHITECTURE.md + PROGRESS.md`). Any shipped plan missing it → stamp it now. Files are
+   stamped, never moved — moving breaks references from other docs.
 
 **Timing law:** always run this lint BEFORE archiving/resetting any agent-memory file
 (feature retirement, queue pruning) — the logs are the lint's evidence; sweep first, recycle after.
