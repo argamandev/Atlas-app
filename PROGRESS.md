@@ -5,6 +5,29 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-02 — Harness audit fixes + brain upgrades SHIPPED (reviewer-APPROVED)
+
+**Status:** merged to `main` (`bf66d79`) + pushed. An unbiased cold audit (founder-ordered) graded
+the Mission-2 environment against the harness playbook; all real findings fixed same-day.
+
+- **`atlas-reviewer` agent** (`.claude/agents/`) — independent cold-context reviewer, now a
+  mandatory `/ship` gate before any merge (closes "one agent grades its own work"). Its first
+  review (of this very branch) returned APPROVED + 8 findings; the 5 actionable ones were fixed
+  pre-merge (per-statement SQL checks, rmdir /s coverage, wider MCP matcher, stale db.md ref).
+- **Gate v2 guards BOTH DB doors** — Bash and the Supabase MCP tools — with additive-SQL still
+  flowing; all audited regex bypasses closed. 35/35 fire-tests. The gate blocked its own author
+  twice during this work (a commit message and a heredoc) — enforcement provably model-proof.
+- **Board v2:** MISSION section (supervisor = navigator, each lane's line to the north star) +
+  append-only `cross-cutting.md` / `ready-queue.md` (collision-proof). **Feature-retirement
+  ritual** added to /ship: distill → PROGRESS → archive state → reset seat → intake next feature.
+- **Permissions:** `settings.local.json` no longer pre-approves blanket supabase commands
+  (was auto-approving resets against the shared DB). CLAUDE.md trimmed to ~430 tokens;
+  app gotchas → `rules/app.md`. **Founder action still open: rotate the Supabase token.**
+- Accepted, documented limitations: .env-mention false positives are by-design friction;
+  symlink read route + branch-names-containing-"main" false positive are known edge cases.
+
+---
+
 ## 2026-07-02 — Mission 2 SHIPPED: the Atlas smart environment (fleet harness)
 
 **Status:** merged to `main` and pushed. Spec `docs/superpowers/specs/2026-07-02-smart-environment-design.md`
