@@ -2,7 +2,20 @@
   "permissions": {
     "allow": [
       "mcp__recall-ai__list_webhook_endpoints",
-      "mcp__recall-ai__search_docs"
+      "mcp__recall-ai__search_docs",
+      "Bash(npm test)",
+      "Bash(npx tsc --noEmit*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(node scripts/live-replay-engine.mjs*)"
+    ],
+    "deny": [
+      "Read(./.env*)",
+      "Edit(./.env*)",
+      "Edit(./.mcp.json)"
     ]
   },
   "hooks": {
