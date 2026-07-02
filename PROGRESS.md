@@ -23,7 +23,7 @@ weakness filed as a lesson, not left in chat.
   lesson graduated into the ship skill: stage explicitly).
 - **Check 8 executed same day (founder-initiated):** the June/Timlul era (25 entries, 779
   lines) compacted to the ERA SUMMARY at the bottom; raw entries verbatim in
-  `docs/archive/PROGRESS-2026-06-timlul-era.md`. 904 → ~190 lines.
+  `docs/archive/PROGRESS-2026-06-timlul-era.md`. 903 → 187 lines.
 
 ---
 
