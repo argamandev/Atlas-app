@@ -30,9 +30,10 @@ main is always working. Only the supervisor pushes it. There are two roles:
    MISSION line on the board? Re-run `npm test` + build yourself. Two independent gates —
    the reviewer's and yours — before anything touches main.
 3. APPEND to the ready queue: the verdict line (`[ts] VERDICT lane/branch — APPROVED/CHANGES`)
-   AND every reviewer finding verbatim as its own `FINDING` line (they must not evaporate —
-   /fleet-lint greps them to detect repeated defect classes). CHANGES → also list the fixes
-   in the lane's board section; stop here.
+   AND every reviewer finding as its own line — the reviewer's `FINDING …` text with YOUR
+   timestamp prepended: `[ts] FINDING …` (findings must not evaporate — /fleet-lint greps
+   them to detect repeated defect classes). CHANGES → also list the fixes in the lane's
+   board section; stop here.
 4. Merge: `git checkout main && git merge --no-ff <branch>` → battery again on main →
    `git push origin main`. Delete merged branch (coordinate with the lane for worktree branches).
 5. Append PROGRESS.md entry (3-5 bullets: what + why + verification). Commit + push.

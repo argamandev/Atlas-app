@@ -23,12 +23,17 @@ steps) — never just listed.
    anything general still sitting there? Graduate it to the right skill/rule.
 5. **Doc-vs-code drift** — spot-check ARCHITECTURE.md and docs/ENVIRONMENT.md claims against
    the tree (files that no longer exist, counts/numbers that rotted, harness rows vs actual
-   .claude/ contents). CLAUDE.md doc map: does every entry exist? Does every doc in docs/
-   appear in the map (or is it deliberately unindexed history under superpowers/)?
+   .claude/ contents). CLAUDE.md: does every doc-map entry exist? Does every doc in docs/
+   appear in the map (or is it deliberately unindexed history under superpowers/)? Is
+   CLAUDE.md still under its ~500-token budget (`wc -w CLAUDE.md` ≲ 380 words)?
 6. **Contradictions** — do CLAUDE.md, rules/, skills/, and LAUNCH-KIT.md disagree anywhere
    (ports, paths, protocol names, who-may-do-what)?
 7. **Decision capture** — skim recent founder conversations you know of: any decision made
-   in chat that never landed as a `DECISION` line in cross-cutting.md / PROGRESS.md?
+   in chat that never landed as a `DECISION` line in cross-cutting.md (its one home; ship
+   rolls decisions into PROGRESS.md)?
+
+**Timing law:** always run this lint BEFORE archiving/resetting any agent-memory file
+(feature retirement, queue pruning) — the logs are the lint's evidence; sweep first, recycle after.
 
 ## Output
 

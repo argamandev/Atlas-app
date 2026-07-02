@@ -54,8 +54,8 @@
    ENFORCEMENT (deterministic, can't be talked past — .claude/hooks/):
    pre-bash-gate.mjs  → blocks destructive SQL (Bash AND Supabase MCP doors),
                         unsafe recursive deletes, .env access, force-push,
-                        lane-pushes-to-main   [fire-test matrix in the scratchpad
-                        gate-tests scripts — re-run + extend it on every hook change]
+                        lane-pushes-to-main   [fire-test suite: node
+                        .claude/hooks/gate-tests.mjs — re-run + EXTEND on every hook change]
    post-edit-verify.mjs → prettier + incremental tsc after EVERY edit
 ```
 
@@ -66,7 +66,7 @@
 | **Constitution** | `CLAUDE.md` (kept under ~500 tokens — /fleet-lint checks) | Standing facts only; auto-read every session; points everywhere else |
 | **Laws** | `.claude/rules/` — parallel-work · db · live · app | Scoped truths, read before touching their area |
 | **Enforcement** | `.claude/hooks/` — 2 sharp hooks | Physics, not suggestions; exit 2 blocks |
-| **Procedures** | `.claude/skills/` — verify-app · ship · live-test · transcript-review | The reusable, *accumulating* unit — lessons graduate INTO these |
+| **Procedures** | `.claude/skills/` — verify-app · ship · fleet-lint · live-test · transcript-review | The reusable, *accumulating* unit — lessons graduate INTO these |
 | **Fresh eyes** | `.claude/agents/atlas-reviewer.md` | Independent grader on every merge |
 | **Working memory** | `agent-memory/` (git-ignored) | Real-time, shared, recycled per feature |
 | **Permanent memory** | `PROGRESS.md` · `docs/VISION.md` · `ARCHITECTURE.md` · specs/plans | Git-tracked history and maps |
