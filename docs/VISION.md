@@ -68,8 +68,10 @@ stored forever. On top: chat, multi-view, workspace, agents.
    `scripts/live-broadcast.mjs`; replay: `scripts/live-replay-engine.mjs`.
    Production to-build: sentence-level correction with anchor alignment; copy recording +
    transcript to our storage post-call; permanent webhook URL; `live_calls` table +
-   multi-call concurrency. **Mission 4 adds: the independent IVRIT pipeline (Recall sends
-   audio-only → RunPod IVRIT → text + word timestamps) as a second engine.**
+   multi-call concurrency; live speaker capture (captions are currently one speakerless
+   block — capture Recall's per-word participant → real speaker segments). **Mission 4
+   adds: the independent IVRIT pipeline (Recall sends audio-only → RunPod IVRIT → text +
+   word timestamps) as a second engine.**
 2. **Core 2 — Automatic bot fleet from MAYA.** Quarterly-call announcements (Zoom links +
    times) per company → auto-create Recall bots → feed Core 1. Hard part learned 2026-06-15:
    Zoom registration tokens are single-use and short-lived — the fix is a tight
