@@ -116,7 +116,9 @@ see rules/db.md);
 node_modules) rendering with a selectable text layer in a bare test page; (4) selection →
 Ask Atlas wired through the existing /api/chat with the marked passage + page context.
 
-DAY-ONE SPIKE (before anything else): your fixture is
+DESIGN HOOK (docs/VISION.md Mission 5): shape the documents table + any chat-context changes
+so a future company_knowledge layer can slot in behind a clean interface — interface now,
+implementation later. DAY-ONE SPIKE (before anything else): your fixture is
 C:/Users/Sagi/Desktop/Atlas/local-assets/demo-report.pdf. Extract its text per page and
 verify known Hebrew strings come out in CORRECT reading order — Hebrew PDF extraction is the
 project's #1 known risk here. Post the spike verdict (clean / quirks / fallback needed) to
@@ -132,6 +134,7 @@ marked passage, end to end on the test page.
 Watches the board + logs · processes the ready queue: **dispatches the atlas-reviewer agent
 (fresh eyes) on every diff, then does its own mission-fit pass** · merges small and often ·
 runs the battery on main · pushes · logs PROGRESS.md · resolves cross-cutting conflicts ·
+runs **/fleet-lint every 2-3 merges** (drift, contradictions, un-graduated lessons) ·
 maintains the MISSION section (north star + each lane's contribution) · brings you MILESTONES
 to product-test · retires finished features (distill → archive → reset the seat) and intakes
 new ones · distills every lesson a lane learns into skills and rules so the fleet gets sharper.

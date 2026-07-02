@@ -14,4 +14,10 @@
   lib/db shapes. Read it before big moves — someone may have changed ground under you.
 - Lanes NEVER push main (hook-blocked) — finish via `/ship` → append to the ready queue.
 - Never edit another lane's state file.
+- **Decisions are filed, not remembered:** the moment the founder decides anything (scope,
+  UX, priorities, "do it that way"), append it as a `DECISION` line to cross-cutting.md —
+  a decision living only in one session's chat is invisible to the rest of the fleet.
+- **Answers are filed, not spoken:** any nontrivial produced knowledge (research result,
+  investigation, "how X actually works") gets written into the right doc under `docs/`
+  (or the relevant rule/skill) and indexed in CLAUDE.md's doc map — chat is not storage.
 - Write before walking away: end every session by updating your state file + board section.
