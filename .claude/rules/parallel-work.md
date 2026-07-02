@@ -20,4 +20,11 @@
 - **Answers are filed, not spoken:** any nontrivial produced knowledge (research result,
   investigation, "how X actually works") gets written into the right doc under `docs/`
   (or the relevant rule/skill) and indexed in CLAUDE.md's doc map — chat is not storage.
+- **The 5-strike rule (circuit breaker):** ~5 failed attempts at the SAME problem → STOP.
+  Do not grind tokens on a loop. Write what you tried + what failed to your state file,
+  append `[ts] ALERT lane — stuck on <problem>, 5 strikes, escalating` to cross-cutting.md,
+  and hand it to the supervisor (who involves the founder if needed). Being stuck is data;
+  burning the budget on it is the only failure.
+- **Brainstorm before building:** every new feature starts with the brainstorming skill →
+  spec → written plan (docs/superpowers/) → only then code. The founder joins the brainstorm.
 - Write before walking away: end every session by updating your state file + board section.

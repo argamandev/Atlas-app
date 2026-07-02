@@ -60,9 +60,11 @@ WORK LAW: one small independently-testable step at a time. Before claiming ANY p
 /verify-app — screenshot your page next to its design-import reference, compare structure/
 spacing/typography/colors, check EN + HE (RTL flip), zero console errors. When a piece is
 ready, finish it with /ship (battery → push your branch → append to agent-memory/ready-queue.md).
-Never push main. MILESTONE 1: the improved chat frontend shell (New chat / Projects /
-Workspace / Agents in the top-left) imported and verified, navigable to stub Workspace and
-Agents pages. Start by reading the export and posting your build order to your board section.
+Never push main. If you fail ~5 attempts at the SAME problem: stop, ALERT, escalate (the
+5-strike rule in parallel-work.md). MILESTONE 1: the improved chat frontend shell (New chat /
+Projects / Workspace / Agents in the top-left) imported and verified, navigable to stub
+Workspace and Agents pages. FIRST ACTION: read the export, then run the brainstorming skill
+WITH THE FOUNDER to produce your spec + plan (docs/superpowers/) — only then build.
 ```
 
 ### 🎙️ Lane I — paste into the Atlas-ivrit session
@@ -80,8 +82,10 @@ audio + text; in this pipeline Recall sends AUDIO ONLY (audio_mixed_raw websocke
 ivrit-ai RunPod model produces the text + word timestamps, feeding the SAME karaoke UX the
 product already has (the sync engine is built — src/lib/live/syncEngine.ts). Study
 scripts/live-broadcast.mjs (current engine) and src/lib/transcription.ts (IVRIT/RunPod
-integration incl. word timestamps) first; design the chunking strategy (how audio segments →
-IVRIT calls → rolling timed captions) and post it to your board section before building.
+integration incl. word timestamps) first. FIRST ACTION after that reading: run the
+brainstorming skill WITH THE FOUNDER on the chunking strategy (how audio segments → IVRIT
+calls → rolling timed captions) → spec + plan in docs/superpowers/ — only then build.
+If stuck ~5 attempts on one problem: stop, ALERT, escalate (5-strike rule).
 
 SELF-VERIFICATION (this is your definition of "works"): your test bench is the archived real
 call at scripts/out/sessions/2026-07-01-tamis-live/ (broadcast-audio.pcm + lines.jsonl)
@@ -125,8 +129,10 @@ project's #1 known risk here. Post the spike verdict (clean / quirks / fallback 
 the board BEFORE building the rest. SELF-VERIFICATION: /verify-app — via Chrome MCP actually
 select text inside the rendered PDF, trigger Ask Atlas, confirm the answer references the
 marked passage; screenshot the multi-panel test layout. Finish pieces with /ship; never push
-main. MILESTONE 1: demo PDF ingested → rendered → text marked → Ask Atlas answers about the
-marked passage, end to end on the test page.
+main. If stuck ~5 attempts on one problem: stop, ALERT, escalate (5-strike rule).
+MILESTONE 1: demo PDF ingested → rendered → text marked → Ask Atlas answers about the
+marked passage, end to end on the test page. AFTER the day-one spike: run the brainstorming
+skill WITH THE FOUNDER → spec + plan in docs/superpowers/ — only then build the rest.
 ```
 
 ## Step 4 — What the supervisor (main chat) does all day

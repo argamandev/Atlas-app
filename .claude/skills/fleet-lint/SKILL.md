@@ -35,6 +35,12 @@ steps) — never just listed.
 **Timing law:** always run this lint BEFORE archiving/resetting any agent-memory file
 (feature retirement, queue pruning) — the logs are the lint's evidence; sweep first, recycle after.
 
+**Meta-review law (who audits the supervisor):** roughly every ~10 merges or once per feature
+cycle, dispatch a COLD external audit agent (fresh context, given the reference docs in
+`Atlas Documents/Atlas smart environment files/` + this environment) to grade the supervisor's
+own decisions and the environment against its goals — the 2026-07-02 harness audit and
+Karpathy advisory are the template. The supervisor must not be the only grader of itself.
+
 ## Output
 
 Append one line to `agent-memory/cross-cutting.md`:
