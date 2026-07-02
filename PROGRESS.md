@@ -21,9 +21,9 @@ weakness filed as a lesson, not left in chat.
   sample ≥5 named paths (must exist) + verify 1 behavioral claim against code.
 - Also: `.obsidian/` gitignored (editor config nearly leaked into a commit via `git add -A` —
   lesson graduated into the ship skill: stage explicitly).
-- **Check 8 executed same day (founder-initiated):** the June/Timlul era (25 entries, ~780
+- **Check 8 executed same day (founder-initiated):** the June/Timlul era (25 entries, 779
   lines) compacted to the ERA SUMMARY at the bottom; raw entries verbatim in
-  `docs/archive/PROGRESS-2026-06-timlul-era.md`. 904 → ~180 lines.
+  `docs/archive/PROGRESS-2026-06-timlul-era.md`. 904 → ~190 lines.
 
 ---
 
@@ -127,7 +127,7 @@ finish `completed`, correct call: 2026-07-01, 382.6s).
 
 ## ERA SUMMARY — 2026-06-07 → 2026-06-27: the Timlul/V1 era (compacted 2026-07-03)
 
-The 25 raw entries of this era (~760 lines) live verbatim in
+The 25 raw entries of this era (779 lines) live verbatim in
 `docs/archive/PROGRESS-2026-06-timlul-era.md`. Below is everything from them that still
 governs today. The era's product knowledge already lives in ARCHITECTURE.md, docs/VISION.md
 and `.claude/rules/`; its plans/specs are stamped historical.
@@ -158,7 +158,7 @@ deleted — clean Atlas start.
 - **2026-06-15 — rebrand → Atlas;** only brand-name uses of תמלול renamed — it is also the
   Hebrew noun "transcript", a blind find-replace breaks product vocabulary.
 - **2026-06-15 — quotes = anchor, auto-upgrade & deep-link** (not frozen text); build path
-  C→A toward "one transcript page, two modes".
+  C→A toward "one transcript page, two modes" (the "Thread A" design — raw block in the archive).
 - **2026-06-22 — two live bars (Option B):** the live page keeps its in-column bar; the
   global bar appears only after navigating away; both read the same provider.
 
@@ -168,6 +168,10 @@ bypass webinar registration (only helps auth-only meetings; registration `tk` li
 single-use — the fix is auto-register → fresh tk → launch bot, see VISION Core 2).
 
 **Tech debt carried out of the era (still open):**
+- **No live speaker capture:** live captions render as ONE speakerless block —
+  `scripts/live-broadcast.mjs` captures word+timestamp but no participant data, and the
+  finished transcript leans on Gemini's proportional speaker turns (06-14/06-16). Production
+  fix = capture Recall's per-word participant → real speaker segments. Lane I / Mission 4 territory.
 - `LiveAudioProvider` puts 10fps values in React context → consumers re-render 10×/s; port
   `PlayerProvider`'s `useSyncExternalStore` pattern before adding consumers (2026-06-27 review).
 - The "call ended → finish pipeline" effect lives on the live PAGE — a user elsewhere at call
