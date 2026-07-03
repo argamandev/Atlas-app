@@ -1041,18 +1041,53 @@ for (let i = 0; i < g.length && shown < 10; i++) {
 }
 ```
 
-- [ ] **Step 2: Run it on the Task 7 full-archive output**
+- [ ] **Step 2: Generate the whole-file IVRIT reference (founder-requested, isolates chunking cost)**
+
+Create `scripts/make-wholefile-reference.ts`: load `.env.local` keys into `process.env`, write the full archived PCM as a temp WAV (`pcmToWav`), then `const { transcribeAudio } = await import('../src/lib/transcription')` (dynamic import AFTER env is set — the supabase client reads env at import) and `transcribeAudio(wavPath)`; save the result text to `scripts/out/ivrit-wholefile.txt`. This is one whole-file RunPod job through the already-proven path — the same model without chunking, so ours-vs-reference disagreement measures exactly what chunking costs.
+
+```ts
+// scripts/make-wholefile-reference.ts — whole-file IVRIT reference for the chunking-cost diff.
+// Run: node --import tsx scripts/make-wholefile-reference.ts
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
+import { pcmToWav } from '../src/lib/live/wavEncode'
+
+const ROOT = process.cwd()
+for (const raw of fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8').split('\n')) {
+  const eq = raw.indexOf('=')
+  if (eq === -1 || raw.trim().startsWith('#')) continue
+  const k = raw.slice(0, eq).trim()
+  if (!process.env[k]) process.env[k] = raw.slice(eq + 1).trim().replace(/^["']|["']$/g, '')
+}
+const SRC = process.env.SRC || 'C:/Users/Sagi/Desktop/Atlas/scripts/out/sessions/2026-07-01-tamis-live/broadcast-audio.pcm'
+
+async function main() {
+  const { transcribeAudio } = await import('../src/lib/transcription')
+  const wavPath = path.join(os.tmpdir(), `wholefile_ref_${Date.now()}.wav`)
+  fs.writeFileSync(wavPath, pcmToWav(fs.readFileSync(SRC)))
+  const { text, engine, model } = await transcribeAudio(wavPath)
+  fs.writeFileSync(path.join(ROOT, 'scripts/out/ivrit-wholefile.txt'), text)
+  console.log(`reference saved (${engine}/${model}, ${text.length} chars) -> scripts/out/ivrit-wholefile.txt`)
+  fs.unlinkSync(wavPath)
+}
+main().catch((e) => { console.error(e); process.exit(1) })
+```
+
+Run: `node --import tsx scripts/make-wholefile-reference.ts` — expected: `engine=ivrit`, a few thousand chars saved. Extend `compare-live-quality.ts` to also print agreement vs `scripts/out/ivrit-wholefile.txt` when that file exists (same tokenize/LCS code, third reference column, env `WHOLEFILE` to override the path).
+
+- [ ] **Step 3: Run the comparison on the Task 7 full-archive output**
 
 Run: `node --import tsx scripts/compare-live-quality.ts`
-Expected: token counts of the same order of magnitude, agreement percentages printed, 10 divergence windows for eyeballing. Interpretation note: disagreement is not automatically our error — Recall's raw captions have their own mistakes; skim the windows and judge.
+Expected: token counts of the same order of magnitude, agreement percentages printed for BOTH references (Recall captions + whole-file IVRIT), 10 divergence windows for eyeballing. Interpretation: ours-vs-wholefile disagreement ≈ the cost of chunking (same model, chunking is the only variable); ours-vs-Recall is the competitive delta — Recall's raw captions have their own mistakes, so skim the windows and judge.
 
-- [ ] **Step 3: Report the delta on the board and commit**
+- [ ] **Step 4: Report the delta on the board and commit**
 
-Update the Lane I section of `C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md` with the numbers (tokens, agreement %, subjective read of the divergence windows). Then:
+Update the Lane I section of `C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md` with the numbers (tokens, agreement % vs both references, subjective read of the divergence windows). Then:
 
 ```bash
-git add scripts/compare-live-quality.ts
-git commit -m "feat(ivrit-live): quality comparator vs recall captions"
+git add scripts/compare-live-quality.ts scripts/make-wholefile-reference.ts
+git commit -m "feat(ivrit-live): quality comparator vs recall captions + wholefile ivrit reference"
 ```
 
 ---
