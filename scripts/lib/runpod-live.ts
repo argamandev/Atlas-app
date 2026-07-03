@@ -14,15 +14,24 @@ async function runJob(opts: RunpodLiveOpts, transcribeArgs: Record<string, unkno
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ input: { model, streaming: false, transcribe_args: transcribeArgs } }),
+    signal: AbortSignal.timeout(30_000),
   })
   if (!res.ok) throw new Error(`RunPod submit ${res.status}: ${await res.text()}`)
   const { id } = (await res.json()) as { id: string }
   const t0 = Date.now()
   while (Date.now() - t0 < timeoutMs) {
     await new Promise((r) => setTimeout(r, pollMs))
-    const st = await fetch(`https://api.runpod.ai/v2/${endpointId}/status/${id}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    })
+    // One hung/aborted poll must never kill the job wait — a single bad tick just retries
+    // on the next pollMs tick within the same timeoutMs budget.
+    let st: Response
+    try {
+      st = await fetch(`https://api.runpod.ai/v2/${endpointId}/status/${id}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(30_000),
+      })
+    } catch {
+      continue
+    }
     if (!st.ok) continue
     const s = (await st.json()) as { status: string; output?: unknown; error?: unknown }
     if (s.status === 'COMPLETED') return s.output
