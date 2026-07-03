@@ -128,3 +128,30 @@ replacing the Recall-text pipeline (this runs beside it).
 - :8788 single-owner — claim in cross-cutting.md before any run.
 - `parseIvritSegments` extraction touches shared `src/lib/transcription.ts` → append to
   cross-cutting.md before the change.
+
+## Spike results (2026-07-03)
+
+Measured with `scripts/spike-ivrit-live.ts` against the real endpoint
+(`ivrit-ai/whisper-large-v3-turbo-ct2`, 35s WAV chunk = 1,120,044 bytes inline base64).
+
+- **S1 — blob input: SUPPORTED.** The worker accepts base64 `blob` in `transcribe_args`;
+  no per-chunk storage upload needed. `transcribeUrl` stays in `scripts/lib/runpod-live.ts`
+  as an unused fallback.
+- **S2 — latency for a 35s chunk** (submit → COMPLETED, incl. 1s-poll granularity):
+  - cold (worker spin-up): **16,091 ms** and **21,029 ms** across two separate runs
+  - warm (immediately after): **2,519 ms** and **2,635 ms**
+  - Both are far inside the <240s budget (`LIVE_BUFFER_SEC − 60`); warm ≈ 2.6s per 35s chunk
+    confirms FIFO concurrency-1 drains much faster than realtime. Cold start only bites the
+    first chunk of a call.
+- **Poll interval: 1s** (client default `pollMs = 1000`). At ~2.6s warm jobs, the old 5s
+  poll would add up to ~2.4s dead time per chunk; 1s keeps overhead <1s and is gentle
+  (≤3 status calls per warm job).
+- **Fixture**: `scripts/fixtures/ivrit-live-spike.json` — real response for the archive's
+  0–35s speech-heavy window: 9 segments, 46 words, all 46 with numeric per-word `start`
+  (Task 5's parser tests read this file). Note: the brief's original 60–95s window was
+  mostly silence/music (2 words); the spike script now defaults to 0–35s
+  (`SPIKE_START_SEC` overrides).
+- **Response shape** (for Task 6's parser): top level is `[{ result: [ [segment, …], … ] }]`
+  — an array of segment *batches*; each segment has `text`, `start`, `end`,
+  `words: [{ word, start, end, probability, speaker }]`, plus `extra_data` and an empty
+  `speakers` array (diarization off).
