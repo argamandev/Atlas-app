@@ -60,14 +60,13 @@ Recall ws (audio_mixed_raw)          [test: replay-audio-feeder.mjs streams the
         ▼
 scripts/live-ivrit-broadcast.ts  (run via node --import tsx; :8788, single-owner)
   ├── audio store: pcmChunks[] + /pcm slice serving   (same as live-broadcast.mjs)
-  ├── Chunker (pure, src/lib/live/ivritChunker.ts):
+  ├── Chunker (pure, src/lib/live/pcmChunker.ts):
   │     feed(pcmBuffer) → emits {pcm, startSec, endSec} chunks
   │     cut rule: ≥MIN 20s + ≥400ms RMS silence, hard cap 45s, flush on stream end
   ├── Transcriber (one chunk at a time, FIFO):
   │     chunk PCM → WAV bytes (16k mono s16le; 44-byte header, no ffmpeg)
   │     → RunPod job (word_timestamps: true, language: he, no diarize)
-  │     → parseIvritSegments (extracted to src/lib/live/ivritParse.ts, re-exported
-  │       from transcription.ts so the old path keeps compiling)
+  │     → parseIvritSegments (extracted to src/lib/live/ivritParse.ts; transcription.ts imports it — the functions were module-private before, so nothing external breaks)
   ├── Stitcher (pure, src/lib/live/ivritStitcher.ts):
   │     chunk-relative word times + chunk.startSec → stream-relative;
   │     clamp to non-decreasing; emit one line per chunk {id, raw, words:[{text,start}]}
@@ -84,8 +83,8 @@ existing viewer page / app live page (karaoke via syncEngine)
   (escalate to concurrency 2 only if reality demands it).
 - **A failed chunk (after 2 retries) is a logged gap, never a stall**: emit the line with
   empty words (karaoke shows no highlight for that span), continue with the next chunk.
-- **Latency accounting per chunk**: log `readyAt − chunk.endSec`; invariant is
-  `< LIVE_BUFFER_SEC − 60` (safety margin).
+- **Latency accounting per chunk**: log per-chunk readiness; invariant is
+  `readyAt ≤ chunkStartSec + LIVE_BUFFER_SEC − 60` (captionOnTime in ivritStitcher.ts)
 
 ## Testing (definition of "works")
 

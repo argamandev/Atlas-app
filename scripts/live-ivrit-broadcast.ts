@@ -23,7 +23,8 @@ const SAMPLE_RATE = 16000
 const BYTES_PER_SEC = SAMPLE_RATE * 2
 // NEXT_PUBLIC_LIVE_BUFFER_SEC is the app's buffer env (see .claude/rules/live.md) — honor it
 // too, so the engine's ON TIME/LATE verdicts agree with the buffer the app actually enforces.
-const BUFFER_SEC = Number(process.env.LIVE_BUFFER_SEC || process.env.NEXT_PUBLIC_LIVE_BUFFER_SEC || 300)
+const BUFFER_SEC =
+  Number(process.env.LIVE_BUFFER_SEC) || Number(process.env.NEXT_PUBLIC_LIVE_BUFFER_SEC) || 300
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true })
 writeFileSync(LINES_FILE, '') // one engine run = one call (see live rules)
 
@@ -94,7 +95,9 @@ async function processQueue() {
         let lastErr: Error | null = null
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            output = await transcribeWav(pcmToWav(chunk.pcm), runpodOpts)
+            // live chunks are 20-45s (warm ~2.5s, cold ~21s); a hanging job must never eat the buffer budget
+            // (3 retries x 60s caps the worst case at ~3min, under the 240s-per-chunk budget with the FIFO draining faster than realtime afterward)
+            output = await transcribeWav(pcmToWav(chunk.pcm), { ...runpodOpts, timeoutMs: 60_000 })
             lastErr = null
             break
           } catch (e) {
