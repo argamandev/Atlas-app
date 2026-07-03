@@ -77,6 +77,42 @@ test('text without word timings falls back to even distribution, flagged', () =>
   ) // 20s / 4 words
 })
 
+test('mixed chunk: timed segment + untimed segment keeps ALL words, flagged', () => {
+  const segA = seg('שלום עולם', [
+    ['שלום', 0.5, 0.9],
+    ['עולם', 1.0, 1.4],
+  ])
+  const segB: IvritSegment = { text: 'אחת שתיים שלוש ארבע', start: 2, end: 2, speaker: null, words: [] }
+  const line = stitchChunk(8, [segA, segB], { startSec: 100, endSec: 120 }, 0)
+  assert.equal(line.words.length, 6) // 2 timed + 4 fallback tokens — nothing dropped
+  for (let i = 1; i < line.words.length; i++)
+    assert.ok(line.words[i].start >= line.words[i - 1].start, `word ${i} goes backwards`)
+  assert.equal(line.fallbackTiming, true)
+  assert.equal(line.raw, 'שלום עולם אחת שתיים שלוש ארבע')
+})
+
+test('cross-chunk invariant end-to-end: cursor from a real overshoot chunk clamps the next chunk', () => {
+  // chunk1: word overshoots past endSec → capped at 30; cursor derived from the REAL line
+  const line1 = stitchChunk(1, [seg('א', [['א', 35.0, 35.4]])], { startSec: 0, endSec: 30 }, 0)
+  const cursor = lastWordStart(line1, 0)
+  assert.equal(cursor, 30)
+  // chunk2 overlaps back before the cursor; its early word must be clamped up to ≥ cursor
+  const line2 = stitchChunk(
+    2,
+    [
+      seg('ב ג', [
+        ['ב', 0.5, 0.9],
+        ['ג', 3.0, 3.4],
+      ]),
+    ],
+    { startSec: 28, endSec: 58 },
+    cursor
+  )
+  assert.ok(line2.words[0].start >= cursor, `first word ${line2.words[0].start} < cursor ${cursor}`)
+  assert.equal(line2.words[0].start, 30) // 28.5 clamped up to the cursor
+  assert.equal(line2.words[1].start, 31) // past the cursor, keeps its own time
+})
+
 test('empty segments produce an empty (gap) line', () => {
   const line = stitchChunk(5, [], { startSec: 300, endSec: 330 }, 0)
   assert.equal(line.raw, '')
