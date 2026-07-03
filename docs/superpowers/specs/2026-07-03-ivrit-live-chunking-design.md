@@ -1,8 +1,10 @@
 # IVRIT Live Pipeline — Chunking Strategy Design
 
 **Date:** 2026-07-03 · **Lane:** I (ivrit-pipeline, branch `feat/ivrit-pipeline`)
-**Status:** DRAFT — written while the founder was away; every ASSUMED item below needs his
-confirmation before implementation starts (brainstorm hard-gate respected: no code yet).
+**Status:** APPROVED by the founder 2026-07-03 (assumptions A1–A4 confirmed). Goal restated
+by the founder: turn audio into text and show it live on-platform with a 3–5 min buffer
+(tuned to measured performance), without relying on Recall for the text — Recall is an
+audio tap only.
 
 ## Goal
 
