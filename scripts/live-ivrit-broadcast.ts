@@ -145,13 +145,18 @@ setInterval(() => {
   )
 }, 30_000)
 
-// ---- HTTP: same contract as live-broadcast.mjs ----
+// One engine process = one broadcast. The id lets an open viewer detect an engine restart
+// (= a NEW call) and reset instead of mixing sessions (liveSessionChanged in liveTiming.ts).
+const SESSION_ID = Date.now()
+
+// ---- HTTP: same contract as live-broadcast.mjs (+ sessionId) ----
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://x')
   if (url.pathname === '/state') {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
     res.end(
       JSON.stringify({
+        sessionId: SESSION_ID,
         audioStartRel,
         liveEdgeRel: liveEdgeRel(),
         liveEnded,
