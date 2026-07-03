@@ -29,7 +29,8 @@ async function runJob(opts: RunpodLiveOpts, transcribeArgs: Record<string, unkno
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(30_000),
       })
-    } catch {
+    } catch (e) {
+      console.warn('[runpod] poll failed (retrying):', (e as Error).message)
       continue
     }
     if (!st.ok) continue

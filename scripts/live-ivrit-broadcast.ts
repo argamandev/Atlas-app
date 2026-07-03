@@ -21,7 +21,9 @@ const LINES_FILE = join(OUT_DIR, 'ivrit-lines.jsonl')
 const PORT = 8788
 const SAMPLE_RATE = 16000
 const BYTES_PER_SEC = SAMPLE_RATE * 2
-const BUFFER_SEC = Number(process.env.LIVE_BUFFER_SEC || 300)
+// NEXT_PUBLIC_LIVE_BUFFER_SEC is the app's buffer env (see .claude/rules/live.md) — honor it
+// too, so the engine's ON TIME/LATE verdicts agree with the buffer the app actually enforces.
+const BUFFER_SEC = Number(process.env.LIVE_BUFFER_SEC || process.env.NEXT_PUBLIC_LIVE_BUFFER_SEC || 300)
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true })
 writeFileSync(LINES_FILE, '') // one engine run = one call (see live rules)
 
@@ -75,56 +77,61 @@ function nowRel(): number {
 async function processQueue() {
   if (working) return
   working = true
-  while (jobQueue.length) {
-    if (jobQueue.length > 3) console.warn(`[queue] depth=${jobQueue.length} — falling behind?`)
-    const chunk = jobQueue.shift()!
-    const streamChunk = {
-      startSec: (audioStartRel ?? 0) + chunk.startSec,
-      endSec: (audioStartRel ?? 0) + chunk.endSec,
-    }
-    let line: LiveLine
-    const t0 = Date.now()
-    try {
-      let output: unknown
-      let lastErr: Error | null = null
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          output = await transcribeWav(pcmToWav(chunk.pcm), runpodOpts)
-          lastErr = null
-          break
-        } catch (e) {
-          lastErr = e as Error
-          console.warn(
-            `[job] chunk@${chunk.startSec.toFixed(0)}s attempt ${attempt} failed: ${lastErr.message}`
-          )
+  // try/finally: an unexpected throw after the per-chunk try/catch (e.g. appendFileSync on a
+  // disk error) must never leave `working` stuck true — that would stall the queue forever.
+  try {
+    while (jobQueue.length) {
+      if (jobQueue.length > 3) console.warn(`[queue] depth=${jobQueue.length} — falling behind?`)
+      const chunk = jobQueue.shift()!
+      const streamChunk = {
+        startSec: (audioStartRel ?? 0) + chunk.startSec,
+        endSec: (audioStartRel ?? 0) + chunk.endSec,
+      }
+      let line: LiveLine
+      const t0 = Date.now()
+      try {
+        let output: unknown
+        let lastErr: Error | null = null
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            output = await transcribeWav(pcmToWav(chunk.pcm), runpodOpts)
+            lastErr = null
+            break
+          } catch (e) {
+            lastErr = e as Error
+            console.warn(
+              `[job] chunk@${chunk.startSec.toFixed(0)}s attempt ${attempt} failed: ${lastErr.message}`
+            )
+          }
+        }
+        if (lastErr) throw lastErr
+        line = stitchChunk(nextId++, parseIvritSegments(output), streamChunk, prevMaxStart)
+      } catch (e) {
+        // A failed chunk is a logged gap, never a stall.
+        console.error(`[job] chunk@${chunk.startSec.toFixed(0)}s GAP after retries: ${(e as Error).message}`)
+        line = {
+          id: nextId++,
+          raw: '',
+          words: [],
+          chunkStartSec: streamChunk.startSec,
+          chunkEndSec: streamChunk.endSec,
+          failed: true,
         }
       }
-      if (lastErr) throw lastErr
-      line = stitchChunk(nextId++, parseIvritSegments(output), streamChunk, prevMaxStart)
-    } catch (e) {
-      // A failed chunk is a logged gap, never a stall.
-      console.error(`[job] chunk@${chunk.startSec.toFixed(0)}s GAP after retries: ${(e as Error).message}`)
-      line = {
-        id: nextId++,
-        raw: '',
-        words: [],
-        chunkStartSec: streamChunk.startSec,
-        chunkEndSec: streamChunk.endSec,
-        failed: true,
-      }
+      prevMaxStart = lastWordStart(line, prevMaxStart)
+      lines.push(line)
+      appendFileSync(LINES_FILE, JSON.stringify(line) + '\n')
+      const readyAt = nowRel()
+      const onTime = captionOnTime(line.chunkStartSec, readyAt, BUFFER_SEC)
+      console.log(
+        `[caption] line ${line.id} (${chunk.reason}, ${(chunk.endSec - chunk.startSec).toFixed(1)}s): ` +
+          `${line.words.length} words in ${((Date.now() - t0) / 1000).toFixed(1)}s, readyAt=${readyAt.toFixed(0)}s ` +
+          `${onTime ? 'ON TIME' : '*** LATE vs buffer budget ***'}${line.failed ? ' [GAP]' : ''}${line.fallbackTiming ? ' [fallback timing]' : ''}`
+      )
     }
-    prevMaxStart = lastWordStart(line, prevMaxStart)
-    lines.push(line)
-    appendFileSync(LINES_FILE, JSON.stringify(line) + '\n')
-    const readyAt = nowRel()
-    const onTime = captionOnTime(line.chunkStartSec, readyAt, BUFFER_SEC)
-    console.log(
-      `[caption] line ${line.id} (${chunk.reason}, ${(chunk.endSec - chunk.startSec).toFixed(1)}s): ` +
-        `${line.words.length} words in ${((Date.now() - t0) / 1000).toFixed(1)}s, readyAt=${readyAt.toFixed(0)}s ` +
-        `${onTime ? 'ON TIME' : '*** LATE vs buffer budget ***'}${line.failed ? ' [GAP]' : ''}${line.fallbackTiming ? ' [fallback timing]' : ''}`
-    )
+  } finally {
+    working = false
   }
-  working = false
 }
 
 // heartbeat — proof of life every 30s
@@ -195,7 +202,7 @@ wss.on('connection', (sock) => {
       pcmChunks.push(buf)
       pcmBytes += buf.length
       jobQueue.push(...chunker.feed(buf))
-      void processQueue()
+      processQueue().catch((e) => console.error('[queue] fatal loop error:', e))
     } catch {
       /* ignore malformed frames */
     }
@@ -207,7 +214,7 @@ wss.on('connection', (sock) => {
     const tail = chunker.flush()
     if (tail) {
       jobQueue.push(tail)
-      void processQueue()
+      processQueue().catch((e) => console.error('[queue] fatal loop error:', e))
     }
   })
 })
