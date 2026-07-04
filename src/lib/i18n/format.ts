@@ -16,9 +16,11 @@ export function greetingKey(date = new Date()): GreetingKey {
 
 export function formatTime(d: Date | string, locale: Locale): string {
   const date = typeof d === 'string' ? new Date(d) : d
+  // V2 (Claude Design): times are mono data — always 24h ("14:00"), both locales.
   return new Intl.DateTimeFormat(localeTag[locale], {
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   }).format(date)
 }
 

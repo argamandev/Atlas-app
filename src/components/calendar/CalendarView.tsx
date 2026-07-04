@@ -73,20 +73,18 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   const today = new Date()
 
   return (
-    <div className="app-scroll flex-1 overflow-y-auto px-8 py-6 pb-dock">
-      <div className="mx-auto w-full max-w-4xl animate-fade-up">
-        {/* header: title + mode toggle */}
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight text-ink">{dict.calendar.title}</h1>
-          <div className="flex items-center gap-1 rounded-full bg-panel p-1">
+    <div className="atscroll flex-1 overflow-y-auto px-11 py-9 pb-dock">
+      <div className="mx-auto w-full max-w-5xl animate-fade-up">
+        {/* header: title + mode toggle (design lines 169-175) */}
+        <div className="mb-1.5 flex items-start justify-between">
+          <h1 className="text-[30px] font-bold tracking-[-0.03em] text-ink">{dict.calendar.title}</h1>
+          <div className="flex rounded-full bg-subtle p-[3px]">
             <button
               type="button"
               onClick={() => setMode('all')}
               className={cn(
-                'rounded-full px-3.5 py-1.5 text-sm transition-colors',
-                mode === 'all'
-                  ? 'bg-canvas font-medium text-ink shadow-card'
-                  : 'text-ink-muted hover:text-ink'
+                'rounded-full px-4 py-[7px] text-sm font-medium transition-colors',
+                mode === 'all' ? 'bg-ink text-white' : 'text-ink-muted hover:text-ink'
               )}
             >
               {dict.calendar.allCalls}
@@ -106,10 +104,8 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                 if (id) void follow(id, true)
               }}
               className={cn(
-                'rounded-full px-3.5 py-1.5 text-sm transition-colors',
-                mode === 'mine'
-                  ? 'bg-canvas font-medium text-ink shadow-card'
-                  : 'text-ink-muted hover:text-ink',
+                'rounded-full px-4 py-[7px] text-sm font-medium transition-colors',
+                mode === 'mine' ? 'bg-ink text-white' : 'text-ink-muted hover:text-ink',
                 dropActive && 'ring-2 ring-ink/40'
               )}
             >
@@ -118,89 +114,108 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
           </div>
         </div>
 
-        {/* month nav */}
-        <div className="mb-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setMonth(new Date(year, monthIdx - 1, 1))}
-            aria-label="Previous month"
-            className="grid h-7 w-7 place-items-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
-          >
-            <ChevronLeftIcon size={18} />
-          </button>
-          <span className="min-w-[160px] text-center text-sm font-semibold text-ink">
-            {formatMonthYear(month, locale)}
-          </span>
-          <button
-            type="button"
-            onClick={() => setMonth(new Date(year, monthIdx + 1, 1))}
-            aria-label="Next month"
-            className="grid h-7 w-7 place-items-center rounded-md text-ink-muted hover:bg-subtle hover:text-ink"
-          >
-            <ChevronRightIcon size={18} />
-          </button>
-          <span className="ms-auto text-xs text-ink-faint">{dict.calendar.dragHint}</span>
+        {/* month nav + drag hint (design lines 178-185) */}
+        <div className="mb-3.5 mt-[22px] flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setMonth(new Date(year, monthIdx - 1, 1))}
+              aria-label="Previous month"
+              className="text-ink-muted transition-colors hover:text-ink"
+            >
+              <ChevronLeftIcon size={18} strokeWidth={1.7} className="rtl:rotate-180" />
+            </button>
+            <span className="text-[16px] font-semibold text-ink">{formatMonthYear(month, locale)}</span>
+            <button
+              type="button"
+              onClick={() => setMonth(new Date(year, monthIdx + 1, 1))}
+              aria-label="Next month"
+              className="text-ink-muted transition-colors hover:text-ink"
+            >
+              <ChevronRightIcon size={18} strokeWidth={1.7} className="rtl:rotate-180" />
+            </button>
+          </div>
+          <span className="text-[12.5px] text-ink-faint">{dict.calendar.dragHint}</span>
         </div>
 
-        {/* grid */}
-        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-card bg-hairline">
-          {weekdays.map((w) => (
-            <div key={w} className="bg-panel py-2 text-center text-xs font-medium text-ink-faint">
-              {w}
-            </div>
-          ))}
-          {cells.map((day, i) => {
-            const k = day ? localKey(year, monthIdx, day) : `blank-${i}`
-            const dayCalls = day ? (byDay.get(k) ?? []) : []
-            const isToday =
-              day != null &&
-              year === today.getFullYear() &&
-              monthIdx === today.getMonth() &&
-              day === today.getDate()
-            return (
+        {/* grid (design lines 187-212): paper sheet, hairline cells, mono day numbers */}
+        <div className="overflow-hidden rounded-card border border-subtle-strong bg-paper">
+          <div className="grid grid-cols-7 border-b border-subtle-strong">
+            {weekdays.map((w) => (
               <div
-                key={k}
-                className={cn('min-h-[96px] bg-canvas p-1.5', isToday && 'ring-1 ring-inset ring-ink/30')}
+                key={w}
+                className="px-3 py-2.5 text-start text-xs uppercase tracking-[0.1em] text-ink-faint"
               >
-                {day && (
-                  <div className="mb-1 flex px-0.5">
+                {w}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7">
+            {cells.map((day, i) => {
+              const k = day ? localKey(year, monthIdx, day) : `blank-${i}`
+              const dayCalls = day ? (byDay.get(k) ?? []) : []
+              const isToday =
+                day != null &&
+                year === today.getFullYear() &&
+                monthIdx === today.getMonth() &&
+                day === today.getDate()
+              return (
+                <div
+                  key={k}
+                  className="flex min-h-[104px] flex-col gap-[5px] border-b border-e border-hairline p-2"
+                >
+                  {day && (
                     <span
                       className={cn(
-                        'grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs tabular-nums',
+                        'self-start rounded-full px-[5px] py-px font-mono-num text-xs',
                         isToday ? 'bg-ink font-semibold text-white' : 'text-ink-faint'
                       )}
                     >
                       {day}
                     </span>
-                  </div>
-                )}
-                <div className="space-y-1">
+                  )}
                   {dayCalls.map((c) => {
                     const isFollowed = followed.has(c.id)
+                    const isLive = c.status === 'live'
                     return (
                       <div
                         key={c.id}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData('text/plain', c.id)}
-                        className="group flex cursor-grab items-center gap-1.5 rounded-md bg-canvas px-1.5 py-1 shadow-card ring-1 ring-hairline/60 transition-shadow hover:shadow-popover"
+                        className="group flex w-full cursor-grab items-center gap-1.5 rounded-md border border-subtle-strong bg-canvas px-1.5 py-1 transition-shadow hover:shadow-card"
                         title={c.company ? companyDisplayName(c.company, locale) : ''}
                       >
-                        <Logo src={c.company?.logoUrl} name={c.company?.displayName ?? ''} size={18} />
-                        <span className="min-w-0 flex-1 truncate text-xs text-ink">
-                          {c.company ? companyDisplayName(c.company, locale) : ''}
+                        <Logo
+                          src={c.company?.logoUrl}
+                          name={c.company?.displayName ?? ''}
+                          size={16}
+                          className="rounded-[4px]"
+                        />
+                        {isLive && (
+                          <span
+                            className="h-1.5 w-1.5 flex-none rounded-full bg-live"
+                            style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                          />
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-start text-[11px] text-ink">
+                          <span dir="auto">{c.company ? companyDisplayName(c.company, locale) : ''}</span>
                         </span>
-                        <span className="shrink-0 text-2xs text-ink-faint" dir="ltr">
-                          {formatTime(c.scheduledAt, locale)}
-                        </span>
+                        {isLive ? (
+                          <span className="flex-none text-[10px] font-semibold tracking-[0.03em] text-live">
+                            {dict.live.liveBadge}
+                          </span>
+                        ) : (
+                          <span className="flex-none font-mono-num text-[10px] text-ink-faint" dir="ltr">
+                            {formatTime(c.scheduledAt, locale)}
+                          </span>
+                        )}
                         <button
                           type="button"
                           onClick={() => follow(c.id, !isFollowed)}
                           aria-label={isFollowed ? dict.common.remove : dict.common.add}
                           className={cn(
-                            'grid h-4 w-4 shrink-0 place-items-center rounded-full',
-                            isFollowed
-                              ? 'bg-ink text-white'
-                              : 'text-ink-faint opacity-0 group-hover:opacity-100'
+                            'h-4 w-4 shrink-0 place-items-center rounded-full',
+                            isFollowed ? 'grid bg-ink text-white' : 'hidden text-ink-faint group-hover:grid'
                           )}
                         >
                           {isFollowed ? <CheckIcon size={11} /> : <PlusIcon size={11} />}
@@ -209,9 +224,9 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                     )
                   })}
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
 
         {mode === 'mine' && visible.length === 0 && (
