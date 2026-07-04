@@ -17,7 +17,11 @@ import { transcribeWav } from './lib/runpod-live'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
 const OUT_DIR = join(__dirname, 'out')
-const LINES_FILE = join(OUT_DIR, 'ivrit-lines.jsonl')
+// SHARED capture filenames (same as live-broadcast.mjs): broadcast-* = "the current live
+// call's capture", whichever engine produced it (:8788 is single-owner, so no collision).
+// The finish flow (runLiveBroadcastFinish) reads exactly these — end-of-call UX parity.
+const LINES_FILE = join(OUT_DIR, 'broadcast-lines.jsonl')
+const PCM_FILE = join(OUT_DIR, 'broadcast-audio.pcm')
 const PORT = 8788
 const SAMPLE_RATE = 16000
 const BYTES_PER_SEC = SAMPLE_RATE * 2
@@ -26,7 +30,10 @@ const BYTES_PER_SEC = SAMPLE_RATE * 2
 const BUFFER_SEC =
   Number(process.env.LIVE_BUFFER_SEC) || Number(process.env.NEXT_PUBLIC_LIVE_BUFFER_SEC) || 300
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true })
-writeFileSync(LINES_FILE, '') // one engine run = one call (see live rules)
+// One engine run = one call (see live rules): reset the capture so the finish organizes ONLY
+// this call. Archive captures you care about to scripts/out/sessions/ before restarting.
+writeFileSync(LINES_FILE, '')
+writeFileSync(PCM_FILE, Buffer.alloc(0))
 
 function loadEnv(): Record<string, string> {
   const out: Record<string, string> = {}
@@ -209,6 +216,7 @@ wss.on('connection', (sock) => {
       const buf = Buffer.from(b64, 'base64')
       pcmChunks.push(buf)
       pcmBytes += buf.length
+      appendFileSync(PCM_FILE, buf) // persist the capture — the finish flow encodes it to mp3
       jobQueue.push(...chunker.feed(buf))
       processQueue().catch((e) => console.error('[queue] fatal loop error:', e))
     } catch {

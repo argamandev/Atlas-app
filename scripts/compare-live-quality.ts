@@ -5,7 +5,7 @@
 import fs from 'fs'
 import { tokenize, lcsGoldMatched } from './lib/measure-core'
 
-const OURS = process.env.OURS || 'scripts/out/ivrit-lines.jsonl'
+const OURS = process.env.OURS || 'scripts/out/broadcast-lines.jsonl' // shared capture filename since the finish-flow wiring
 const RECALL =
   process.env.RECALL ||
   'C:/Users/Sagi/Desktop/Atlas/scripts/out/sessions/2026-07-01-tamis-live/broadcast-lines.jsonl'
