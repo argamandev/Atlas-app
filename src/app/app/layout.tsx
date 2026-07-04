@@ -1,3 +1,4 @@
+import Script from 'next/script'
 import { MacWindowFrame } from '@/components/app/MacWindowFrame'
 import { NavRail } from '@/components/app/NavRail'
 import { PlayerProvider } from '@/lib/player/PlayerProvider'
@@ -12,6 +13,8 @@ import { ShellChrome } from '@/components/app/ShellChrome'
 export default function AppShellLayout({ children }: { children: React.ReactNode }) {
   return (
     <MacWindowFrame nav={<NavRail />}>
+      {/* V2 canvas animation engine (design-import port) — loads once for all /app/* pages */}
+      <Script src="/atlas-anim.js" strategy="lazyOnload" />
       <PlayerProvider>
         <LiveAudioProvider>
           <ShellChrome>{children}</ShellChrome>

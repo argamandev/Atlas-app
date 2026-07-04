@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── V2 (Claude Design import) animation vocabulary — keyframe bodies copied VERBATIM
+   from design-import/Atlas MVP.dc.html lines 17-31 and reference/live-beam.html.
+   Do not retune; the design's rhythm is the contract. ── */
+@keyframes atpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.78)}}
+@keyframes atline{from{transform:translateY(4px)}to{transform:none}}
+@keyframes atblink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes atsettle{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes radar-pulse{0%{transform:scale(0.75);opacity:0.9}70%{opacity:0.15}100%{transform:scale(1.9);opacity:0}}
+@keyframes dot-blink{0%,100%{opacity:1}50%{opacity:0.35}}
+@keyframes askSlideIn{from{transform:translateX(100%)}to{transform:none}}
+@keyframes askSlideInRtl{from{transform:translateX(-100%)}to{transform:none}}
+
+/* the design's soft content scrollbar (main page areas) */
+.atscroll::-webkit-scrollbar{width:10px;height:10px}
+.atscroll::-webkit-scrollbar-thumb{background:rgba(28,27,25,.13);border-radius:9px;border:3px solid transparent;background-clip:content-box}
+.atscroll::-webkit-scrollbar-track{background:transparent}
+
+/* Ask-Atlas selection: yellow ONLY inside data-ask scopes (design lines 21-24) */
+[data-ask] ::selection{background:#FCE44D;color:#1C1B19}
+[data-ask] ::-moz-selection{background:#FCE44D;color:#1C1B19}
+
+@media (prefers-reduced-motion:reduce){
+  [data-beam-ring],[data-beam-dot],.anim-settle,.anim-atblink{animation-duration:.001s!important;animation-iteration-count:1!important}
+}
+
 @layer base {
   * {
     box-sizing: border-box;
