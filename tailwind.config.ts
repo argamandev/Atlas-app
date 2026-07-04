@@ -34,32 +34,34 @@ const config: Config = {
         'player-faint': tokens.color.playerFaint,
         'player-track': tokens.color.playerTrack,
         live: tokens.color.live,
+
+        // ── V2 (Claude Design import) surfaces ──
+        shell: tokens.v2.shell,
+        rail: tokens.v2.rail,
+        'rail-text': tokens.v2.railText,
+        'rail-active': tokens.v2.railActive,
+        'rail-chip': tokens.v2.railChip,
+        'rail-hair': tokens.v2.railHair,
+        ask: tokens.v2.ask,
+        'ask-ink': tokens.v2.askInk,
+        'call-dark': tokens.v2.callDark,
+        'call-panel': tokens.v2.callPanel,
+        'call-raised': tokens.v2.callRaised,
+        'call-hover': tokens.v2.callHover,
+        'call-track': tokens.v2.callTrack,
+        'call-ink': tokens.v2.callInk,
+        'call-muted': tokens.v2.callMuted,
+        'call-faint': tokens.v2.callFaint,
       },
       fontFamily: {
-        hebrew: [
-          '"IBM Plex Sans Hebrew"',
-          'Heebo',
-          'Inter',
-          'system-ui',
-          'sans-serif',
-        ],
+        hebrew: ['"IBM Plex Sans Hebrew"', 'Heebo', 'Inter', 'system-ui', 'sans-serif'],
         // Latin/English UI font. Falls back to the Hebrew face so mixed-script
         // content (Hebrew company names inside an English UI) still renders.
-        latin: [
-          'Inter',
-          '"IBM Plex Sans Hebrew"',
-          'system-ui',
-          'sans-serif',
-        ],
+        latin: ['Inter', '"IBM Plex Sans Hebrew"', 'system-ui', 'sans-serif'],
         // Hebrew V1 UI font — Calibri Regular with a Hebrew-supporting fallback stack.
-        calibri: [
-          'Calibri',
-          '"Segoe UI"',
-          '"IBM Plex Sans Hebrew"',
-          'Heebo',
-          'system-ui',
-          'sans-serif',
-        ],
+        calibri: ['Calibri', '"Segoe UI"', '"IBM Plex Sans Hebrew"', 'Heebo', 'system-ui', 'sans-serif'],
+        // ── V2 (Claude Design import) — serif display voice (report titles, serif accents)
+        display: ['Newsreader', 'Georgia', 'serif'],
       },
       borderRadius: {
         none: '0',
@@ -108,12 +110,12 @@ const config: Config = {
         'progress-fill': 'progressFill 1.5s ease-in-out forwards',
         'fade-in': 'fadeIn 0.4s ease-out forwards',
         'slide-up': 'slideUp 0.5s ease-out forwards',
-        'blink': 'blink 1.2s step-end infinite',
+        blink: 'blink 1.2s step-end infinite',
         // ── V1 design-pass motion (cubic-bezier ease-out, fill both for staggered reveals) ──
         'fade-up': 'fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
         'pop-in': 'popIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both',
         'pulse-live': 'pulseLive 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) infinite',
-        'shimmer': 'shimmer 1.4s linear infinite',
+        shimmer: 'shimmer 1.4s linear infinite',
       },
       keyframes: {
         progressFill: {

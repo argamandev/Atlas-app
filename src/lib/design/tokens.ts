@@ -28,11 +28,34 @@ export const tokens = {
     playerFaint: '#9A9A9D',
     playerTrack: '#4A4A4D',
 
-    // reserved for LIVE / real-time ONLY — appears nowhere else
-    live: '#E5484D',
+    // reserved for LIVE / real-time ONLY — appears nowhere else.
+    // V2 (Claude Design import): burnt orange-red, verified as the design's only live accent.
+    live: '#CB4B2E',
 
     white: '#FFFFFF',
     black: '#000000',
+  },
+
+  // ── V2 surfaces (Claude Design import, 2026-07) — values probed from the rendered
+  // design's computed styles (design-import/Atlas MVP.dc.html, locked "Black rail" theme) ──
+  v2: {
+    shell: '#F5F3EE', // main page area behind all content
+    rail: '#0A0A0A', // black nav rail
+    railText: '#A6A29A', // inactive rail item text
+    railActive: 'rgba(255,255,255,0.10)', // active item fill (+ white text)
+    railChip: 'rgba(255,255,255,0.06)', // quick-access chip fill
+    railHair: 'rgba(255,255,255,0.09)', // rail hairlines / chip borders
+    ask: '#FCE44D', // Ask-Atlas selection/highlight ONLY
+    askInk: '#1C1B19', // ink on ask-yellow
+    // call view dark theme (warm dark, not neutral gray)
+    callDark: '#16150F', // call root background
+    callPanel: '#26241B', // raised panels (sections rail rows, chips)
+    callRaised: '#2A281F', // stronger raised (active chips, toggles)
+    callHover: '#1F1D17', // hover fill
+    callTrack: '#3A382F', // progress tracks / dividers
+    callInk: '#EDEAE1', // primary text on dark
+    callMuted: '#B8B3A8', // secondary text on dark
+    callFaint: '#8A867C', // metadata on dark
   },
 
   // soft, consistent rounded corners (brief §3.3)
