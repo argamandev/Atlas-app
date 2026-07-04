@@ -103,7 +103,8 @@ async function processQueue() {
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             // live chunks are 20-45s (warm ~2.5s, cold ~21s); a hanging job must never eat the buffer budget
-            // (3 retries x 60s caps the worst case at ~3min, under the 240s-per-chunk budget with the FIFO draining faster than realtime afterward)
+            // (3 attempts x (30s submit timeout + 60s job timeout) caps the worst case at 270s — slightly over the
+            // 240s-per-chunk budget in the pathological all-timeouts case; the FIFO drains faster than realtime afterward)
             output = await transcribeWav(pcmToWav(chunk.pcm), { ...runpodOpts, timeoutMs: 60_000 })
             lastErr = null
             break

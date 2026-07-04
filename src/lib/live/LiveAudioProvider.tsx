@@ -231,8 +231,10 @@ export function LiveAudioProvider({ children }: { children: React.ReactNode }) {
         // Engine restarted (a NEW broadcast) under this open page → drop the old session's
         // world before touching anything: accumulated words, scheduled audio, in-flight pcm
         // fetches, the persisted playhead. Without this a stale tab silently MIXES two calls
-        // (first real-Zoom test, 2026-07-04).
+        // (first real-Zoom test, 2026-07-04). NOT on the offline fallback — its empty lines
+        // would satisfy the shrink heuristic and a single unreachable poll would wipe the viewer.
         if (
+          !st.offline &&
           liveSessionChanged(
             sessionIdRef.current,
             st.sessionId ?? null,
