@@ -73,6 +73,21 @@ export const WorkspacesIcon = (p: IconProps) => (
     <rect x="13" y="13" width="7" height="7" rx="1.5" />
   </Base>
 )
+// V2 (Claude Design): the rail language globe (design rail, line 76)
+export const GlobeIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.6 2.5 2.6 15 0 18M12 3c-2.6 2.5-2.6 15 0 18" />
+  </Base>
+)
+// V2 (Claude Design): the Agents briefcase (design rail, line 67)
+export const AgentsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
+    <path d="M8 7.5V5.5a2 2 0 012-2h4a2 2 0 012 2v2" />
+    <path d="M3 13h18" />
+  </Base>
+)
 export const WatchlistsIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M5 6h14M5 12h14M5 18h9" />

@@ -45,6 +45,25 @@ export const he: Dictionary = {
     profile: 'פרופיל',
     settings: 'הגדרות',
     collapseSidebar: 'כיווץ סרגל הצד',
+    workspace: 'סביבת עבודה',
+    agents: 'סוכנים',
+  },
+  workspace: {
+    title: 'סביבות עבודה',
+    subtitle:
+      'כל סביבת עבודה היא ניתוח של חברה אחת — הקבצים, הסוכנים וההיסטוריה שלה. פתחו אחת או התחילו חדשה.',
+    newWorkspace: 'סביבת עבודה חדשה',
+    newWorkspaceHint: 'תנו לה שם והתחילו להוסיף קבצים',
+    files: 'קבצים',
+  },
+  agents: {
+    ready: 'מוכן כשאתם מוכנים.',
+    myAgents: 'הסוכנים שלי',
+    scheduledAgents: 'סוכנים מתוזמנים',
+    finishedTasks: 'משימות שהושלמו',
+    createAgent: 'יצירת סוכן',
+    idle: 'ממתין',
+    running: 'פעיל',
   },
   greeting: {
     morning: 'בוקר טוב',

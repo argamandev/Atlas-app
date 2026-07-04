@@ -14,7 +14,9 @@ export function SectionHeader({
 }) {
   return (
     <div className={cn('flex items-center justify-between px-1', className)}>
-      <span className="text-xs font-medium tracking-wide text-ink-faint">{label}</span>
+      <span className="font-mono-num text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+        {label}
+      </span>
       {action ? <div className="flex items-center text-ink-faint">{action}</div> : null}
     </div>
   )

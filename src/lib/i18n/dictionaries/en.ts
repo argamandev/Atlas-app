@@ -46,6 +46,25 @@ export const en = {
     profile: 'Profile',
     settings: 'Settings',
     collapseSidebar: 'Collapse sidebar',
+    workspace: 'Workspace',
+    agents: 'Agents',
+  },
+  workspace: {
+    title: 'Workspaces',
+    subtitle:
+      'Each workspace is one company analysis — its own files, agents, and history. Open one or start fresh.',
+    newWorkspace: 'New workspace',
+    newWorkspaceHint: 'Name it and start adding files',
+    files: 'files',
+  },
+  agents: {
+    ready: 'Ready when you are.',
+    myAgents: 'My agents',
+    scheduledAgents: 'Scheduled agents',
+    finishedTasks: 'Finished tasks',
+    createAgent: 'Create an agent',
+    idle: 'idle',
+    running: 'running',
   },
   greeting: {
     morning: 'Good morning',
