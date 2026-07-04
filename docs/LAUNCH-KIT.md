@@ -28,6 +28,14 @@ This creates three sibling folders, each a full checkout on its own branch, shar
 history. `agent-memory/`, `design-import/` and `local-assets/` live ONLY in the main folder —
 the lanes reach them by absolute path (already wired into their prompts).
 
+**Seed `.env.local` into each worktree yourself** — it's gitignored so worktrees don't carry
+it, and agents are hook-blocked from reading/copying `.env` files. In each lane session type
+(the `!` prompt is Git Bash, so `cp`, not `copy`):
+
+```
+! cp C:/Users/Sagi/Desktop/Atlas/.env.local .
+```
+
 ## Step 2 — Open the three sessions
 
 Open **three new terminals**, one per folder, and start Claude in each:

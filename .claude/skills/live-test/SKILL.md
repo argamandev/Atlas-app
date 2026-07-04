@@ -9,6 +9,20 @@ Runs the recurring live-test ritual end-to-end. **Claude is blocked from startin
 founder runs the tunnel; Claude does everything else. Platform: Windows (Git Bash for `node`/`curl`, PowerShell
 `taskkill` for killing processes).
 
+## Engine variant: IVRIT pipeline (differences from the Recall flow below)
+
+The steps below are written for the Recall engine. For the IVRIT engine (`scripts/live-ivrit-broadcast.ts`,
+run via tsx — self-loads `.env.local` like the mjs engine), these swap in:
+- **Bot creation** = `node scripts/start-ivrit-bot.mjs "<zoom-url>" "<tunnel-url>"` — an AUDIO-ONLY bot: no
+  transcript provider, no `/recall` webhook. Same zombie rule: kill the `start-ivrit-bot` process after
+  `✅` (the engine keeps :8788).
+- **Caption timing**: first captions ~1 min after speech (chunker waits for a 20–45s silence-aligned chunk +
+  RunPod round-trip). The 72–203s Recall accuracy-lag gotcha does NOT apply.
+- `/state` carries `sessionId` (engine restart = new id; the viewer resets itself).
+- **Finish flow**: identical — engine writes the shared `broadcast-*` capture files; same
+  `POST /api/live/finish` → polish → finished-call page.
+- Dev server/port: whichever session runs the test uses ITS OWN port (rules/parallel-work.md), not :3000.
+
 ## Step 1 — Clean engine (fresh state every test)
 The engine (`scripts/live-broadcast.mjs`) holds the call in module-level memory with NO reset, so a previous
 call's state leaks. **Always restart it.**

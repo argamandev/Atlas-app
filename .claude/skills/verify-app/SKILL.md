@@ -46,3 +46,7 @@ marked passage → screenshot the multi-panel layout.
 - Hard-refresh after every dev restart; `rm -rf .next` on MODULE_NOT_FOUND 500.
 - Screenshot BEFORE and AFTER fixes — the before/after pair is your review evidence.
 - If Chrome MCP is unresponsive 2-3 tries → tell the founder, don't loop.
+- **Leave no test tabs behind**: end every verify session by closing your MCP tabs (or
+  navigating them to about:blank). A leftover live-view tab from a verify pass became the
+  founder's broken viewer the next day (he reused the open tab — stale React state + stale
+  `?delay=` query, 2026-07-04).
