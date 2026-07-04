@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { EntityRow } from '@/components/ds/EntityRow'
 import { SectionHeader } from '@/components/ds/SectionHeader'
-import { CalendarIcon } from '@/components/ds/icons'
-import { formatDate, formatTime } from '@/lib/i18n/format'
+import { Logo } from '@/components/ds/Logo'
+import { LiveBeamAvatar } from '@/components/ds/LiveBeamAvatar'
+import { CalendarIcon, ClockIcon, PlayIcon } from '@/components/ds/icons'
+import { formatDate, formatTime, formatRelativeDays } from '@/lib/i18n/format'
 import { companyLiveDisplay } from '@/lib/live/liveTiming'
 import type { ScheduledCall } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
@@ -77,71 +80,152 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
 
   const showLive = data.liveEnabled ? engineLive : !!liveHref
   const liveLink = data.liveEnabled ? '/app/live/live' : liveHref
+  // "Next scheduled" = the nearest FUTURE call (the calls feed can contain stale past rows)
+  const future = calls
+    .filter((c) => new Date(c.scheduledAt).getTime() > Date.now())
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+  const nextCall = future[0] ?? null
+  const restCalls = future.slice(1)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       {showLive && liveLink && (
         <section className="animate-fade-up">
-          <SectionHeader label={dict.home.liveNow} className="mb-2" />
-          <EntityRow
+          <SectionHeader label={dict.home.liveNow} className="mb-3" />
+          <Link
             href={liveLink}
-            logoSrc={logoUrl}
-            name={companyName}
-            className="transition-all duration-200 hover:-translate-y-px hover:shadow-float"
-            secondary={
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-                <span className="font-medium text-live">{dict.live.liveBadge}</span>
-                {data.liveQuarter ? <span className="text-ink-faint">· {data.liveQuarter}</span> : null}
+            className="flex max-w-md items-center gap-3 rounded-card border border-subtle-strong bg-paper p-4 shadow-soft transition-shadow hover:shadow-popover"
+          >
+            <LiveBeamAvatar size={38} surface="card">
+              <Logo src={logoUrl} name={companyName} size={32} />
+            </LiveBeamAvatar>
+            <div className="min-w-0 flex-1 text-start">
+              <div className="truncate text-sm font-semibold text-ink">
+                <span dir="auto">{companyName}</span>
+              </div>
+              <span className="flex items-center gap-1.5 text-xs">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-live"
+                  style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                />
+                <span className="font-semibold tracking-[0.03em] text-live">{dict.live.liveBadge}</span>
+                {data.liveQuarter ? (
+                  <span className="font-mono-num text-ink-faint" dir="ltr">
+                    · {data.liveQuarter}
+                  </span>
+                ) : null}
               </span>
-            }
-          />
+            </div>
+          </Link>
         </section>
       )}
 
-      <section className="animate-fade-up" style={{ animationDelay: '0.05s' }}>
-        <SectionHeader label={dict.company.latestCall} className="mb-2" />
-        {endedInFlight ? (
-          // Just ended — its raw transcript lives in the still-draining live view, which auto-upgrades to the
-          // polished transcript when ready (then router.refresh swaps in the canonical finished row above).
-          <EntityRow
-            href="/app/live/live"
-            logoSrc={logoUrl}
-            name={companyName}
-            className="transition-all duration-200 hover:-translate-y-px hover:shadow-float"
-            secondary={
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-                <span className="text-ink-muted">
-                  {[data.liveQuarter, dict.live.preparing].filter(Boolean).join(' · ')}
+      {/* the design's two-card overview grid (design lines 468-509) */}
+      <div
+        className="grid animate-fade-up grid-cols-1 gap-4 sm:grid-cols-2"
+        style={{ animationDelay: '0.05s' }}
+      >
+        <section className="flex flex-col gap-3.5">
+          <SectionHeader label={dict.company.mostRecentCall} />
+          {endedInFlight ? (
+            <Link
+              href="/app/live/live"
+              className="flex flex-col gap-4 rounded-card border border-subtle-strong bg-paper p-[18px] shadow-soft transition-shadow hover:shadow-popover"
+            >
+              <div className="flex items-center gap-[11px]">
+                <Logo src={logoUrl} name={companyName} size={38} className="rounded-[9px]" />
+                <div className="min-w-0 flex-1 text-start">
+                  <div className="text-[14.5px] font-semibold text-ink">
+                    {[data.liveQuarter, dict.home.investorCall].filter(Boolean).join(' · ')}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full bg-live"
+                      style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                    />
+                    {dict.live.preparing}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ) : !latest ? (
+            <div className="rounded-card border border-dashed border-subtle-strong px-4 py-8 text-center text-[13px] text-ink-faint">
+              {dict.common.empty}
+            </div>
+          ) : (
+            <Link
+              href={`/app/live/${latest.id}`}
+              className="flex flex-col gap-4 rounded-card border border-subtle-strong bg-paper p-[18px] shadow-soft transition-shadow hover:shadow-popover"
+            >
+              <div className="flex items-center gap-[11px]">
+                <Logo src={logoUrl} name={companyName} size={38} className="rounded-[9px]" />
+                <div className="min-w-0 flex-1 text-start">
+                  <div className="text-[14.5px] font-semibold text-ink">
+                    {[latest.quarter, dict.home.investorCall].filter(Boolean).join(' · ')}
+                  </div>
+                  <div className="mt-0.5 font-mono-num text-[12.5px] text-ink-faint" dir="ltr">
+                    {formatDate(latest.date || latest.createdAt, locale)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-[9px] text-ink-muted">
+                <span className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full bg-ink text-paper">
+                  <PlayIcon size={13} />
                 </span>
-              </span>
-            }
-          />
-        ) : !latest ? (
-          <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.common.empty}</p>
-        ) : (
-          <EntityRow
-            href={`/app/live/${latest.id}`}
-            logoSrc={logoUrl}
-            name={companyName}
-            className="transition-all duration-200 hover:-translate-y-px hover:shadow-float"
-            secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
-            secondary={[latest.quarter, formatDate(latest.date || latest.createdAt, locale)]
-              .filter(Boolean)
-              .join(' · ')}
-            meta={latest.duration ? <span dir="ltr">{latest.duration}</span> : undefined}
-          />
-        )}
-      </section>
+                <span className="text-[12.5px]">{dict.company.watchPlayback}</span>
+                {latest.duration && (
+                  <span className="ms-auto font-mono-num text-[11.5px] text-ink-faint" dir="ltr">
+                    {latest.duration}
+                  </span>
+                )}
+              </div>
+            </Link>
+          )}
+        </section>
 
-      <section className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
-        <SectionHeader label={dict.company.upcomingCalls} className="mb-2" />
-        {calls.length === 0 ? (
-          <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.home.noUpcoming}</p>
-        ) : (
+        <section className="flex flex-col gap-3.5">
+          <SectionHeader label={dict.company.nextScheduled} />
+          {!nextCall ? (
+            <div className="rounded-card border border-dashed border-subtle-strong px-4 py-8 text-center text-[13px] text-ink-faint">
+              {dict.home.noUpcoming}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 rounded-card border border-subtle-strong p-[18px]">
+              <div className="flex items-center gap-[11px]">
+                <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-[9px] bg-subtle text-ink-faint">
+                  <CalendarIcon size={18} strokeWidth={1.6} />
+                </span>
+                <div className="min-w-0 flex-1 text-start">
+                  <div className="text-[14.5px] font-semibold text-ink">
+                    {[nextCall.quarter, dict.home.investorCall].filter(Boolean).join(' · ')}
+                  </div>
+                  <div className="mt-0.5 font-mono-num text-[12.5px] text-ink-faint" dir="ltr">
+                    {formatDate(nextCall.scheduledAt, locale)} · {formatTime(nextCall.scheduledAt, locale)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-[9px]">
+                <span className="rounded-pill border border-subtle-strong px-2.5 py-[3px] text-xs text-ink-muted">
+                  {dict.company.upcoming} · {formatRelativeDays(nextCall.scheduledAt, locale)}
+                </span>
+                <button
+                  type="button"
+                  className="ms-auto flex items-center gap-1.5 text-[12.5px] font-medium text-ink transition-opacity hover:opacity-70"
+                >
+                  <ClockIcon size={14} strokeWidth={1.7} />
+                  {dict.company.remindMe}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {restCalls.length > 0 && (
+        <section className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
+          <SectionHeader label={dict.company.upcomingCalls} className="mb-2" />
           <div className="flex flex-col gap-0.5">
-            {calls.map((call) => (
+            {restCalls.map((call) => (
               <EntityRow
                 key={call.id}
                 logoSrc={logoUrl}
@@ -152,8 +236,8 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
               />
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   )
 }

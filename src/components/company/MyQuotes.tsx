@@ -99,17 +99,22 @@ export function MyQuotes({
   const visible = active === 'all' ? quotes : quotes.filter((q) => folderOf(q) === active)
   const grouped = useMemo(() => groupByQuarter(visible), [visible])
 
+  // design folder chips (lines 513-523): active = black pill with mono count; inactive = outlined
+  const countFor = (key: string) =>
+    key === 'all' ? quotes.length : quotes.filter((q) => folderOf(q) === key).length
   const chip = (key: string, label: string, on: boolean, onClick: () => void) => (
     <button
       key={key}
       type="button"
       onClick={onClick}
-      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors ${
-        on ? 'bg-ink font-medium text-white' : 'bg-panel text-ink-muted hover:text-ink'
+      className={`flex shrink-0 items-center gap-[7px] rounded-pill px-[13px] py-1.5 text-sm font-medium transition-colors ${
+        on ? 'bg-ink text-white' : 'border border-subtle-strong text-ink-muted hover:text-ink'
       }`}
     >
-      {key !== 'all' && <FolderIcon size={14} />}
-      {label}
+      <span dir="auto">{label}</span>
+      <span className={`font-mono-num text-[11px] ${on ? 'text-white/70' : 'text-ink-faint'}`} dir="ltr">
+        {countFor(key)}
+      </span>
     </button>
   )
 
@@ -189,21 +194,26 @@ export function MyQuotes({
         grouped.map(([quarter, qs]) => {
           const isCollapsed = collapsed[quarter]
           return (
-            <div key={quarter}>
+            // design quarter group (lines 526-535): a paper card that collapses
+            <div key={quarter} className="overflow-hidden rounded-card border border-subtle-strong bg-paper">
               <button
                 type="button"
                 onClick={() => setCollapsed((c) => ({ ...c, [quarter]: !c[quarter] }))}
-                className="mb-2 flex w-full items-center gap-1.5 px-1 text-xs font-medium text-ink-faint transition-colors hover:text-ink-muted"
+                className="flex w-full items-center gap-2.5 px-4 py-[13px] text-start transition-colors hover:bg-subtle/40"
               >
                 <ChevronDownIcon
-                  size={14}
-                  className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                  size={15}
+                  className={`flex-none text-ink-faint transition-transform duration-150 ${isCollapsed ? '-rotate-90 rtl:rotate-90' : ''}`}
                 />
-                <span dir="ltr">{quarter}</span>
-                <span className="text-ink-faint/70">· {qs.length}</span>
+                <span className="font-mono-num text-sm font-semibold text-ink" dir="ltr">
+                  {quarter}
+                </span>
+                <span className="font-mono-num text-xs text-ink-faint" dir="ltr">
+                  · {qs.length}
+                </span>
               </button>
               {!isCollapsed && (
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2.5 px-4 pb-4">
                   {qs.map((quote) => (
                     <QuoteCard
                       key={quote.id}

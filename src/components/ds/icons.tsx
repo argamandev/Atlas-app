@@ -73,6 +73,38 @@ export const WorkspacesIcon = (p: IconProps) => (
     <rect x="13" y="13" width="7" height="7" rx="1.5" />
   </Base>
 )
+// V2 (Claude Design): Reports-tab artifact icons (design lines 563-566) + webinar camera
+export const TranscriptIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="5" y="3.5" width="14" height="17" rx="2" />
+    <path d="M8.5 8h7M8.5 12h7M8.5 16h4.5" />
+  </Base>
+)
+export const FileIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M13 3.5H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V9.5z" />
+    <path d="M13 3.5V9.5h6" />
+  </Base>
+)
+export const SlidesIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="4.5" width="18" height="13" rx="2" />
+    <path d="M12 17.5V21M8.5 21h7" />
+  </Base>
+)
+export const VideoIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="6" width="13" height="12" rx="2.5" />
+    <path d="M16 10.5l5-3v9l-5-3" />
+  </Base>
+)
+// V2 (Claude Design): "Remind me" clock (design line 509)
+export const ClockIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v5l3 2" />
+  </Base>
+)
 // V2 (Claude Design): the rail language globe (design rail, line 76)
 export const GlobeIcon = (p: IconProps) => (
   <Base {...p}>
