@@ -37,6 +37,7 @@ const config: Config = {
 
         // ── V2 (Claude Design import) surfaces ──
         shell: tokens.v2.shell,
+        paper: tokens.v2.paper,
         rail: tokens.v2.rail,
         'rail-text': tokens.v2.railText,
         'rail-active': tokens.v2.railActive,
@@ -79,6 +80,7 @@ const config: Config = {
       },
       boxShadow: {
         // Soft, diffuse elevation used in exactly three places (brief §3.4).
+        soft: tokens.shadow.soft,
         card: tokens.shadow.card,
         float: tokens.shadow.float,
         window: tokens.shadow.window,

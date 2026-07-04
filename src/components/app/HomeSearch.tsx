@@ -53,14 +53,14 @@ export function HomeSearch() {
 
   return (
     <div ref={boxRef} className="relative w-full">
-      <div className="flex items-center gap-2.5 rounded-bubble bg-canvas px-4 py-3 shadow-float transition-shadow">
-        <SearchIcon size={18} className="text-ink-faint" />
+      <div className="flex items-center gap-2.5 rounded-card border border-subtle-strong bg-paper px-[18px] py-[13px] shadow-soft transition-shadow focus-within:shadow-float">
+        <SearchIcon size={17} strokeWidth={1.7} className="flex-none text-ink-faint" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder={dict.home.searchPlaceholder}
-          className="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint"
+          className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-faint"
         />
       </div>
 

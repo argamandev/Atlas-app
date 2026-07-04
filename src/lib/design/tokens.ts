@@ -20,7 +20,7 @@ export const tokens = {
     // text hierarchy — weight + gray value carry hierarchy, never loud color
     ink: '#1B1B1A', // primary: names, headers, key values (near-black, warm)
     inkMuted: '#6C6C68', // secondary: roles, labels
-    inkFaint: '#9C9A94', // metadata: timestamps, tickers, captions
+    inkFaint: '#8A867C', // metadata: timestamps, tickers, captions (V2: design's warmer faint)
 
     // the single high-contrast element: the docked media player
     player: '#2B2B2E', // warm graphite charcoal (not pure black)
@@ -40,6 +40,7 @@ export const tokens = {
   // design's computed styles (design-import/Atlas MVP.dc.html, locked "Black rail" theme) ──
   v2: {
     shell: '#F5F3EE', // main page area behind all content
+    paper: '#FAF9F6', // raised inputs/cards on the cream shell (search, live card)
     rail: '#0A0A0A', // black nav rail
     railText: '#A6A29A', // inactive rail item text
     railActive: 'rgba(255,255,255,0.10)', // active item fill (+ white text)
@@ -72,6 +73,8 @@ export const tokens = {
   // `card` (barely-there lift for list rows / cards) and `float` (the search +
   // composer hover-float) are the softer, more diffuse recipes from the V1 design pass.
   shadow: {
+    // V2 (Claude Design): the design's one soft lift for search field + live card
+    soft: '0 1px 3px rgba(28,27,25,0.06), 0 8px 24px rgba(28,27,25,0.04)',
     card: '0 1px 2px rgba(20,18,15,0.05), 0 1px 1px rgba(20,18,15,0.03)',
     float: '0 24px 70px -20px rgba(20,18,15,0.16), 0 2px 8px -2px rgba(20,18,15,0.07)',
     window: '0 24px 64px -16px rgba(0,0,0,0.28), 0 2px 8px -2px rgba(0,0,0,0.10)',

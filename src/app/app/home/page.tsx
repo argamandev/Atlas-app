@@ -26,28 +26,28 @@ export default async function HomePage() {
 
   return (
     <CollapsiblePanel title={dict.home.liveNow} panel={panel}>
-      <div className="app-scroll flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-6">
-          {/* hero: greeting + search */}
-          <div className="flex animate-fade-up flex-col items-center gap-3 pt-[12vh] text-center">
+      <div className="atscroll flex-1 overflow-y-auto">
+        <div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-10">
+          {/* hero: greeting + search (design: 60px top, 620px hero column, 42px headline) */}
+          <div className="mx-auto flex w-full max-w-[620px] animate-fade-up flex-col items-center gap-2.5 pt-[60px] text-center">
             <TodayLine />
             <Greeting
               name={userId ? userName : undefined}
-              className="text-[28px] font-bold tracking-tight text-ink sm:text-[30px]"
+              className="text-[34px] font-bold tracking-[-0.03em] text-ink sm:text-[42px]"
             />
-            <p className="text-ink-muted">{dict.home.discoverSubhead}</p>
-            <div className="mt-3 w-full max-w-lg">
+            <p className="text-[16px] text-ink-muted">{dict.home.discoverSubhead}</p>
+            <div className="mt-[18px] w-full">
               <HomeSearch />
             </div>
           </div>
 
           {/* upcoming investor calls */}
-          <div className="mt-[9vh] pb-16 pb-dock">
-            <SectionHeader label={dict.home.upcomingCalls} className="mb-3" />
+          <div className="mt-12 pb-16 pb-dock">
+            <SectionHeader label={dict.home.upcomingCalls} className="mb-2.5" />
             {upcoming.length === 0 ? (
               <p className="px-2.5 py-6 text-sm text-ink-faint">{dict.home.noUpcoming}</p>
             ) : (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col">
                 {upcoming.map((call, i) => (
                   <UpcomingCard
                     key={call.id}

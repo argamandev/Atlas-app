@@ -28,23 +28,29 @@ export function UpcomingCard({
   return (
     <Link
       href={href}
-      className="group flex animate-fade-up items-center gap-3 rounded-card bg-canvas px-3 py-2.5 transition-all duration-200 hover:-translate-y-px hover:shadow-float"
+      className="group flex animate-fade-up items-center gap-[13px] border-b border-hairline px-3 py-[13px] transition-colors hover:bg-subtle/60"
       style={{ animationDelay: `${index * 0.05}s` }}
     >
-      <Logo src={logoSrc} name={name} size={34} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-ink">{name}</div>
-        <div className="mt-0.5 truncate text-xs text-ink-faint">{sub}</div>
-      </div>
-      <div className="shrink-0 text-end">
-        <div className="text-sm font-semibold text-ink tabular-nums">{dateLabel}</div>
-        <div className="text-2xs text-ink-faint" dir="ltr">
-          {timeLabel}
+      <Logo src={logoSrc} name={name} size={38} className="rounded-[9px]" />
+      <div className="min-w-0 flex-1 text-start">
+        <div className="truncate text-[14.5px] font-semibold text-ink">
+          <span dir="auto">{name}</span>
         </div>
+        <div className="mt-0.5 truncate text-[12.5px] text-ink-muted">{sub}</div>
       </div>
-      <span className="shrink-0 whitespace-nowrap rounded-full bg-subtle px-2.5 py-1 text-2xs text-ink-muted">
-        {relLabel}
-      </span>
+      <div className="flex shrink-0 items-center gap-3">
+        <div className="text-end">
+          <div className="font-mono-num text-[13px] font-semibold text-ink" dir="ltr">
+            {dateLabel}
+          </div>
+          <div className="font-mono-num text-[11.5px] text-ink-faint" dir="ltr">
+            {timeLabel}
+          </div>
+        </div>
+        <span className="whitespace-nowrap rounded-md bg-subtle px-[9px] py-1 text-[11.5px] text-ink-muted">
+          {relLabel}
+        </span>
+      </div>
     </Link>
   )
 }
