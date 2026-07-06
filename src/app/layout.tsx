@@ -18,8 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const locale = getLocale()
   const dir = getDirection(locale)
   const dict = getDictionary(locale)
-  // English UI → Inter; Hebrew UI → Calibri Regular (with a Hebrew fallback stack).
-  const fontClass = locale === 'he' ? 'font-calibri' : 'font-latin'
+  // Both locales use the design's system stack (font-sans) — the rendered Claude
+  // Design serves Hebrew and Latin from the same system face (Segoe UI / SF Pro).
+  const fontClass = 'font-sans'
 
   return (
     <html dir={dir} lang={locale}>

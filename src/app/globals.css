@@ -86,7 +86,7 @@
   body {
     background-color: #050505;
     color: #FFFFFF;
-    font-family: 'IBM Plex Sans Hebrew', Heebo, Inter, system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

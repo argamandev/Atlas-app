@@ -60,6 +60,17 @@ const config: Config = {
         ghost: tokens.v2.ghost,
       },
       fontFamily: {
+        // ── V2 parity pass: THE design's base stack (probed from the rendered
+        // Atlas MVP.dc.html — one stack for BOTH locales; resolves to Segoe UI
+        // on Windows, SF Pro on Mac; Hebrew renders from the same system face).
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"SF Pro Text"',
+          '"Helvetica Neue"',
+          'system-ui',
+          'sans-serif',
+        ],
         hebrew: ['"IBM Plex Sans Hebrew"', 'Heebo', 'Inter', 'system-ui', 'sans-serif'],
         // Latin/English UI font. Falls back to the Hebrew face so mixed-script
         // content (Hebrew company names inside an English UI) still renders.
