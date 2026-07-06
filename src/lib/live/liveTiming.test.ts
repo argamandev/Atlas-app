@@ -7,6 +7,7 @@ import {
   bufferGate,
   hostedLiveOver,
   companyLiveDisplay,
+  liveSessionChanged,
   LIVE_BUFFER_SEC,
 } from './liveTiming'
 
@@ -145,4 +146,20 @@ test('live → drains for bufferSec after end → over (compose delayedLiveEdge 
   const end = delayedLiveEdge(liveEdge, buffer, endedAt, endedAt + buffer * 1000)
   assert.equal(end, liveEdge)
   assert.equal(hostedLiveOver(true, end, liveEdge), true)
+})
+
+test('liveSessionChanged: a new engine session under an open page must reset the viewer', () => {
+  // first poll ever (no previous session known) → not a change
+  assert.equal(liveSessionChanged(null, 12345, 0, 0), false)
+  // same session, lines grow normally → no reset
+  assert.equal(liveSessionChanged(12345, 12345, 5, 8), false)
+  // engine restarted with a new sessionId → reset even if line counts look plausible
+  assert.equal(liveSessionChanged(12345, 67890, 5, 8), true)
+  // engine restarted, no sessionId available (old engine) → line count SHRANK exposes it
+  assert.equal(liveSessionChanged(null, null, 20, 3), true)
+  // no sessionId, lines only grow → no reset (normal old-engine session)
+  assert.equal(liveSessionChanged(null, null, 5, 8), false)
+  // 2026-07-04 real-Zoom bug repro: stale tab held seenLines=20 from yesterday's replay;
+  // fresh engine served the founder's new call (3 lines) → MUST reset, not swallow lines
+  assert.equal(liveSessionChanged(null, 1783121000000, 20, 3), true)
 })

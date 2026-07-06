@@ -5,6 +5,34 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-04 — IVRIT live pipeline M1 SHIPPED (Lane I; reviewer-APPROVED, founder-tested on real Zoom ×2)
+
+**Status:** merged to `main` (`9c6f0e7` + follow-up `e06ca7a`) + pushed. The fleet's first lane
+ship. Lane I's mission line delivered: live Hebrew transcription WITHOUT Recall producing the
+text — Recall is now an audio tap only (audio-only bot → silence-aligned 20–45s PCM chunks →
+RunPod IVRIT → monotonic word-timeline stitcher → engine on :8788 serving the SAME /state+/pcm
+contract, so the app viewer runs unchanged).
+
+- **Why chunked-live works:** RunPod ivrit accepts base64 blobs (no storage churn), warm
+  ~2.5s per 35s chunk; quality compare vs Recall captions AND a whole-file IVRIT reference
+  showed no chunking content loss (divergences = loanword spellings + filler repeats).
+- **Real-world proof:** two founder-attended Zoom tests — round 2 end-to-end (19 chunks all
+  on time → karaoke → source end → auto finish → Gemini polish → finished-call page).
+  Founder verdict: "works really really good".
+- **Round 1 found a latent BOTH-pipeline viewer bug** (stale tab mixes two calls): fixed via
+  `sessionId` in /state + viewer reset (`liveSessionChanged`), unit-tested with the real repro.
+  Reviewer's one WARNING (offline poll fallback could trip that reset) fixed pre-push
+  (`e06ca7a`). Invariant graduated to rules/live.md: viewers SURVIVE ENGINE RESTART.
+- **End-of-call UX parity was a founder decision** (filed): engine writes the shared
+  `broadcast-*` capture files, existing finish flow works unchanged over IVRIT output.
+- **Verification:** 64/64 tests (chunker byte-conservation, stitcher monotonicity on a real
+  RunPod fixture, session-reset repro) · tsc · build · /verify-app with eyes — run
+  independently by the lane, the cold reviewer, AND the supervisor. Follow-ups filed: engine
+  ws-reconnect + PCM memory (blocks 2h calls, M2) · mixed-language Whisper fillers (M2) ·
+  `tsconfig.scripts.json` so `scripts/**` gets typechecked (repo-wide gap).
+
+---
+
 ## 2026-07-03 — Doc-growth guards SHIPPED (reviewer-APPROVED, 1 nit fixed pre-merge)
 
 **Status:** merged to `main` (`5fb8f6b`) + pushed. Founder-ordered after the supervisor's honest

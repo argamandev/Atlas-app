@@ -1,0 +1,646 @@
+[
+  {
+    "result": [
+      [
+        {
+          "end": 6.04,
+          "extra_data": {
+            "avg_logprob": -0.2554041209973787,
+            "compression_ratio": 2.1761658031088085,
+            "id": 1,
+            "no_speech_prob": 0,
+            "seek": 0,
+            "temperature": 0,
+            "tokens": [
+              50365,
+              11473,
+              12315,
+              1430,
+              11,
+              11473,
+              12315,
+              1430,
+              11302,
+              46200,
+              14507,
+              9625,
+              32888,
+              7460,
+              14984,
+              5548,
+              17270,
+              102,
+              8573,
+              26438,
+              4672,
+              8817,
+              14554,
+              11,
+              11473,
+              12315,
+              1430,
+              11302,
+              46200,
+              14507,
+              5001,
+              241,
+              13168,
+              15929,
+              16929,
+              2922,
+              9404,
+              17294,
+              45904,
+              2986,
+              5071,
+              13,
+              50663
+            ]
+          },
+          "speakers": [],
+          "start": 0,
+          "text": " בואו, בואו נתחיל את הזכירת המשקיעים שלנו, בואו נתחיל לדבר על מה הולך לקרות.",
+          "words": [
+            {
+              "end": 1.5,
+              "probability": 0.873046875,
+              "speaker": null,
+              "start": 0,
+              "word": " בואו,"
+            },
+            {
+              "end": 1.7,
+              "probability": 0.9990234375,
+              "speaker": null,
+              "start": 1.52,
+              "word": " בואו"
+            },
+            {
+              "end": 2,
+              "probability": 0.99951171875,
+              "speaker": null,
+              "start": 1.7,
+              "word": " נתחיל"
+            },
+            {
+              "end": 2.08,
+              "probability": 0.63671875,
+              "speaker": null,
+              "start": 2,
+              "word": " את"
+            },
+            {
+              "end": 2.36,
+              "probability": 0.6529541015625,
+              "speaker": null,
+              "start": 2.08,
+              "word": " הזכירת"
+            },
+            {
+              "end": 2.72,
+              "probability": 0.9716796875,
+              "speaker": null,
+              "start": 2.36,
+              "word": " המשקיעים"
+            },
+            {
+              "end": 3.2,
+              "probability": 0.999755859375,
+              "speaker": null,
+              "start": 2.72,
+              "word": " שלנו,"
+            },
+            {
+              "end": 3.56,
+              "probability": 0.9998372395833334,
+              "speaker": null,
+              "start": 3.32,
+              "word": " בואו"
+            },
+            {
+              "end": 3.88,
+              "probability": 0.9998372395833334,
+              "speaker": null,
+              "start": 3.56,
+              "word": " נתחיל"
+            },
+            {
+              "end": 4.3,
+              "probability": 0.9998372395833334,
+              "speaker": null,
+              "start": 3.88,
+              "word": " לדבר"
+            },
+            {
+              "end": 4.7,
+              "probability": 0.9970703125,
+              "speaker": null,
+              "start": 4.3,
+              "word": " על"
+            },
+            {
+              "end": 4.9,
+              "probability": 1,
+              "speaker": null,
+              "start": 4.7,
+              "word": " מה"
+            },
+            {
+              "end": 5.38,
+              "probability": 0.99951171875,
+              "speaker": null,
+              "start": 4.9,
+              "word": " הולך"
+            },
+            {
+              "end": 6.04,
+              "probability": 0.9998372395833334,
+              "speaker": null,
+              "start": 5.38,
+              "word": " לקרות."
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "end": 7.96,
+          "extra_data": {
+            "avg_logprob": -0.2554041209973787,
+            "compression_ratio": 2.1761658031088085,
+            "id": 2,
+            "no_speech_prob": 0,
+            "seek": 0,
+            "temperature": 0,
+            "tokens": [
+              50727,
+              24464,
+              20530,
+              2986,
+              14838,
+              11,
+              50768
+            ]
+          },
+          "speakers": [],
+          "start": 7.12,
+          "text": " בעיקרון,",
+          "words": [
+            {
+              "end": 7.96,
+              "probability": 0.998291015625,
+              "speaker": null,
+              "start": 7.12,
+              "word": " בעיקרון,"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "end": 11.94,
+          "extra_data": {
+            "avg_logprob": -0.2554041209973787,
+            "compression_ratio": 2.1761658031088085,
+            "id": 3,
+            "no_speech_prob": 0,
+            "seek": 0,
+            "temperature": 0,
+            "tokens": [
+              50789,
+              16707,
+              44918,
+              2922,
+              9404,
+              17294,
+              5001,
+              4349,
+              241,
+              19047,
+              19208,
+              8430,
+              21834,
+              2986,
+              8817,
+              14554,
+              7535,
+              31374,
+              241,
+              11,
+              50962
+            ]
+          },
+          "speakers": [],
+          "start": 8.06,
+          "text": " אני רק הולך לבדוק שהמוצר שלנו עובד,",
+          "words": [
+            {
+              "end": 8.56,
+              "probability": 1,
+              "speaker": null,
+              "start": 8.06,
+              "word": " אני"
+            },
+            {
+              "end": 8.94,
+              "probability": 1,
+              "speaker": null,
+              "start": 8.56,
+              "word": " רק"
+            },
+            {
+              "end": 9.52,
+              "probability": 0.9998372395833334,
+              "speaker": null,
+              "start": 8.94,
+              "word": " הולך"
+            },
+            {
+              "end": 10.1,
+              "probability": 0.9998779296875,
+              "speaker": null,
+              "start": 9.52,
+              "word": " לבדוק"
+            },
+            {
+              "end": 10.62,
+              "probability": 0.9971923828125,
+              "speaker": null,
+              "start": 10.1,
+              "word": " שהמוצר"
+            },
+            {
+              "end": 11.02,
+              "probability": 1,
+              "speaker": null,
+              "start": 10.62,
+              "word": " שלנו"
+            },
+            {
+              "end": 11.94,
+              "probability": 0.9998372395833334,
+              "speaker": null,
+              "start": 11.02,
+              "word": " עובד,"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "end": 14.24,
+          "extra_data": {
+            "avg_logprob": -0.2554041209973787,
+            "compression_ratio": 2.1761658031088085,
+            "id": 4,
+            "no_speech_prob": 0,
+            "seek": 0,
+            "temperature": 0,
+            "tokens": [
+              51040,
+              36555,
+              5641,
+              7889,
+              13,
+              51084
+            ]
+          },
+          "speakers": [],
+          "start": 13.5,
+          "text": " יותר מזה.",
+          "words": [
+            {
+              "end": 13.64,
+              "probability": 0.978515625,
+              "speaker": null,
+              "start": 13.22,
+              "word": " יותר"
+            },
+            {
+              "end": 14.24,
+              "probability": 0.999755859375,
+              "speaker": null,
+              "start": 13.64,
+              "word": " מזה."
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "end": 16.42,
+          "extra_data": {
+            "avg_logprob": -0.2554041209973787,
+            "compression_ratio": 2.1761658031088085,
+            "id": 5,
+            "no_speech_prob": 0,
+            "seek": 0,
+            "temperature": 0,
+            "tokens": [
+              51111,
+              30948,
+              7535,
+              17329,
+              4672,
+              40833,
+              17433,
+              38228,
+              17433,
+              1380,
+              5641,
+              240,
+              5997,
+              19887,
+              4672,
+              11,
+              51173
+            ]
+          },
+          "speakers": [],
+          "start": 14.64,
+          "text": " אנחנו עושים פה דברים די מגניבים,",
+          "words": [
+            {
+              "end": 14.98,
+              "probability": 0.419921875,
+              "speaker": null,
+              "start": 14.64,
+              "word": " אנחנו"
+            },
+            {
+              "end": 15.18,
+              "probability": 0.9873046875,
+              "speaker": null,
+              "start": 14.98,
+              "word": " עושים"
+            },
+            {
+              "end": 15.28,
+              "probability": 0.9990234375,
+              "speaker": null,
+              "start": 15.18,
+              "word": " פה"
+            },
+            {
+              "end": 15.56,
+              "probability": 1,
+              "speaker": null,
+              "start": 15.28,
+              "word": " דברים"
+            },
+            {
+              "end": 15.76,
+              "probability": 0.9990234375,
+              "speaker": null,
+              "start": 15.56,
+              "word": " די"
+            },
+            {
+              "end": 16.42,
+              "probability": 0.99970703125,
+              "speaker": null,
+              "start": 15.76,
+              "word": " מגניבים,"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "end": 19.04,
+          "extra_data": {
+            "avg_logprob": -0.2554041209973787,
+            "compression_ratio": 2.1761658031088085,
+            "id": 6,
+            "no_speech_prob": 0,
+            "seek": 0,
+            "temperature": 0,
+            "tokens": [
+              51240,
+              13323,
+              16028,
+              10573,
+              14388,
+              7666,
+              9202,
+              238,
+              10014,
+              31056,
+              5641,
+              240,
+              5997,
+              19887,
+              13,
+              51320
+            ]
+          },
+          "speakers": [],
+          "start": 17.38,
+          "text": " פונטן ומאוד מאוד מגניב.",
+          "words": [
+            {
+              "end": 17.82,
+              "probability": 0.8094482421875,
+              "speaker": null,
+              "start": 17.38,
+              "word": " פונטן"
+            },
+            {
+              "end": 18.12,
+              "probability": 0.7498779296875,
+              "speaker": null,
+              "start": 17.82,
+              "word": " ומאוד"
+            },
+            {
+              "end": 18.28,
+              "probability": 0.8212890625,
+              "speaker": null,
+              "start": 18.12,
+              "word": " מאוד"
+            },
+            {
+              "end": 19.04,
+              "probability": 0.9990234375,
+              "speaker": null,
+              "start": 18.28,
+              "word": " מגניב."
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "end": 20.78,
+          "extra_data": {
+            "avg_logprob": -0.2554041209973787,
+            "compression_ratio": 2.1761658031088085,
+            "id": 7,
+            "no_speech_prob": 0,
+            "seek": 0,
+            "temperature": 0,
+            "tokens": [
+              51386,
+              16929,
+              20592,
+              30,
+              51408
+            ]
+          },
+          "speakers": [],
+          "start": 20.02,
+          "text": " מה יש?",
+          "words": [
+            {
+              "end": 20.44,
+              "probability": 0.407470703125,
+              "speaker": null,
+              "start": 20.02,
+              "word": " מה"
+            },
+            {
+              "end": 20.78,
+              "probability": 0.98779296875,
+              "speaker": null,
+              "start": 20.44,
+              "word": " יש?"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "end": 27.26,
+          "extra_data": {
+            "avg_logprob": -0.2554041209973787,
+            "compression_ratio": 2.1761658031088085,
+            "id": 8,
+            "no_speech_prob": 0,
+            "seek": 0,
+            "temperature": 0,
+            "tokens": [
+              51442,
+              17433,
+              38228,
+              30221,
+              7749,
+              14507,
+              4672,
+              13995,
+              14984,
+              7972,
+              5071,
+              31056,
+              31056,
+              31056,
+              48606,
+              13,
+              51733
+            ]
+          },
+          "speakers": [],
+          "start": 23.82,
+          "text": " דברים מתחילים להיראות מאוד מאוד מאוד טוב.",
+          "words": [
+            {
+              "end": 24.66,
+              "probability": 0.8076171875,
+              "speaker": null,
+              "start": 23.82,
+              "word": " דברים"
+            },
+            {
+              "end": 25.28,
+              "probability": 0.9990234375,
+              "speaker": null,
+              "start": 24.66,
+              "word": " מתחילים"
+            },
+            {
+              "end": 25.8,
+              "probability": 0.93017578125,
+              "speaker": null,
+              "start": 25.28,
+              "word": " להיראות"
+            },
+            {
+              "end": 26.28,
+              "probability": 0.986328125,
+              "speaker": null,
+              "start": 25.8,
+              "word": " מאוד"
+            },
+            {
+              "end": 26.6,
+              "probability": 0.99853515625,
+              "speaker": null,
+              "start": 26.28,
+              "word": " מאוד"
+            },
+            {
+              "end": 26.84,
+              "probability": 0.96923828125,
+              "speaker": null,
+              "start": 26.6,
+              "word": " מאוד"
+            },
+            {
+              "end": 27.26,
+              "probability": 0.9990234375,
+              "speaker": null,
+              "start": 26.84,
+              "word": " טוב."
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "end": 31.2,
+          "extra_data": {
+            "avg_logprob": -0.6529017857142857,
+            "compression_ratio": 1,
+            "id": 9,
+            "no_speech_prob": 0,
+            "seek": 3000,
+            "temperature": 0,
+            "tokens": [
+              50376,
+              31056,
+              31056,
+              48606,
+              13,
+              50434
+            ]
+          },
+          "speakers": [],
+          "start": 30,
+          "text": " מאוד מאוד טוב.",
+          "words": [
+            {
+              "end": 30.62,
+              "probability": 0.225341796875,
+              "speaker": null,
+              "start": 30,
+              "word": " מאוד"
+            },
+            {
+              "end": 30.82,
+              "probability": 0.2060546875,
+              "speaker": null,
+              "start": 30.62,
+              "word": " מאוד"
+            },
+            {
+              "end": 31.2,
+              "probability": 0.97900390625,
+              "speaker": null,
+              "start": 30.82,
+              "word": " טוב."
+            }
+          ]
+        }
+      ]
+    ]
+  }
+]

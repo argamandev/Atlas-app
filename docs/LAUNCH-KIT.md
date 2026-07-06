@@ -5,10 +5,11 @@
 
 ## Step 0 — Morning checklist (before opening any session)
 
-1. **Drop the Claude Design export** into `C:\Users\Sagi\Desktop\Atlas\design-import\`
-   (create the folder; it's git-ignored). Lane F reads it as the source of truth.
+1. **Design import happens INSIDE the Lane F session** (founder decision 2026-07-03): Sagi runs
+   the Claude Design → Claude Code import as Lane F's first act, so it lands on the lane's
+   branch. No export folder needed.
 2. **Drop the demo annual-report PDF** at `C:\Users\Sagi\Desktop\Atlas\local-assets\demo-report.pdf`
-   (create the folder; git-ignored). Lane M tests against it.
+   (git-ignored). ✅ done 2026-07-03 (Tigbur Q1-2026 report; original filename kept alongside).
 3. **Restart the supervisor Claude session** (the main chat, in `C:\Users\Sagi\Desktop\Atlas`) so it
    reloads the new hooks + settings cleanly. Tell it: *"You are the supervisor. Read the board and
    resume."*
@@ -26,6 +27,14 @@ git worktree add ../Atlas-multiview -b feat/multiview-backend
 This creates three sibling folders, each a full checkout on its own branch, sharing one git
 history. `agent-memory/`, `design-import/` and `local-assets/` live ONLY in the main folder —
 the lanes reach them by absolute path (already wired into their prompts).
+
+**Seed `.env.local` into each worktree yourself** — it's gitignored so worktrees don't carry
+it, and agents are hook-blocked from reading/copying `.env` files. In each lane session type
+(the `!` prompt is Git Bash, so `cp`, not `copy`):
+
+```
+! cp C:/Users/Sagi/Desktop/Atlas/.env.local .
+```
 
 ## Step 2 — Open the three sessions
 
@@ -49,9 +58,9 @@ and the board at C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md. Your private
 C:/Users/Sagi/Desktop/Atlas/agent-memory/state-frontend.md — read it at start, write it
 before walking away.
 
-MISSION: import the Claude Design frontend exactly. The export lives at
-C:/Users/Sagi/Desktop/Atlas/design-import/ — it is the source of truth. Replicate the design
-faithfully into this codebase (components/ds and the app shell are yours to evolve — append any
+MISSION: import the Claude Design frontend exactly. THE FOUNDER RUNS THE CLAUDE DESIGN
+IMPORT INSIDE THIS SESSION as the first act — whatever it lands (files/components/tokens)
+is the source of truth. Replicate the design faithfully into this codebase (components/ds and the app shell are yours to evolve — append any
 design-token or shared-component change to agent-memory/cross-cutting.md first). The new
 Workspace and Agents pages are FRONTEND-ONLY for now: build them on stub data behind one
 clean data-interface module each, so wiring real backends later is a swap, not a rebuild.
@@ -63,8 +72,9 @@ ready, finish it with /ship (battery → push your branch → append to agent-me
 Never push main. If you fail ~5 attempts at the SAME problem: stop, ALERT, escalate (the
 5-strike rule in parallel-work.md). MILESTONE 1: the improved chat frontend shell (New chat /
 Projects / Workspace / Agents in the top-left) imported and verified, navigable to stub
-Workspace and Agents pages. FIRST ACTION: read the export, then run the brainstorming skill
-WITH THE FOUNDER to produce your spec + plan (docs/superpowers/) — only then build.
+Workspace and Agents pages. FIRST ACTION: ask the founder to run the Claude Design import in
+this session; read what landed; then run the brainstorming skill WITH THE FOUNDER to produce
+your spec + plan (docs/superpowers/) — only then build.
 ```
 
 ### 🎙️ Lane I — paste into the Atlas-ivrit session

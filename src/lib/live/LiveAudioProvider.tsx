@@ -7,6 +7,7 @@ import {
   bufferGate,
   delayedLiveEdge,
   hostedLiveOver,
+  liveSessionChanged,
   LIVE_BUFFER_SEC,
 } from '@/lib/live/liveTiming'
 
@@ -27,6 +28,8 @@ import {
 
 type LiveWord = { text: string; rawText?: string; start: number | null }
 interface LiveState {
+  /** engine-restart marker (one engine process = one broadcast); absent on older engines */
+  sessionId?: number
   audioStartRel: number | null
   liveEdgeRel: number | null
   liveEnded: boolean
@@ -134,6 +137,7 @@ export function LiveAudioProvider({ children }: { children: React.ReactNode }) {
   const rawEdgeRef = useRef(0) // last polled live edge (recording seconds)
   const edgeWallRef = useRef(0) // wall-clock ms at that poll — to interpolate between polls
   const seekTokenRef = useRef(0) // bumped on seek; an in-flight pump fetch with a stale token is discarded
+  const sessionIdRef = useRef<number | null>(null) // engine session marker — reset the viewer when it changes
   const lastSaveRef = useRef(0) // throttle playhead persistence
 
   // mirrors of state the imperative controls need to read at call time (avoid stale closures)
@@ -224,6 +228,42 @@ export function LiveAudioProvider({ children }: { children: React.ReactNode }) {
         const r = await fetch('/api/live/state', { cache: 'no-store' })
         const st: LiveState = await r.json()
         if (!alive) return
+        // Engine restarted (a NEW broadcast) under this open page → drop the old session's
+        // world before touching anything: accumulated words, scheduled audio, in-flight pcm
+        // fetches, the persisted playhead. Without this a stale tab silently MIXES two calls
+        // (first real-Zoom test, 2026-07-04). NOT on the offline fallback — its empty lines
+        // would satisfy the shrink heuristic and a single unreachable poll would wipe the viewer.
+        if (
+          !st.offline &&
+          liveSessionChanged(
+            sessionIdRef.current,
+            st.sessionId ?? null,
+            seenLinesRef.current,
+            st.lines.length
+          )
+        ) {
+          flushAudio()
+          seekTokenRef.current++
+          seenLinesRef.current = 0
+          setWords([])
+          if (persistKeyRef.current) {
+            try {
+              sessionStorage.removeItem(persistKeyRef.current)
+            } catch {
+              /* ignore */
+            }
+          }
+          if (startedRef.current) {
+            // already joined → re-anchor at the new session's live entry point
+            playPosRef.current = Math.max(st.audioStartRel ?? 0, (st.liveEdgeRel ?? 0) - delaySecRef.current)
+            nextAtRef.current = 0
+            setPlayingRel(0)
+            playingRelRef.current = 0
+          } else {
+            playPosRef.current = null
+          }
+        }
+        sessionIdRef.current = st.sessionId ?? sessionIdRef.current
         stRef.current = st
         setLiveEnded(st.liveEnded)
         setEndedAt(st.endedAt ?? null)

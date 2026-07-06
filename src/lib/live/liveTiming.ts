@@ -93,6 +93,24 @@ export function companyLiveDisplay(
   }
 }
 
+/**
+ * Detect that the ENGINE was restarted (a new broadcast) under a still-open page. Found in the
+ * 2026-07-04 first real-Zoom test: a stale tab mixed yesterday's call with the live one, swallowed
+ * the new call's first lines (its seen-lines cursor was past them) and desynced audio. Two signals:
+ * an explicit engine sessionId change, or — for engines that don't send one — the line count
+ * shrinking (within one session lines only ever grow). On true → the viewer must drop all
+ * accumulated words/audio and re-anchor on the new session.
+ */
+export function liveSessionChanged(
+  prevSessionId: number | null,
+  newSessionId: number | null,
+  seenLines: number,
+  newLineCount: number
+): boolean {
+  if (prevSessionId !== null && newSessionId !== null && prevSessionId !== newSessionId) return true
+  return newLineCount < seenLines
+}
+
 export function bufferGate(
   audioStartRel: number | null,
   edge: number,
