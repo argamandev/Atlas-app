@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { EntityRow } from '@/components/ds/EntityRow'
 import { SectionHeader } from '@/components/ds/SectionHeader'
-import { Logo } from '@/components/ds/Logo'
 import { Monogram } from '@/components/ds/Monogram'
 import { LiveBeamAvatar } from '@/components/ds/LiveBeamAvatar'
 import {
@@ -133,8 +132,8 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
             href={liveLink}
             className="flex max-w-md items-center gap-3 rounded-card border border-subtle-strong bg-paper p-4 shadow-soft transition-shadow hover:shadow-popover"
           >
-            <LiveBeamAvatar size={38} surface="card">
-              <Logo src={logoUrl} name={companyName} size={32} />
+            <LiveBeamAvatar size={48} surface="card">
+              {companyName.trim().charAt(0) || '·'}
             </LiveBeamAvatar>
             <div className="min-w-0 flex-1 text-start">
               <div className="truncate text-sm font-semibold text-ink">

@@ -513,7 +513,9 @@ export function LiveBroadcastView({
               key={ringSecs ?? 'ring-init'}
               mode="buffer"
               secs={ringSecs ?? delaySec}
-              ink={callTheme}
+              /* ink = the INK color, inverted from the theme (design callInkMode, dc 2422) —
+                 dark frame needs LIGHT numbers */
+              ink={callTheme === 'dark' ? 'light' : 'dark'}
               fill
               className="absolute inset-0 block h-full w-full"
             />

@@ -117,10 +117,8 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
       <div className="w-full animate-fade-up">
         {/* header: title + market/mine toggle (design lines 266-272) */}
         <div className="mb-1.5 flex items-start justify-between">
-          {/* design default head font = Newsreader 500 (founder reference) */}
-          <h1 className="font-display text-[30px] font-medium tracking-[-0.02em] text-ink">
-            {dict.calendar.title}
-          </h1>
+          {/* founder round-4: system ("apple") headline font, as CD home renders it */}
+          <h1 className="text-[30px] font-bold tracking-[-0.03em] text-ink">{dict.calendar.title}</h1>
           <div className="flex rounded-full bg-[#ECE9E2] p-[3px]">
             <button
               type="button"

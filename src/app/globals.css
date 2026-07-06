@@ -9,7 +9,8 @@
 @keyframes atline{from{transform:translateY(4px)}to{transform:none}}
 @keyframes atblink{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes atsettle{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-@keyframes radar-pulse{0%{transform:scale(0.75);opacity:0.9}70%{opacity:0.15}100%{transform:scale(1.9);opacity:0}}
+/* design .ln-pulse values EXACT (dc line 57) */
+@keyframes radar-pulse{0%{transform:scale(0.72);opacity:0.85}70%{opacity:0.14}100%{transform:scale(1.75);opacity:0}}
 @keyframes dot-blink{0%,100%{opacity:1}50%{opacity:0.35}}
 @keyframes askSlideIn{from{transform:translateX(100%)}to{transform:none}}
 @keyframes askSlideInRtl{from{transform:translateX(-100%)}to{transform:none}}

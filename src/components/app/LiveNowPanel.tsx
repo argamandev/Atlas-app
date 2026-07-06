@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { Monogram } from '@/components/ds/Monogram'
 import { LiveBeamAvatar } from '@/components/ds/LiveBeamAvatar'
 import { delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
@@ -74,8 +73,8 @@ export function LiveNowPanel({
       href="/app/live/live"
       className="hov-filld flex w-full items-center gap-3.5 rounded-[12px] px-2 py-[9px] text-start"
     >
-      <LiveBeamAvatar size={36} surface="page">
-        <Monogram name={companyName} size={30} fontSize={13} radius={15} />
+      <LiveBeamAvatar size={50} surface="page">
+        {companyName.trim().charAt(0) || '·'}
       </LiveBeamAvatar>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[14px] font-semibold text-ink">
