@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { ChevronRightIcon } from '@/components/ds/icons'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { getCurrentUser } from '@/lib/auth'
@@ -22,7 +24,7 @@ export default async function HomePage() {
 
   // Live Now: auto-appears when the live engine reports a call in progress (LiveNowPanel polls
   // /api/live/state). In a collapsible side panel so the main search recenters when collapsed.
-  const panel = <LiveNowPanel companyName={tamis?.displayName ?? 'תמיס'} logoUrl={tamis?.logoUrl ?? null} />
+  const panel = <LiveNowPanel companyName={tamis?.displayName ?? 'תמיס'} quarter="Q2 2026" />
 
   return (
     <CollapsiblePanel title={dict.home.liveNow} panel={panel}>
@@ -41,13 +43,25 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* upcoming investor calls */}
-          <div className="mt-12 pb-16 pb-dock">
-            <SectionHeader label={dict.home.upcomingCalls} className="mb-2.5" />
+          {/* upcoming investor calls (design lines 235-256: label + View all → bordered paper card) */}
+          <div className="mt-[52px] pb-16 pb-dock">
+            <SectionHeader
+              label={dict.home.upcomingCalls}
+              className="mb-3.5"
+              action={
+                <Link
+                  href="/app/calendar"
+                  className="hov-ink flex items-center gap-1 text-[12.5px] font-medium text-[#6B6862]"
+                >
+                  {dict.company.viewAll}
+                  <ChevronRightIcon size={13} strokeWidth={1.8} className="rtl:rotate-180" />
+                </Link>
+              }
+            />
             {upcoming.length === 0 ? (
               <p className="px-2.5 py-6 text-sm text-ink-faint">{dict.home.noUpcoming}</p>
             ) : (
-              <div className="flex flex-col">
+              <div className="overflow-hidden rounded-card border border-[#E6E2DA] bg-paper">
                 {upcoming.map((call, i) => (
                   <UpcomingCard
                     key={call.id}

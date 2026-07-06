@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { Logo } from '@/components/ds/Logo'
+import { Monogram } from '@/components/ds/Monogram'
 import { LiveBeamAvatar } from '@/components/ds/LiveBeamAvatar'
 import { delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
@@ -14,9 +14,16 @@ function formatClock(totalSec: number): string {
 }
 
 // Home "Live Now" — polls the live engine and surfaces the company the moment a call goes
-// live. V2 (Claude Design): a paper card with the radar-beam avatar ("beaming live"),
-// company + quarter lines, and the pulsing LIVE row with a running mono clock.
-export function LiveNowPanel({ companyName, logoUrl }: { companyName: string; logoUrl: string | null }) {
+// live. Design anatomy (lines 196-202): a borderless hover-fill row — beam monogram,
+// name 14/600, red caps tag (quarter) — plus our running mono clock at the row's end.
+export function LiveNowPanel({
+  companyName,
+  quarter,
+}: {
+  companyName: string
+  logoUrl?: string | null
+  quarter?: string | null
+}) {
   const { dict } = useI18n()
   const [live, setLive] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -65,29 +72,22 @@ export function LiveNowPanel({ companyName, logoUrl }: { companyName: string; lo
   return (
     <Link
       href="/app/live/live"
-      className="flex flex-col gap-2.5 rounded-[10px] border border-subtle-strong bg-paper p-3.5 shadow-soft transition-shadow hover:shadow-popover"
+      className="hov-filld flex w-full items-center gap-3.5 rounded-[12px] px-2 py-[9px] text-start"
     >
-      <div className="flex items-center gap-2.5">
-        <LiveBeamAvatar size={36} surface="card">
-          <Logo src={logoUrl} name={companyName} size={30} />
-        </LiveBeamAvatar>
-        <div className="min-w-0 flex-1 text-start">
-          <div className="truncate text-sm font-semibold text-ink">
-            <span dir="auto">{companyName}</span>
-          </div>
-          <div className="truncate text-xs text-ink-muted">{dict.home.investorCall}</div>
-        </div>
-      </div>
-      <div className="flex items-center gap-[7px]">
-        <span
-          className="h-[7px] w-[7px] rounded-full bg-live"
-          style={{ animation: 'atpulse 2s ease-in-out infinite' }}
-        />
-        <span className="text-xs font-semibold tracking-[0.03em] text-live">{dict.live.liveBadge}</span>
-        <span className="ms-auto font-mono-num text-[11.5px] text-ink-faint" dir="ltr">
-          {formatClock(elapsed)}
+      <LiveBeamAvatar size={36} surface="page">
+        <Monogram name={companyName} size={30} fontSize={13} radius={15} />
+      </LiveBeamAvatar>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[14px] font-semibold text-ink">
+          <span dir="auto">{companyName}</span>
+        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-live">
+          {quarter || dict.live.liveBadge}
         </span>
       </div>
+      <span className="flex-none font-mono-num text-[11.5px] text-ink-faint" dir="ltr">
+        {formatClock(elapsed)}
+      </span>
     </Link>
   )
 }

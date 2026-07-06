@@ -49,18 +49,22 @@ export function NavRail() {
 
   const isActive = (href: string) => (href === '/app/home' ? pathname === href : pathname.startsWith(href))
 
+  // design nav rows (lines 148-162): 14px, active weight 600, resting weight 450
+  // (Segoe UI Variable's in-between weight — exactly what the design renders)
   const itemClasses = (active: boolean) =>
     cn(
-      'flex w-full items-center rounded-lg py-[9px] text-sm transition-colors',
+      'flex w-full items-center rounded-lg py-[9px] text-[14px] transition-colors',
       collapsed ? 'justify-center px-0' : 'gap-[11px] px-[11px]',
       active
         ? 'bg-rail-active font-semibold text-white'
-        : 'text-rail-text hover:bg-rail-chip hover:text-white/90'
+        : 'text-rail-text [font-weight:450] hover:bg-rail-chip hover:text-white/90'
     )
 
   const renderItem = (item: NavItem) => {
     const Icon = item.icon
     const active = isActive(item.href)
+    // the chat spark is drawn larger with a negative margin in the design (line 155)
+    const isSpark = item.key === 'chat'
     return (
       <Link
         key={item.key}
@@ -68,7 +72,7 @@ export function NavRail() {
         title={collapsed ? item.label : undefined}
         className={itemClasses(active)}
       >
-        <Icon size={18} strokeWidth={1.6} className="flex-none" />
+        <Icon size={isSpark ? 25 : 18} strokeWidth={1.6} className={cn('flex-none', isSpark && '-m-1')} />
         {!collapsed && <span className="truncate">{item.label}</span>}
       </Link>
     )
@@ -100,16 +104,19 @@ export function NavRail() {
         title={dict.common.quickAccess}
         className={cn(
           'mb-[18px] flex w-full items-center rounded-lg border border-rail-hair bg-rail-chip py-[9px] text-rail-text transition-colors hover:text-white/90',
-          collapsed ? 'justify-center px-0' : 'gap-2 px-2.5'
+          collapsed ? 'justify-center px-0' : 'gap-[9px] px-[11px]'
         )}
       >
         <SearchIcon size={15} strokeWidth={1.7} className="flex-none" />
         {!collapsed && (
           <>
-            <span className="flex-1 whitespace-nowrap text-start text-[12.5px] tracking-tight">
+            <span className="flex-1 whitespace-nowrap text-start text-[13.5px]">
               {dict.common.quickAccess}
             </span>
-            <span className="rounded-[5px] bg-rail-active px-1 py-0.5 text-[11px] tracking-wide" dir="ltr">
+            <span
+              className="rounded-[5px] bg-rail-active px-1.5 py-0.5 text-[11px] tracking-[0.02em]"
+              dir="ltr"
+            >
               ⌘K
             </span>
           </>

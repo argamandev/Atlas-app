@@ -34,7 +34,8 @@ export function CollapsiblePanel({
         <aside className="app-scroll hidden w-[312px] shrink-0 flex-col overflow-y-auto border-e border-hairline bg-shell p-5 lg:flex">
           <div className="mb-[18px] flex items-center justify-between">
             {title ? (
-              <span className="font-mono-num text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+              // design panel labels are system caps (line 190), not mono
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A867C]">
                 {title}
               </span>
             ) : (
