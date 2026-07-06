@@ -82,7 +82,8 @@ export function NavRail() {
     <nav
       className={cn(
         'flex shrink-0 flex-col overflow-hidden border-e border-rail-hair bg-rail transition-[width] duration-200',
-        collapsed ? 'w-[64px] p-2.5' : 'w-[188px] p-3'
+        // design rail (probed): 230px wide, padding 22px 16px 16px — the breathing room
+        collapsed ? 'w-[64px] p-2.5' : 'w-[230px] px-4 pb-4 pt-[22px]'
       )}
     >
       {/* brand — light wordmark on the black rail; monogram when collapsed */}

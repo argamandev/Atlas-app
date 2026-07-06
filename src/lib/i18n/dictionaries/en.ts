@@ -56,6 +56,8 @@ export const en = {
     newWorkspace: 'New workspace',
     newWorkspaceHint: 'Name it and start adding files',
     files: 'files',
+    searchPlaceholder: 'Search workspaces…',
+    sortNewest: 'Newest',
   },
   agents: {
     ready: 'Ready when you are.',

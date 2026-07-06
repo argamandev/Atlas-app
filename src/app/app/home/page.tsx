@@ -29,7 +29,7 @@ export default async function HomePage() {
   return (
     <CollapsiblePanel title={dict.home.liveNow} panel={panel}>
       <div className="atscroll flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-10">
+        <div className="mx-auto flex min-h-full w-full max-w-[780px] flex-col px-10">
           {/* hero: greeting + search (design: 60px top, 620px hero column, 42px headline) */}
           <div className="mx-auto flex w-full max-w-[620px] animate-fade-up flex-col items-center gap-2.5 pt-[60px] text-center">
             <TodayLine />

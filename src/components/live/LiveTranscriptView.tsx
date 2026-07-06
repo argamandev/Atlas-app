@@ -419,7 +419,9 @@ export function LiveTranscriptView({
         companyName={name}
         sub={[call.quarter, formatDate(call.date, locale)].filter(Boolean).join(' · ')}
         isLive={call.isLive}
-        collapsed={chat.open || panelCollapsed}
+        // stays open when the chat dock slides in (design keeps it; collapsing it too made
+        // the whole frame lurch left when Ask Atlas opened)
+        collapsed={panelCollapsed}
         onToggleCollapsed={() => setPanelCollapsed((v) => !v)}
       />
 
@@ -649,11 +651,13 @@ export function LiveTranscriptView({
           </div>
         </div>
 
-        {/* body — Single: the active facet; Multi: Transcript | Slides | Report side by side */}
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* body — Single: the active facet; Multi: Transcript | Slides | Report side by side.
+            Design line 443: columns keep min-widths and the ROW scrolls horizontally instead
+            of squishing — this is what keeps text from reflowing when the chat dock opens. */}
+        <div className="atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
           {(view === 'multi' || tab === 'transcript') && (
             <div
-              className={`flex min-w-0 flex-1 flex-col overflow-hidden ${view === 'multi' ? 'call-hair min-w-[340px] border-e' : ''}`}
+              className={`flex min-w-[340px] flex-1 flex-col overflow-hidden ${view === 'multi' ? 'call-hair border-e' : ''}`}
             >
               {paneHeader(
                 dict.live.transcript,

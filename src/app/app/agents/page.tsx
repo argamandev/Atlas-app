@@ -1,107 +1,137 @@
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { getAgentsPageData } from '@/lib/agents/data'
-import { SectionHeader } from '@/components/ds/SectionHeader'
 import { AppPage } from '@/components/app/AppPage'
+import { ClockIcon, ChevronRightIcon, PlusIcon, CheckIcon } from '@/components/ds/icons'
 
-// Agents page — FRONTEND-ONLY stub (Milestone 1). Terminal-flavored per the design
-// (design-import lines 1197–1316): black ticker strip, mono agent cards with status
-// dots, scheduled rows with mono chips, finished tasks with check marks. All data
-// flows through lib/agents/data.ts so the real agent runtime is a swap there.
+// Agents page — FRONTEND-ONLY stub, EXACT design anatomy (design lines 1565-1652):
+// full-width black command deck ("> …" mono rows), My agents 2-col cards with mono
+// "> name" headers + status dots, thin-dash create card with a black + circle,
+// Finished tasks list card (green checks), Scheduled column (300px, clock + mono chip).
+// Data flows through lib/agents/data.ts so the real agent runtime is a swap there.
 export default async function AgentsPage() {
   const locale = getLocale()
   const dict = getDictionary(locale)
   const { agents, scheduled, finished } = await getAgentsPageData()
+  const label = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A867C]'
 
   return (
     <AppPage contentClassName="bg-shell">
       <div className="atscroll flex-1 overflow-y-auto">
-        {/* command-deck ticker strip */}
-        <div className="bg-rail px-6 py-4">
-          <div className="font-mono-num text-[13px] font-semibold text-[#F5F3EE]" dir="ltr">
-            {'>'} {dict.agents.ready}
-          </div>
+        {/* command deck (design lines 1569-1580): tight black strip hugging the > lines */}
+        <div
+          className="flex-none bg-[#0A0A0A] px-[30px] py-3.5 font-mono-num text-[13.5px] font-medium leading-[1.62] tracking-[0.01em] text-white antialiased"
+          dir="ltr"
+        >
+          <div className="text-[#8F8B82]">&gt; {dict.agents.ready}</div>
         </div>
 
-        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-10 px-8 pt-8 lg:grid-cols-[1fr_320px]">
-          <div>
-            <SectionHeader label={dict.agents.myAgents} />
-            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {agents.map((a) => (
-                <div key={a.id} className="rounded-card bg-canvas p-4 shadow-card ring-1 ring-hairline">
-                  <div className="flex items-center justify-between" dir="ltr">
-                    <span className="font-mono-num text-sm font-semibold text-ink">
-                      {'>'} {a.name}
-                    </span>
-                    <span className="flex items-center gap-1.5 font-mono-num text-2xs text-ink-faint">
-                      <span className="h-1.5 w-1.5 rounded-full bg-ink-faint" />
-                      {a.status === 'idle' ? dict.agents.idle : dict.agents.running}
-                    </span>
+        {/* body (design lines 1582-1650) */}
+        <div className="max-w-[1080px] px-9 pb-[120px] pt-[30px]">
+          <div className="flex flex-col items-start gap-9 lg:flex-row">
+            {/* My agents + Finished tasks */}
+            <div className="min-w-0 flex-1">
+              <div className={`${label} mb-3.5`}>{dict.agents.myAgents}</div>
+              <div className="grid min-w-0 grid-cols-1 gap-3.5 sm:grid-cols-2">
+                {agents.map((a) => (
+                  <div key={a.id} className="rounded-[10px] border border-[#E6E2DA] bg-paper px-4 py-[15px]">
+                    <div className="mb-2.5 flex items-center gap-2" dir="ltr">
+                      <span className="font-mono-num text-[13px] text-[#B8B3A8]">&gt;</span>
+                      <span className="font-mono-num text-[14px] font-semibold tracking-[-0.01em] text-ink">
+                        {a.name}
+                      </span>
+                      <span className="ms-auto flex items-center gap-1.5">
+                        {a.status === 'running' ? (
+                          <>
+                            <span
+                              className="h-[6px] w-[6px] rounded-full bg-live"
+                              style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                            />
+                            <span className="font-mono-num text-[11px] text-live">{dict.agents.running}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="h-[6px] w-[6px] rounded-full bg-[#C4BFB4]" />
+                            <span className="font-mono-num text-[11px] text-[#9A968C]">
+                              {dict.agents.idle}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className="mb-[9px] font-mono-num text-[10.5px] uppercase tracking-[0.08em] text-[#8A867C]"
+                      dir="ltr"
+                    >
+                      {a.domain}
+                    </div>
+                    <p className="text-[12.5px] leading-[1.55] text-[#6B6862]">{a.description}</p>
                   </div>
-                  <div className="mt-2 font-mono-num text-2xs tracking-wider text-ink-faint" dir="ltr">
-                    {a.domain}
-                  </div>
-                  <p className="mt-2 text-xs leading-relaxed text-ink-muted">{a.description}</p>
-                </div>
-              ))}
+                ))}
 
-              <button
-                type="button"
-                className="flex min-h-[120px] flex-col items-center justify-center rounded-card border border-dashed border-ink-faint/40 p-4 transition-colors hover:border-ink-faint/70 hover:bg-canvas/60"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-base leading-none text-white">
-                  +
-                </span>
-                <span className="mt-2 font-mono-num text-xs font-semibold text-ink">
-                  {dict.agents.createAgent}
-                </span>
-              </button>
-            </div>
+                {/* create card (design lines 1610-1615): THIN dash #CBC5B8 + black circle */}
+                <button
+                  type="button"
+                  className="flex min-h-[104px] flex-col items-center justify-center gap-[9px] rounded-[10px] border border-dashed border-[#CBC5B8] p-4 text-[#6B6862]"
+                >
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-[#0A0A0A] text-white">
+                    <PlusIcon size={18} strokeWidth={1.8} />
+                  </span>
+                  <span className="font-mono-num text-[12.5px] font-semibold text-ink">
+                    {dict.agents.createAgent}
+                  </span>
+                </button>
+              </div>
 
-            <div className="mt-10">
-              <SectionHeader label={dict.agents.finishedTasks} />
-              <div className="mt-3 flex flex-col gap-2">
+              <div className={`${label} mb-3 mt-[30px]`}>{dict.agents.finishedTasks}</div>
+              <div className="flex flex-col overflow-hidden rounded-[10px] border border-[#E6E2DA] bg-paper">
                 {finished.map((t) => (
-                  <div
+                  <button
                     key={t.id}
-                    className="flex items-center gap-3 rounded-card bg-canvas px-4 py-3 shadow-card ring-1 ring-hairline"
+                    type="button"
+                    className="hov-fill flex w-full items-center gap-3 border-b border-[#ECE7DD] px-[15px] py-[13px] text-start last:border-b-0"
                   >
-                    <span className="text-sm text-ink-muted">✓</span>
+                    <CheckIcon size={16} strokeWidth={1.9} className="flex-none text-[#4F7A52]" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-ink" dir="auto">
+                      <div className="truncate text-[13.5px] font-semibold text-ink" dir="auto">
                         {t.title}
                       </div>
-                      <div className="font-mono-num text-2xs text-ink-faint" dir="ltr">
+                      <div className="mt-px font-mono-num text-[11.5px] text-[#8A867C]" dir="ltr">
                         {t.meta}
                       </div>
                     </div>
-                    <span className="text-ink-faint rtl:rotate-180">›</span>
-                  </div>
+                    <ChevronRightIcon
+                      size={16}
+                      strokeWidth={1.7}
+                      className="flex-none text-[#B8B3A8] rtl:rotate-180"
+                    />
+                  </button>
                 ))}
               </div>
             </div>
-          </div>
 
-          <div>
-            <SectionHeader label={dict.agents.scheduledAgents} />
-            <div className="mt-3 flex flex-col gap-2">
-              {scheduled.map((s) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between rounded-card bg-canvas px-4 py-3 shadow-card ring-1 ring-hairline"
-                >
-                  <span className="flex items-center gap-2 text-sm text-ink">
-                    <span className="text-ink-faint">◷</span>
-                    {s.name}
-                  </span>
-                  <span
-                    className="rounded-md bg-subtle px-2 py-0.5 font-mono-num text-2xs text-ink-muted"
-                    dir="ltr"
+            {/* Scheduled agents (design lines 1634-1648) */}
+            <div className="w-full flex-none lg:w-[300px]">
+              <div className={`${label} mb-3.5`}>{dict.agents.scheduledAgents}</div>
+              <div className="flex flex-col gap-2.5">
+                {scheduled.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-[11px] rounded-[10px] border border-[#E6E2DA] bg-paper px-3.5 py-[13px]"
                   >
-                    {s.scheduleLabel}
-                  </span>
-                </div>
-              ))}
+                    <ClockIcon size={17} strokeWidth={1.6} className="flex-none text-[#8A867C]" />
+                    <div className="min-w-0 flex-1 text-[13px] font-semibold text-ink" dir="auto">
+                      {s.name}
+                    </div>
+                    <span
+                      className="flex-none whitespace-nowrap rounded-md bg-[#ECE9E2] px-2 py-[3px] font-mono-num text-[11px] text-[#6B6862]"
+                      dir="ltr"
+                    >
+                      {s.scheduleLabel}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

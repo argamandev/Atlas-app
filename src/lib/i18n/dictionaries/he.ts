@@ -55,6 +55,8 @@ export const he: Dictionary = {
     newWorkspace: 'סביבת עבודה חדשה',
     newWorkspaceHint: 'תנו לה שם והתחילו להוסיף קבצים',
     files: 'קבצים',
+    searchPlaceholder: 'חיפוש סביבות עבודה…',
+    sortNewest: 'החדשות ביותר',
   },
   agents: {
     ready: 'מוכן כשאתם מוכנים.',
