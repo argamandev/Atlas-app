@@ -99,4 +99,44 @@ relative-day chips 10.5px+0.525px · chat serif hero stays Newsreader (per chat 
 
 ## Per-page findings log
 
-(appended by each task as its loop runs)
+**T2 (foundations):** app-wide family swap Inter/Calibri → the design's system stack; greeting
+crop A/B letterform-identical post-swap. Type-scale override REJECTED (bundle ≠ MVP; our config
+already carried the design scale from V1).
+
+**T3 (calendar):** chips row (order Reports·Investor calls·Webinars), hint line, pill anatomy
+(kind icon + accents probed #6E7B63/#67788A/#3A3833, mono time, always-visible +/✓ per design),
+today black pill, LIVE = gray mono text + red pulsing dot (probed — red text was wrong),
+hover context card ported with RTL-aware inset, singular type names in card. EN+HE+hover green.
+
+**T4 (company):** identity mono line + INDICES chips + LIVE·TASE ping, reported-quarter module
+(serif Hebrew quote, SPEAKER·CEO, Jump-to-0:41 → real transcript link, outlook chip, artifact
+buttons), announcements (4 stub rows, tag chips), related companies (REAL peers), monogram
+avatar language (design shows letter chips, not logos), SectionHeader mono→SYS caps (DS change,
+cross-cut logged), tabs renamed Quotes/Documents. EN+HE green.
+
+**T5 (call view):** facet chips w/ icons + ×/+ (Multi composes facets, Transcript pinned),
+pane labels SYS caps, slides pane w/ prev/next + stub deck cards, report stub card, MediaPlayer
+→ design docked pill, ask panel call-themed + serif staggered hero + design composer.
+LIVE-verified on a real replay run: join gate, karaoke sweep, behind-chip, live pill,
+end-of-call bar teardown. Dark+Light, Single+Multi green.
+
+**T6 (home/rail):** rail 14px/450-weight rows + 25px chat spark, Quick access 13.5, LIVE NOW
+design row (beam monogram + red caps quarter tag + kept clock), upcoming rows lead with mono
+date col inside paper card + View all, greeting name capitalized, TASE mark docked in search.
+
+## Residual gaps (honest, for the ready queue + founder report)
+
+1. Drag-to-resize facet dividers — Multi uses fixed flex columns (out of scope, unchanged).
+2. Chat ghost-text autocomplete + Projects view — stubs (out of scope, unchanged).
+3. Webinars tab — designed empty state only until a webinars feed exists.
+4. Reported quarter / announcements / IR / indices — SAME stub demo content for every company
+   until real feeds land (typed interfaces ready).
+5. Pill player keeps ±15 / volume slider / close as ghost controls (design's pill is more
+   minimal; dropping working controls would regress founder-loved features).
+6. LIVE NOW: no multi-call count badge (product has one live call); demo·clear-live omitted.
+7. Live view (LiveBroadcastView) header keeps a plain Transcript label — live calls carry no
+   slides/report facets yet, so no chips there.
+8. Comparison sheet delivered as a LIVE A/B walkthrough (paired links per page) — the browser
+   harness exposes no screenshot files to embed static pairs. Founder judges on the living app.
+9. Compositor glitch recurred (CDP screenshot timeouts around heavy company→call navigations;
+   page always clean after settle, console clean) — environmental, watch under real use.
