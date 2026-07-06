@@ -13,7 +13,6 @@ import {
 } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 import { Tabs } from '@/components/ds/Tabs'
-import { Logo } from '@/components/ds/Logo'
 import {
   SparkleIcon,
   ChevronLeftIcon,
@@ -22,6 +21,8 @@ import {
   SlidesIcon,
   VideoIcon,
 } from '@/components/ds/icons'
+import { Monogram } from '@/components/ds/Monogram'
+import { companyOverviewStub } from '@/lib/company/overview-stub'
 import { AddInvestorCall } from './AddInvestorCall'
 import { AdminCallControls } from './AdminCallControls'
 import { CompanyOverview } from './CompanyOverview'
@@ -69,6 +70,8 @@ export function CompanyView({
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes)
 
   const name = companyDisplayName(company, locale)
+  // design-demo identity extras + density modules (IR name, index chips) — stub feed
+  const stub = companyOverviewStub(company.id)
   const industry = [company.sector, company.subSector].filter(Boolean).join(' · ')
   const openInChat = () => router.push(`/app/chat?company=${company.id}`)
   const isLiveCompany = company.ticker === '1097229' // תמיס — the live-demo company
@@ -106,8 +109,9 @@ export function CompanyView({
 
   return (
     <div className="atscroll flex-1 overflow-y-auto pb-dock">
-      {/* page header (design lines 436-465): breadcrumb → identity → actions → underline tabs */}
-      <div className="px-11 pt-6">
+      {/* page header (design lines 583-626): breadcrumb → identity (monogram, mono line,
+          indices chips) → LIVE·TASE + actions → underline tabs. 1120px centered column. */}
+      <div className="mx-auto max-w-[1120px] px-11 pt-[26px]">
         <Link
           href="/app/home"
           className="mb-[18px] flex items-center gap-1.5 text-[12.5px] text-ink-faint transition-colors hover:text-ink-muted"
@@ -117,28 +121,62 @@ export function CompanyView({
         </Link>
         <div className="flex animate-fade-up items-start justify-between gap-5">
           <div className="flex min-w-0 items-center gap-3.5">
-            <Logo src={company.logoUrl} name={name} size={48} className="rounded-[11px]" />
+            <Monogram name={name} size={48} fontSize={21} radius={11} />
             <div className="min-w-0 text-start">
               <h1 className="text-[27px] font-bold leading-[1.1] tracking-[-0.02em] text-ink">
                 <span dir="auto">{name}</span>
               </h1>
-              {(industry || company.ticker) && (
-                <p className="mt-1 font-mono-num text-[13px] text-ink-faint" dir="ltr">
-                  {[industry, company.ticker ? `TASE ${company.ticker}` : null].filter(Boolean).join(' · ')}
-                </p>
-              )}
+              <div className="mt-1.5 flex flex-wrap items-center gap-[9px]">
+                <span className="font-mono-num text-[12.5px] text-[#8A867C]">
+                  {[
+                    industry,
+                    company.ticker ? `TASE ${company.ticker}` : null,
+                    `${dict.company.irLabel}: ${stub.irName}`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+                <span className="h-3 w-px flex-none bg-[#DDD8CE]" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#A8A498]">
+                  {dict.company.indices}
+                </span>
+                {stub.indices.map((ix) => (
+                  <span
+                    key={ix}
+                    className="rounded-full border border-[#E6E2DA] bg-paper px-[9px] py-[2px] font-mono-num text-[11px] text-[#6B6862]"
+                    dir="ltr"
+                  >
+                    {ix}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="flex flex-none items-center gap-2.5">
-            <AddInvestorCall companyId={company.id} />
-            <button
-              type="button"
-              onClick={openInChat}
-              className="flex items-center gap-[7px] rounded-lg border border-subtle-strong px-3.5 py-2 text-[13px] text-ink transition-colors hover:bg-subtle/60"
-            >
-              <SparkleIcon size={14} strokeWidth={1.6} />
-              {dict.company.askAtlas}
-            </button>
+          <div className="flex flex-none flex-col items-end gap-[13px]">
+            {/* market status ornament (design lines 603-609) */}
+            <span className="flex items-center gap-[7px]">
+              <span className="font-mono-num text-[10px] uppercase tracking-[0.16em] text-live" dir="ltr">
+                {dict.company.liveTase}
+              </span>
+              <span className="relative inline-flex h-[6px] w-[6px]">
+                <span className="absolute inset-0 rounded-full bg-live" />
+                <span
+                  className="absolute -inset-1 rounded-full border border-live opacity-50"
+                  style={{ animation: 'atping 1.9s ease-out infinite' }}
+                />
+              </span>
+            </span>
+            <div className="flex items-center gap-2.5">
+              <AddInvestorCall companyId={company.id} />
+              <button
+                type="button"
+                onClick={openInChat}
+                className="hov-border flex items-center gap-[7px] rounded-lg border border-[#E0DACE] px-3.5 py-2 text-[14px] font-semibold text-ink"
+              >
+                <SparkleIcon size={22} />
+                {dict.company.askAtlas}
+              </button>
+            </div>
           </div>
         </div>
         <Tabs
@@ -154,7 +192,7 @@ export function CompanyView({
         />
       </div>
 
-      <div className="max-w-[880px] px-11 py-7">
+      <div className="mx-auto max-w-[1120px] px-11 pb-[120px] pt-7">
         {tab === 'overview' && (
           <CompanyOverview
             data={{

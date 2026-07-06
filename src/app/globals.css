@@ -70,6 +70,28 @@
 [data-ask] ::selection{background:#FCE44D;color:#1C1B19}
 [data-ask] ::-moz-selection{background:#FCE44D;color:#1C1B19}
 
+/* Design hover utilities — VERBATIM from Atlas MVP.dc.html (lines 88-121) */
+.ov-play .ov-pbtn{transition:transform .14s ease}
+.ov-play:hover .ov-pbtn{transform:scale(1.06)}
+.ov-ghost{transition:border-color .16s ease}
+.ov-ghost:hover{border-color:#9C978B!important}
+.hov-fill{transition:background .15s ease}
+.hov-fill:hover{background:#F2EFE8!important}
+.hov-fill2{transition:background .15s ease}
+.hov-fill2:hover{background:#EFEAE0!important}
+.hov-filld{transition:background .15s ease}
+.hov-filld:hover{background:rgba(28,27,25,.04)!important}
+.hov-doc{transition:border-color .15s ease,background .15s ease}
+.hov-doc:hover{border-color:#C9C1B1!important;background:#F2EFE8!important}
+.hov-peer{transition:border-color .15s ease,transform .14s ease}
+.hov-peer:hover{border-color:#C9C1B1!important;transform:translateY(-1px)}
+.hov-border{transition:border-color .15s ease}
+.hov-border:hover{border-color:#C9C1B1!important}
+.hov-borderi{transition:border-color .15s ease}
+.hov-borderi:hover{border-color:#1C1B19!important}
+.hov-ink{transition:color .15s ease}
+.hov-ink:hover{color:#1C1B19!important}
+
 /* Calendar event hover context card (design .cal-ev/.cal-ctx, RTL-aware inset) */
 .cal-ev{position:relative}
 .cal-ctx{display:none;position:absolute;top:calc(100% + 5px);inset-inline-end:0;z-index:30;width:220px;background:#FFFFFF;border:1px solid #E6E2DA;border-radius:9px;box-shadow:0 4px 16px rgba(28,27,25,.10),0 1px 3px rgba(28,27,25,.06);padding:10px 12px;text-align:start;pointer-events:none}
