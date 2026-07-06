@@ -88,8 +88,14 @@ export function TranscriptBody({
   return (
     <div ref={rootRef} dir="rtl" className="select-mark space-y-7 text-right">
       {transcript.segments.map((seg, si) => (
-        <div key={seg.id} data-segment-id={seg.id} data-speaker={seg.speakerName} className="flex gap-3">
-          <Avatar name={seg.speakerName} size={36} className="mt-0.5" />
+        <div
+          key={seg.id}
+          data-segment-id={seg.id}
+          data-speaker={seg.speakerName}
+          className="flex gap-3"
+          style={{ animation: 'atsettle 0.3s ease-out both' }}
+        >
+          <Avatar name={seg.speakerName} size={28} className="mt-0.5" />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
               {editing?.id === seg.id ? (
@@ -108,26 +114,26 @@ export function TranscriptBody({
                     if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
                     if (e.key === 'Escape') setEditing(null)
                   }}
-                  className="w-40 rounded border border-hairline bg-canvas px-1.5 py-0.5 text-sm font-bold text-ink outline-none"
+                  className="call-hair call-ink call-panel-bg w-40 rounded border px-1.5 py-0.5 text-sm font-semibold outline-none"
                 />
               ) : onRenameSpeaker ? (
                 <button
                   type="button"
                   onClick={() => setEditing({ id: seg.id, value: seg.speakerName })}
-                  className="text-sm font-bold text-ink hover:underline"
+                  className="call-ink text-[13px] font-semibold hover:underline"
                   title={dict.live.editSpeaker}
                 >
                   {seg.speakerName}
                 </button>
               ) : (
-                <span className="text-[15px] font-bold text-ink">{seg.speakerName}</span>
+                <span className="call-ink text-[13px] font-semibold">{seg.speakerName}</span>
               )}
-              {seg.role && <span className="text-[13px] text-ink-muted">{seg.role}</span>}
-              <span className="ms-auto text-xs text-ink-faint tabular-nums" dir="ltr">
+              {seg.role && <span className="call-muted text-xs">{seg.role}</span>}
+              <span className="call-faint ms-auto font-mono-num text-[11px] tabular-nums" dir="ltr">
                 {formatClock(seg.start)}
               </span>
             </div>
-            <p className="mt-2 text-[17px] leading-[1.85] text-ink">
+            <p className="call-ink mt-2 text-[15px] leading-[1.85]">
               {seg.words.map((w, wi) => {
                 const gi = offsets[si] + wi
                 // Without word timings, render every word as plain spoken text (no advancing
@@ -146,9 +152,9 @@ export function TranscriptBody({
                     data-state={isActive ? 'active' : spoken ? 'spoken' : 'upcoming'}
                     className={[
                       'cursor-pointer rounded-[3px] transition-colors',
-                      isActive ? 'bg-subtle text-ink' : spoken ? 'text-ink' : 'text-ink-faint',
-                      'hover:bg-subtle/70',
-                      isMatch ? (isActiveMatch ? 'bg-[#C04A00]/30' : 'bg-[#C04A00]/12') : '',
+                      isActive ? 'call-panel-bg call-ink' : spoken ? 'call-ink' : 'call-faint',
+                      'hover:opacity-80',
+                      isMatch ? (isActiveMatch ? 'bg-live/30' : 'bg-live/10') : '',
                     ].join(' ')}
                   >
                     {w.text}{' '}

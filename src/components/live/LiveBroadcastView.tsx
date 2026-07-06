@@ -9,6 +9,7 @@ import { Tabs } from '@/components/ds/Tabs'
 import { IconButton } from '@/components/ds/IconButton'
 import {
   CloseIcon,
+  ChevronLeftIcon,
   SyncIcon,
   PlayIcon,
   QuoteIcon,
@@ -17,6 +18,7 @@ import {
   ChevronRightIcon,
 } from '@/components/ds/icons'
 import { TranscriptBody } from './TranscriptBody'
+import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
@@ -92,6 +94,7 @@ export function LiveBroadcastView({
     speaker: string | null
     segmentId: string | null
   } | null>(null)
+  const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
   const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({
     open: false,
     seed: '',
@@ -276,21 +279,23 @@ export function LiveBroadcastView({
   ]
 
   return (
-    <div className="flex h-full min-h-0 flex-1">
+    <div data-call-theme={callTheme} className="flex h-full min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
-        {/* header — same as the finished-transcript page */}
-        <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <Logo src={logoUrl} name={companyName} size={32} />
-            <span className="truncate font-bold text-ink">
-              {companyName} — {quarter}
+        {/* identity header (63px, design lines 253-268) */}
+        <header className="call-hair flex h-[63px] flex-none items-center justify-between gap-3 border-b px-6">
+          <div className="flex min-w-0 items-center gap-2.5" dir="ltr">
+            <Logo src={logoUrl} name={companyName} size={30} className="rounded-[7px]" />
+            <span className="call-ink max-w-[460px] truncate text-[13.5px] font-semibold">
+              <span dir="auto">
+                {companyName} — {quarter}
+              </span>
             </span>
-            <span className="shrink-0 text-sm text-ink-faint">
+            <span className="call-muted flex-none font-mono-num text-[11.5px]" dir="ltr">
               {formatDate(new Date().toISOString(), locale)}
             </span>
             {phase === 'playing' && !over && (
               <span
-                className="shrink-0 whitespace-nowrap rounded-full bg-subtle px-2 py-0.5 text-2xs font-medium text-ink-muted tabular-nums"
+                className="call-panel-bg call-muted shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-mono-num text-2xs tabular-nums"
                 dir="ltr"
               >
                 -{fmt(behind)} {dict.live.behindLive}
@@ -299,26 +304,78 @@ export function LiveBroadcastView({
           </div>
           {/* top-right: LIVE pill through the whole live + drain window; once the drain is over the badge
             drops (the view becomes a finished recording; the "ended / AI processing" note lives in the card). */}
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex flex-none items-center gap-3.5">
             {!over && (
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
+              <span className="flex flex-none items-center gap-1.5">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-live"
+                  style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                />
                 <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
               </span>
             )}
-            <IconButton label={dict.common.close} size={30} onClick={() => router.push('/app/home')}>
+            <div className="call-track-bg flex rounded-pill p-[3px]">
+              <button
+                type="button"
+                onClick={() => setCallTheme('dark')}
+                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+                  callTheme === 'dark' ? 'call-bg call-ink' : 'call-muted'
+                }`}
+              >
+                Dark
+              </button>
+              <button
+                type="button"
+                onClick={() => setCallTheme('light')}
+                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+                  callTheme === 'light' ? 'call-card-bg call-ink' : 'call-muted'
+                }`}
+              >
+                Light
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
+              className="call-hair call-ink flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] transition-opacity hover:opacity-80"
+            >
+              <SparkleIcon size={14} strokeWidth={1.6} />
+              {dict.live.askAtlas}
+            </button>
+            <button
+              type="button"
+              title={dict.common.close}
+              onClick={() => router.push('/app/home')}
+              className="call-muted transition-colors hover:call-ink"
+            >
               <CloseIcon size={17} />
-            </IconButton>
+            </button>
           </div>
         </header>
 
-        {/* tabs */}
-        <div className="px-6">
-          <Tabs activeKey="transcript" onChange={onTab} items={liveTabs} />
-        </div>
-
-        {/* sub-toolbar */}
-        <div className="flex items-center justify-between px-6 py-2">
+        {/* facet controls (live view pins Transcript) */}
+        <div className="call-hair flex flex-none items-center justify-between border-b px-6">
+          <div className="flex items-center gap-[22px] text-[13.5px]">
+            <button
+              type="button"
+              onClick={() => onTab('overview')}
+              className="call-muted flex items-center gap-1.5 py-3 font-medium transition-colors hover:call-ink"
+            >
+              <ChevronLeftIcon size={15} strokeWidth={1.7} className="rtl:rotate-180" />
+              {dict.live.backToOverview}
+            </button>
+            <span className="call-hair h-4 w-px border-s" />
+            <span className="call-ink -mb-px border-b-2 border-current py-3 font-semibold">
+              {dict.live.transcript}
+            </span>
+            <span className="call-muted flex items-center gap-1.5 text-[11px]">
+              <span
+                className="h-1.5 w-1.5 rounded-full bg-live"
+                style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+              />
+              <span className="font-semibold text-live">{dict.live.liveBadge}</span> · {dict.live.karaokeTag}
+            </span>
+          </div>
           <div className="flex items-center gap-0.5">
             <IconButton
               label={dict.live.autoScroll}
@@ -328,19 +385,13 @@ export function LiveBroadcastView({
             >
               <SyncIcon size={16} />
             </IconButton>
-            <IconButton
-              label={dict.live.askAboutQuote}
-              size={30}
-              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
-            >
-              <SparkleIcon size={16} />
-            </IconButton>
           </div>
         </div>
 
-        {/* transcript — the real V1 karaoke body */}
+        {/* transcript — the real V1 karaoke body (ask-yellow selection scope) */}
         <div
-          className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
+          data-ask="1"
+          className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
           onMouseUp={onTextSelect}
           onScroll={() => selection && setSelection(null)}
         >
@@ -445,29 +496,50 @@ export function LiveBroadcastView({
           onClose={() => router.push('/app/home')}
         />
 
-        {/* buffering / join overlay */}
+        {/* buffering / join overlay — the design's live-buffer canvas (design lines 392-401) */}
         {phase !== 'playing' && (
-          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-canvas/95 px-6 text-center">
-            <span className="flex items-center gap-1.5 rounded-full bg-live/10 px-2.5 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-              <span className="text-2xs font-bold tracking-wide text-live">
-                {over ? 'הסתיים' : dict.live.liveBadge}
+          <div className="call-bg absolute inset-x-0 bottom-0 top-[63px] z-40 overflow-hidden">
+            <AnimCanvas
+              mode="buffer"
+              secs={delaySec}
+              ink={callTheme}
+              fill
+              className="absolute inset-0 block h-full w-full"
+            />
+            <div className="absolute inset-x-0 bottom-[104px] flex flex-col items-center gap-4 px-10">
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-live"
+                  style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                />
+                <span className="text-2xs font-bold tracking-wide text-live">
+                  {over ? 'הסתיים' : dict.live.liveBadge}
+                </span>
               </span>
-            </span>
-            <h2 className="text-xl font-bold text-ink">{companyName} — שיחת משקיעים</h2>
-            {phase === 'buffering' && (
-              <div className="text-4xl font-bold tabular-nums text-ink">{fmt(countdown)}</div>
-            )}
-            <p className="text-sm text-ink-muted">{overlayMsg}</p>
-            <button
-              type="button"
-              onClick={join}
-              disabled={phase !== 'ready'}
-              className="flex items-center gap-2 rounded-full bg-[#C04A00] px-7 py-3 text-[15px] font-semibold text-white transition-opacity disabled:bg-subtle disabled:text-ink-faint"
-            >
-              <PlayIcon size={16} />
-              הצטרפו לשידור החי
-            </button>
+              <h2 className="call-ink text-lg font-bold">
+                <span dir="auto">{companyName} — שיחת משקיעים</span>
+              </h2>
+              {phase === 'buffering' && (
+                <div className="call-ink font-mono-num text-4xl font-bold tabular-nums" dir="ltr">
+                  {fmt(countdown)}
+                </div>
+              )}
+              <p className="call-muted max-w-[440px] text-center text-[12.5px] leading-[1.65]">
+                {overlayMsg}
+              </p>
+              <p className="call-faint max-w-[440px] text-center text-[11.5px] leading-[1.65]">
+                {dict.live.bufferExplainer}
+              </p>
+              <button
+                type="button"
+                onClick={join}
+                disabled={phase !== 'ready'}
+                className="call-hair call-ink flex items-center gap-2 rounded-pill border px-5 py-2 text-[12.5px] font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+              >
+                <PlayIcon size={14} />
+                {dict.live.enterLiveNow}
+              </button>
+            </div>
           </div>
         )}
       </div>
