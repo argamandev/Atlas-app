@@ -70,6 +70,11 @@
 [data-ask] ::selection{background:#FCE44D;color:#1C1B19}
 [data-ask] ::-moz-selection{background:#FCE44D;color:#1C1B19}
 
+/* Calendar event hover context card (design .cal-ev/.cal-ctx, RTL-aware inset) */
+.cal-ev{position:relative}
+.cal-ctx{display:none;position:absolute;top:calc(100% + 5px);inset-inline-end:0;z-index:30;width:220px;background:#FFFFFF;border:1px solid #E6E2DA;border-radius:9px;box-shadow:0 4px 16px rgba(28,27,25,.10),0 1px 3px rgba(28,27,25,.06);padding:10px 12px;text-align:start;pointer-events:none}
+.cal-ev:hover .cal-ctx{display:block}
+
 @media (prefers-reduced-motion:reduce){
   [data-beam-ring],[data-beam-dot],.anim-settle,.anim-atblink{animation-duration:.001s!important;animation-iteration-count:1!important}
 }

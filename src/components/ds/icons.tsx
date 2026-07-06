@@ -98,6 +98,45 @@ export const VideoIcon = (p: IconProps) => (
     <path d="M16 10.5l5-3v9l-5-3" />
   </Base>
 )
+// V2 parity: the calendar's three event-kind glyphs — EXACT design paths
+// (design lines 284-286/315-317; butt caps, stroke 1.7, no rounding).
+const CalKindBase = ({
+  size = 12,
+  strokeWidth = 1.7,
+  children,
+  ...rest
+}: IconProps & { children: React.ReactNode }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    aria-hidden="true"
+    {...rest}
+  >
+    {children}
+  </svg>
+)
+export const CalReportIcon = (p: IconProps) => (
+  <CalKindBase {...p}>
+    <rect x="5" y="3" width="14" height="18" rx="2" />
+    <path d="M9 8h6M9 12h6M9 16h4" />
+  </CalKindBase>
+)
+export const CalMicIcon = (p: IconProps) => (
+  <CalKindBase {...p}>
+    <rect x="9" y="2.5" width="6" height="11" rx="3" />
+    <path d="M6 11a6 6 0 0012 0M12 17v4" />
+  </CalKindBase>
+)
+export const CalWebinarIcon = (p: IconProps) => (
+  <CalKindBase {...p}>
+    <rect x="3" y="6" width="12" height="12" rx="2" />
+    <path d="M15 10l5-3v10l-5-3z" />
+  </CalKindBase>
+)
 // V2 (Claude Design): "Remind me" clock (design line 509)
 export const ClockIcon = (p: IconProps) => (
   <Base {...p}>
