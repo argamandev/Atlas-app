@@ -240,6 +240,10 @@ export const he: Dictionary = {
     askAtlas: 'שאלו את אטלס',
     bufferExplainer: 'שיחות המתארחות באטלס משודרות בהשהיה של כ־4–5 דקות. התמלול וסנכרון הקריוקי מתחילים ברגע שהשידור נוחת.',
     enterLiveNow: 'כניסה לשידור עכשיו',
+    askHeroLine1: 'שאלו כל דבר',
+    askHeroLine2: 'על השיחה הזאת',
+    askHeroSub: 'האודיו ממשיך להתנגן בזמן שאתם שואלים.',
+    slideLabel: 'שקופית',
   },
   player: {
     rewind15: '15 שניות אחורה',

@@ -19,6 +19,8 @@
 @keyframes atpanelinRtl{from{transform:translateX(-100%);opacity:.85}to{transform:none;opacity:1}}
 @keyframes atwordin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
 .aa-panel{animation:atpanelin .52s cubic-bezier(.22,.61,.36,1) both}
+.aa-w{display:inline-block;animation:atwordin .6s cubic-bezier(.22,.61,.36,1) both}
+@media (prefers-reduced-motion:reduce){.aa-panel,.aa-w{animation:none!important}}
 [dir='rtl'] .aa-panel{animation-name:atpanelinRtl}
 
 /* the design's soft content scrollbar (main page areas) */
@@ -62,6 +64,8 @@
 .call-card-bg { background: var(--call-card); }
 .call-track-bg { background: var(--call-track); }
 .call-ink { color: var(--call-ink); }
+/* inverted send button (design line 568: bg callText / color callBg) */
+.call-send-btn { background: var(--call-ink); color: var(--call-bg); }
 .call-muted { color: var(--call-muted); }
 .call-faint { color: var(--call-faint); }
 .call-hair { border-color: var(--call-hair); }

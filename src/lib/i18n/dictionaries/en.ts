@@ -241,6 +241,10 @@ export const en = {
     askAtlas: 'Ask Atlas',
     bufferExplainer: 'Calls hosted on Atlas run on a ~4–5 minute broadcast delay. The transcript and karaoke sync begin the moment the stream lands.',
     enterLiveNow: 'Enter live now',
+    askHeroLine1: 'Ask anything',
+    askHeroLine2: 'about this call',
+    askHeroSub: 'The audio keeps playing while you ask.',
+    slideLabel: 'Slide',
   },
   player: {
     rewind15: 'Back 15s',

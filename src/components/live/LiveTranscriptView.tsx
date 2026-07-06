@@ -20,7 +20,12 @@ import {
   PencilIcon,
   PlayIcon,
   PauseIcon,
+  PlusIcon,
+  TranscriptIcon,
+  SlidesIcon,
+  FileIcon,
 } from '@/components/ds/icons'
+import { slideStubs, reportStub } from '@/lib/live/call-stubs'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -70,6 +75,13 @@ export function LiveTranscriptView({
   // V2 (Claude Design): call view is dark-first with a Light toggle; Single|Multi facets.
   const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
   const [view, setView] = useState<'single' | 'multi'>('single')
+  // Multi view composes facets: Transcript is pinned; Slides/Report are ×-removable chips.
+  const [multiFacets, setMultiFacets] = useState<Set<'slides' | 'report'>>(
+    () => new Set<'slides' | 'report'>(['slides', 'report'])
+  )
+  const [slideIdx, setSlideIdx] = useState(0)
+  const slides = useMemo(slideStubs, [])
+  const report = useMemo(reportStub, [])
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
   const [toast, setToast] = useState<Toast | null>(null)
@@ -327,31 +339,70 @@ export function LiveTranscriptView({
   // facet pane headers for Multi view (design pane headers, mono caps)
   const paneHeader = (label: string, right?: React.ReactNode) => (
     <div className="call-hair flex flex-none items-center justify-between border-b px-[18px] py-[9px]">
-      <span className="call-muted font-mono-num text-[10.5px] font-semibold uppercase tracking-[0.14em]">
-        {label}
-      </span>
+      {/* design pane labels are system-font caps (line 449), not mono */}
+      <span className="call-muted text-[10.5px] font-semibold uppercase tracking-[0.14em]">{label}</span>
       {right}
     </div>
   )
 
+  // Slides pane (design lines 480-498): prev/next nav + dark content card. Stub deck
+  // until real slides are linked to calls.
+  const slide = slides[slideIdx % slides.length]
   const slidesPane = (divider: boolean) => (
     <div
       className={`flex min-w-[280px] flex-1 flex-col overflow-hidden ${divider ? 'call-hair border-e' : ''}`}
     >
-      {paneHeader(dict.live.slides)}
+      {paneHeader(
+        dict.live.slides,
+        <span className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSlideIdx((i) => (i - 1 + slides.length) % slides.length)}
+            className="call-muted flex p-1 transition-colors hover:call-ink"
+          >
+            <ChevronLeftIcon size={16} strokeWidth={1.7} className="rtl:rotate-180" />
+          </button>
+          <span className="call-ink min-w-[64px] text-center text-[11.5px] font-medium" dir="auto">
+            {dict.live.slideLabel} {slideIdx + 1}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSlideIdx((i) => (i + 1) % slides.length)}
+            className="call-muted flex p-1 transition-colors hover:call-ink"
+          >
+            <ChevronRightIcon size={16} strokeWidth={1.7} className="rtl:rotate-180" />
+          </button>
+        </span>
+      )}
       <div className="atscroll flex-1 overflow-auto p-[22px]">
-        <div className="call-hair call-card-bg flex min-h-[260px] flex-col justify-center rounded-lg border p-8 text-center">
-          <span className="call-faint text-[13px]">{dict.live.slidesEmpty}</span>
+        <div
+          dir="rtl"
+          data-ask="1"
+          className="call-hair call-card-bg call-ink flex min-h-[260px] flex-col justify-center rounded-lg border p-[34px]"
+        >
+          <div className="call-muted mb-3 font-mono-num text-[11px] uppercase tracking-[0.14em]" dir="rtl">
+            {[call.quarter, `${dict.live.slideLabel} ${slideIdx + 1}`].filter(Boolean).join(' · ')}
+          </div>
+          <div className="mb-3.5 font-display text-[23px]">{slide.title}</div>
+          <div className="text-[14.5px] leading-[1.9]">{slide.body}</div>
         </div>
       </div>
     </div>
   )
+  // Report pane (design lines 508-523): serif title + date + free-reading paragraphs (stub PDF).
   const reportPane = (
     <div className="flex min-w-[300px] flex-1 flex-col overflow-hidden">
       {paneHeader(dict.live.report, <span className="call-muted text-[11px]">{dict.live.reportFreely}</span>)}
       <div className="atscroll flex-1 overflow-auto p-[22px]">
-        <div className="call-hair call-card-bg flex min-h-[260px] flex-col justify-center rounded-lg border p-8 text-center">
-          <span className="call-faint text-[13px]">{dict.live.reportEmpty}</span>
+        <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
+          <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
+          <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
+          {report.paragraphs.map((p) => (
+            <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
+              {p}
+            </p>
+          ))}
+          <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
         </div>
       </div>
     </div>
@@ -446,26 +497,55 @@ export function LiveTranscriptView({
               {dict.live.backToOverview}
             </button>
             <span className="call-hair h-4 w-px border-s" />
-            {facetTabs.map((ft) => {
-              const active = view === 'multi' ? true : tab === ft.key
-              return (
-                <button
-                  key={ft.key}
-                  type="button"
-                  onClick={() => {
-                    setView('single')
-                    setTab(ft.key)
-                  }}
-                  className={`-mb-px border-b-2 py-3 font-medium transition-colors ${
-                    active && view === 'single'
-                      ? 'call-ink border-current font-semibold'
-                      : 'call-muted border-transparent hover:call-ink'
-                  }`}
-                >
-                  {ft.label}
-                </button>
-              )
-            })}
+            {/* facet chips (design lines 407-415): icon + label; in Multi, Slides/Report are
+                ×-removable and +-re-addable; Transcript is pinned. */}
+            <div className="flex items-center gap-2 py-2">
+              {facetTabs.map((ft) => {
+                const key = ft.key as 'transcript' | 'slides' | 'report'
+                const Icon = key === 'transcript' ? TranscriptIcon : key === 'slides' ? SlidesIcon : FileIcon
+                const active = view === 'multi' ? key === 'transcript' || multiFacets.has(key) : tab === key
+                const removable = view === 'multi' && key !== 'transcript'
+                return (
+                  <button
+                    key={ft.key}
+                    type="button"
+                    title={ft.label}
+                    onClick={() => {
+                      if (view === 'multi') {
+                        if (key === 'transcript') return
+                        setMultiFacets((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(key)) next.delete(key)
+                          else next.add(key)
+                          return next
+                        })
+                      } else {
+                        setTab(key)
+                      }
+                    }}
+                    className={`flex items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[12.5px] transition-colors ${
+                      active
+                        ? 'call-raised-bg call-ink border border-transparent font-semibold'
+                        : 'call-hair call-muted border font-medium hover:call-ink'
+                    }`}
+                  >
+                    <span className={`flex ${active ? 'call-ink' : 'call-muted'}`}>
+                      <Icon size={13} strokeWidth={1.6} />
+                    </span>
+                    {ft.label}
+                    {removable && (
+                      <span className={`flex ${active ? 'call-muted' : 'call-faint'}`}>
+                        {active ? (
+                          <CloseIcon size={12} strokeWidth={2} />
+                        ) : (
+                          <PlusIcon size={12} strokeWidth={2} />
+                        )}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <div className="flex items-center gap-2.5">
             <button
@@ -503,8 +583,8 @@ export function LiveTranscriptView({
           </div>
         </div>
 
-        {/* sub-toolbar */}
-        <div className="flex items-center justify-between px-6 py-2">
+        {/* sub-toolbar (design lines 429-440): icon row over a hairline */}
+        <div className="call-hair flex items-center justify-between border-b px-[22px] py-[7px]">
           <div className="flex items-center gap-0.5">
             <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
               <CopyTextIcon size={16} />
@@ -613,8 +693,9 @@ export function LiveTranscriptView({
               </div>
             </div>
           )}
-          {(view === 'multi' || tab === 'slides') && slidesPane(view === 'multi')}
-          {(view === 'multi' || tab === 'report') && reportPane}
+          {(view === 'multi' ? multiFacets.has('slides') : tab === 'slides') &&
+            slidesPane(view === 'multi' && multiFacets.has('report'))}
+          {(view === 'multi' ? multiFacets.has('report') : tab === 'report') && reportPane}
         </div>
 
         {/* selection toolbar — reassign-to-speaker (edit mode) OR Save / Share / Star */}
