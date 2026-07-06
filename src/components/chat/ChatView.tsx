@@ -12,7 +12,7 @@ import { CitationChip } from './CitationPopover'
 import { ThinkingDots } from './ThinkingDots'
 import { Markdown } from './Markdown'
 import { Logo } from '@/components/ds/Logo'
-import { PencilIcon, TopicsIcon, WorkspacesIcon, AgentsIcon } from '@/components/ds/icons'
+import { PencilIcon, ProjectsIcon, WorkspacesIcon, AgentsIcon } from '@/components/ds/icons'
 import { streamChat, type ChatSource } from '@/lib/api/chat'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
@@ -281,7 +281,7 @@ export function ChatView({
               {dict.chat.newChat}
             </button>
             <button type="button" className={`${navRow} text-ink-muted hover:bg-subtle/70 hover:text-ink`}>
-              <TopicsIcon size={16} strokeWidth={1.6} className="flex-none" />
+              <ProjectsIcon size={16} strokeWidth={1.6} className="flex-none" />
               {dict.chat.projects}
             </button>
             <Link

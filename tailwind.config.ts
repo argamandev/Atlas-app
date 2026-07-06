@@ -36,13 +36,16 @@ const config: Config = {
         live: tokens.color.live,
 
         // ── V2 (Claude Design import) surfaces ──
-        shell: tokens.v2.shell,
+        // shell + rail read CSS variables so the design's color-scheme toggle
+        // (Warm / Black rail / Black + white) can reskin them; defaults = Black rail.
+        shell: 'var(--shell-bg, #F5F3EE)',
         paper: tokens.v2.paper,
-        rail: tokens.v2.rail,
-        'rail-text': tokens.v2.railText,
-        'rail-active': tokens.v2.railActive,
-        'rail-chip': tokens.v2.railChip,
-        'rail-hair': tokens.v2.railHair,
+        rail: 'var(--rail-bg, #0A0A0A)',
+        'rail-text': 'var(--rail-text, #A6A29A)',
+        'rail-strong': 'var(--rail-strong, #FFFFFF)',
+        'rail-active': 'var(--rail-active, rgba(255,255,255,0.10))',
+        'rail-chip': 'var(--rail-chip, rgba(255,255,255,0.06))',
+        'rail-hair': 'var(--rail-hair, rgba(255,255,255,0.09))',
         ask: tokens.v2.ask,
         'ask-ink': tokens.v2.askInk,
         'call-dark': tokens.v2.callDark,

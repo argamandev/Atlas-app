@@ -48,6 +48,9 @@ export const en = {
     collapseSidebar: 'Collapse sidebar',
     workspace: 'Workspace',
     agents: 'Agents',
+    themeWarm: 'Theme · Warm',
+    themeBlackRail: 'Theme · Black rail',
+    themeBlackWhite: 'Theme · Black + white',
   },
   workspace: {
     title: 'Workspaces',
@@ -245,6 +248,7 @@ export const en = {
     enterLiveNow: 'Enter live now',
     askHeroLine1: 'Ask anything',
     askHeroLine2: 'about this call',
+    askHeroCompany: 'about this company',
     askHeroSub: 'The audio keeps playing while you ask.',
     slideLabel: 'Slide',
   },

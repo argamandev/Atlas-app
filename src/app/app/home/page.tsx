@@ -35,7 +35,7 @@ export default async function HomePage() {
             <TodayLine />
             <Greeting
               name={userId ? userName : undefined}
-              className="text-[34px] font-bold tracking-[-0.03em] text-ink sm:text-[42px]"
+              className="font-display text-[34px] font-medium tracking-[-0.02em] text-ink sm:text-[42px]"
             />
             <p className="text-[16px] text-ink-muted">{dict.home.discoverSubhead}</p>
             <div className="mt-[18px] w-full">

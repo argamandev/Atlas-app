@@ -75,13 +75,70 @@ export function LiveTranscriptView({
   // V2 (Claude Design): call view is dark-first with a Light toggle; Single|Multi facets.
   const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
   const [view, setView] = useState<'single' | 'multi'>('single')
-  // Multi view composes facets: Transcript is pinned; Slides/Report are ×-removable chips.
-  const [multiFacets, setMultiFacets] = useState<Set<'slides' | 'report'>>(
-    () => new Set<'slides' | 'report'>(['slides', 'report'])
+  // Multi view composes facets: ALL chips are ×-removable (founder round-3: transcript too —
+  // audio keeps playing without it); the last visible facet can't be removed.
+  type Facet = 'transcript' | 'slides' | 'report'
+  const [multiFacets, setMultiFacets] = useState<Set<Facet>>(
+    () => new Set<Facet>(['transcript', 'slides', 'report'])
   )
   const [slideIdx, setSlideIdx] = useState(0)
   const slides = useMemo(slideStubs, [])
   const report = useMemo(reportStub, [])
+
+  // facet column resize (design dc lines 2200-2237: DevTools-style gutter drag).
+  // flex grow values redistribute between the two columns around a dragged divider.
+  const FACET_MIN: Record<Facet, number> = { transcript: 340, slides: 280, report: 300 }
+  const DEF_FLEX: Record<Facet, number> = { transcript: 1.3, slides: 1, report: 1 }
+  const [colFlex, setColFlex] = useState<Record<Facet, number>>(DEF_FLEX)
+  const [dragging, setDragging] = useState(false)
+  function dividerDragStart(e: React.PointerEvent<HTMLDivElement>) {
+    const handle = e.currentTarget
+    const left = handle.previousElementSibling as HTMLElement | null
+    const right = handle.nextElementSibling as HTMLElement | null
+    const fL = left?.dataset.facet as Facet | undefined
+    const fR = right?.dataset.facet as Facet | undefined
+    if (!left || !right || !fL || !fR) return
+    const wL = left.getBoundingClientRect().width
+    const wR = right.getBoundingClientRect().width
+    const P = wL + wR
+    const startX = e.clientX
+    const G = colFlex[fL] + colFlex[fR]
+    const minL = FACET_MIN[fL]
+    const minR = FACET_MIN[fR]
+    const rtl = getComputedStyle(handle).direction === 'rtl'
+    setDragging(true)
+    const move = (ev: PointerEvent) => {
+      const delta = (ev.clientX - startX) * (rtl ? -1 : 1)
+      const nWL = Math.max(minL, Math.min(P - minR, wL + delta))
+      const nWR = P - nWL
+      setColFlex((st) => ({ ...st, [fL]: (G * nWL) / P, [fR]: (G * nWR) / P }))
+    }
+    const up = () => {
+      document.removeEventListener('pointermove', move)
+      document.removeEventListener('pointerup', up)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      setDragging(false)
+    }
+    document.addEventListener('pointermove', move)
+    document.addEventListener('pointerup', up)
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+    e.preventDefault()
+  }
+  const facetDivider = (
+    <div
+      onPointerDown={dividerDragStart}
+      onDoubleClick={() => setColFlex(DEF_FLEX)}
+      title="Drag to resize · double-click to reset"
+      className="group/div flex w-[9px] flex-none cursor-col-resize items-stretch justify-center select-none"
+    >
+      <div
+        className="w-px group-hover/div:w-[2px]"
+        style={{ background: dragging ? 'var(--call-ink)' : 'var(--call-hair)' }}
+      />
+    </div>
+  )
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
   const [toast, setToast] = useState<Toast | null>(null)
@@ -348,9 +405,11 @@ export function LiveTranscriptView({
   // Slides pane (design lines 480-498): prev/next nav + dark content card. Stub deck
   // until real slides are linked to calls.
   const slide = slides[slideIdx % slides.length]
-  const slidesPane = (divider: boolean) => (
+  const slidesPane = (multiStyle?: React.CSSProperties) => (
     <div
-      className={`flex min-w-[280px] flex-1 flex-col overflow-hidden ${divider ? 'call-hair border-e' : ''}`}
+      data-facet="slides"
+      style={multiStyle}
+      className="flex min-w-[280px] flex-1 flex-col overflow-hidden"
     >
       {paneHeader(
         dict.live.slides,
@@ -390,8 +449,12 @@ export function LiveTranscriptView({
     </div>
   )
   // Report pane (design lines 508-523): serif title + date + free-reading paragraphs (stub PDF).
-  const reportPane = (
-    <div className="flex min-w-[300px] flex-1 flex-col overflow-hidden">
+  const reportPane = (multiStyle?: React.CSSProperties) => (
+    <div
+      data-facet="report"
+      style={multiStyle}
+      className="flex min-w-[300px] flex-1 flex-col overflow-hidden"
+    >
       {paneHeader(dict.live.report, <span className="call-muted text-[11px]">{dict.live.reportFreely}</span>)}
       <div className="atscroll flex-1 overflow-auto p-[22px]">
         <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
@@ -505,8 +568,8 @@ export function LiveTranscriptView({
               {facetTabs.map((ft) => {
                 const key = ft.key as 'transcript' | 'slides' | 'report'
                 const Icon = key === 'transcript' ? TranscriptIcon : key === 'slides' ? SlidesIcon : FileIcon
-                const active = view === 'multi' ? key === 'transcript' || multiFacets.has(key) : tab === key
-                const removable = view === 'multi' && key !== 'transcript'
+                const active = view === 'multi' ? multiFacets.has(key) : tab === key
+                const removable = view === 'multi'
                 return (
                   <button
                     key={ft.key}
@@ -514,11 +577,14 @@ export function LiveTranscriptView({
                     title={ft.label}
                     onClick={() => {
                       if (view === 'multi') {
-                        if (key === 'transcript') return
                         setMultiFacets((prev) => {
                           const next = new Set(prev)
-                          if (next.has(key)) next.delete(key)
-                          else next.add(key)
+                          if (next.has(key)) {
+                            if (next.size === 1) return prev // the last facet stays
+                            next.delete(key)
+                          } else {
+                            next.add(key)
+                          }
                           return next
                         })
                       } else {
@@ -655,9 +721,11 @@ export function LiveTranscriptView({
             Design line 443: columns keep min-widths and the ROW scrolls horizontally instead
             of squishing — this is what keeps text from reflowing when the chat dock opens. */}
         <div className="atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-          {(view === 'multi' || tab === 'transcript') && (
+          {(view === 'multi' ? multiFacets.has('transcript') : tab === 'transcript') && (
             <div
-              className={`flex min-w-[340px] flex-1 flex-col overflow-hidden ${view === 'multi' ? 'call-hair border-e' : ''}`}
+              data-facet="transcript"
+              style={view === 'multi' ? { flex: `${colFlex.transcript} 1 0px` } : undefined}
+              className="flex min-w-[340px] flex-1 flex-col overflow-hidden"
             >
               {paneHeader(
                 dict.live.transcript,
@@ -697,9 +765,15 @@ export function LiveTranscriptView({
               </div>
             </div>
           )}
+          {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}
           {(view === 'multi' ? multiFacets.has('slides') : tab === 'slides') &&
-            slidesPane(view === 'multi' && multiFacets.has('report'))}
-          {(view === 'multi' ? multiFacets.has('report') : tab === 'report') && reportPane}
+            slidesPane(view === 'multi' ? { flex: `${colFlex.slides} 1 0px` } : undefined)}
+          {view === 'multi' &&
+            multiFacets.has('report') &&
+            (multiFacets.has('slides') || multiFacets.has('transcript')) &&
+            facetDivider}
+          {(view === 'multi' ? multiFacets.has('report') : tab === 'report') &&
+            reportPane(view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined)}
         </div>
 
         {/* selection toolbar — reassign-to-speaker (edit mode) OR Save / Share / Star */}

@@ -112,11 +112,15 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   const today = new Date()
 
   return (
+    // design calendar (line 265) is FULL WIDTH — padding only, no max-width column
     <div className="atscroll flex-1 overflow-y-auto px-11 py-9 pb-dock">
-      <div className="mx-auto w-full max-w-5xl animate-fade-up">
+      <div className="w-full animate-fade-up">
         {/* header: title + market/mine toggle (design lines 266-272) */}
         <div className="mb-1.5 flex items-start justify-between">
-          <h1 className="text-[30px] font-bold tracking-[-0.03em] text-ink">{dict.calendar.title}</h1>
+          {/* design default head font = Newsreader 500 (founder reference) */}
+          <h1 className="font-display text-[30px] font-medium tracking-[-0.02em] text-ink">
+            {dict.calendar.title}
+          </h1>
           <div className="flex rounded-full bg-[#ECE9E2] p-[3px]">
             <button
               type="button"

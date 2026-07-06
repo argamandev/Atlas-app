@@ -47,6 +47,9 @@ export const he: Dictionary = {
     collapseSidebar: 'כיווץ סרגל הצד',
     workspace: 'סביבת עבודה',
     agents: 'סוכנים',
+    themeWarm: 'ערכת נושא · חמה',
+    themeBlackRail: 'ערכת נושא · פס שחור',
+    themeBlackWhite: 'ערכת נושא · שחור-לבן',
   },
   workspace: {
     title: 'סביבות עבודה',
@@ -244,6 +247,7 @@ export const he: Dictionary = {
     enterLiveNow: 'כניסה לשידור עכשיו',
     askHeroLine1: 'שאלו כל דבר',
     askHeroLine2: 'על השיחה הזאת',
+    askHeroCompany: 'על החברה הזאת',
     askHeroSub: 'האודיו ממשיך להתנגן בזמן שאתם שואלים.',
     slideLabel: 'שקופית',
   },

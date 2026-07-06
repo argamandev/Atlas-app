@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { LOCALE_COOKIE, localeNames, type Locale } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ import {
   WorkspacesIcon,
   AgentsIcon,
   GlobeIcon,
+  ThemeIcon,
   ProfileIcon,
   CollapseIcon,
   SearchIcon,
@@ -27,11 +28,34 @@ type NavItem = { key: string; href: string; icon: (p: IconProps) => JSX.Element;
 // wordmark → Quick access ⌘K chip → Home / Calendar / Chat / Workspace / Agents →
 // (bottom) Profile / language toggle / collapse. Active item: white text on rail-active fill.
 // Collapsed rail shows the "A" monogram and icon-only items.
+// the design's three color schemes, cycled by the Theme rail button (dc lines 2284-2297)
+const SCHEMES = ['blackRail', 'warm', 'blackWhite'] as const
+type Scheme = (typeof SCHEMES)[number]
+
 export function NavRail() {
   const { dict, locale } = useI18n()
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const [scheme, setScheme] = useState<Scheme>('blackRail')
+
+  // restore + apply the saved scheme; the attribute drives the CSS variables
+  useEffect(() => {
+    const saved = window.localStorage.getItem('atlas-scheme') as Scheme | null
+    if (saved && SCHEMES.includes(saved)) setScheme(saved)
+  }, [])
+  useEffect(() => {
+    if (scheme === 'blackRail') delete document.documentElement.dataset.scheme
+    else document.documentElement.dataset.scheme = scheme
+    window.localStorage.setItem('atlas-scheme', scheme)
+  }, [scheme])
+
+  const schemeLabel: Record<Scheme, string> = {
+    warm: dict.nav.themeWarm,
+    blackRail: dict.nav.themeBlackRail,
+    blackWhite: dict.nav.themeBlackWhite,
+  }
+  const cycleScheme = () => setScheme((s) => SCHEMES[(SCHEMES.indexOf(s) + 1) % SCHEMES.length])
 
   const otherLocale: Locale = locale === 'he' ? 'en' : 'he'
   function toggleLocale() {
@@ -56,8 +80,8 @@ export function NavRail() {
       'flex w-full items-center rounded-lg py-[9px] text-[14px] transition-colors',
       collapsed ? 'justify-center px-0' : 'gap-[11px] px-[11px]',
       active
-        ? 'bg-rail-active font-semibold text-white'
-        : 'text-rail-text [font-weight:450] hover:bg-rail-chip hover:text-white/90'
+        ? 'bg-rail-active font-semibold text-rail-strong'
+        : 'text-rail-text [font-weight:450] hover:bg-rail-chip hover:text-rail-strong'
     )
 
   const renderItem = (item: NavItem) => {
@@ -93,9 +117,10 @@ export function NavRail() {
         className={cn('mb-6 mt-1 flex items-center', collapsed ? 'justify-center' : 'ps-1')}
       >
         {collapsed ? (
-          <img src="/brand/atlas-A.svg" alt="" className="h-[22px] w-auto opacity-95 invert" />
+          <img src="/brand/atlas-A.svg" alt="" className="rail-logo-img h-[22px] w-auto opacity-95" />
         ) : (
-          <BrandWordmark height={22} className="text-[#F5F3EE] opacity-95" />
+          /* design wordmark is 84px wide (line 135) → height 28 at the asset's aspect */
+          <BrandWordmark height={28} className="text-rail-strong opacity-95" />
         )}
       </Link>
 
@@ -143,6 +168,15 @@ export function NavRail() {
         >
           <GlobeIcon size={18} strokeWidth={1.6} className="flex-none" />
           {!collapsed && <span className="truncate">{localeNames[otherLocale]}</span>}
+        </button>
+        <button
+          type="button"
+          onClick={cycleScheme}
+          title={schemeLabel[scheme]}
+          className={itemClasses(false)}
+        >
+          <ThemeIcon size={18} strokeWidth={1.6} className="flex-none" />
+          {!collapsed && <span className="truncate">{schemeLabel[scheme]}</span>}
         </button>
         <button
           type="button"

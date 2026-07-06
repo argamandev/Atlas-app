@@ -32,28 +32,29 @@
    Components use the .call-* semantic classes; flipping data-call-theme reskins the
    whole call frame without threading a theme prop. Dark values probed from the
    rendered design (warm dark, not neutral). ── */
+/* dark values from the design source (dc line 2366-2371): bg MATCHES THE RAIL (#0A0A0A) */
 [data-call-theme='dark'] {
-  --call-bg: #16150f;
+  --call-bg: #0a0a0a;
   --call-panel: #26241b;
-  --call-raised: #2a281f;
-  --call-hover: #1f1d17;
-  --call-track: #3a382f;
+  --call-raised: #1a1a18;
+  --call-hover: #141412;
+  --call-track: #1a1a18;
   --call-ink: #edeae1;
-  --call-muted: #b8b3a8;
-  --call-faint: #8a867c;
-  --call-hair: rgba(255, 255, 255, 0.09);
-  --call-card: #1f1d17;
+  --call-muted: #8a867c;
+  --call-faint: #6f6c64;
+  --call-hair: #232320;
+  --call-card: #161614;
 }
 [data-call-theme='light'] {
   --call-bg: #f5f3ee;
   --call-panel: #ece9e2;
-  --call-raised: #e6e2da;
+  --call-raised: #ece9e2;
   --call-hover: #ece9e2;
   --call-track: #ece9e2;
   --call-ink: #1c1b19;
   --call-muted: #6b6862;
   --call-faint: #8a867c;
-  --call-hair: rgba(20, 20, 20, 0.08);
+  --call-hair: #e6e2da;
   --call-card: #ffffff;
 }
 [data-call-theme] { background: var(--call-bg); color: var(--call-ink); }
@@ -73,6 +74,23 @@
 /* Ask-Atlas selection: yellow ONLY inside data-ask scopes (design lines 21-24) */
 [data-ask] ::selection{background:#FCE44D;color:#1C1B19}
 [data-ask] ::-moz-selection{background:#FCE44D;color:#1C1B19}
+
+/* ── Color schemes (design dc lines 2284-2297): the rail/shell variables the
+   Theme toggle cycles. Default (no attribute) = Black rail, today's look. ── */
+[data-scheme='warm'] {
+  --rail-bg: #f2f0ea;
+  --rail-text: #6b6862;
+  --rail-strong: #1c1b19;
+  --rail-active: #ece9e2;
+  --rail-chip: #faf9f6;
+  --rail-hair: #e6e2da;
+}
+[data-scheme='blackWhite'] {
+  --shell-bg: #ffffff;
+}
+/* the collapsed-rail "A" monogram is a dark asset: invert it on dark rails only */
+.rail-logo-img { filter: invert(1); }
+[data-scheme='warm'] .rail-logo-img { filter: none; }
 
 /* Design hover utilities — VERBATIM from Atlas MVP.dc.html (lines 88-121) */
 .ov-play .ov-pbtn{transition:transform .14s ease}

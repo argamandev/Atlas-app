@@ -262,6 +262,14 @@ export function LiveBroadcastView({
     if (over) onLiveOver?.()
   }, [over]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // freeze the ring's start value at the FIRST real remaining-seconds reading — the canvas
+  // countdown self-ticks from data-secs, so it stays in sync once seeded with the truth
+  const ringSecsRef = useRef<number | null>(null)
+  if (ringSecsRef.current === null && countdown != null && countdown > 0) {
+    ringSecsRef.current = Math.round(countdown)
+  }
+  const ringSecs = ringSecsRef.current
+
   const overlayMsg =
     phase === 'connecting'
       ? 'מתחבר לשידור…'
@@ -499,34 +507,38 @@ export function LiveBroadcastView({
         {/* buffering / join overlay — the design's live-buffer canvas (design lines 392-401) */}
         {phase !== 'playing' && (
           <div className="call-bg absolute inset-x-0 bottom-0 top-[63px] z-40 overflow-hidden">
+            {/* the countdown lives INSIDE the canvas ring (EST. LIVE IN mm:ss) — keyed by the
+                first real remaining so the ring starts from truth, then self-ticks in sync */}
             <AnimCanvas
+              key={ringSecs ?? 'ring-init'}
               mode="buffer"
-              secs={delaySec}
+              secs={ringSecs ?? delaySec}
               ink={callTheme}
               fill
               className="absolute inset-0 block h-full w-full"
             />
+            {/* founder-reference gate (Countdown Animation): ring + explainer + button only —
+                the identity already lives in the header; non-buffering phases keep their status */}
             <div className="absolute inset-x-0 bottom-[104px] flex flex-col items-center gap-4 px-10">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="h-1.5 w-1.5 rounded-full bg-live"
-                  style={{ animation: 'atpulse 2s ease-in-out infinite' }}
-                />
-                <span className="text-2xs font-bold tracking-wide text-live">
-                  {over ? 'הסתיים' : dict.live.liveBadge}
-                </span>
-              </span>
-              <h2 className="call-ink text-lg font-bold">
-                <span dir="auto">{companyName} — שיחת משקיעים</span>
-              </h2>
-              {phase === 'buffering' && (
-                <div className="call-ink font-mono-num text-4xl font-bold tabular-nums" dir="ltr">
-                  {fmt(countdown)}
-                </div>
+              {phase !== 'buffering' && (
+                <>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full bg-live"
+                      style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                    />
+                    <span className="text-2xs font-bold tracking-wide text-live">
+                      {over ? 'הסתיים' : dict.live.liveBadge}
+                    </span>
+                  </span>
+                  <h2 className="call-ink text-lg font-bold">
+                    <span dir="auto">{companyName} — שיחת משקיעים</span>
+                  </h2>
+                  <p className="call-muted max-w-[440px] text-center text-[12.5px] leading-[1.65]">
+                    {overlayMsg}
+                  </p>
+                </>
               )}
-              <p className="call-muted max-w-[440px] text-center text-[12.5px] leading-[1.65]">
-                {overlayMsg}
-              </p>
               <p className="call-faint max-w-[440px] text-center text-[11.5px] leading-[1.65]">
                 {dict.live.bufferExplainer}
               </p>

@@ -55,6 +55,13 @@ export const ChatIcon = (p: IconProps) => (
     <path d="M5 5h14a1 1 0 011 1v8a1 1 0 01-1 1H9l-4 3v-3H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
   </Base>
 )
+// V2 parity: the chat sidebar's Projects glyph — EXACT design path (line 954: a pinned board)
+export const ProjectsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <path d="M3.5 9h17M8 5V3.5M16 5V3.5" />
+  </Base>
+)
 export const TopicsIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M9.5 4L7.5 20M16.5 4l-2 16M5 9h14M4.5 15h14" />
@@ -195,6 +202,13 @@ export const ReleaseNotesIcon = (p: IconProps) => (
 export const CollapseIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M13 7l-5 5 5 5M19 7l-5 5 5 5" />
+  </Base>
+)
+// V2 parity: the rail Theme toggle — half-filled circle (design line 173)
+export const ThemeIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3a9 9 0 010 18z" fill="currentColor" stroke="none" />
   </Base>
 )
 export const SunIcon = (p: IconProps) => (

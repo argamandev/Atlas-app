@@ -29,6 +29,7 @@ export function TranscriptChatPanel({
   quote,
   seedNonce,
   onClose,
+  heroLine2,
 }: {
   companyId: string | null
   transcriptId: string | undefined
@@ -38,6 +39,8 @@ export function TranscriptChatPanel({
   /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
   onClose: () => void
+  /** hero second line override — "about this call" (default) vs "about this company" */
+  heroLine2?: string
 }) {
   const { dict } = useI18n()
   const [messages, setMessages] = useState<Msg[]>([])
@@ -47,10 +50,12 @@ export function TranscriptChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // a fresh selection (star, or any highlight while open) → set it as the pending reference
+  // a fresh selection (star, or any highlight while open) → set it as the pending reference.
+  // preventScroll is CRITICAL: focusing while the panel is mid slide-in (translateX) made the
+  // browser scroll the whole document sideways to reveal the input — the "page pushes left" bug.
   useEffect(() => {
     if (quote) setRef(quote)
-    inputRef.current?.focus()
+    inputRef.current?.focus({ preventScroll: true })
   }, [seedNonce, quote])
 
   const scrollToEnd = () => {
@@ -130,7 +135,7 @@ export function TranscriptChatPanel({
                 {dict.live.askHeroLine1}
               </span>{' '}
               <span className="aa-w block" style={{ animationDelay: '.24s' }}>
-                {dict.live.askHeroLine2}
+                {heroLine2 ?? dict.live.askHeroLine2}
               </span>
             </h1>
             <p
