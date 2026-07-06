@@ -1,18 +1,18 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Greeting } from '@/components/app/Greeting'
 import { CollapsiblePanel } from '@/components/app/CollapsiblePanel'
-import { SectionHeader } from '@/components/ds/SectionHeader'
 import { ChatComposer } from './ChatComposer'
 import { ChatHistory } from './ChatHistory'
 import { MentionDropdown } from './MentionDropdown'
 import { CitationChip } from './CitationPopover'
-import { Typewriter } from './Typewriter'
 import { ThinkingDots } from './ThinkingDots'
 import { Markdown } from './Markdown'
 import { Logo } from '@/components/ds/Logo'
+import { PencilIcon, TopicsIcon, WorkspacesIcon, AgentsIcon } from '@/components/ds/icons'
 import { streamChat, type ChatSource } from '@/lib/api/chat'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
@@ -194,35 +194,47 @@ export function ChatView({
     </div>
   )
 
-  // Empty: greeting + composer centered (clean, Claude-style — no emblem/chips). Active:
-  // messages scroll and the composer drops to the bottom; the reply streams in with a caret.
+  // Empty: serif greeting + warm composer + suggestion chips (design update 2026-07-06).
+  // Active: messages scroll and the composer drops to the bottom; the reply streams in with a caret.
   const content = empty ? (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
-      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-[10vh]">
-        <div className="w-full max-w-2xl animate-fade-up">
-          <div className="mb-6 text-center">
-            <Greeting className="text-[30px] font-bold tracking-tight text-ink" />
-            <p className="mt-2 text-ink-muted">{dict.chat.subhead}</p>
-            <div className="mt-3 flex h-6 items-center justify-center text-sm text-ink-faint">
-              <Typewriter items={dict.chat.suggestions} />
-            </div>
+      <div className="flex flex-1 flex-col items-center justify-center px-7 pb-[8vh]">
+        <div className="w-full max-w-[680px] animate-fade-up">
+          <div className="mb-7 text-center">
+            <Greeting className="font-display text-[40px] font-medium leading-[1.03] tracking-[-0.022em] text-[#0A0A0A]" />
+            <p className="mt-3 text-[15.5px] leading-normal text-ink-muted">{dict.chat.subhead}</p>
           </div>
           {composer}
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {dict.chat.suggestions.slice(0, 3).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setInput(s)
+                  inputRef.current?.focus()
+                }}
+                className="rounded-[20px] border border-field-line bg-chip-bg px-[15px] py-2 text-[13px] text-ink transition-colors hover:bg-field"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   ) : (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
-      <div ref={scrollRef} className="app-scroll flex-1 overflow-y-auto px-6 py-6">
-        <div className="mx-auto w-full max-w-2xl space-y-6">
+      <div ref={scrollRef} className="atscroll flex-1 overflow-y-auto px-8 py-8">
+        <div className="mx-auto w-full max-w-[720px] space-y-[22px]">
           {messages.map((m, i) =>
             m.role === 'user' ? (
-              // dir="auto" lets a Hebrew message read RTL even in English mode; ml-auto keeps
-              // the user's own bubble on the trailing (right) edge in both directions.
+              // charcoal pill on the trailing edge (design bubble: 14/14/4/14); dir="auto"
+              // lets a Hebrew message read RTL even in English mode.
               <div key={i} className="flex animate-fade-up">
                 <div
                   dir="auto"
-                  className="ml-auto max-w-[85%] rounded-bubble bg-subtle px-4 py-2.5 text-[15px] leading-relaxed text-ink"
+                  className="ms-auto max-w-[75%] rounded-[14px] rounded-ee-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper"
                 >
                   {m.content}
                 </div>
@@ -250,26 +262,52 @@ export function ChatView({
     </div>
   )
 
+  // Chat secondary panel (design lines 948-971): mini-nav rows (New chat / Projects /
+  // Workspace / Agents) → divider → RECENT CHATS list. Projects is a stub affordance for now.
+  const navRow =
+    'flex w-full items-center gap-[11px] rounded-lg px-[11px] py-[9px] text-start text-[13.5px] transition-colors'
+
   return (
     <CollapsiblePanel
-      title={dict.chat.chats}
       panel={
-        <div className="flex h-full flex-col gap-4">
-          <ChatHistory
-            activeId={conversationId}
-            onNew={newChat}
-            onOpen={openConversation}
-            refreshKey={historyKey}
-          />
-          <div className="mt-auto space-y-4">
-            <div>
-              <SectionHeader label={dict.chat.myAgents} className="mb-1" />
-              <p className="px-2.5 text-xs text-ink-faint">{dict.chat.agentsComingSoon}</p>
-            </div>
-            <div>
-              <SectionHeader label={dict.chat.mySkills} className="mb-1" />
-              <p className="px-2.5 text-xs text-ink-faint">{dict.common.comingSoon}</p>
-            </div>
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="flex flex-col gap-px">
+            <button
+              type="button"
+              onClick={newChat}
+              className={`${navRow} font-medium text-ink hover:bg-subtle/70`}
+            >
+              <PencilIcon size={16} strokeWidth={1.6} className="flex-none" />
+              {dict.chat.newChat}
+            </button>
+            <button type="button" className={`${navRow} text-ink-muted hover:bg-subtle/70 hover:text-ink`}>
+              <TopicsIcon size={16} strokeWidth={1.6} className="flex-none" />
+              {dict.chat.projects}
+            </button>
+            <Link
+              href="/app/workspace"
+              className={`${navRow} text-ink-muted hover:bg-subtle/70 hover:text-ink`}
+            >
+              <WorkspacesIcon size={16} strokeWidth={1.6} className="flex-none" />
+              {dict.nav.workspace}
+            </Link>
+            <Link href="/app/agents" className={`${navRow} text-ink-muted hover:bg-subtle/70 hover:text-ink`}>
+              <AgentsIcon size={16} strokeWidth={1.6} className="flex-none" />
+              {dict.nav.agents}
+            </Link>
+          </div>
+          <div className="mx-1 my-3.5 h-px bg-hairline" />
+          <div className="px-[7px] pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+            {dict.chat.recentChats}
+          </div>
+          <div className="atscroll min-h-0 flex-1 overflow-y-auto">
+            <ChatHistory
+              activeId={conversationId}
+              onNew={newChat}
+              onOpen={openConversation}
+              refreshKey={historyKey}
+              hideNewButton
+            />
           </div>
         </div>
       }

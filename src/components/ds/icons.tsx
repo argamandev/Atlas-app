@@ -189,11 +189,12 @@ export const ArrowUpIcon = (p: IconProps) => (
 )
 
 // ── live transcript / headers ──
-export const SparkleIcon = (p: IconProps) => (
-  <Base {...p}>
-    <path d="M12 3.5l1.7 5 5 1.7-5 1.7L12 17l-1.7-5-5-1.7 5-1.7z" />
-    <path d="M18.5 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
-  </Base>
+// V2 (Claude Design update 2026-07-06): the chat/Ask-Atlas affordance is now a FILLED
+// four-point spark (fill, no stroke) — the single chat icon across rail, buttons, panels.
+export const SparkleIcon = ({ size = 20, strokeWidth: _sw, ...rest }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...rest}>
+    <path d="M12 5c.4 4.4 2.6 6.6 7 7-4.4.4-6.6 2.6-7 7-.4-4.4-2.6-6.6-7-7 4.4-.4 6.6-2.6 7-7Z" />
+  </svg>
 )
 export const ExpandIcon = (p: IconProps) => (
   <Base {...p}>

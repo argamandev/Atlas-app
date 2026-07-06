@@ -95,6 +95,8 @@ export const he: Dictionary = {
     askAnything: 'שאלו את אטלס…',
     history: 'היסטוריה',
     newChat: 'שיחה חדשה',
+    projects: 'פרויקטים',
+    recentChats: 'שיחות אחרונות',
     myAgents: 'הסוכנים שלי',
     mySkills: 'הכישורים שלי',
     agentsComingSoon: 'סוכנים וכישורים יגיעו בקרוב',

@@ -57,6 +57,12 @@ export const tokens = {
     callInk: '#EDEAE1', // primary text on dark
     callMuted: '#B8B3A8', // secondary text on dark
     callFaint: '#8A867C', // metadata on dark
+    // chat composer (design update 2026-07-06: the warm field family)
+    field: '#F3EEE4', // composer field fill
+    fieldLine: '#E4DED1', // composer field border
+    chipBg: '#FBFAF7', // suggestion chip fill
+    sendIdle: '#E4DDCE', // send button, idle
+    ghost: '#9C978B', // ghost/placeholder text
   },
 
   // soft, consistent rounded corners (brief §3.3)

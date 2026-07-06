@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { Surface } from '@/components/ds/Surface'
 import { PlusIcon, AtIcon, SlashIcon, ArrowUpIcon, CloseIcon } from '@/components/ds/icons'
 import { cn, detectDir } from '@/lib/utils'
 
@@ -63,31 +62,29 @@ export function ChatComposer({
         placeholder={dict.chat.askAnything}
         className="block max-h-[200px] w-full resize-none bg-transparent px-1 text-[15px] leading-relaxed text-ink outline-none placeholder:text-ink-faint"
       />
-      <div className="mt-2 flex items-center justify-between">
-        <div className="flex items-center gap-1">
+      <div className="mt-3 flex items-center justify-between">
+        <div className="flex items-center gap-0.5">
           <button
             type="button"
             aria-label="Add"
-            className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink"
+            className="grid h-[30px] w-[30px] place-items-center rounded-lg text-ghost transition-colors hover:bg-subtle hover:text-ink"
           >
-            <PlusIcon size={18} />
+            <PlusIcon size={16} strokeWidth={1.8} />
           </button>
           <button
             type="button"
             onClick={onAt}
             aria-label="Mention"
-            className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink"
+            className="grid h-[30px] w-[30px] place-items-center rounded-lg text-ghost transition-colors hover:bg-subtle hover:text-ink"
           >
-            <AtIcon size={18} />
+            <AtIcon size={16} />
           </button>
           <button
             type="button"
             aria-label="Commands"
-            className="grid h-7 w-7 place-items-center rounded-md text-ink-faint hover:bg-subtle hover:text-ink"
+            className="grid h-6 w-[26px] place-items-center rounded-[7px] border border-field-line text-xs text-ghost transition-colors hover:text-ink"
           >
-            <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] ring-[1.4px] ring-current">
-              <SlashIcon size={12} />
-            </span>
+            <SlashIcon size={12} />
           </button>
         </div>
         <button
@@ -95,20 +92,21 @@ export function ChatComposer({
           onClick={onSend}
           disabled={!hasContent}
           aria-label="Send"
-          className={`grid h-8 w-8 place-items-center rounded-full text-white transition-colors ${
-            hasContent ? 'bg-ink hover:bg-black' : 'bg-ink-faint/60'
+          className={`grid h-[34px] w-[34px] place-items-center rounded-[10px] transition-colors ${
+            hasContent ? 'bg-ink text-paper hover:bg-black' : 'bg-send-idle text-ghost'
           }`}
         >
-          <ArrowUpIcon size={17} />
+          <ArrowUpIcon size={16} strokeWidth={2} />
         </button>
       </div>
     </>
   )
 
   return (
-    <Surface
-      elevation="popover"
-      className={cn('overflow-hidden rounded-bubble', reference && 'border border-hairline')}
+    <div
+      className={cn(
+        'overflow-hidden rounded-[18px] border border-field-line bg-field transition-shadow focus-within:border-[#D6CDBB] focus-within:shadow-[0_0_0_3px_rgba(214,205,187,0.28)]'
+      )}
     >
       {reference && (
         // Reference row — native-Claude style: flat, white, separated from the input by a faint
@@ -135,7 +133,7 @@ export function ChatComposer({
           )}
         </div>
       )}
-      <div className="p-3">{inputArea}</div>
-    </Surface>
+      <div className="px-4 pb-3 pt-4">{inputArea}</div>
+    </div>
   )
 }

@@ -53,6 +53,11 @@ const config: Config = {
         'call-ink': tokens.v2.callInk,
         'call-muted': tokens.v2.callMuted,
         'call-faint': tokens.v2.callFaint,
+        field: tokens.v2.field,
+        'field-line': tokens.v2.fieldLine,
+        'chip-bg': tokens.v2.chipBg,
+        'send-idle': tokens.v2.sendIdle,
+        ghost: tokens.v2.ghost,
       },
       fontFamily: {
         hebrew: ['"IBM Plex Sans Hebrew"', 'Heebo', 'Inter', 'system-ui', 'sans-serif'],

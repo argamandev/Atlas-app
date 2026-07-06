@@ -102,7 +102,7 @@ export function TranscriptChatPanel({
   }
 
   return (
-    <aside className="hidden w-[380px] shrink-0 flex-col border-s border-hairline bg-panel lg:flex">
+    <aside className="aa-panel hidden w-[380px] shrink-0 flex-col border-s border-hairline bg-shell text-ink lg:flex">
       <header className="flex items-center justify-between gap-2 border-b border-hairline px-4 py-3">
         <span className="flex items-center gap-2 font-bold text-ink">
           <SparkleIcon size={16} />
@@ -142,7 +142,7 @@ export function TranscriptChatPanel({
               )}
               <div
                 dir="auto"
-                className="max-w-[92%] rounded-bubble bg-subtle px-3.5 py-2 text-sm leading-relaxed text-ink"
+                className="max-w-[92%] rounded-[14px] rounded-ee-[4px] bg-ink px-3.5 py-2 text-sm leading-relaxed text-paper"
               >
                 {m.content}
               </div>

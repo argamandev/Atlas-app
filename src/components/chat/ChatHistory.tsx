@@ -13,11 +13,14 @@ export function ChatHistory({
   onNew,
   onOpen,
   refreshKey,
+  hideNewButton = false,
 }: {
   activeId: string | null
   onNew: () => void
   onOpen: (id: string) => void
   refreshKey: number
+  /** the design's chat sidebar renders its own New-chat row above this list */
+  hideNewButton?: boolean
 }) {
   const { dict } = useI18n()
   const [items, setItems] = useState<ConversationSummary[]>([])
@@ -30,13 +33,15 @@ export function ChatHistory({
 
   return (
     <div className="flex h-full flex-col gap-2">
-      <button
-        onClick={onNew}
-        className="flex items-center gap-2 rounded-md border border-hairline px-2.5 py-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
-      >
-        <PlusIcon size={15} />
-        {dict.chat.newChat}
-      </button>
+      {!hideNewButton && (
+        <button
+          onClick={onNew}
+          className="flex items-center gap-2 rounded-md border border-hairline px-2.5 py-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
+        >
+          <PlusIcon size={15} />
+          {dict.chat.newChat}
+        </button>
+      )}
 
       {items.length === 0 ? (
         <div className="flex items-center gap-2 rounded-md px-2.5 py-4 text-sm text-ink-faint">
@@ -46,10 +51,12 @@ export function ChatHistory({
       ) : (
         <div className="flex flex-col gap-0.5">
           {items.map((c) => (
+            // per-item direction: Hebrew titles read RTL, English LTR (design's rc.dir/rc.align)
             <button
               key={c.id}
               onClick={() => onOpen(c.id)}
-              className={`truncate rounded-md px-2.5 py-1.5 text-start text-sm transition-colors hover:bg-subtle ${
+              dir="auto"
+              className={`truncate rounded-[7px] px-[9px] py-2 text-start text-[13px] transition-colors hover:bg-subtle ${
                 c.id === activeId ? 'bg-subtle text-ink' : 'text-ink-muted'
               }`}
               title={c.title}

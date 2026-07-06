@@ -13,6 +13,13 @@
 @keyframes dot-blink{0%,100%{opacity:1}50%{opacity:0.35}}
 @keyframes askSlideIn{from{transform:translateX(100%)}to{transform:none}}
 @keyframes askSlideInRtl{from{transform:translateX(-100%)}to{transform:none}}
+/* design update 2026-07-06: ask-panel slide + ping + word entrance */
+@keyframes atping{0%{transform:scale(.6);opacity:.55}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
+@keyframes atpanelin{from{transform:translateX(100%);opacity:.85}to{transform:none;opacity:1}}
+@keyframes atpanelinRtl{from{transform:translateX(-100%);opacity:.85}to{transform:none;opacity:1}}
+@keyframes atwordin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.aa-panel{animation:atpanelin .52s cubic-bezier(.22,.61,.36,1) both}
+[dir='rtl'] .aa-panel{animation-name:atpanelinRtl}
 
 /* the design's soft content scrollbar (main page areas) */
 .atscroll::-webkit-scrollbar{width:10px;height:10px}

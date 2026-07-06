@@ -96,6 +96,8 @@ export const en = {
     askAnything: 'Ask Atlas…',
     history: 'History',
     newChat: 'New chat',
+    projects: 'Projects',
+    recentChats: 'Recent chats',
     myAgents: 'My Agents',
     mySkills: 'My Skills',
     agentsComingSoon: 'Agents & skills are coming soon',
