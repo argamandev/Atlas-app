@@ -5,18 +5,19 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Logo } from '@/components/ds/Logo'
-import { Tabs } from '@/components/ds/Tabs'
-import { IconButton } from '@/components/ds/IconButton'
 import {
   CloseIcon,
   ChevronLeftIcon,
-  SyncIcon,
   PlayIcon,
   QuoteIcon,
   ShareIcon,
   SparkleIcon,
   ChevronRightIcon,
+  TranscriptIcon,
+  SlidesIcon,
+  FileIcon,
 } from '@/components/ds/icons'
+import { SlidesPane, ReportPane } from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -85,8 +86,10 @@ export function LiveBroadcastView({
     setChatOpen,
   } = live
 
-  // UI-only local state (selection, chat, toast, autoScroll) stays in the view.
-  const [autoScroll, setAutoScroll] = useState(true)
+  // UI-only local state (selection, chat, toast, facet) stays in the view.
+  const [autoScroll] = useState(true) // always on; the scroll-pause + "back to live" chip manages it
+  // live facet toggle — Transcript · Slides · Report, same chips as the finished call view
+  const [facet, setFacet] = useState<'transcript' | 'slides' | 'report'>('transcript')
   const [selection, setSelection] = useState<{
     text: string
     top: number
@@ -279,12 +282,11 @@ export function LiveBroadcastView({
           ? dict.live.buffering.replace('{min}', String(Math.round(delaySec / 60)))
           : 'השידור זמין — הצטרפו לצפייה'
 
-  const liveTabs = [
-    { key: 'overview', label: dict.live.backToOverview },
+  const facetTabs = [
     { key: 'transcript', label: dict.live.transcript },
     { key: 'slides', label: dict.live.slides },
     { key: 'report', label: dict.live.report },
-  ]
+  ] as const
 
   return (
     <div data-call-theme={callTheme} className="flex h-full min-h-0 flex-1">
@@ -373,9 +375,33 @@ export function LiveBroadcastView({
               {dict.live.backToOverview}
             </button>
             <span className="call-hair h-4 w-px border-s" />
-            <span className="call-ink -mb-px border-b-2 border-current py-3 font-semibold">
-              {dict.live.transcript}
-            </span>
+            {/* facet chips (founder fine-tune): the LIVE call toggles Transcript · Slides · Report
+                like the finished call — audio + karaoke keep running underneath */}
+            <div className="flex items-center gap-2 py-2">
+              {facetTabs.map((ft) => {
+                const key = ft.key
+                const Icon = key === 'transcript' ? TranscriptIcon : key === 'slides' ? SlidesIcon : FileIcon
+                const active = facet === key
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    title={ft.label}
+                    onClick={() => setFacet(key)}
+                    className={`flex items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[12.5px] transition-colors ${
+                      active
+                        ? 'call-raised-bg call-ink border border-transparent font-semibold'
+                        : 'call-hair call-muted border font-medium hover:call-ink'
+                    }`}
+                  >
+                    <span className={`flex ${active ? 'call-ink' : 'call-muted'}`}>
+                      <Icon size={13} strokeWidth={1.6} />
+                    </span>
+                    {ft.label}
+                  </button>
+                )
+              })}
+            </div>
             <span className="call-muted flex items-center gap-1.5 text-[11px]">
               <span
                 className="h-1.5 w-1.5 rounded-full bg-live"
@@ -384,39 +410,36 @@ export function LiveBroadcastView({
               <span className="font-semibold text-live">{dict.live.liveBadge}</span> · {dict.live.karaokeTag}
             </span>
           </div>
-          <div className="flex items-center gap-0.5">
-            <IconButton
-              label={dict.live.autoScroll}
-              active={autoScroll}
-              size={30}
-              onClick={() => setAutoScroll((v) => !v)}
-            >
-              <SyncIcon size={16} />
-            </IconButton>
-          </div>
         </div>
 
-        {/* transcript — the real V1 karaoke body (ask-yellow selection scope) */}
-        <div
-          data-ask="1"
-          className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
-          onMouseUp={onTextSelect}
-          onScroll={() => selection && setSelection(null)}
-        >
-          {phase === 'playing' && words.length === 0 && (
-            <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
-              ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
-            </div>
-          )}
-          <TranscriptBody
-            transcript={transcript}
-            activeIndex={activeIndex}
-            autoScroll={autoScroll}
-            onWordClick={seek}
-            karaoke
-            followLabel={dict.live.backToLive}
-          />
-        </div>
+        {/* transcript — the real V1 karaoke body (ask-yellow selection scope); Slides/Report
+            swap in via the facet chips while the live audio keeps playing */}
+        {facet === 'transcript' ? (
+          <div
+            data-ask="1"
+            className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
+            onMouseUp={onTextSelect}
+            onScroll={() => selection && setSelection(null)}
+          >
+            {phase === 'playing' && words.length === 0 && (
+              <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
+                ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+              </div>
+            )}
+            <TranscriptBody
+              transcript={transcript}
+              activeIndex={activeIndex}
+              autoScroll={autoScroll}
+              onWordClick={seek}
+              karaoke
+              followLabel={dict.live.backToLive}
+            />
+          </div>
+        ) : facet === 'slides' ? (
+          <SlidesPane quarter={quarter} />
+        ) : (
+          <ReportPane />
+        )}
 
         {selection && (
           <div

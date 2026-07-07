@@ -165,9 +165,13 @@
   /* ---------- LIVE BUFFER — hosted-call sync delay ---------- */
   function buffer(canvas){var ctx=setup(canvas);
     var secs=+canvas.dataset.secs||285; var start=null; var fired=false;
-    var INKC=canvas.getAttribute('data-ink')==='light'?'245,243,238':INK;
     run(canvas,function(t){var W=canvas._W,H=canvas._H,cx=W/2,cy=H*0.40;ctx.clearRect(0,0,W,H);
-      if(start===null)start=t; var elapsed=(t-start)/1000; var left=Math.max(0,secs-elapsed);
+      /* ink re-read EVERY frame — the call theme toggles without remounting the canvas,
+         and a mount-time capture left light ink on the light frame (invisible countdown) */
+      var INKC=canvas.getAttribute('data-ink')==='light'?'245,243,238':INK;
+      /* wall-clock, not frame-paced — browsers suspend rAF in hidden tabs, and a frame-paced
+         countdown silently falls behind real time by however long the tab was backgrounded */
+      if(start===null)start=performance.now(); var elapsed=(performance.now()-start)/1000; var left=Math.max(0,secs-elapsed);
       var live=left<=0;
       var R=Math.min(W,H)*0.24;
       // faint track

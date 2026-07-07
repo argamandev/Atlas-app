@@ -25,7 +25,7 @@ import {
   SlidesIcon,
   FileIcon,
 } from '@/components/ds/icons'
-import { slideStubs, reportStub } from '@/lib/live/call-stubs'
+import { PaneHeader, SlidesPane, ReportPane } from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -81,10 +81,6 @@ export function LiveTranscriptView({
   const [multiFacets, setMultiFacets] = useState<Set<Facet>>(
     () => new Set<Facet>(['transcript', 'slides', 'report'])
   )
-  const [slideIdx, setSlideIdx] = useState(0)
-  const slides = useMemo(slideStubs, [])
-  const report = useMemo(reportStub, [])
-
   // facet column resize (design dc lines 2200-2237: DevTools-style gutter drag).
   // flex grow values redistribute between the two columns around a dragged divider.
   const FACET_MIN: Record<Facet, number> = { transcript: 340, slides: 280, report: 300 }
@@ -393,84 +389,6 @@ export function LiveTranscriptView({
       on ? 'bg-ink text-white dark-toggle-on' : 'call-muted hover:call-ink'
     }`
 
-  // facet pane headers for Multi view (design pane headers, mono caps)
-  const paneHeader = (label: string, right?: React.ReactNode) => (
-    <div className="call-hair flex flex-none items-center justify-between border-b px-[18px] py-[9px]">
-      {/* design pane labels are system-font caps (line 449), not mono */}
-      <span className="call-muted text-[10.5px] font-semibold uppercase tracking-[0.14em]">{label}</span>
-      {right}
-    </div>
-  )
-
-  // Slides pane (design lines 480-498): prev/next nav + dark content card. Stub deck
-  // until real slides are linked to calls.
-  const slide = slides[slideIdx % slides.length]
-  const slidesPane = (multiStyle?: React.CSSProperties) => (
-    <div
-      data-facet="slides"
-      style={multiStyle}
-      className="flex min-w-[280px] flex-1 flex-col overflow-hidden"
-    >
-      {paneHeader(
-        dict.live.slides,
-        <span className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSlideIdx((i) => (i - 1 + slides.length) % slides.length)}
-            className="call-muted flex p-1 transition-colors hover:call-ink"
-          >
-            <ChevronLeftIcon size={16} strokeWidth={1.7} className="rtl:rotate-180" />
-          </button>
-          <span className="call-ink min-w-[64px] text-center text-[11.5px] font-medium" dir="auto">
-            {dict.live.slideLabel} {slideIdx + 1}
-          </span>
-          <button
-            type="button"
-            onClick={() => setSlideIdx((i) => (i + 1) % slides.length)}
-            className="call-muted flex p-1 transition-colors hover:call-ink"
-          >
-            <ChevronRightIcon size={16} strokeWidth={1.7} className="rtl:rotate-180" />
-          </button>
-        </span>
-      )}
-      <div className="atscroll flex-1 overflow-auto p-[22px]">
-        <div
-          dir="rtl"
-          data-ask="1"
-          className="call-hair call-card-bg call-ink flex min-h-[260px] flex-col justify-center rounded-lg border p-[34px]"
-        >
-          <div className="call-muted mb-3 font-mono-num text-[11px] uppercase tracking-[0.14em]" dir="rtl">
-            {[call.quarter, `${dict.live.slideLabel} ${slideIdx + 1}`].filter(Boolean).join(' · ')}
-          </div>
-          <div className="mb-3.5 font-display text-[23px]">{slide.title}</div>
-          <div className="text-[14.5px] leading-[1.9]">{slide.body}</div>
-        </div>
-      </div>
-    </div>
-  )
-  // Report pane (design lines 508-523): serif title + date + free-reading paragraphs (stub PDF).
-  const reportPane = (multiStyle?: React.CSSProperties) => (
-    <div
-      data-facet="report"
-      style={multiStyle}
-      className="flex min-w-[300px] flex-1 flex-col overflow-hidden"
-    >
-      {paneHeader(dict.live.report, <span className="call-muted text-[11px]">{dict.live.reportFreely}</span>)}
-      <div className="atscroll flex-1 overflow-auto p-[22px]">
-        <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
-          <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
-          <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
-          {report.paragraphs.map((p) => (
-            <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
-              {p}
-            </p>
-          ))}
-          <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
-        </div>
-      </div>
-    </div>
-  )
-
   return (
     <div data-call-theme={callTheme} className="flex h-full min-h-0 flex-1">
       {/* context panel — chapters/sections + speakers (RTL Hebrew). Minimizes to a thin rail while the
@@ -727,19 +645,21 @@ export function LiveTranscriptView({
               style={view === 'multi' ? { flex: `${colFlex.transcript} 1 0px` } : undefined}
               className="flex min-w-[340px] flex-1 flex-col overflow-hidden"
             >
-              {paneHeader(
-                dict.live.transcript,
-                call.isLive ? (
-                  <span className="call-muted flex items-center gap-1.5 text-[11px]">
-                    <span
-                      className="h-1.5 w-1.5 rounded-full bg-live"
-                      style={{ animation: 'atpulse 2s ease-in-out infinite' }}
-                    />
-                    <span className="font-semibold text-live">{dict.live.liveBadge}</span> ·{' '}
-                    {dict.live.karaokeTag}
-                  </span>
-                ) : undefined
-              )}
+              <PaneHeader
+                label={dict.live.transcript}
+                right={
+                  call.isLive ? (
+                    <span className="call-muted flex items-center gap-1.5 text-[11px]">
+                      <span
+                        className="h-1.5 w-1.5 rounded-full bg-live"
+                        style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                      />
+                      <span className="font-semibold text-live">{dict.live.liveBadge}</span> ·{' '}
+                      {dict.live.karaokeTag}
+                    </span>
+                  ) : undefined
+                }
+              />
               <div
                 className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-4"
                 data-ask="1"
@@ -766,14 +686,19 @@ export function LiveTranscriptView({
             </div>
           )}
           {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}
-          {(view === 'multi' ? multiFacets.has('slides') : tab === 'slides') &&
-            slidesPane(view === 'multi' ? { flex: `${colFlex.slides} 1 0px` } : undefined)}
+          {(view === 'multi' ? multiFacets.has('slides') : tab === 'slides') && (
+            <SlidesPane
+              quarter={call.quarter}
+              style={view === 'multi' ? { flex: `${colFlex.slides} 1 0px` } : undefined}
+            />
+          )}
           {view === 'multi' &&
             multiFacets.has('report') &&
             (multiFacets.has('slides') || multiFacets.has('transcript')) &&
             facetDivider}
-          {(view === 'multi' ? multiFacets.has('report') : tab === 'report') &&
-            reportPane(view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined)}
+          {(view === 'multi' ? multiFacets.has('report') : tab === 'report') && (
+            <ReportPane style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined} />
+          )}
         </div>
 
         {/* selection toolbar — reassign-to-speaker (edit mode) OR Save / Share / Star */}
