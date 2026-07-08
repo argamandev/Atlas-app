@@ -16,8 +16,9 @@ import {
   TranscriptIcon,
   SlidesIcon,
   FileIcon,
+  PlusIcon,
 } from '@/components/ds/icons'
-import { SlidesPane, ReportPane } from './FacetPanes'
+import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -88,8 +89,13 @@ export function LiveBroadcastView({
 
   // UI-only local state (selection, chat, toast, facet) stays in the view.
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to live" chip manages it
-  // live facet toggle — Transcript · Slides · Report, same chips as the finished call view
-  const [facet, setFacet] = useState<'transcript' | 'slides' | 'report'>('transcript')
+  // live facets — Transcript · Slides · Report chips + Single|Multi, same as the finished view
+  const [facet, setFacet] = useState<Facet>('transcript')
+  const [view, setView] = useState<'single' | 'multi'>('single')
+  const [multiFacets, setMultiFacets] = useState<Set<Facet>>(
+    () => new Set<Facet>(['transcript', 'slides', 'report'])
+  )
+  const { colFlex, facetDivider } = useFacetColumns()
   const [selection, setSelection] = useState<{
     text: string
     top: number
@@ -376,18 +382,35 @@ export function LiveBroadcastView({
             </button>
             <span className="call-hair h-4 w-px border-s" />
             {/* facet chips (founder fine-tune): the LIVE call toggles Transcript · Slides · Report
-                like the finished call — audio + karaoke keep running underneath */}
+                like the finished call — audio + karaoke keep running underneath. In Multi all
+                chips are ×-removable / +-re-addable; the last visible facet stays. */}
             <div className="flex items-center gap-2 py-2">
               {facetTabs.map((ft) => {
                 const key = ft.key
                 const Icon = key === 'transcript' ? TranscriptIcon : key === 'slides' ? SlidesIcon : FileIcon
-                const active = facet === key
+                const active = view === 'multi' ? multiFacets.has(key) : facet === key
+                const removable = view === 'multi'
                 return (
                   <button
                     key={key}
                     type="button"
                     title={ft.label}
-                    onClick={() => setFacet(key)}
+                    onClick={() => {
+                      if (view === 'multi') {
+                        setMultiFacets((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(key)) {
+                            if (next.size === 1) return prev // the last facet stays
+                            next.delete(key)
+                          } else {
+                            next.add(key)
+                          }
+                          return next
+                        })
+                      } else {
+                        setFacet(key)
+                      }
+                    }}
                     className={`flex items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[12.5px] transition-colors ${
                       active
                         ? 'call-raised-bg call-ink border border-transparent font-semibold'
@@ -398,48 +421,105 @@ export function LiveBroadcastView({
                       <Icon size={13} strokeWidth={1.6} />
                     </span>
                     {ft.label}
+                    {removable && (
+                      <span className={`flex ${active ? 'call-muted' : 'call-faint'}`}>
+                        {active ? (
+                          <CloseIcon size={12} strokeWidth={2} />
+                        ) : (
+                          <PlusIcon size={12} strokeWidth={2} />
+                        )}
+                      </span>
+                    )}
                   </button>
                 )
               })}
             </div>
-            <span className="call-muted flex items-center gap-1.5 text-[11px]">
-              <span
-                className="h-1.5 w-1.5 rounded-full bg-live"
-                style={{ animation: 'atpulse 2s ease-in-out infinite' }}
-              />
-              <span className="font-semibold text-live">{dict.live.liveBadge}</span> · {dict.live.karaokeTag}
-            </span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="call-muted text-[11.5px]">{dict.live.viewLabel}</span>
+            <div className="call-track-bg flex rounded-pill p-[3px]">
+              <button
+                type="button"
+                onClick={() => setView('single')}
+                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+                  view === 'single' ? 'call-bg call-ink' : 'call-muted'
+                }`}
+              >
+                {dict.live.viewSingle}
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('multi')}
+                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+                  view === 'multi' ? 'call-bg call-ink' : 'call-muted'
+                }`}
+              >
+                {dict.live.viewMulti}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* transcript — the real V1 karaoke body (ask-yellow selection scope); Slides/Report
-            swap in via the facet chips while the live audio keeps playing */}
-        {facet === 'transcript' ? (
-          <div
-            data-ask="1"
-            className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
-            onMouseUp={onTextSelect}
-            onScroll={() => selection && setSelection(null)}
-          >
-            {phase === 'playing' && words.length === 0 && (
-              <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
-                ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+        {/* body — Single: the active facet; Multi: Transcript | Slides | Report side by side
+            with drag-resize gutters. Columns keep min-widths and the ROW scrolls horizontally
+            instead of squishing; the live audio + karaoke keep running through it all. */}
+        <div className="atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+          {(view === 'multi' ? multiFacets.has('transcript') : facet === 'transcript') && (
+            <div
+              data-facet="transcript"
+              style={view === 'multi' ? { flex: `${colFlex.transcript} 1 0px` } : undefined}
+              className="flex min-w-[340px] flex-1 flex-col overflow-hidden"
+            >
+              <PaneHeader
+                label={dict.live.transcript}
+                right={
+                  <span className="call-muted flex items-center gap-1.5 text-[11px]">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full bg-live"
+                      style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                    />
+                    <span className="font-semibold text-live">{dict.live.liveBadge}</span> ·{' '}
+                    {dict.live.karaokeTag}
+                  </span>
+                }
+              />
+              <div
+                data-ask="1"
+                className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
+                onMouseUp={onTextSelect}
+                onScroll={() => selection && setSelection(null)}
+              >
+                {phase === 'playing' && words.length === 0 && (
+                  <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
+                    ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+                  </div>
+                )}
+                <TranscriptBody
+                  transcript={transcript}
+                  activeIndex={activeIndex}
+                  autoScroll={autoScroll}
+                  onWordClick={seek}
+                  karaoke
+                  followLabel={dict.live.backToLive}
+                />
               </div>
-            )}
-            <TranscriptBody
-              transcript={transcript}
-              activeIndex={activeIndex}
-              autoScroll={autoScroll}
-              onWordClick={seek}
-              karaoke
-              followLabel={dict.live.backToLive}
+            </div>
+          )}
+          {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}
+          {(view === 'multi' ? multiFacets.has('slides') : facet === 'slides') && (
+            <SlidesPane
+              quarter={quarter}
+              style={view === 'multi' ? { flex: `${colFlex.slides} 1 0px` } : undefined}
             />
-          </div>
-        ) : facet === 'slides' ? (
-          <SlidesPane quarter={quarter} />
-        ) : (
-          <ReportPane />
-        )}
+          )}
+          {view === 'multi' &&
+            multiFacets.has('report') &&
+            (multiFacets.has('slides') || multiFacets.has('transcript')) &&
+            facetDivider}
+          {(view === 'multi' ? multiFacets.has('report') : facet === 'report') && (
+            <ReportPane style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined} />
+          )}
+        </div>
 
         {selection && (
           <div

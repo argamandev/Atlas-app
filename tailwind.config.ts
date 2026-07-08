@@ -74,6 +74,11 @@ const config: Config = {
           'system-ui',
           'sans-serif',
         ],
+        // ── V2 headline stack — the design's DISPLAY stack, copied VERBATIM from the
+        // rendered home greeting. It deliberately has NO system-ui: on Windows it falls
+        // through to the browser default sans (Arial) — narrower + tighter than Segoe UI,
+        // which is the exact face the design paints there. Do not "fix" by adding system-ui.
+        head: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', 'sans-serif'],
         hebrew: ['"IBM Plex Sans Hebrew"', 'Heebo', 'Inter', 'system-ui', 'sans-serif'],
         // Latin/English UI font. Falls back to the Hebrew face so mixed-script
         // content (Hebrew company names inside an English UI) still renders.

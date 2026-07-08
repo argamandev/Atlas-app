@@ -25,7 +25,7 @@ import {
   SlidesIcon,
   FileIcon,
 } from '@/components/ds/icons'
-import { PaneHeader, SlidesPane, ReportPane } from './FacetPanes'
+import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -77,64 +77,10 @@ export function LiveTranscriptView({
   const [view, setView] = useState<'single' | 'multi'>('single')
   // Multi view composes facets: ALL chips are ×-removable (founder round-3: transcript too —
   // audio keeps playing without it); the last visible facet can't be removed.
-  type Facet = 'transcript' | 'slides' | 'report'
   const [multiFacets, setMultiFacets] = useState<Set<Facet>>(
     () => new Set<Facet>(['transcript', 'slides', 'report'])
   )
-  // facet column resize (design dc lines 2200-2237: DevTools-style gutter drag).
-  // flex grow values redistribute between the two columns around a dragged divider.
-  const FACET_MIN: Record<Facet, number> = { transcript: 340, slides: 280, report: 300 }
-  const DEF_FLEX: Record<Facet, number> = { transcript: 1.3, slides: 1, report: 1 }
-  const [colFlex, setColFlex] = useState<Record<Facet, number>>(DEF_FLEX)
-  const [dragging, setDragging] = useState(false)
-  function dividerDragStart(e: React.PointerEvent<HTMLDivElement>) {
-    const handle = e.currentTarget
-    const left = handle.previousElementSibling as HTMLElement | null
-    const right = handle.nextElementSibling as HTMLElement | null
-    const fL = left?.dataset.facet as Facet | undefined
-    const fR = right?.dataset.facet as Facet | undefined
-    if (!left || !right || !fL || !fR) return
-    const wL = left.getBoundingClientRect().width
-    const wR = right.getBoundingClientRect().width
-    const P = wL + wR
-    const startX = e.clientX
-    const G = colFlex[fL] + colFlex[fR]
-    const minL = FACET_MIN[fL]
-    const minR = FACET_MIN[fR]
-    const rtl = getComputedStyle(handle).direction === 'rtl'
-    setDragging(true)
-    const move = (ev: PointerEvent) => {
-      const delta = (ev.clientX - startX) * (rtl ? -1 : 1)
-      const nWL = Math.max(minL, Math.min(P - minR, wL + delta))
-      const nWR = P - nWL
-      setColFlex((st) => ({ ...st, [fL]: (G * nWL) / P, [fR]: (G * nWR) / P }))
-    }
-    const up = () => {
-      document.removeEventListener('pointermove', move)
-      document.removeEventListener('pointerup', up)
-      document.body.style.userSelect = ''
-      document.body.style.cursor = ''
-      setDragging(false)
-    }
-    document.addEventListener('pointermove', move)
-    document.addEventListener('pointerup', up)
-    document.body.style.userSelect = 'none'
-    document.body.style.cursor = 'col-resize'
-    e.preventDefault()
-  }
-  const facetDivider = (
-    <div
-      onPointerDown={dividerDragStart}
-      onDoubleClick={() => setColFlex(DEF_FLEX)}
-      title="Drag to resize · double-click to reset"
-      className="group/div flex w-[9px] flex-none cursor-col-resize items-stretch justify-center select-none"
-    >
-      <div
-        className="w-px group-hover/div:w-[2px]"
-        style={{ background: dragging ? 'var(--call-ink)' : 'var(--call-hair)' }}
-      />
-    </div>
-  )
+  const { colFlex, facetDivider } = useFacetColumns()
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
   const [toast, setToast] = useState<Toast | null>(null)

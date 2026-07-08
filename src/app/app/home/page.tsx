@@ -33,10 +33,11 @@ export default async function HomePage() {
           {/* hero: greeting + search (design: 60px top, 620px hero column, 42px headline) */}
           <div className="mx-auto flex w-full max-w-[620px] animate-fade-up flex-col items-center gap-2.5 pt-[60px] text-center">
             <TodayLine />
-            {/* founder round-4: the "apple font" (system stack) headline — CD home default */}
+            {/* founder round-4/5: the design's DISPLAY stack (font-head — Arial on Windows,
+                SF Pro Display on Mac), bold, -0.03em — probed from the rendered CD home */}
             <Greeting
               name={userId ? userName : undefined}
-              className="text-[34px] font-bold tracking-[-0.03em] text-ink sm:text-[42px]"
+              className="font-head text-[34px] font-bold tracking-[-0.03em] text-ink sm:text-[42px]"
             />
             <p className="text-[16px] text-ink-muted">{dict.home.discoverSubhead}</p>
             <div className="mt-[18px] w-full">
