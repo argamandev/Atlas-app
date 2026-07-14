@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/ds/icons'
 import { slideStubs, reportStub } from '@/lib/live/call-stubs'
+import { PdfViewer } from './PdfViewer'
 
 // Slides/Report facet panes (design lines 480-523) — shared by the finished call view
 // (Single + Multi) and the LIVE broadcast view, so both toggle the same content cards.
@@ -131,26 +132,59 @@ export function SlidesPane({ quarter, style }: { quarter?: string | null; style?
   )
 }
 
-export function ReportPane({ style }: { style?: React.CSSProperties }) {
+export function ReportPane({
+  companyId,
+  quarter,
+  onAskSelection,
+  style,
+}: {
+  companyId?: string | null
+  quarter?: string | null
+  onAskSelection?: (text: string, page: number | null, documentId: string) => void
+  style?: React.CSSProperties
+}) {
   const { dict } = useI18n()
   const report = reportStub()
+  const [doc, setDoc] = useState<{ id: string; title: string; pageCount: number } | null>(null)
+  useEffect(() => {
+    if (!companyId || !quarter) return
+    let dead = false
+    fetch(
+      `/api/documents?companyId=${encodeURIComponent(companyId)}&quarter=${encodeURIComponent(quarter)}`,
+      { credentials: 'include' }
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const d = j?.documents?.find((x: { docType: string }) => x.docType === 'report')
+        if (!dead && d) setDoc({ id: d.id, title: d.title, pageCount: d.pageCount })
+      })
+      .catch(() => {})
+    return () => {
+      dead = true
+    }
+  }, [companyId, quarter])
+
   return (
     <div data-facet="report" style={style} className="flex min-w-[300px] flex-1 flex-col overflow-hidden">
       <PaneHeader
         label={dict.live.report}
-        right={<span className="call-muted text-[11px]">{dict.live.reportFreely}</span>}
+        right={<span className="call-muted text-[11px]">{doc ? doc.title : dict.live.reportFreely}</span>}
       />
       <div className="atscroll flex-1 overflow-auto p-[22px]">
-        <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
-          <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
-          <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
-          {report.paragraphs.map((p) => (
-            <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
-              {p}
-            </p>
-          ))}
-          <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
-        </div>
+        {doc ? (
+          <PdfViewer docId={doc.id} pageCount={doc.pageCount} onAskSelection={onAskSelection} />
+        ) : (
+          <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
+            <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
+            <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
+            {report.paragraphs.map((p) => (
+              <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
+                {p}
+              </p>
+            ))}
+            <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -643,7 +643,11 @@ export function LiveTranscriptView({
             (multiFacets.has('slides') || multiFacets.has('transcript')) &&
             facetDivider}
           {(view === 'multi' ? multiFacets.has('report') : tab === 'report') && (
-            <ReportPane style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined} />
+            <ReportPane
+              companyId={call.companyId}
+              quarter={call.quarter}
+              style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined}
+            />
           )}
         </div>
 
