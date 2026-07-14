@@ -27,6 +27,9 @@ export function PdfViewer({
   useEffect(() => {
     let dead = false
     let loaded: any = null
+    // A stale destroyed doc must never linger in state across a docId switch — children
+    // (PdfPage) could call doc.getPage() on it while the new doc is still loading.
+    setDoc(null)
     ;(async () => {
       try {
         const pdfjs: PdfLib = await import('pdfjs-dist')
@@ -34,7 +37,7 @@ export function PdfViewer({
         // production build (Terser chokes on `import.meta` in the emitted worker chunk) — the
         // worker is copied to public/ instead (see /ship notes) and referenced by static path.
         pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
-        const task = pdfjs.getDocument({ url: `/api/documents/${docId}/file` })
+        const task = pdfjs.getDocument({ url: `/api/documents/${encodeURIComponent(docId)}/file` })
         loaded = await task.promise
         if (!dead) setDoc(loaded)
       } catch (err) {
@@ -134,16 +137,23 @@ function PdfPage({ doc, pageNo, width }: { doc: any; pageNo: number; width: numb
   useEffect(() => {
     if (!visible) return
     let dead = false
+    // Held so cleanup can cancel in-flight pdf.js work on rapid re-runs (gutter drag) —
+    // otherwise a stale effect can resolve after a newer one already redrew `el` and
+    // append a duplicate text layer over it.
+    let renderTask: any = null
+    let textLayer: any = null
     ;(async () => {
       try {
         const pdfjs: PdfLib = await import('pdfjs-dist')
+        if (dead) return
         const page = await doc.getPage(pageNo)
+        if (dead) return
         const base = page.getViewport({ scale: 1 })
         const scale = width / base.width
         const viewport = page.getViewport({ scale })
-        setRatio(viewport.height / viewport.width)
         const el = wrapRef.current
         if (!el || dead) return
+        setRatio(viewport.height / viewport.width)
         el.innerHTML = ''
         const canvas = document.createElement('canvas')
         const dpr = window.devicePixelRatio || 1
@@ -153,27 +163,44 @@ function PdfPage({ doc, pageNo, width }: { doc: any; pageNo: number; width: numb
         canvas.style.height = 'auto'
         el.appendChild(canvas)
         const ctx = canvas.getContext('2d')!
-        await page.render({
+        renderTask = page.render({
           canvasContext: ctx,
           viewport,
           transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
-        }).promise
+        })
+        await renderTask.promise
+        if (dead) return
         const textDiv = document.createElement('div')
         textDiv.className = 'pdftext'
         textDiv.style.setProperty('--scale-factor', String(scale))
         el.appendChild(textDiv)
-        const tl = new pdfjs.TextLayer({
+        textLayer = new pdfjs.TextLayer({
           textContentSource: page.streamTextContent(),
           container: textDiv,
           viewport,
         })
-        await tl.render()
+        await textLayer.render()
       } catch (err) {
-        console.error(`[PdfViewer] page ${pageNo} render failed`, (err as Error).message)
+        const name = (err as { name?: string } | undefined)?.name
+        // A cancelled render/text-layer rejects with RenderingCancelledException /
+        // AbortException — expected noise from cleanup below, not a real failure.
+        if (name !== 'RenderingCancelledException' && name !== 'AbortException') {
+          console.error(`[PdfViewer] page ${pageNo} render failed`, (err as Error).message)
+        }
       }
     })()
     return () => {
       dead = true
+      try {
+        renderTask?.cancel?.()
+      } catch {
+        // ignore — cancelling an already-settled render task is a no-op
+      }
+      try {
+        textLayer?.cancel?.()
+      } catch {
+        // ignore — cancelling an already-settled text layer is a no-op
+      }
     }
   }, [visible, doc, pageNo, width])
 
