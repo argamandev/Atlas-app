@@ -11,3 +11,11 @@
   `role: z.string()`) — legacy rows have `role: "unknown"`. Don't tighten to an enum.
 - **`/app/*` pages have no hard login gate** (API routes ARE auth-gated) — known gap, flagged
   for a dedicated auth pass before launch. Don't assume pages are protected.
+- **Design parity is verified against the RENDERED design, never bundle CSS** (7-round lesson,
+  2026-07-14): probe computed styles / canvas `measureText` on the live design page. The design
+  uses TWO system stacks — body = SF Pro Text stack (→ Segoe UI on Windows), headlines
+  (`fontFamily.head`) = SF Pro Display stack WITHOUT system-ui (→ Arial on Windows). Bundle CSS
+  can be a stale iteration of the design.
+- **Company-overview extras + Home quarter tag are STUB-FED** (`lib/company/overview-stub.ts`,
+  hardcoded "Q2 2026" on Home) — fabricated demo facts on real pages. Must gain demo markers /
+  real feeds before launch (FINDINGs filed 2026-07-14).

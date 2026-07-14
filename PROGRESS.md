@@ -5,6 +5,34 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-14 — Claude Design frontend SHIPPED (Lane F; reviewer-APPROVED, founder parity verdict passed)
+
+**Status:** merged to `main` (`69a98be`) + pushed. Mission 3 delivered: the Claude Design
+frontend imported as an exact replica — Home, Calendar, Chat, Company, Call view (live +
+finished, Single/Multi facet panes with drag-resize gutters), plus new Workspace + Agents
+shell pages — then hardened through SEVEN founder-driven parity rounds until the founder's
+verdict: "okay its good". 63 files, +4568/−746, 26 commits across feat/frontend-import +
+feat/design-parity (stacked, merged together).
+
+- **Why 7 parity rounds:** the first import was visibly worse than the design source; the
+  hard-won truths are that the design uses the SYSTEM font stack (not Inter/Calibri) and TWO
+  stacks — headlines are an SF Pro Display stack that resolves to Arial on Windows, verified
+  byte-identical by canvas `measureText`. Fonts are probed from the rendered page, never
+  assumed from bundle CSS.
+- **Founder decisions along the way (all filed):** original charcoal player bar kept over the
+  design's docked pill; color-scheme toggle restored (Warm/Black-rail/Black+white); transcript
+  pane removable in Multi view (beyond the design); call dark bg `#0A0A0A` = rail.
+- **Stubs discipline held:** Workspace/Agents/company-extras fed by typed stub modules with
+  unit tests (`lib/{workspace,agents,company,calendar,live}/…`), real pages keep real data
+  wiring. Live-viewer invariant code untouched (reviewer verified byte-identical fallback path).
+- **Verification (two-gate):** atlas-reviewer APPROVED — 0 blockers, 3 WARNINGs + 6 NITs all
+  filed as `FINDING` lines in ready-queue.md (headline follow-ups: fake "Q2 2026" quarter
+  hardcoded on Home, company overview stub facts need a demo marker before launch, countdown
+  `ringSecsRef` should reset on session change) · supervisor battery independent: 77/77 tests,
+  tsc, production build — on the branch AND on main post-merge · founder eyes-on gate on :3001.
+
+---
+
 ## 2026-07-04 — IVRIT live pipeline M1 SHIPPED (Lane I; reviewer-APPROVED, founder-tested on real Zoom ×2)
 
 **Status:** merged to `main` (`9c6f0e7` + follow-up `e06ca7a`) + pushed. The fleet's first lane
