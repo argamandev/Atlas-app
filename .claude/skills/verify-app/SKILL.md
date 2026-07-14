@@ -21,7 +21,10 @@ console clean + tests green.
 6. Interact (click/scroll/type) through the feature's main path.
 7. Broken → fix → repeat. Only a clean pass counts as verified.
 8. `npm test` + `npx tsc --noEmit` green.
-9. Record what you verified (one line + screenshot refs) in your board section.
+9. Record what you verified (one line + evidence refs) in your board section — and evidence
+   must be DURABLE (/ship lane step 6): screenshots can't be saved by every harness, so write
+   the walkthrough/finding sheet you built into `docs/evidence/<branch>/` in the main checkout.
+   A claude.ai artifact URL or a session screenshot alone is evidence that expires.
 
 ## Lane recipes
 
