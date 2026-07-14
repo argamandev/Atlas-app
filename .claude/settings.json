@@ -15,7 +15,15 @@
     "deny": [
       "Read(./.env*)",
       "Edit(./.env*)",
-      "Edit(./.mcp.json)"
+      "Edit(./.mcp.json)",
+      "Edit(./agent-memory/cross-cutting.md)",
+      "Write(./agent-memory/cross-cutting.md)",
+      "Edit(./agent-memory/ready-queue.md)",
+      "Write(./agent-memory/ready-queue.md)",
+      "Edit(C:/Users/Sagi/Desktop/Atlas/agent-memory/cross-cutting.md)",
+      "Write(C:/Users/Sagi/Desktop/Atlas/agent-memory/cross-cutting.md)",
+      "Edit(C:/Users/Sagi/Desktop/Atlas/agent-memory/ready-queue.md)",
+      "Write(C:/Users/Sagi/Desktop/Atlas/agent-memory/ready-queue.md)"
     ]
   },
   "hooks": {

@@ -78,7 +78,24 @@ if (
 )
   block('shell access to .env* — secret values must never enter transcripts')
 
-// 4. Git safety
+// 4. Append-only fleet logs — >> (append) is the only allowed shell write to the two logs.
+// Truncating redirects, rewriting cmdlets, tee-without-append, and in-place editors are blocked;
+// reading and copying FROM the logs stays free (fleet-lint snapshots them).
+const LOGRE = '(cross-cutting|ready-queue)\\.md'
+if (new RegExp(LOGRE, 'i').test(cmd)) {
+  if (new RegExp(`(^|[^>])>(?!>)\\s*"?[^\\s"'|&;]*${LOGRE}`, 'i').test(cmd))
+    block('single-> truncates an append-only fleet log — append with >> instead (rules/parallel-work.md)')
+  if (new RegExp(`\\b(set-content|out-file)\\b[^\\n;|]*${LOGRE}`, 'i').test(cmd))
+    block('Set-Content/Out-File rewrite an append-only fleet log — use Add-Content or bash >>')
+  if (new RegExp(`(^|[\\s;|&])tee\\s+(?!-a\\b)[^\\n|]*${LOGRE}`, 'i').test(cmd))
+    block('tee without -a truncates an append-only fleet log — use tee -a')
+  if (new RegExp(`\\bsed\\s[^\\n]*-i[^\\n]*${LOGRE}`, 'i').test(cmd))
+    block('sed -i rewrites an append-only fleet log — the logs are never edited in place')
+  if (new RegExp(`writefilesync[^\\n]*${LOGRE}`, 'i').test(cmd))
+    block('writeFileSync overwrites an append-only fleet log — use fs.appendFileSync')
+}
+
+// 5. Git safety
 if (/git\s+push[^\n]*(--force|-f\b)/.test(cmd)) block('force-push is never allowed')
 if (/git\s+push\b/.test(cmd) && !inSupervisor) {
   // Explicit main target from a lane — always blocked.
