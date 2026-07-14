@@ -96,10 +96,18 @@ export function LiveTranscriptView({
   const [query, setQuery] = useState('')
   const [matchPos, setMatchPos] = useState(0)
   // in-transcript side chat (Feature 6): open + the seeded quote + a nonce so re-starring re-seeds
-  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({
+  // docRef (multiview): set only when a report-PDF selection seeded the chat, so /api/chat can
+  // ground on document + page text; any transcript highlight clears it back to null.
+  const [chat, setChat] = useState<{
+    open: boolean
+    seed: string
+    nonce: number
+    docRef: { documentId: string; page: number | null } | null
+  }>({
     open: false,
     seed: '',
     nonce: 0,
+    docRef: null,
   })
   // side chat open → tell the global docked bar to narrow to its left (so offline = live)
   useEffect(() => {
@@ -243,7 +251,7 @@ export function LiveTranscriptView({
     // If the side chat is already open, drop the highlight straight into the chat input as a
     // reference (no popup, no extra clicks) — Claude-style. Edit mode still uses the popup.
     if (chat.open && !editMode) {
-      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1 }))
+      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1, docRef: null }))
       setSelection(null)
       return
     }
@@ -262,6 +270,12 @@ export function LiveTranscriptView({
       fromWord: range?.from,
       toWord: range?.to,
     })
+  }
+
+  // A passage marked inside the report PDF → open the side chat seeded with it (same UX as
+  // transcript highlights), tagged with document + page so /api/chat grounds on the page text.
+  function onReportAsk(text: string, page: number | null, documentId: string) {
+    setChat((c) => ({ open: true, seed: text, nonce: c.nonce + 1, docRef: { documentId, page } }))
   }
 
   // Reassign the selected run to a speaker → recompute + persist the overlay → reload (Feature 1).
@@ -397,7 +411,7 @@ export function LiveTranscriptView({
             </div>
             <button
               type="button"
-              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
+              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null }))}
               className="call-hair call-ink flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] transition-opacity hover:opacity-80"
             >
               <SparkleIcon size={14} strokeWidth={1.6} />
@@ -524,7 +538,7 @@ export function LiveTranscriptView({
             <IconButton
               label={dict.company.openInChat}
               size={30}
-              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
+              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null }))}
             >
               <SparkleIcon size={16} />
             </IconButton>
@@ -646,6 +660,7 @@ export function LiveTranscriptView({
             <ReportPane
               companyId={call.companyId}
               quarter={call.quarter}
+              onAskSelection={onReportAsk}
               style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined}
             />
           )}
@@ -716,7 +731,7 @@ export function LiveTranscriptView({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 }))
+                  setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1, docRef: null }))
                   setSelection(null)
                 }}
                 className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
@@ -778,6 +793,7 @@ export function LiveTranscriptView({
           transcriptId={call.id === 'demo' ? undefined : call.id}
           quote={chat.seed}
           seedNonce={chat.nonce}
+          docRef={chat.docRef}
           onClose={() => setChat((c) => ({ ...c, open: false }))}
         />
       )}

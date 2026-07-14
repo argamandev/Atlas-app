@@ -28,6 +28,7 @@ export function TranscriptChatPanel({
   liveContext,
   quote,
   seedNonce,
+  docRef,
   onClose,
   heroLine2,
 }: {
@@ -38,6 +39,8 @@ export function TranscriptChatPanel({
   quote: string
   /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
+  /** multiview: the pending reference came from the report PDF (document + page) */
+  docRef?: { documentId: string; page: number | null } | null
   onClose: () => void
   /** hero second line override — "about this call" (default) vs "about this company" */
   heroLine2?: string
@@ -47,6 +50,7 @@ export function TranscriptChatPanel({
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [ref, setRef] = useState<string>(quote) // the pending reference shown above the composer
+  const [refDoc, setRefDoc] = useState<typeof docRef>(docRef ?? null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -54,9 +58,12 @@ export function TranscriptChatPanel({
   // preventScroll is CRITICAL: focusing while the panel is mid slide-in (translateX) made the
   // browser scroll the whole document sideways to reveal the input — the "page pushes left" bug.
   useEffect(() => {
-    if (quote) setRef(quote)
+    if (quote) {
+      setRef(quote)
+      setRefDoc(docRef ?? null)
+    }
     inputRef.current?.focus({ preventScroll: true })
-  }, [seedNonce, quote])
+  }, [seedNonce, quote]) // docRef rides the same nonce
 
   const scrollToEnd = () => {
     const el = scrollRef.current
@@ -68,8 +75,13 @@ export function TranscriptChatPanel({
     const text = (explicit ?? input).trim()
     if (!text || sending) return
     const usedRef = ref.trim()
+    const usedDoc = refDoc
     const history = messages.map((m) => ({ role: m.role, content: m.content }))
-    const apiMessage = usedRef ? `Regarding this quote from the investor call: "${usedRef}"\n\n${text}` : text
+    const apiMessage = usedRef
+      ? usedDoc
+        ? `Regarding this passage from the company's quarterly report${usedDoc.page ? ` (page ${usedDoc.page})` : ''}: "${usedRef}"\n\n${text}`
+        : `Regarding this quote from the investor call: "${usedRef}"\n\n${text}`
+      : text
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text, reference: usedRef || undefined },
@@ -77,6 +89,7 @@ export function TranscriptChatPanel({
     ])
     setInput('')
     setRef('')
+    setRefDoc(null)
     setSending(true)
 
     const setLast = (patch: Partial<Msg>) =>
@@ -90,7 +103,16 @@ export function TranscriptChatPanel({
     let full = ''
     try {
       const { source } = await streamChat(
-        { message: apiMessage, companyId: companyId ?? undefined, transcriptId, liveContext, history },
+        {
+          message: apiMessage,
+          companyId: companyId ?? undefined,
+          transcriptId,
+          liveContext,
+          history,
+          documentRef: usedDoc
+            ? { documentId: usedDoc.documentId, pages: usedDoc.page ? [usedDoc.page] : [] }
+            : undefined,
+        },
         (delta) => {
           full += delta
           setLast({ content: full })
