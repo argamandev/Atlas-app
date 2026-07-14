@@ -61,9 +61,9 @@ Poll `http://localhost:8788/state` in the background (~5s) and report milestones
 - first captions (`lines` > 0) — Recall accuracy mode lags **72–203s**, so this is slow; that's NORMAL,
 - buffer filled (edge ≥ buffer) → the live view is joinable,
 - source ended (`liveEnded` true).
-Then poll `http://localhost:3000/api/live/finish` until `status: completed`, and sanity-check
-`/api/live/finished-call/live-finish-demo-tamis-2026-06-14` is THIS call (company, ~duration, opening line) —
-the capture-reset fix should make it correct.
+Then poll `http://localhost:<YOUR LANE PORT — rules/parallel-work.md>/api/live/finish` until
+`status: completed`, and sanity-check `/api/live/finished-call/<the id returned by the finish
+flow>` is THIS call (company, ~duration, opening line) — never a hardcoded id from an old test.
 
 ## Gotchas (do not re-learn)
 - Claude can't start cloudflared — the founder must.

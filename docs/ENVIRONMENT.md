@@ -141,4 +141,3 @@ harness are the reference implementation, not just tooling.
 4. Work by the rituals: small steps · `/verify-app` before "done" · `/ship` to finish ·
    write before walking away.
 5. Improve the machine as you go: a lesson that generalizes belongs in a skill, not a chat.
-```

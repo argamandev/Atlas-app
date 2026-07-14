@@ -1,5 +1,7 @@
 # Parity audit — working doc (Task 1+)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 Ground truth: `design-import/Atlas MVP.dc.html`, re-synced 2026-07-06 (2935 lines, 260,921
 bytes, byte-identical to the morning sync — frozen for this pass). Rendered at
 `http://localhost:8399/Atlas%20MVP.dc.html`. App at `http://localhost:3001`.

@@ -69,9 +69,10 @@ stored forever. On top: chat, multi-view, workspace, agents.
    Production to-build: sentence-level correction with anchor alignment; copy recording +
    transcript to our storage post-call; permanent webhook URL; `live_calls` table +
    multi-call concurrency; live speaker capture (captions are currently one speakerless
-   block — capture Recall's per-word participant → real speaker segments). **Mission 4
-   adds: the independent IVRIT pipeline (Recall sends audio-only → RunPod IVRIT → text +
-   word timestamps) as a second engine.**
+   block — capture Recall's per-word participant → real speaker segments). **The independent
+   IVRIT pipeline (Recall sends audio-only → RunPod IVRIT → text + word timestamps) ✅ SHIPPED
+   2026-07-04 as the second engine (Lane I — see PROGRESS.md; distinct from Mission 4 below,
+   which is the multi-view experience).**
 2. **Core 2 — Automatic bot fleet from MAYA.** Quarterly-call announcements (Zoom links +
    times) per company → auto-create Recall bots → feed Core 1. Hard part learned 2026-06-15:
    Zoom registration tokens are single-use and short-lived — the fix is a tight
@@ -81,7 +82,7 @@ stored forever. On top: chat, multi-view, workspace, agents.
 3. **Core 3 — Finished transcript** ✅ complete (IVRIT → Gemini 3.5 Flash company-aware
    holistic prompt → structured transcript; persisted-before-format → cheap reformat).
    Deliberate leftovers: per-company entity DB; IVRIT confidence scores; per-line `startSec`.
-4. **Mission 4 — Multi-view investor call**: transcript + MAYA report PDF + slides subpanels,
+4. **Mission 4 — Multi-view investor call (Lane M)**: transcript + MAYA report PDF + slides subpanels,
    mark-text + Ask Atlas in every panel (see the 2026-07-02 build brief and
    `docs/superpowers/specs/2026-07-02-smart-environment-design.md` §Goal).
 5. **Mission 5+ — the per-company knowledge wiki (the intelligence layer).** Karpathy's

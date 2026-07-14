@@ -1,5 +1,7 @@
 # Design Parity Pass — spec (2026-07-06)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Lane:** F (frontend-import) · **Branch:** `feat/design-parity` (off `feat/frontend-import`)
 **Founder decisions:** Option A (pixel-parity audit loop) · missing density modules built now with stub data.
 

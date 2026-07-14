@@ -1,5 +1,7 @@
 # IVRIT Live Pipeline — Milestone 1 Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replayed archived call audio → chunked IVRIT/RunPod transcription with word timestamps → the existing karaoke live UX renders in sync, with the timing invariants unit-tested.

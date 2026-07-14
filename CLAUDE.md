@@ -34,7 +34,8 @@ prompt + `.claude/rules/parallel-work.md`. Shared brain (absolute paths, any wor
 Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — localhost only.
 
 - `npm run dev -- -p <your port>` · `npm test` · `npx tsc --noEmit` · `npm run build`
-- Live engine: `node scripts/live-broadcast.mjs` (:8788) · replay: `scripts/live-replay-engine.mjs`
+- Live: TWO engines share :8788 (Recall `live-broadcast.mjs` / IVRIT `live-ivrit-broadcast.ts`)
+  — read `.claude/rules/live.md` before touching live. Replay: `scripts/live-replay-engine.mjs`
 
 ## Doc map
 
@@ -43,6 +44,8 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
 - `docs/ENVIRONMENT.md` — how this smart environment works + the dev↔product mapping
 - `docs/LAUNCH-KIT.md` — fleet setup: worktrees + the 3 lane opening prompts
 - `PROGRESS.md` — decision log (append at ship time; compacted-era raw entries → `docs/archive/`)
+- `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` — pre-launch security pass checklist
+- `docs/audits/` — environment audits · `docs/evidence/<branch>/` — durable ship evidence
 - `.claude/rules/` — parallel-work · db · live · app (read before touching those areas)
 - `LEGACY.md` — the 4-file Wave-2 login gateway (only legacy left)
 - Skills: `/verify-app` · `/ship` · `/fleet-lint` · `/live-test` · `/transcript-review` ·
