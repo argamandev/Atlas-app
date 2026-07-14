@@ -1,16 +1,31 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { EntityRow } from '@/components/ds/EntityRow'
+import { LiveBeamAvatar } from '@/components/ds/LiveBeamAvatar'
 import { delayedLiveEdge, hostedLiveOver, LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
-// Home "Live Now" — polls the live engine and surfaces the company the moment a call goes live
-// (audio flowing). This is the auto-appear behavior MAYA will drive in production; for now the
-// single live call is תמיס. Clicking opens the live broadcast page.
-export function LiveNowPanel({ companyName, logoUrl }: { companyName: string; logoUrl: string | null }) {
+function formatClock(totalSec: number): string {
+  const m = Math.floor(totalSec / 60)
+  const s = Math.floor(totalSec % 60)
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+// Home "Live Now" — polls the live engine and surfaces the company the moment a call goes
+// live. Design anatomy (lines 196-202): a borderless hover-fill row — beam monogram,
+// name 14/600, red caps tag (quarter) — plus our running mono clock at the row's end.
+export function LiveNowPanel({
+  companyName,
+  quarter,
+}: {
+  companyName: string
+  logoUrl?: string | null
+  quarter?: string | null
+}) {
   const { dict } = useI18n()
   const [live, setLive] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -22,7 +37,10 @@ export function LiveNowPanel({ companyName, logoUrl }: { companyName: string; lo
         const edge = st.liveEdgeRel ?? 0
         const drained = delayedLiveEdge(edge, LIVE_BUFFER_SEC, st.endedAt ?? null, Date.now())
         const over = hostedLiveOver(!!st.liveEnded, drained, edge)
-        if (alive) setLive(st.audioStartRel !== null && !over)
+        if (alive) {
+          setLive(st.audioStartRel !== null && !over)
+          setElapsed(Math.max(0, drained))
+        }
       } catch {
         if (alive) setLive(false)
       }
@@ -35,21 +53,40 @@ export function LiveNowPanel({ companyName, logoUrl }: { companyName: string; lo
     }
   }, [])
 
+  // local 1s tick so the clock runs between polls
+  useEffect(() => {
+    if (!live) return
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => clearInterval(t)
+  }, [live])
+
   if (!live) {
-    return <p className="px-2.5 py-6 text-sm text-ink-faint">{dict.home.noLiveNow}</p>
+    return (
+      <div className="rounded-[10px] border border-dashed border-subtle-strong px-4 py-[22px] text-center text-sm text-ink-faint">
+        {dict.home.noLiveNow}
+      </div>
+    )
   }
 
   return (
-    <EntityRow
+    <Link
       href="/app/live/live"
-      logoSrc={logoUrl}
-      name={companyName}
-      secondary={
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
-          <span className="font-medium text-live">{dict.live.liveBadge}</span>
+      className="hov-filld flex w-full items-center gap-3.5 rounded-[12px] px-2 py-[9px] text-start"
+    >
+      <LiveBeamAvatar size={50} surface="page">
+        {companyName.trim().charAt(0) || '·'}
+      </LiveBeamAvatar>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[14px] font-semibold text-ink">
+          <span dir="auto">{companyName}</span>
         </span>
-      }
-    />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-live">
+          {quarter || dict.live.liveBadge}
+        </span>
+      </div>
+      <span className="flex-none font-mono-num text-[11.5px] text-ink-faint" dir="ltr">
+        {formatClock(elapsed)}
+      </span>
+    </Link>
   )
 }

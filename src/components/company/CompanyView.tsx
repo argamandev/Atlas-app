@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import {
@@ -12,17 +13,22 @@ import {
 } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 import { Tabs } from '@/components/ds/Tabs'
-import { Logo } from '@/components/ds/Logo'
-import { Surface } from '@/components/ds/Surface'
-import { EntityRow } from '@/components/ds/EntityRow'
-import { SectionHeader } from '@/components/ds/SectionHeader'
-import { IconButton } from '@/components/ds/IconButton'
-import { SparkleIcon, DotsVerticalIcon, CalendarIcon } from '@/components/ds/icons'
+import {
+  SparkleIcon,
+  ChevronLeftIcon,
+  TranscriptIcon,
+  FileIcon,
+  SlidesIcon,
+  VideoIcon,
+} from '@/components/ds/icons'
+import { Monogram } from '@/components/ds/Monogram'
+import { companyOverviewStub } from '@/lib/company/overview-stub'
 import { AddInvestorCall } from './AddInvestorCall'
 import { AdminCallControls } from './AdminCallControls'
 import { CompanyOverview } from './CompanyOverview'
+import { TranscriptChatPanel } from '@/components/live/TranscriptChatPanel'
 import { MyQuotes } from './MyQuotes'
-import { formatDate, formatTime } from '@/lib/i18n/format'
+import { formatDate } from '@/lib/i18n/format'
 import { quarterSortKey } from '@/lib/utils'
 
 function groupByQuarter<T extends { quarter?: string | null }>(items: T[]): [string, T[]][] {
@@ -36,38 +42,10 @@ function groupByQuarter<T extends { quarter?: string | null }>(items: T[]): [str
   return Array.from(map.entries()).sort((a, b) => quarterSortKey(b[0]) - quarterSortKey(a[0]))
 }
 
-function CallMenu({
-  onChat,
-  moreLabel,
-  chatLabel,
-}: {
-  onChat: () => void
-  moreLabel: string
-  chatLabel: string
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <span className="relative">
-      <IconButton label={moreLabel} size={28} onClick={() => setOpen((o) => !o)}>
-        <DotsVerticalIcon size={16} />
-      </IconButton>
-      {open && (
-        <Surface elevation="popover" className="absolute end-0 top-full z-50 mt-1 w-44 p-1 text-start">
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false)
-              onChat()
-            }}
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-ink hover:bg-subtle"
-          >
-            <SparkleIcon size={15} className="text-ink-muted" />
-            {chatLabel}
-          </button>
-        </Surface>
-      )}
-    </span>
-  )
+/** "Q2 2026" → "2026"; unparseable quarters group under "—". */
+function yearOf(quarter: string): string {
+  const m = quarter.match(/(\d{4})/)
+  return m ? m[1] : '—'
 }
 
 export function CompanyView({
@@ -91,93 +69,135 @@ export function CompanyView({
   const router = useRouter()
   const [tab, setTab] = useState(initialTab)
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes)
+  // Ask Atlas opens the in-page side dock (design toggleCompanyChat) — NOT the chat page
+  const [chatOpen, setChatOpen] = useState(false)
 
   const name = companyDisplayName(company, locale)
+  // design-demo identity extras + density modules (IR name, index chips) — stub feed
+  const stub = companyOverviewStub(company.id)
   const industry = [company.sector, company.subSector].filter(Boolean).join(' · ')
-  const openInChat = () => router.push(`/app/chat?company=${company.id}`)
+  const openInChat = () => setChatOpen(true)
   const isLiveCompany = company.ticker === '1097229' // תמיס — the live-demo company
   const transcriptsByQuarter = groupByQuarter(transcripts)
   const onQuoteRemoved = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id))
 
-  const callRow = (call: ScheduledCall) => (
-    <EntityRow
-      key={call.id}
-      logoSrc={company.logoUrl}
-      name={name}
-      secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
-      secondary={`${call.quarter} · ${formatDate(call.scheduledAt, locale)}`}
-      meta={<span dir="ltr">{formatTime(call.scheduledAt, locale)}</span>}
-      trailing={
-        <CallMenu onChat={openInChat} moreLabel={dict.common.more} chatLabel={dict.company.openInChat} />
-      }
-    />
-  )
-
-  const finishedRow = (t: RecentTranscript) => {
-    const row = (
-      <EntityRow
-        href={`/app/live/${t.id}`}
-        logoSrc={company.logoUrl}
-        name={name}
-        secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
-        secondary={[t.quarter, formatDate(t.date || t.createdAt, locale)].filter(Boolean).join(' · ')}
-        meta={t.duration ? <span dir="ltr">{t.duration}</span> : undefined}
-      />
-    )
-    if (!isAdmin) return <div key={t.id}>{row}</div>
-    // Admin controls sit BESIDE the row (not inside the EntityRow link) — rename + delete.
-    return (
-      <div key={t.id} className="flex items-center gap-1">
-        <div className="min-w-0 flex-1">{row}</div>
-        <AdminCallControls transcriptId={t.id} title={t.company} quarter={t.quarter} />
-      </div>
-    )
+  // Reports tab: quarters grouped by year, newest first (design lines 561-597).
+  const byYear: [string, [string, RecentTranscript[]][]][] = []
+  for (const [quarter, ts] of transcriptsByQuarter) {
+    const y = yearOf(quarter)
+    const bucket = byYear.find(([yy]) => yy === y)
+    if (bucket) bucket[1].push([quarter, ts])
+    else byYear.push([y, [[quarter, ts]]])
   }
 
+  const artifactBtn = (key: string, label: string, icon: React.ReactNode, href: string | null) =>
+    href ? (
+      <Link
+        key={key}
+        href={href}
+        title={label}
+        className="grid h-8 w-8 place-items-center rounded-lg border border-subtle-strong bg-canvas text-ink-muted transition-colors hover:text-ink"
+      >
+        {icon}
+      </Link>
+    ) : (
+      <span
+        key={key}
+        title={label}
+        className="grid h-8 w-8 place-items-center rounded-lg border border-dashed border-subtle-strong text-ink-faint/50"
+      >
+        {icon}
+      </span>
+    )
+
   return (
-    <div className="app-scroll flex-1 overflow-y-auto pb-dock">
-      {/* header — identity on the leading edge (top-left in EN, top-right in HE) */}
-      <header className="border-b border-hairline">
-        <div className="mx-auto flex max-w-4xl animate-fade-up items-start justify-between gap-4 px-8 py-5">
-          <div className="flex items-center gap-3.5">
-            <Logo src={company.logoUrl} name={name} size={48} />
-            <div className="text-start">
-              <h1 className="text-xl font-bold leading-tight text-ink">{name}</h1>
-              {(industry || company.ticker) && (
-                <p className="mt-0.5 text-xs text-ink-muted">
-                  {[industry, company.ticker].filter(Boolean).join(' · ')}
-                </p>
-              )}
+    <div className="flex min-h-0 flex-1">
+      <div className="atscroll min-w-0 flex-1 overflow-y-auto pb-dock">
+        {/* page header (design lines 583-626): breadcrumb → identity (monogram, mono line,
+          indices chips) → LIVE·TASE + actions → underline tabs. 1120px centered column. */}
+        <div className="mx-auto max-w-[1120px] px-11 pt-[26px]">
+          <Link
+            href="/app/home"
+            className="mb-[18px] flex items-center gap-1.5 text-[12.5px] text-ink-faint transition-colors hover:text-ink-muted"
+          >
+            <ChevronLeftIcon size={14} strokeWidth={1.7} className="rtl:rotate-180" />
+            {dict.company.backToHome}
+          </Link>
+          <div className="flex animate-fade-up items-start justify-between gap-5">
+            <div className="flex min-w-0 items-center gap-3.5">
+              <Monogram name={name} size={48} fontSize={21} radius={11} />
+              <div className="min-w-0 text-start">
+                <h1 className="font-head text-[27px] font-bold leading-[1.1] tracking-[-0.03em] text-ink">
+                  <span dir="auto">{name}</span>
+                </h1>
+                <div className="mt-1.5 flex flex-wrap items-center gap-[9px]">
+                  <span className="font-mono-num text-[12.5px] text-[#8A867C]">
+                    {[
+                      industry,
+                      company.ticker ? `TASE ${company.ticker}` : null,
+                      `${dict.company.irLabel}: ${stub.irName}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                  <span className="h-3 w-px flex-none bg-[#DDD8CE]" />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#A8A498]">
+                    {dict.company.indices}
+                  </span>
+                  {stub.indices.map((ix) => (
+                    <span
+                      key={ix}
+                      className="rounded-full border border-[#E6E2DA] bg-paper px-[9px] py-[2px] font-mono-num text-[11px] text-[#6B6862]"
+                      dir="ltr"
+                    >
+                      {ix}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-none flex-col items-end gap-[13px]">
+              {/* market status ornament (design lines 603-609) */}
+              <span className="flex items-center gap-[7px]">
+                <span className="font-mono-num text-[10px] uppercase tracking-[0.16em] text-live" dir="ltr">
+                  {dict.company.liveTase}
+                </span>
+                <span className="relative inline-flex h-[6px] w-[6px]">
+                  <span className="absolute inset-0 rounded-full bg-live" />
+                  <span
+                    className="absolute -inset-1 rounded-full border border-live opacity-50"
+                    style={{ animation: 'atping 1.9s ease-out infinite' }}
+                  />
+                </span>
+              </span>
+              <div className="flex items-center gap-2.5">
+                <AddInvestorCall companyId={company.id} />
+                <button
+                  type="button"
+                  onClick={openInChat}
+                  className="hov-border flex items-center gap-[7px] rounded-lg border border-[#E0DACE] px-3.5 py-2 text-[14px] font-semibold text-ink"
+                >
+                  <SparkleIcon size={22} />
+                  {dict.company.askAtlas}
+                </button>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={openInChat}
-              className="flex items-center gap-1.5 rounded-md border border-hairline px-3 py-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
-            >
-              <SparkleIcon size={15} />
-              {dict.company.openInChat}
-            </button>
-            <AddInvestorCall companyId={company.id} />
-          </div>
+          <Tabs
+            className="mt-[22px]"
+            activeKey={tab}
+            onChange={setTab}
+            items={[
+              { key: 'overview', label: dict.company.overview },
+              { key: 'quotes', label: dict.company.myQuotes },
+              { key: 'reports', label: dict.company.reports },
+              { key: 'webinars', label: dict.company.webinars },
+            ]}
+          />
         </div>
-      </header>
 
-      <div className="mx-auto w-full max-w-4xl px-8">
-        <Tabs
-          className="mt-4"
-          activeKey={tab}
-          onChange={setTab}
-          items={[
-            { key: 'overview', label: dict.company.overview },
-            { key: 'quotes', label: dict.company.myQuotes },
-            { key: 'calls', label: dict.company.investorCalls },
-          ]}
-        />
-
-        {tab === 'overview' && (
-          <div className="py-6">
+        <div className="mx-auto max-w-[1120px] px-11 pb-[120px] pt-7">
+          {tab === 'overview' && (
             <CompanyOverview
               data={{
                 companyName: name,
@@ -189,11 +209,9 @@ export function CompanyView({
                 liveQuarter: isLiveCompany ? 'Q2 2026' : null,
               }}
             />
-          </div>
-        )}
+          )}
 
-        {tab === 'quotes' && (
-          <div className="py-6">
+          {tab === 'quotes' && (
             <MyQuotes
               quotes={quotes}
               companyId={company.id}
@@ -201,39 +219,113 @@ export function CompanyView({
               onRemoved={onQuoteRemoved}
               initialFolders={folders}
             />
-          </div>
-        )}
+          )}
 
-        {tab === 'calls' && (
-          <div className="space-y-6 py-6">
-            {transcripts.length === 0 && calls.length === 0 ? (
-              <p className="px-2.5 py-4 text-sm text-ink-faint">{dict.common.empty}</p>
-            ) : (
-              <>
-                {transcriptsByQuarter.length > 0 && (
-                  <div className="space-y-5">
-                    <SectionHeader label={dict.company.backlog} className="mb-1" />
-                    {transcriptsByQuarter.map(([quarter, ts]) => (
-                      <div key={`t-${quarter}`}>
-                        <div className="mb-1.5 px-1 text-xs font-medium text-ink-faint" dir="ltr">
-                          {quarter}
-                        </div>
-                        <div className="flex flex-col gap-0.5">{ts.map(finishedRow)}</div>
+          {tab === 'reports' && (
+            <div className="animate-fade-up">
+              {/* legend (design line 562): what each quarter can carry */}
+              <div className="mb-4 flex items-center gap-4 text-xs text-ink-faint">
+                <span>{dict.company.eachQuarter}</span>
+                <span className="flex items-center gap-1.5">
+                  <TranscriptIcon size={14} /> {dict.company.transcript}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <FileIcon size={14} /> {dict.company.reportPdf}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <SlidesIcon size={14} /> {dict.company.slides}
+                </span>
+              </div>
+              {byYear.length === 0 ? (
+                <div className="rounded-card border border-dashed border-subtle-strong px-5 py-10 text-center text-[13.5px] text-ink-faint">
+                  {dict.company.noReports}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {byYear.map(([year, quarters]) => (
+                    <div
+                      key={year}
+                      className="overflow-hidden rounded-card border border-subtle-strong bg-paper"
+                    >
+                      <div className="flex items-center gap-2.5 px-4 py-3">
+                        <span className="text-sm font-semibold text-ink" dir="ltr">
+                          {year}
+                        </span>
+                        <span className="font-mono-num text-xs text-ink-faint" dir="ltr">
+                          · {quarters.length} {dict.company.quartersLabel}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-                {calls.length > 0 && (
-                  <div>
-                    <SectionHeader label={dict.company.upcomingCalls} className="mb-2" />
-                    <div className="flex flex-col gap-0.5">{calls.map(callRow)}</div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
+                      <div className="flex flex-col">
+                        {quarters.map(([quarter, ts]) =>
+                          ts.map((t) => (
+                            <div
+                              key={t.id}
+                              className="flex items-center justify-between gap-3 border-t border-hairline px-4 py-3"
+                            >
+                              <div className="min-w-0">
+                                <span className="font-mono-num text-sm font-medium text-ink" dir="ltr">
+                                  {quarter}
+                                </span>
+                                <span className="ms-2.5 text-xs text-ink-faint">
+                                  {formatDate(t.date || t.createdAt, locale)}
+                                </span>
+                              </div>
+                              <div className="flex flex-none items-center gap-2">
+                                {artifactBtn(
+                                  'tr',
+                                  dict.company.transcript,
+                                  <TranscriptIcon size={15} />,
+                                  `/app/live/${t.id}`
+                                )}
+                                {artifactBtn('pdf', dict.company.reportPdf, <FileIcon size={15} />, null)}
+                                {artifactBtn('sl', dict.company.slides, <SlidesIcon size={15} />, null)}
+                                {isAdmin && (
+                                  <AdminCallControls
+                                    transcriptId={t.id}
+                                    title={t.company}
+                                    quarter={t.quarter}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'webinars' && (
+            <div className="animate-fade-up">
+              <div className="mb-5 flex items-start gap-2.5 text-xs leading-relaxed text-ink-faint">
+                <VideoIcon size={15} className="mt-0.5 flex-none" />
+                <p className="max-w-lg">{dict.company.webinarsExplainer}</p>
+              </div>
+              <div className="rounded-card border border-dashed border-subtle-strong px-5 py-10 text-center text-[13.5px] text-ink-faint">
+                {dict.company.noWebinars}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Ask Atlas side dock (design toggleCompanyChat): in-page, light call-theme scope
+          gives the shared panel its light variables */}
+      {chatOpen && (
+        <div data-call-theme="light" className="flex min-h-0">
+          <TranscriptChatPanel
+            companyId={company.id}
+            transcriptId={undefined}
+            quote=""
+            seedNonce={0}
+            onClose={() => setChatOpen(false)}
+            heroLine2={dict.live.askHeroCompany}
+          />
+        </div>
+      )}
     </div>
   )
 }

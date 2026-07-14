@@ -4,7 +4,7 @@ import * as React from 'react'
 // (No floating window / desktop backdrop / window chrome — this is a real webapp.)
 export function MacWindowFrame({ nav, children }: { nav: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-canvas text-ink">
+    <div className="flex h-screen w-full overflow-hidden bg-shell text-ink">
       {nav}
       {children}
     </div>

@@ -18,8 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const locale = getLocale()
   const dir = getDirection(locale)
   const dict = getDictionary(locale)
-  // English UI → Inter; Hebrew UI → Calibri Regular (with a Hebrew fallback stack).
-  const fontClass = locale === 'he' ? 'font-calibri' : 'font-latin'
+  // Both locales use the design's system stack (font-sans) — the rendered Claude
+  // Design serves Hebrew and Latin from the same system face (Segoe UI / SF Pro).
+  const fontClass = 'font-sans'
 
   return (
     <html dir={dir} lang={locale}>
@@ -27,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
       </head>

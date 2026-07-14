@@ -105,33 +105,43 @@ export function QuoteCard({
 
   if (removed) return null
 
+  const speakerInitial = (quote.speaker || companyName).trim().charAt(0)
+
   return (
-    <Surface
-      tone="canvas"
-      className="group relative border border-hairline p-3.5 transition-shadow hover:shadow-popover"
-    >
+    // design .atq card (line 770): static border, NO hover shadow/ring — only the actions fade in
+    <div data-ask="1" className="group relative rounded-[10px] border border-[#ECE7DD] bg-white px-4 py-3.5">
       {toast && (
         <span className="pointer-events-none absolute end-3 top-3 rounded-full bg-ink px-2 py-0.5 text-2xs font-medium text-white">
           {toast}
         </span>
       )}
-      <div className="flex gap-2.5">
-        <QuoteIcon size={16} className="mt-0.5 shrink-0 text-ink-faint" />
-        <div className="min-w-0 flex-1">
-          <p dir="auto" className="text-sm leading-relaxed text-ink">
-            {quote.text}
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            {quote.speaker && <p className="text-xs text-ink-muted">{quote.speaker}</p>}
-            {currentFolder && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-subtle px-2 py-0.5 text-2xs text-ink-muted">
-                <FolderIcon size={11} />
-                {currentFolder.name}
-              </span>
-            )}
-          </div>
+      <div className="min-w-0">
+        <p dir="auto" className="text-[14.5px] leading-[1.8] text-ink">
+          {quote.text}
+        </p>
+        {/* attribution row (design lines 539-541): initial tile · speaker · mono quarter · hover actions */}
+        <div className="mt-3 flex items-center gap-[9px]">
+          <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-md bg-subtle text-[11px] text-ink">
+            <span dir="auto">{speakerInitial}</span>
+          </span>
+          {quote.speaker && (
+            <span className="truncate text-xs text-ink-muted" dir="auto">
+              {quote.speaker}
+            </span>
+          )}
+          {quote.quarter && (
+            <span className="flex-none font-mono-num text-[11px] text-ink-faint" dir="ltr">
+              {quote.quarter}
+            </span>
+          )}
+          {currentFolder && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-subtle px-2 py-0.5 text-2xs text-ink-muted">
+              <FolderIcon size={11} />
+              <span dir="auto">{currentFolder.name}</span>
+            </span>
+          )}
 
-          <div className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <div className="ms-auto flex items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
             <IconButton label={dict.company.openInChat} size={28} onClick={openInChat}>
               <SparkleIcon size={15} />
             </IconButton>
@@ -235,6 +245,6 @@ export function QuoteCard({
           </div>
         </div>
       </div>
-    </Surface>
+    </div>
   )
 }

@@ -20,7 +20,7 @@ export const tokens = {
     // text hierarchy — weight + gray value carry hierarchy, never loud color
     ink: '#1B1B1A', // primary: names, headers, key values (near-black, warm)
     inkMuted: '#6C6C68', // secondary: roles, labels
-    inkFaint: '#9C9A94', // metadata: timestamps, tickers, captions
+    inkFaint: '#8A867C', // metadata: timestamps, tickers, captions (V2: design's warmer faint)
 
     // the single high-contrast element: the docked media player
     player: '#2B2B2E', // warm graphite charcoal (not pure black)
@@ -28,11 +28,41 @@ export const tokens = {
     playerFaint: '#9A9A9D',
     playerTrack: '#4A4A4D',
 
-    // reserved for LIVE / real-time ONLY — appears nowhere else
-    live: '#E5484D',
+    // reserved for LIVE / real-time ONLY — appears nowhere else.
+    // V2 (Claude Design import): burnt orange-red, verified as the design's only live accent.
+    live: '#CB4B2E',
 
     white: '#FFFFFF',
     black: '#000000',
+  },
+
+  // ── V2 surfaces (Claude Design import, 2026-07) — values probed from the rendered
+  // design's computed styles (design-import/Atlas MVP.dc.html, locked "Black rail" theme) ──
+  v2: {
+    shell: '#F5F3EE', // main page area behind all content
+    paper: '#FAF9F6', // raised inputs/cards on the cream shell (search, live card)
+    rail: '#0A0A0A', // black nav rail
+    railText: '#A6A29A', // inactive rail item text
+    railActive: 'rgba(255,255,255,0.10)', // active item fill (+ white text)
+    railChip: 'rgba(255,255,255,0.06)', // quick-access chip fill
+    railHair: 'rgba(255,255,255,0.09)', // rail hairlines / chip borders
+    ask: '#FCE44D', // Ask-Atlas selection/highlight ONLY
+    askInk: '#1C1B19', // ink on ask-yellow
+    // call view dark theme (warm dark, not neutral gray)
+    callDark: '#16150F', // call root background
+    callPanel: '#26241B', // raised panels (sections rail rows, chips)
+    callRaised: '#2A281F', // stronger raised (active chips, toggles)
+    callHover: '#1F1D17', // hover fill
+    callTrack: '#3A382F', // progress tracks / dividers
+    callInk: '#EDEAE1', // primary text on dark
+    callMuted: '#B8B3A8', // secondary text on dark
+    callFaint: '#8A867C', // metadata on dark
+    // chat composer (design update 2026-07-06: the warm field family)
+    field: '#F3EEE4', // composer field fill
+    fieldLine: '#E4DED1', // composer field border
+    chipBg: '#FBFAF7', // suggestion chip fill
+    sendIdle: '#E4DDCE', // send button, idle
+    ghost: '#9C978B', // ghost/placeholder text
   },
 
   // soft, consistent rounded corners (brief §3.3)
@@ -49,6 +79,8 @@ export const tokens = {
   // `card` (barely-there lift for list rows / cards) and `float` (the search +
   // composer hover-float) are the softer, more diffuse recipes from the V1 design pass.
   shadow: {
+    // V2 (Claude Design): the design's one soft lift for search field + live card
+    soft: '0 1px 3px rgba(28,27,25,0.06), 0 8px 24px rgba(28,27,25,0.04)',
     card: '0 1px 2px rgba(20,18,15,0.05), 0 1px 1px rgba(20,18,15,0.03)',
     float: '0 24px 70px -20px rgba(20,18,15,0.16), 0 2px 8px -2px rgba(20,18,15,0.07)',
     window: '0 24px 64px -16px rgba(0,0,0,0.28), 0 2px 8px -2px rgba(0,0,0,0.10)',

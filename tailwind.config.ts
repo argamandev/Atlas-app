@@ -34,32 +34,59 @@ const config: Config = {
         'player-faint': tokens.color.playerFaint,
         'player-track': tokens.color.playerTrack,
         live: tokens.color.live,
+
+        // ── V2 (Claude Design import) surfaces ──
+        // shell + rail read CSS variables so the design's color-scheme toggle
+        // (Warm / Black rail / Black + white) can reskin them; defaults = Black rail.
+        shell: 'var(--shell-bg, #F5F3EE)',
+        paper: tokens.v2.paper,
+        rail: 'var(--rail-bg, #0A0A0A)',
+        'rail-text': 'var(--rail-text, #A6A29A)',
+        'rail-strong': 'var(--rail-strong, #FFFFFF)',
+        'rail-active': 'var(--rail-active, rgba(255,255,255,0.10))',
+        'rail-chip': 'var(--rail-chip, rgba(255,255,255,0.06))',
+        'rail-hair': 'var(--rail-hair, rgba(255,255,255,0.09))',
+        ask: tokens.v2.ask,
+        'ask-ink': tokens.v2.askInk,
+        'call-dark': tokens.v2.callDark,
+        'call-panel': tokens.v2.callPanel,
+        'call-raised': tokens.v2.callRaised,
+        'call-hover': tokens.v2.callHover,
+        'call-track': tokens.v2.callTrack,
+        'call-ink': tokens.v2.callInk,
+        'call-muted': tokens.v2.callMuted,
+        'call-faint': tokens.v2.callFaint,
+        field: tokens.v2.field,
+        'field-line': tokens.v2.fieldLine,
+        'chip-bg': tokens.v2.chipBg,
+        'send-idle': tokens.v2.sendIdle,
+        ghost: tokens.v2.ghost,
       },
       fontFamily: {
-        hebrew: [
-          '"IBM Plex Sans Hebrew"',
-          'Heebo',
-          'Inter',
+        // ── V2 parity pass: THE design's base stack (probed from the rendered
+        // Atlas MVP.dc.html — one stack for BOTH locales; resolves to Segoe UI
+        // on Windows, SF Pro on Mac; Hebrew renders from the same system face).
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"SF Pro Text"',
+          '"Helvetica Neue"',
           'system-ui',
           'sans-serif',
         ],
+        // ── V2 headline stack — the design's DISPLAY stack, copied VERBATIM from the
+        // rendered home greeting. It deliberately has NO system-ui: on Windows it falls
+        // through to the browser default sans (Arial) — narrower + tighter than Segoe UI,
+        // which is the exact face the design paints there. Do not "fix" by adding system-ui.
+        head: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', 'sans-serif'],
+        hebrew: ['"IBM Plex Sans Hebrew"', 'Heebo', 'Inter', 'system-ui', 'sans-serif'],
         // Latin/English UI font. Falls back to the Hebrew face so mixed-script
         // content (Hebrew company names inside an English UI) still renders.
-        latin: [
-          'Inter',
-          '"IBM Plex Sans Hebrew"',
-          'system-ui',
-          'sans-serif',
-        ],
+        latin: ['Inter', '"IBM Plex Sans Hebrew"', 'system-ui', 'sans-serif'],
         // Hebrew V1 UI font — Calibri Regular with a Hebrew-supporting fallback stack.
-        calibri: [
-          'Calibri',
-          '"Segoe UI"',
-          '"IBM Plex Sans Hebrew"',
-          'Heebo',
-          'system-ui',
-          'sans-serif',
-        ],
+        calibri: ['Calibri', '"Segoe UI"', '"IBM Plex Sans Hebrew"', 'Heebo', 'system-ui', 'sans-serif'],
+        // ── V2 (Claude Design import) — serif display voice (report titles, serif accents)
+        display: ['Newsreader', 'Georgia', 'serif'],
       },
       borderRadius: {
         none: '0',
@@ -77,6 +104,7 @@ const config: Config = {
       },
       boxShadow: {
         // Soft, diffuse elevation used in exactly three places (brief §3.4).
+        soft: tokens.shadow.soft,
         card: tokens.shadow.card,
         float: tokens.shadow.float,
         window: tokens.shadow.window,
@@ -108,12 +136,12 @@ const config: Config = {
         'progress-fill': 'progressFill 1.5s ease-in-out forwards',
         'fade-in': 'fadeIn 0.4s ease-out forwards',
         'slide-up': 'slideUp 0.5s ease-out forwards',
-        'blink': 'blink 1.2s step-end infinite',
+        blink: 'blink 1.2s step-end infinite',
         // ── V1 design-pass motion (cubic-bezier ease-out, fill both for staggered reveals) ──
         'fade-up': 'fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
         'pop-in': 'popIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both',
         'pulse-live': 'pulseLive 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) infinite',
-        'shimmer': 'shimmer 1.4s linear infinite',
+        shimmer: 'shimmer 1.4s linear infinite',
       },
       keyframes: {
         progressFill: {

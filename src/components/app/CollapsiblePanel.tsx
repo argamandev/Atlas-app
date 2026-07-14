@@ -26,27 +26,35 @@ export function CollapsiblePanel({
           type="button"
           onClick={() => setCollapsed(false)}
           title={title}
-          className="hidden w-10 shrink-0 items-start justify-center bg-panel pt-3 text-ink-faint transition-colors hover:text-ink lg:flex"
+          className="hidden w-10 shrink-0 items-start justify-center border-e border-hairline bg-shell pt-4 text-ink-faint transition-colors hover:text-ink lg:flex"
         >
-          <ChevronRightIcon size={18} />
+          <ChevronRightIcon size={18} className="rtl:rotate-180" />
         </button>
       ) : (
-        <aside className="app-scroll hidden w-[320px] shrink-0 flex-col overflow-y-auto bg-panel p-3 lg:flex">
-          <div className="mb-2 flex items-center justify-between px-1">
-            {title ? <span className="text-xs font-medium text-ink-faint">{title}</span> : <span />}
+        <aside className="app-scroll hidden w-[312px] shrink-0 flex-col overflow-y-auto border-e border-hairline bg-shell p-5 lg:flex">
+          <div className="mb-[18px] flex items-center justify-between">
+            {title ? (
+              // design panel labels are system caps (line 190), not mono
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A867C]">
+                {title}
+              </span>
+            ) : (
+              <span />
+            )}
             <button
               type="button"
               onClick={() => setCollapsed(true)}
               title={dict.nav.collapseSidebar}
-              className="text-ink-faint transition-colors hover:text-ink"
+              className="text-[15px] leading-none text-ink-faint transition-colors hover:text-ink"
             >
-              <CollapseIcon size={15} />
+              <span className="rtl:hidden">«</span>
+              <span className="hidden rtl:inline">»</span>
             </button>
           </div>
           {panel}
         </aside>
       )}
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-canvas">{children}</main>
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-shell">{children}</main>
     </div>
   )
 }

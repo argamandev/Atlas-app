@@ -2,6 +2,128 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── V2 (Claude Design import) animation vocabulary — keyframe bodies copied VERBATIM
+   from design-import/Atlas MVP.dc.html lines 17-31 and reference/live-beam.html.
+   Do not retune; the design's rhythm is the contract. ── */
+@keyframes atpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.78)}}
+@keyframes atline{from{transform:translateY(4px)}to{transform:none}}
+@keyframes atblink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes atsettle{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* design .ln-pulse values EXACT (dc line 57) */
+@keyframes radar-pulse{0%{transform:scale(0.72);opacity:0.85}70%{opacity:0.14}100%{transform:scale(1.75);opacity:0}}
+@keyframes dot-blink{0%,100%{opacity:1}50%{opacity:0.35}}
+@keyframes askSlideIn{from{transform:translateX(100%)}to{transform:none}}
+@keyframes askSlideInRtl{from{transform:translateX(-100%)}to{transform:none}}
+/* design update 2026-07-06: ask-panel slide + ping + word entrance */
+@keyframes atping{0%{transform:scale(.6);opacity:.55}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
+@keyframes atpanelin{from{transform:translateX(100%);opacity:.85}to{transform:none;opacity:1}}
+@keyframes atpanelinRtl{from{transform:translateX(-100%);opacity:.85}to{transform:none;opacity:1}}
+@keyframes atwordin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.aa-panel{animation:atpanelin .52s cubic-bezier(.22,.61,.36,1) both}
+.aa-w{display:inline-block;animation:atwordin .6s cubic-bezier(.22,.61,.36,1) both}
+@media (prefers-reduced-motion:reduce){.aa-panel,.aa-w{animation:none!important}}
+[dir='rtl'] .aa-panel{animation-name:atpanelinRtl}
+
+/* the design's soft content scrollbar (main page areas) */
+.atscroll::-webkit-scrollbar{width:10px;height:10px}
+.atscroll::-webkit-scrollbar-thumb{background:rgba(28,27,25,.13);border-radius:9px;border:3px solid transparent;background-clip:content-box}
+.atscroll::-webkit-scrollbar-track{background:transparent}
+
+/* ── Call-view theming (design lines 216-431): dark-first, Light via toggle.
+   Components use the .call-* semantic classes; flipping data-call-theme reskins the
+   whole call frame without threading a theme prop. Dark values probed from the
+   rendered design (warm dark, not neutral). ── */
+/* dark values from the design source (dc line 2366-2371): bg MATCHES THE RAIL (#0A0A0A) */
+[data-call-theme='dark'] {
+  --call-bg: #0a0a0a;
+  --call-panel: #26241b;
+  --call-raised: #1a1a18;
+  --call-hover: #141412;
+  --call-track: #1a1a18;
+  --call-ink: #edeae1;
+  --call-muted: #8a867c;
+  --call-faint: #6f6c64;
+  --call-hair: #232320;
+  --call-card: #161614;
+}
+[data-call-theme='light'] {
+  --call-bg: #f5f3ee;
+  --call-panel: #ece9e2;
+  --call-raised: #ece9e2;
+  --call-hover: #ece9e2;
+  --call-track: #ece9e2;
+  --call-ink: #1c1b19;
+  --call-muted: #6b6862;
+  --call-faint: #8a867c;
+  --call-hair: #e6e2da;
+  --call-card: #ffffff;
+}
+[data-call-theme] { background: var(--call-bg); color: var(--call-ink); }
+.call-bg { background: var(--call-bg); }
+.call-panel-bg { background: var(--call-panel); }
+.call-raised-bg { background: var(--call-raised); }
+.call-hover-bg:hover { background: var(--call-hover); }
+.call-card-bg { background: var(--call-card); }
+.call-track-bg { background: var(--call-track); }
+.call-ink { color: var(--call-ink); }
+/* inverted send button (design line 568: bg callText / color callBg) */
+.call-send-btn { background: var(--call-ink); color: var(--call-bg); }
+.call-muted { color: var(--call-muted); }
+.call-faint { color: var(--call-faint); }
+.call-hair { border-color: var(--call-hair); }
+
+/* Ask-Atlas selection: yellow ONLY inside data-ask scopes (design lines 21-24) */
+[data-ask] ::selection{background:#FCE44D;color:#1C1B19}
+[data-ask] ::-moz-selection{background:#FCE44D;color:#1C1B19}
+
+/* ── Color schemes (design dc lines 2284-2297): the rail/shell variables the
+   Theme toggle cycles. Default (no attribute) = Black rail, today's look. ── */
+[data-scheme='warm'] {
+  --rail-bg: #f2f0ea;
+  --rail-text: #6b6862;
+  --rail-strong: #1c1b19;
+  --rail-active: #ece9e2;
+  --rail-chip: #faf9f6;
+  --rail-hair: #e6e2da;
+}
+[data-scheme='blackWhite'] {
+  --shell-bg: #ffffff;
+}
+/* the collapsed-rail "A" monogram is a dark asset: invert it on dark rails only */
+.rail-logo-img { filter: invert(1); }
+[data-scheme='warm'] .rail-logo-img { filter: none; }
+
+/* Design hover utilities — VERBATIM from Atlas MVP.dc.html (lines 88-121) */
+.ov-play .ov-pbtn{transition:transform .14s ease}
+.ov-play:hover .ov-pbtn{transform:scale(1.06)}
+.ov-ghost{transition:border-color .16s ease}
+.ov-ghost:hover{border-color:#9C978B!important}
+.hov-fill{transition:background .15s ease}
+.hov-fill:hover{background:#F2EFE8!important}
+.hov-fill2{transition:background .15s ease}
+.hov-fill2:hover{background:#EFEAE0!important}
+.hov-filld{transition:background .15s ease}
+.hov-filld:hover{background:rgba(28,27,25,.04)!important}
+.hov-doc{transition:border-color .15s ease,background .15s ease}
+.hov-doc:hover{border-color:#C9C1B1!important;background:#F2EFE8!important}
+.hov-peer{transition:border-color .15s ease,transform .14s ease}
+.hov-peer:hover{border-color:#C9C1B1!important;transform:translateY(-1px)}
+.hov-border{transition:border-color .15s ease}
+.hov-border:hover{border-color:#C9C1B1!important}
+.hov-borderi{transition:border-color .15s ease}
+.hov-borderi:hover{border-color:#1C1B19!important}
+.hov-ink{transition:color .15s ease}
+.hov-ink:hover{color:#1C1B19!important}
+
+/* Calendar event hover context card (design .cal-ev/.cal-ctx, RTL-aware inset) */
+.cal-ev{position:relative}
+.cal-ctx{display:none;position:absolute;top:calc(100% + 5px);inset-inline-end:0;z-index:30;width:220px;background:#FFFFFF;border:1px solid #E6E2DA;border-radius:9px;box-shadow:0 4px 16px rgba(28,27,25,.10),0 1px 3px rgba(28,27,25,.06);padding:10px 12px;text-align:start;pointer-events:none}
+.cal-ev:hover .cal-ctx{display:block}
+
+@media (prefers-reduced-motion:reduce){
+  [data-beam-ring],[data-beam-dot],.anim-settle,.anim-atblink{animation-duration:.001s!important;animation-iteration-count:1!important}
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -14,7 +136,7 @@
   body {
     background-color: #050505;
     color: #FFFFFF;
-    font-family: 'IBM Plex Sans Hebrew', Heebo, Inter, system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -71,7 +193,10 @@
   }
 
   .font-mono-num {
-    font-family: 'IBM Plex Sans Hebrew', Heebo, Inter, system-ui, sans-serif;
+    /* V2 (Claude Design import): data text is JetBrains Mono — timestamps, dates,
+       tickers, counters. Hebrew glyphs fall back to the Plex Hebrew face. */
+    font-family: 'JetBrains Mono', ui-monospace, 'IBM Plex Sans Hebrew', Heebo, system-ui, monospace;
+    font-variant-numeric: tabular-nums;
   }
 
   .border-subtle {

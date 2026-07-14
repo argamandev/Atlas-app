@@ -43,7 +43,7 @@ export function AddInvestorCall({ companyId }: { companyId?: string }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-black"
+        className="flex items-center gap-1.5 rounded-pill bg-ink px-4 py-[9px] text-sm font-medium text-paper transition-colors hover:bg-black"
       >
         <PlusIcon size={15} />
         {dict.company.addInvestorCall}

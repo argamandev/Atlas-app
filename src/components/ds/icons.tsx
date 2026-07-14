@@ -55,6 +55,13 @@ export const ChatIcon = (p: IconProps) => (
     <path d="M5 5h14a1 1 0 011 1v8a1 1 0 01-1 1H9l-4 3v-3H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
   </Base>
 )
+// V2 parity: the chat sidebar's Projects glyph — EXACT design path (line 954: a pinned board)
+export const ProjectsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <path d="M3.5 9h17M8 5V3.5M16 5V3.5" />
+  </Base>
+)
 export const TopicsIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M9.5 4L7.5 20M16.5 4l-2 16M5 9h14M4.5 15h14" />
@@ -71,6 +78,92 @@ export const WorkspacesIcon = (p: IconProps) => (
     <rect x="13" y="4" width="7" height="7" rx="1.5" />
     <rect x="4" y="13" width="7" height="7" rx="1.5" />
     <rect x="13" y="13" width="7" height="7" rx="1.5" />
+  </Base>
+)
+// V2 (Claude Design): Reports-tab artifact icons (design lines 563-566) + webinar camera
+export const TranscriptIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="5" y="3.5" width="14" height="17" rx="2" />
+    <path d="M8.5 8h7M8.5 12h7M8.5 16h4.5" />
+  </Base>
+)
+export const FileIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M13 3.5H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V9.5z" />
+    <path d="M13 3.5V9.5h6" />
+  </Base>
+)
+export const SlidesIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="4.5" width="18" height="13" rx="2" />
+    <path d="M12 17.5V21M8.5 21h7" />
+  </Base>
+)
+export const VideoIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="6" width="13" height="12" rx="2.5" />
+    <path d="M16 10.5l5-3v9l-5-3" />
+  </Base>
+)
+// V2 parity: the calendar's three event-kind glyphs — EXACT design paths
+// (design lines 284-286/315-317; butt caps, stroke 1.7, no rounding).
+const CalKindBase = ({
+  size = 12,
+  strokeWidth = 1.7,
+  children,
+  ...rest
+}: IconProps & { children: React.ReactNode }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    aria-hidden="true"
+    {...rest}
+  >
+    {children}
+  </svg>
+)
+export const CalReportIcon = (p: IconProps) => (
+  <CalKindBase {...p}>
+    <rect x="5" y="3" width="14" height="18" rx="2" />
+    <path d="M9 8h6M9 12h6M9 16h4" />
+  </CalKindBase>
+)
+export const CalMicIcon = (p: IconProps) => (
+  <CalKindBase {...p}>
+    <rect x="9" y="2.5" width="6" height="11" rx="3" />
+    <path d="M6 11a6 6 0 0012 0M12 17v4" />
+  </CalKindBase>
+)
+export const CalWebinarIcon = (p: IconProps) => (
+  <CalKindBase {...p}>
+    <rect x="3" y="6" width="12" height="12" rx="2" />
+    <path d="M15 10l5-3v10l-5-3z" />
+  </CalKindBase>
+)
+// V2 (Claude Design): "Remind me" clock (design line 509)
+export const ClockIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v5l3 2" />
+  </Base>
+)
+// V2 (Claude Design): the rail language globe (design rail, line 76)
+export const GlobeIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.6 2.5 2.6 15 0 18M12 3c-2.6 2.5-2.6 15 0 18" />
+  </Base>
+)
+// V2 (Claude Design): the Agents briefcase (design rail, line 67)
+export const AgentsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
+    <path d="M8 7.5V5.5a2 2 0 012-2h4a2 2 0 012 2v2" />
+    <path d="M3 13h18" />
   </Base>
 )
 export const WatchlistsIcon = (p: IconProps) => (
@@ -111,6 +204,13 @@ export const CollapseIcon = (p: IconProps) => (
     <path d="M13 7l-5 5 5 5M19 7l-5 5 5 5" />
   </Base>
 )
+// V2 parity: the rail Theme toggle — half-filled circle (design line 173)
+export const ThemeIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3a9 9 0 010 18z" fill="currentColor" stroke="none" />
+  </Base>
+)
 export const SunIcon = (p: IconProps) => (
   <Base {...p}>
     <circle cx="12" cy="12" r="4" />
@@ -142,11 +242,12 @@ export const ArrowUpIcon = (p: IconProps) => (
 )
 
 // ── live transcript / headers ──
-export const SparkleIcon = (p: IconProps) => (
-  <Base {...p}>
-    <path d="M12 3.5l1.7 5 5 1.7-5 1.7L12 17l-1.7-5-5-1.7 5-1.7z" />
-    <path d="M18.5 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
-  </Base>
+// V2 (Claude Design update 2026-07-06): the chat/Ask-Atlas affordance is now a FILLED
+// four-point spark (fill, no stroke) — the single chat icon across rail, buttons, panels.
+export const SparkleIcon = ({ size = 20, strokeWidth: _sw, ...rest }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...rest}>
+    <path d="M12 5c.4 4.4 2.6 6.6 7 7-4.4.4-6.6 2.6-7 7-.4-4.4-2.6-6.6-7-7 4.4-.4 6.6-2.6 7-7Z" />
+  </svg>
 )
 export const ExpandIcon = (p: IconProps) => (
   <Base {...p}>

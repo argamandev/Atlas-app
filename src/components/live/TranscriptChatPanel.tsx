@@ -4,10 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { streamChat, type ChatSource } from '@/lib/api/chat'
 import { CitationChip } from '@/components/chat/CitationPopover'
-import { ChatComposer } from '@/components/chat/ChatComposer'
 import { ThinkingDots } from '@/components/chat/ThinkingDots'
 import { Markdown } from '@/components/chat/Markdown'
-import { SparkleIcon, CloseIcon, QuoteIcon } from '@/components/ds/icons'
+import { SparkleIcon, CloseIcon, QuoteIcon, ArrowUpIcon } from '@/components/ds/icons'
 import { detectDir } from '@/lib/utils'
 
 // In-transcript side chat (Feature 6, refined). Opens beside the transcript; the transcript
@@ -30,6 +29,7 @@ export function TranscriptChatPanel({
   quote,
   seedNonce,
   onClose,
+  heroLine2,
 }: {
   companyId: string | null
   transcriptId: string | undefined
@@ -39,6 +39,8 @@ export function TranscriptChatPanel({
   /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
   onClose: () => void
+  /** hero second line override — "about this call" (default) vs "about this company" */
+  heroLine2?: string
 }) {
   const { dict } = useI18n()
   const [messages, setMessages] = useState<Msg[]>([])
@@ -48,10 +50,12 @@ export function TranscriptChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // a fresh selection (star, or any highlight while open) → set it as the pending reference
+  // a fresh selection (star, or any highlight while open) → set it as the pending reference.
+  // preventScroll is CRITICAL: focusing while the panel is mid slide-in (translateX) made the
+  // browser scroll the whole document sideways to reveal the input — the "page pushes left" bug.
   useEffect(() => {
     if (quote) setRef(quote)
-    inputRef.current?.focus()
+    inputRef.current?.focus({ preventScroll: true })
   }, [seedNonce, quote])
 
   const scrollToEnd = () => {
@@ -102,53 +106,71 @@ export function TranscriptChatPanel({
   }
 
   return (
-    <aside className="hidden w-[380px] shrink-0 flex-col border-s border-hairline bg-panel lg:flex">
-      <header className="flex items-center justify-between gap-2 border-b border-hairline px-4 py-3">
-        <span className="flex items-center gap-2 font-bold text-ink">
-          <SparkleIcon size={16} />
-          {dict.chat.title}
+    // in-call chat dock (design lines 538-570): call-themed, 380px, slides in from the end
+    <aside
+      className="aa-panel call-hair hidden w-[380px] shrink-0 flex-col border-s lg:flex"
+      style={{ boxShadow: '-24px 0 60px -40px rgba(30,24,14,.35)' }}
+    >
+      <header className="call-hair flex h-[63px] flex-none items-center justify-between gap-2 border-b pe-3.5 ps-5">
+        <span className="call-ink flex items-center gap-[9px] text-[15px] font-semibold tracking-[-0.01em]">
+          <SparkleIcon size={22} />
+          {dict.live.askAtlas}
         </span>
         <button
           type="button"
           onClick={onClose}
           aria-label={dict.common.close}
-          className="grid h-7 w-7 place-items-center rounded-md text-ink-faint transition-colors hover:bg-subtle hover:text-ink"
+          className="call-muted grid h-8 w-8 place-items-center rounded-lg transition-colors hover:call-ink"
         >
-          <CloseIcon size={16} />
+          <CloseIcon size={17} />
         </button>
       </header>
 
-      <div ref={scrollRef} className="app-scroll flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="atscroll flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {messages.length === 0 && (
-          <p className="px-1 text-sm leading-relaxed text-ink-faint">{dict.live.askAboutQuoteHint}</p>
+          // serif hero (design lines 547-554): staggered word entrance
+          <div className="flex h-full flex-col items-center justify-center px-5 pb-2.5 text-center">
+            <h1 className="call-ink max-w-[15ch] font-display text-[29px] font-medium leading-[1.16] tracking-[-0.012em]">
+              <span className="aa-w" style={{ animationDelay: '.06s' }}>
+                {dict.live.askHeroLine1}
+              </span>{' '}
+              <span className="aa-w block" style={{ animationDelay: '.24s' }}>
+                {heroLine2 ?? dict.live.askHeroLine2}
+              </span>
+            </h1>
+            <p
+              className="aa-w call-muted mt-3.5 max-w-[28ch] text-[13px] leading-[1.55]"
+              style={{ animationDelay: '.4s' }}
+            >
+              {dict.live.askHeroSub}
+            </p>
+          </div>
         )}
         {messages.map((m, i) =>
           m.role === 'user' ? (
             <div key={i} className="flex animate-fade-up flex-col items-end gap-1">
               {m.reference && (
-                // Flat, Claude-style reference attachment: soft #f8f7f2 fill (matches the
-                // composer's reference header), a 1px hairline, an 8px radius — no shadow, no
-                // bubble. The quote text obeys content direction so Hebrew reads RTL.
+                // Flat reference attachment, call-themed (flips with Dark/Light).
                 <div
                   dir={detectDir(m.reference)}
-                  className="max-w-[92%] rounded-[8px] border border-[#e5e5e5] bg-[#f8f7f2] px-3 py-2"
+                  className="call-hair call-panel-bg max-w-[92%] rounded-[8px] border px-3 py-2"
                 >
-                  <div className="mb-1 flex items-center gap-1.5 text-2xs font-medium text-ink-faint">
+                  <div className="call-faint mb-1 flex items-center gap-1.5 text-2xs font-medium">
                     <QuoteIcon size={11} />
                     {dict.chat.referringTo}
                   </div>
-                  <p className="line-clamp-3 text-xs leading-relaxed text-ink-muted">{m.reference}</p>
+                  <p className="call-muted line-clamp-3 text-xs leading-relaxed">{m.reference}</p>
                 </div>
               )}
               <div
                 dir="auto"
-                className="max-w-[92%] rounded-bubble bg-subtle px-3.5 py-2 text-sm leading-relaxed text-ink"
+                className="call-raised-bg call-ink max-w-[92%] rounded-[14px] rounded-ee-[4px] px-3.5 py-2 text-sm leading-relaxed"
               >
                 {m.content}
               </div>
             </div>
           ) : (
-            <div key={i} className="animate-fade-in text-sm leading-relaxed text-ink">
+            <div key={i} className="call-ink animate-fade-in text-sm leading-relaxed">
               {m.streaming && !m.content ? (
                 <ThinkingDots />
               ) : m.streaming ? (
@@ -165,17 +187,55 @@ export function TranscriptChatPanel({
         )}
       </div>
 
-      <div className="border-t border-hairline p-3">
-        {/* the pending reference now lives INSIDE the composer as its warm header (unified box) */}
-        <ChatComposer
-          inputRef={inputRef}
-          value={input}
-          onChange={setInput}
-          onSend={send}
-          onAt={() => {}}
-          reference={ref || null}
-          onRemoveReference={() => setRef('')}
-        />
+      {/* in-call composer (design lines 555-570): reference chip above a call-chip field */}
+      <div className="flex-none px-4 pb-4 pt-3.5">
+        {ref && (
+          <div className="call-hair mb-2.5 flex items-start gap-2 rounded-[14px] border px-[11px] py-[9px]">
+            <span className="call-muted mt-0.5 flex-none">
+              <QuoteIcon size={12} />
+            </span>
+            <div
+              dir={detectDir(ref)}
+              className="call-ink line-clamp-3 min-w-0 flex-1 text-[12.5px] leading-[1.55]"
+            >
+              {ref}
+            </div>
+            <button
+              type="button"
+              onClick={() => setRef('')}
+              title={dict.common.remove}
+              className="call-muted mt-0.5 flex flex-none transition-colors hover:call-ink"
+            >
+              <CloseIcon size={14} strokeWidth={1.7} />
+            </button>
+          </div>
+        )}
+        <div className="call-hair call-panel-bg flex items-end gap-2 rounded-[16px] border py-3 pe-3 ps-4">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                void send()
+              }
+            }}
+            rows={1}
+            placeholder={dict.chat.askAnything}
+            dir="auto"
+            className="call-ink max-h-[120px] min-w-0 flex-1 resize-none bg-transparent pb-[3px] pt-[2px] text-[15px] leading-[1.45] outline-none"
+          />
+          <button
+            type="button"
+            aria-label={dict.common.save}
+            onClick={() => void send()}
+            disabled={sending || !input.trim()}
+            className="call-send-btn grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] transition-opacity disabled:opacity-40"
+          >
+            <ArrowUpIcon size={15} strokeWidth={2} />
+          </button>
+        </div>
       </div>
     </aside>
   )

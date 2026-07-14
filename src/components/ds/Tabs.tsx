@@ -33,10 +33,10 @@ export function Tabs({
               onClick={() => onChange(t.key)}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                '-mb-px border-b-2 pb-2.5 pt-1 text-sm transition-colors',
+                '-mb-px border-b-[3px] pb-3 pt-2 text-[15px] transition-colors',
                 active
                   ? 'border-ink font-semibold text-ink'
-                  : 'border-transparent font-medium text-ink-faint hover:text-ink-muted'
+                  : 'border-transparent font-medium text-ink-muted hover:text-ink'
               )}
             >
               {t.label}

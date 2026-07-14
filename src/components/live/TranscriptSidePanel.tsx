@@ -3,7 +3,6 @@
 import { useMemo } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Avatar } from '@/components/ds/Avatar'
-import { SectionHeader } from '@/components/ds/SectionHeader'
 import { CollapseIcon, ChevronRightIcon } from '@/components/ds/icons'
 import { formatClock } from '@/lib/i18n/format'
 import type { WordTimedTranscript } from '@/lib/live/syncEngine'
@@ -86,7 +85,7 @@ export function TranscriptSidePanel({
         type="button"
         onClick={onToggleCollapsed}
         title={companyName}
-        className="hidden w-10 shrink-0 items-start justify-center border-e border-hairline bg-panel pt-3 text-ink-faint transition-colors hover:text-ink lg:flex"
+        className="call-hair call-faint hidden w-[46px] shrink-0 flex-col items-center gap-4 border-e pt-4 transition-colors hover:call-ink lg:flex"
       >
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </button>
@@ -96,25 +95,35 @@ export function TranscriptSidePanel({
   return (
     <aside
       dir="rtl"
-      className="app-scroll hidden w-[300px] shrink-0 flex-col overflow-y-auto border-e border-hairline bg-panel lg:flex"
+      className="atscroll call-hair hidden w-[270px] shrink-0 flex-col overflow-y-auto border-e py-4 lg:flex"
     >
-      <div className="flex items-start justify-between px-4 pb-1 pt-4">
+      {/* call identity (design lines 221-232): title + mono date + collapse */}
+      <div className="flex items-start justify-between gap-2 px-[18px] pb-2.5">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-bold text-ink">{companyName}</h2>
-          {sub && <div className="mt-0.5 truncate text-xs text-ink-faint">{sub}</div>}
+          <h2 className="call-ink truncate text-[13px] font-semibold leading-[1.4]" dir="auto">
+            {companyName}
+          </h2>
+          {sub && (
+            <div className="call-muted mt-1 truncate font-mono-num text-[11.5px]" dir="ltr">
+              {sub}
+            </div>
+          )}
         </div>
         <button
           type="button"
           onClick={onToggleCollapsed}
           title={dict.nav.collapseSidebar}
-          className="shrink-0 text-ink-faint transition-colors hover:text-ink"
+          className="call-muted mt-0.5 shrink-0 transition-colors hover:call-ink"
         >
           <CollapseIcon size={15} />
         </button>
       </div>
 
-      <div className="px-3 pb-24">
-        <SectionHeader label={dict.live.parts} className="px-2 pb-1 pt-4" />
+      {/* CALL SECTIONS (design lines 233-243) */}
+      <div className="call-muted px-[18px] py-2 text-[10.5px] font-semibold uppercase tracking-[0.14em]">
+        {dict.live.parts}
+      </div>
+      <div className="pb-6">
         {parts.map((p) => {
           const active = activeSegmentIndex >= p.from && activeSegmentIndex <= p.to
           return (
@@ -122,32 +131,45 @@ export function TranscriptSidePanel({
               key={p.key}
               type="button"
               onClick={() => jump(p)}
-              className={`flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-start transition-colors ${active ? 'bg-subtle' : 'hover:bg-subtle/60'}`}
+              className={`flex w-full items-center justify-between gap-2 px-[18px] py-2 text-start transition-colors ${
+                active ? 'call-panel-bg' : 'call-hover-bg'
+              }`}
             >
               <span
-                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                  active ? (isLive ? 'bg-live animate-pulse-live' : 'bg-ink') : 'bg-ink-faint/40'
+                className={`min-w-0 flex-1 truncate text-[12.5px] ${
+                  active ? 'call-ink font-semibold' : 'call-muted'
                 }`}
-              />
-              <span
-                className={`min-w-0 flex-1 truncate text-sm ${active ? 'font-semibold text-ink' : 'font-medium text-ink-muted'}`}
               >
                 {p.speaker}
               </span>
-              <span className="shrink-0 text-xs text-ink-faint tabular-nums" dir="ltr">
+              <span className="call-faint shrink-0 font-mono-num text-[11px] tabular-nums" dir="ltr">
                 {formatClock(p.start)}
               </span>
+              {active && (
+                <span
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${isLive ? 'bg-live' : 'call-ink-dot'}`}
+                  style={
+                    isLive
+                      ? { animation: 'atpulse 2s ease-in-out infinite' }
+                      : { background: 'var(--call-ink)' }
+                  }
+                />
+              )}
             </button>
           )
         })}
+      </div>
 
-        <SectionHeader label={dict.live.speakers} className="px-2 pb-1 pt-6" />
+      <div className="call-muted px-[18px] py-2 text-[10.5px] font-semibold uppercase tracking-[0.14em]">
+        {dict.live.speakers}
+      </div>
+      <div className="px-2 pb-24">
         {speakers.map((s) => (
           <div key={s.name} className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
-            <Avatar name={s.name} size={30} />
+            <Avatar name={s.name} size={28} />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-ink">{s.name}</div>
-              {s.role && <div className="truncate text-xs text-ink-faint">{s.role}</div>}
+              <div className="call-ink truncate text-[12.5px] font-semibold">{s.name}</div>
+              {s.role && <div className="call-faint truncate text-[11px]">{s.role}</div>}
             </div>
           </div>
         ))}

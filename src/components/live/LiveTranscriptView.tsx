@@ -11,6 +11,7 @@ import {
   SparkleIcon,
   CloseIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   CopyTextIcon,
   SearchIcon,
@@ -19,7 +20,12 @@ import {
   PencilIcon,
   PlayIcon,
   PauseIcon,
+  PlusIcon,
+  TranscriptIcon,
+  SlidesIcon,
+  FileIcon,
 } from '@/components/ds/icons'
+import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -66,6 +72,15 @@ export function LiveTranscriptView({
   }, [call.id, player.setViewing])
 
   const [tab, setTab] = useState('transcript')
+  // V2 (Claude Design): call view is dark-first with a Light toggle; Single|Multi facets.
+  const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
+  const [view, setView] = useState<'single' | 'multi'>('single')
+  // Multi view composes facets: ALL chips are ×-removable (founder round-3: transcript too —
+  // audio keeps playing without it); the last visible facet can't be removed.
+  const [multiFacets, setMultiFacets] = useState<Set<Facet>>(
+    () => new Set<Facet>(['transcript', 'slides', 'report'])
+  )
+  const { colFlex, facetDivider } = useFacetColumns()
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
   const [toast, setToast] = useState<Toast | null>(null)
@@ -309,15 +324,19 @@ export function LiveTranscriptView({
     window.open(`/print/${call.id}`, '_blank', 'noopener')
   }
 
-  const liveTabs = [
-    { key: 'overview', label: dict.live.backToOverview },
+  const facetTabs = [
     { key: 'transcript', label: dict.live.transcript },
     { key: 'slides', label: dict.live.slides },
     { key: 'report', label: dict.live.report },
   ]
 
+  const segTogBtn = (on: boolean) =>
+    `rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+      on ? 'bg-ink text-white dark-toggle-on' : 'call-muted hover:call-ink'
+    }`
+
   return (
-    <div className="flex h-full min-h-0 flex-1">
+    <div data-call-theme={callTheme} className="flex h-full min-h-0 flex-1">
       {/* context panel — chapters/sections + speakers (RTL Hebrew). Minimizes to a thin rail while the
           in-transcript chat is open (one click from returning), instead of unmounting. */}
       <TranscriptSidePanel
@@ -327,63 +346,177 @@ export function LiveTranscriptView({
         companyName={name}
         sub={[call.quarter, formatDate(call.date, locale)].filter(Boolean).join(' · ')}
         isLive={call.isLive}
-        collapsed={chat.open || panelCollapsed}
+        // stays open when the chat dock slides in (design keeps it; collapsing it too made
+        // the whole frame lurch left when Ask Atlas opened)
+        collapsed={panelCollapsed}
         onToggleCollapsed={() => setPanelCollapsed((v) => !v)}
       />
 
-      {/* main column — header, tabs, transcript (the player is now the global docked bar) */}
+      {/* main column — identity header, facet controls, transcript (design lines 251-296) */}
       <div className="relative flex min-w-0 flex-1 flex-col">
-        {/* header */}
-        <header className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <Logo src={call.logoUrl} name={title} size={32} />
-            <span className="truncate font-bold text-ink">{title}</span>
-            <span className="shrink-0 text-sm text-ink-faint">{formatDate(call.date, locale)}</span>
+        {/* identity header (63px): tile · title · mono date — Dark/Light · Ask Atlas · close */}
+        <header className="call-hair flex h-[63px] flex-none items-center justify-between gap-3 border-b px-6">
+          <div className="flex min-w-0 items-center gap-2.5" dir="ltr">
+            <Logo src={call.logoUrl} name={title} size={30} className="rounded-[7px]" />
+            <span className="call-ink max-w-[460px] truncate text-[13.5px] font-semibold">
+              <span dir="auto">{title}</span>
+            </span>
+            <span className="call-muted flex-none font-mono-num text-[11.5px]" dir="ltr">
+              {formatDate(call.date, locale)}
+            </span>
             {call.isLive && (
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-live/10 px-2 py-0.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />
+              <span className="flex flex-none items-center gap-1.5">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-live"
+                  style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                />
                 <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
               </span>
             )}
-            <IconButton label={dict.live.switchCall} size={26}>
-              <ChevronDownIcon size={16} />
-            </IconButton>
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            <IconButton label={dict.live.shareTranscript} size={30} onClick={sharePdf}>
-              <ShareIcon size={17} />
-            </IconButton>
-            <IconButton label={dict.common.close} size={30} onClick={() => router.back()}>
+          <div className="flex flex-none items-center gap-3.5">
+            <div className="call-track-bg flex rounded-pill p-[3px]">
+              <button
+                type="button"
+                onClick={() => setCallTheme('dark')}
+                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+                  callTheme === 'dark' ? 'call-bg call-ink' : 'call-muted'
+                }`}
+              >
+                Dark
+              </button>
+              <button
+                type="button"
+                onClick={() => setCallTheme('light')}
+                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+                  callTheme === 'light' ? 'call-card-bg call-ink' : 'call-muted'
+                }`}
+              >
+                Light
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
+              className="call-hair call-ink flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] transition-opacity hover:opacity-80"
+            >
+              <SparkleIcon size={14} strokeWidth={1.6} />
+              {dict.live.askAtlas}
+            </button>
+            <button
+              type="button"
+              title={dict.common.close}
+              onClick={() => router.back()}
+              className="call-muted transition-colors hover:call-ink"
+            >
               <CloseIcon size={17} />
-            </IconButton>
+            </button>
           </div>
         </header>
 
-        {/* tabs + inline audio chip */}
-        <div className="px-6">
-          <Tabs
-            activeKey={tab}
-            onChange={onTab}
-            items={liveTabs}
-            trailing={
+        {/* facet controls: Back to Overview | Transcript · Slides · Report — View Single|Multi */}
+        <div className="call-hair flex flex-none items-center justify-between border-b px-6">
+          <div className="flex items-center gap-[22px] text-[13.5px]">
+            <button
+              type="button"
+              onClick={() => onTab('overview')}
+              className="call-muted flex items-center gap-1.5 py-3 font-medium transition-colors hover:call-ink"
+            >
+              <ChevronLeftIcon size={15} strokeWidth={1.7} className="rtl:rotate-180" />
+              {dict.live.backToOverview}
+            </button>
+            <span className="call-hair h-4 w-px border-s" />
+            {/* facet chips (design lines 407-415): icon + label; in Multi, Slides/Report are
+                ×-removable and +-re-addable; Transcript is pinned. */}
+            <div className="flex items-center gap-2 py-2">
+              {facetTabs.map((ft) => {
+                const key = ft.key as 'transcript' | 'slides' | 'report'
+                const Icon = key === 'transcript' ? TranscriptIcon : key === 'slides' ? SlidesIcon : FileIcon
+                const active = view === 'multi' ? multiFacets.has(key) : tab === key
+                const removable = view === 'multi'
+                return (
+                  <button
+                    key={ft.key}
+                    type="button"
+                    title={ft.label}
+                    onClick={() => {
+                      if (view === 'multi') {
+                        setMultiFacets((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(key)) {
+                            if (next.size === 1) return prev // the last facet stays
+                            next.delete(key)
+                          } else {
+                            next.add(key)
+                          }
+                          return next
+                        })
+                      } else {
+                        setTab(key)
+                      }
+                    }}
+                    className={`flex items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[12.5px] transition-colors ${
+                      active
+                        ? 'call-raised-bg call-ink border border-transparent font-semibold'
+                        : 'call-hair call-muted border font-medium hover:call-ink'
+                    }`}
+                  >
+                    <span className={`flex ${active ? 'call-ink' : 'call-muted'}`}>
+                      <Icon size={13} strokeWidth={1.6} />
+                    </span>
+                    {ft.label}
+                    {removable && (
+                      <span className={`flex ${active ? 'call-muted' : 'call-faint'}`}>
+                        {active ? (
+                          <CloseIcon size={12} strokeWidth={2} />
+                        ) : (
+                          <PlusIcon size={12} strokeWidth={2} />
+                        )}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={playPause}
+              disabled={!call.audioUrl}
+              className="call-muted flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors hover:call-ink disabled:opacity-40"
+            >
+              {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
+              <span className="font-mono-num tabular-nums" dir="ltr">
+                {formatClock(effTime)}
+              </span>
+            </button>
+            <span className="call-muted text-[11.5px]">{dict.live.viewLabel}</span>
+            <div className="call-track-bg flex rounded-pill p-[3px]">
               <button
                 type="button"
-                onClick={playPause}
-                disabled={!call.audioUrl}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-ink-muted transition-colors hover:text-ink disabled:opacity-40"
+                onClick={() => setView('single')}
+                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+                  view === 'single' ? 'call-bg call-ink' : 'call-muted'
+                }`}
               >
-                {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
-                <span>{playing ? dict.live.pauseAudio : dict.live.playAudio}</span>
-                <span className="tabular-nums text-ink-faint" dir="ltr">
-                  {formatClock(effTime)}
-                </span>
+                {dict.live.viewSingle}
               </button>
-            }
-          />
+              <button
+                type="button"
+                onClick={() => setView('multi')}
+                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
+                  view === 'multi' ? 'call-bg call-ink' : 'call-muted'
+                }`}
+              >
+                {dict.live.viewMulti}
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* sub-toolbar */}
-        <div className="flex items-center justify-between px-6 py-2">
+        {/* sub-toolbar (design lines 429-440): icon row over a hairline */}
+        <div className="call-hair flex items-center justify-between border-b px-[22px] py-[7px]">
           <div className="flex items-center gap-0.5">
             <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
               <CopyTextIcon size={16} />
@@ -448,35 +581,69 @@ export function LiveTranscriptView({
           </div>
         </div>
 
-        {/* body */}
-        <div
-          className="app-scroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-2"
-          onMouseUp={tab === 'transcript' ? onTextSelect : undefined}
-          onScroll={() => selection && setSelection(null)}
-        >
-          {tab === 'transcript' ? (
-            <>
-              {!call.transcript.hasWordTimings && (
-                <p className="mb-4 rounded-md bg-subtle px-3 py-2 text-xs text-ink-muted">
-                  {dict.live.noWordTimings}
-                </p>
-              )}
-              <TranscriptBody
-                transcript={call.transcript}
-                activeIndex={activeIndex}
-                autoScroll={autoScroll}
-                onWordClick={seek}
-                karaoke={call.transcript.hasWordTimings && isActiveCall}
-                onRenameSpeaker={renameSpeaker}
-                searchMatches={matches}
-                activeMatch={matches[matchPos] ?? -1}
-                followLabel={dict.live.backToPlaying}
+        {/* body — Single: the active facet; Multi: Transcript | Slides | Report side by side.
+            Design line 443: columns keep min-widths and the ROW scrolls horizontally instead
+            of squishing — this is what keeps text from reflowing when the chat dock opens. */}
+        <div className="atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+          {(view === 'multi' ? multiFacets.has('transcript') : tab === 'transcript') && (
+            <div
+              data-facet="transcript"
+              style={view === 'multi' ? { flex: `${colFlex.transcript} 1 0px` } : undefined}
+              className="flex min-w-[340px] flex-1 flex-col overflow-hidden"
+            >
+              <PaneHeader
+                label={dict.live.transcript}
+                right={
+                  call.isLive ? (
+                    <span className="call-muted flex items-center gap-1.5 text-[11px]">
+                      <span
+                        className="h-1.5 w-1.5 rounded-full bg-live"
+                        style={{ animation: 'atpulse 2s ease-in-out infinite' }}
+                      />
+                      <span className="font-semibold text-live">{dict.live.liveBadge}</span> ·{' '}
+                      {dict.live.karaokeTag}
+                    </span>
+                  ) : undefined
+                }
               />
-            </>
-          ) : (
-            <div className="grid h-full place-items-center text-sm text-ink-faint">
-              {dict.common.comingSoon}
+              <div
+                className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-4"
+                data-ask="1"
+                onMouseUp={onTextSelect}
+                onScroll={() => selection && setSelection(null)}
+              >
+                {!call.transcript.hasWordTimings && (
+                  <p className="call-panel-bg call-muted mb-4 rounded-md px-3 py-2 text-xs">
+                    {dict.live.noWordTimings}
+                  </p>
+                )}
+                <TranscriptBody
+                  transcript={call.transcript}
+                  activeIndex={activeIndex}
+                  autoScroll={autoScroll}
+                  onWordClick={seek}
+                  karaoke={call.transcript.hasWordTimings && isActiveCall}
+                  onRenameSpeaker={renameSpeaker}
+                  searchMatches={matches}
+                  activeMatch={matches[matchPos] ?? -1}
+                  followLabel={dict.live.backToPlaying}
+                />
+              </div>
             </div>
+          )}
+          {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}
+          {(view === 'multi' ? multiFacets.has('slides') : tab === 'slides') && (
+            <SlidesPane
+              quarter={call.quarter}
+              style={view === 'multi' ? { flex: `${colFlex.slides} 1 0px` } : undefined}
+            />
+          )}
+          {view === 'multi' &&
+            multiFacets.has('report') &&
+            (multiFacets.has('slides') || multiFacets.has('transcript')) &&
+            facetDivider}
+          {(view === 'multi' ? multiFacets.has('report') : tab === 'report') && (
+            <ReportPane style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined} />
           )}
         </div>
 
