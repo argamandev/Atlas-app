@@ -5,6 +5,34 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-14 — Environment-audit fixes SHIPPED (supervisor; 25/26 findings, reviewer-APPROVED, warnings fixed pre-merge)
+
+**Status:** merged to `main` (`bd49940`) + pushed. Founder-approved execution of the
+2026-07-07 cold-context environment audit (report + disposition: `docs/audits/`). Theme: the
+environment's self-correction stopped depending on supervisor memory and mood — rituals are
+now mechanical, evidence is durable, and append-only is enforced by hooks, not etiquette.
+
+- **Rituals mechanized:** ARCHITECTURE update + plan/spec stamping moved to merge-time /ship
+  steps (retirement never fired for seats that roll on); each merge appends a `MERGE` line
+  and ≥3 since the last `LINT` line forces /fleet-lint; the lane re-mission path is a written
+  runbook (we'll use it for Lane I).
+- **Append-only became physics:** settings.json denies Edit/Write on the two logs; the bash
+  gate blocks truncation AND (post-review) deletion/copy-over/dd/noclobber — 60-case gate
+  suite green. Supervisor got a narrow dated note/graduation-marker exception so stale lane
+  sections stop being uncorrectable.
+- **Evidence durability:** Lane I's M1 quality report + real-Zoom captures rescued from the
+  deletable worktree into `docs/evidence/ivrit-m1/` + `scripts/out/sessions/`; convention
+  README; first agent-memory snapshot under `docs/archive/agent-memory-snapshots/`.
+- **Drift killed:** ARCHITECTURE caught up with both merges (two engines, 77 tests, full
+  harness table); CLAUDE.md two-engine line; VISION's double "Mission 4" disambiguated;
+  8 shipped plans/specs stamped; stale pointers in transcript-review/live-test fixed.
+- **Verification:** atlas-reviewer APPROVED (4 WARNINGs + 3 NITs — all warnings + 2 nits
+  fixed pre-merge, findings filed in ready-queue) · 77/77 + tsc on branch and merged main ·
+  reviewer independently probed the hook with 10 bypass payloads. Open: finding 18 —
+  Supabase token rotation stays a FOUNDER action.
+
+---
+
 ## 2026-07-14 — Claude Design frontend SHIPPED (Lane F; reviewer-APPROVED, founder parity verdict passed)
 
 **Status:** merged to `main` (`69a98be`) + pushed. Mission 3 delivered: the Claude Design
