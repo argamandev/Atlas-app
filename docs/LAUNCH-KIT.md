@@ -122,13 +122,17 @@ start, write before walking away.
 MISSION: build the multi-view backend — the functionality that lets a user open a company's
 quarterly report PDF and slides beside the transcript, scroll them, MARK TEXT INSIDE THE PDF,
 and Ask Atlas about the marked passage (the exact UX the transcript already has via
-TranscriptBody selection → TranscriptChatPanel → /api/chat). The design glue comes later from
-Lane F — you build the engine: (1) document ingest+store (Supabase Storage + an additive
-documents table — append the migration to agent-memory/cross-cutting.md before applying,
-see rules/db.md);
+TranscriptBody selection → TranscriptChatPanel → /api/chat). THE DESIGN GLUE ALREADY EXISTS
+on main (shipped 2026-07-14): the call view has Single|Multi facet views with drag-resize
+gutters (src/components/live/FacetPanes.tsx) and the Slides/Report panes render STUB cards
+from src/lib/live/call-stubs.ts — your deliverable is real data flowing behind those typed
+stub interfaces, not new UI. You build the engine: (1) document ingest+store (Supabase
+Storage + an additive documents table — append the migration to
+agent-memory/cross-cutting.md before applying, see rules/db.md);
 (2) per-page text extraction persisted server-side; (3) pdf.js (pdfjs-dist is already in
-node_modules) rendering with a selectable text layer in a bare test page; (4) selection →
-Ask Atlas wired through the existing /api/chat with the marked passage + page context.
+node_modules) rendering with a selectable text layer inside the existing Report facet pane;
+(4) selection → Ask Atlas wired through the existing /api/chat with the marked passage +
+page context.
 
 DESIGN HOOK (docs/VISION.md Mission 5): shape the documents table + any chat-context changes
 so a future company_knowledge layer can slot in behind a clean interface — interface now,
@@ -138,11 +142,14 @@ verify known Hebrew strings come out in CORRECT reading order — Hebrew PDF ext
 project's #1 known risk here. Post the spike verdict (clean / quirks / fallback needed) to
 the board BEFORE building the rest. SELF-VERIFICATION: /verify-app — via Chrome MCP actually
 select text inside the rendered PDF, trigger Ask Atlas, confirm the answer references the
-marked passage; screenshot the multi-panel test layout. Finish pieces with /ship; never push
-main. If stuck ~5 attempts on one problem: stop, ALERT, escalate (5-strike rule).
-MILESTONE 1: demo PDF ingested → rendered → text marked → Ask Atlas answers about the
-marked passage, end to end on the test page. AFTER the day-one spike: run the brainstorming
-skill WITH THE FOUNDER → spec + plan in docs/superpowers/ — only then build the rest.
+marked passage; verify in the REAL call view's Multi mode (Transcript|Slides|Report),
+both themes, RTL intact. Evidence goes to docs/evidence/<branch>/ in the main checkout
+(durable-evidence law, /ship lane step 6). Finish pieces with /ship; never push main.
+If stuck ~5 attempts on one problem: stop, ALERT, escalate (5-strike rule).
+MILESTONE 1: demo PDF ingested → rendered inside the Report facet pane → text marked →
+Ask Atlas answers about the marked passage, end to end in the call view. AFTER the day-one
+spike: run the brainstorming skill WITH THE FOUNDER → spec + plan in docs/superpowers/ —
+only then build the rest.
 ```
 
 ## Step 4 — What the supervisor (main chat) does all day
