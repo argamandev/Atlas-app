@@ -1,5 +1,7 @@
 # IVRIT Live Pipeline — Chunking Strategy Design
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-07-03 · **Lane:** I (ivrit-pipeline, branch `feat/ivrit-pipeline`)
 **Status:** APPROVED by the founder 2026-07-03 (assumptions A1–A4 confirmed). Goal restated
 by the founder: turn audio into text and show it live on-platform with a 3–5 min buffer

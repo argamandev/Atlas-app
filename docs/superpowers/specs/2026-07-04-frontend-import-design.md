@@ -1,5 +1,7 @@
 # Frontend import — Claude Design → Atlas app (Lane F, Milestone 1)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-07-04 · **Branch:** `feat/frontend-import` · **Status:** approved by founder (pending spec review)
 
 ## What we're building

@@ -18,9 +18,17 @@ main is always working. Only the supervisor pushes it. There are two roles:
    never `git add -A`/`git add .` — a blanket add swept untracked editor config into a commit
    once (2026-07-03); check `git status` for stowaways before every commit.
 5. Push YOUR BRANCH: `git push -u origin <your-branch>` (pushing main is hook-blocked).
-6. APPEND to `agent-memory/ready-queue.md`: timestamp · lane · branch · what it does · how
-   verified (evidence refs) · any migrations/shared-surface changes. Append-only, never rewrite.
-7. Update your state file (lessons learned → note candidates for skill graduation). Move on
+6. **Durable-evidence law:** anything you cite as evidence (quality reports, walkthrough
+   sheets, captures, screenshots-described) must exist IN THE MAIN CHECKOUT before you cite
+   it — reports/sheets → `docs/evidence/<branch>/`, call captures →
+   `C:/Users/Sagi/Desktop/Atlas/scripts/out/sessions/`. A worktree path, a session temp dir,
+   or an external URL may be *mentioned*, but never as the only copy (worktrees get removed,
+   sessions die, links expire).
+7. APPEND to `agent-memory/ready-queue.md`: timestamp · lane · branch · what it does · how
+   verified (evidence refs per step 6) · any migrations/shared-surface changes. Append-only,
+   never rewrite. Counts come from pasted git output (e.g. `git rev-list --count main..HEAD`)
+   or ranges (`abc123..def456`) — never hand-typed numbers.
+8. Update your state file (lessons learned → note candidates for skill graduation). Move on
    to your next step or wait if blocked.
 
 ## If you are the SUPERVISOR
@@ -38,22 +46,52 @@ main is always working. Only the supervisor pushes it. There are two roles:
    board section; stop here.
 4. Merge: `git checkout main && git merge --no-ff <branch>` → battery again on main →
    `git push origin main`. Delete merged branch (coordinate with the lane for worktree branches).
-5. Append PROGRESS.md entry (3-5 bullets: what + why + verification). Commit + push.
-6. Update the board (your section + the lane's MISSION line if its focus moved). Ping the
+5. **Merge-time doc truth** (these fire at EVERY merge — retirement is too rare to carry them):
+   - Append PROGRESS.md entry (3-5 bullets: what + why + verification).
+   - Update ARCHITECTURE.md for any new/moved/deleted files this merge introduces.
+   - Stamp any plan/spec in `docs/superpowers/` whose scope this merge completes with the
+     historical banner (`> STATUS: SHIPPED — historical record, do not execute; current truth
+     lives in ARCHITECTURE.md + PROGRESS.md`) — stamped in place, never moved.
+   - Commit + push the above.
+6. **Lint counter:** append `[ts] MERGE supervisor — <branch> → main (<sha>)` to
+   cross-cutting.md. Then count MERGE lines since the last `LINT` line: **≥3 → run
+   /fleet-lint NOW**, before updating the board. The lint is mechanical, not a mood.
+7. Update the board (your section + the lane's MISSION line if its focus moved). Ping the
    founder when a MILESTONE is testable.
-7. Distill: any general lesson from this ship → the relevant skill or rules file.
+8. Distill: any general lesson from this ship → the relevant skill or rules file.
 
 ## Feature retirement (supervisor, when a lane's WHOLE feature is done)
 
 1. Confirm the last piece merged and the milestone was founder-tested.
-2. Distill the lane's state file one final time: general lessons → skills/rules.
-3. Append the feature's story to PROGRESS.md (the permanent compact record).
-   Stamp the feature's plan/spec files in `docs/superpowers/` with the historical banner
-   (`> STATUS: SHIPPED — historical record, do not execute; current truth lives in
-   ARCHITECTURE.md + PROGRESS.md`) — stamped in place, never moved (moves break references).
-4. Archive the state file → `agent-memory/archive/state-<lane>-<feature>-<date>.md`; create a
+2. **Rescue evidence FIRST:** sweep the worktree for anything cited on the board/queue that
+   lives only there (git-ignored reports, `.superpowers/` ledgers, `scripts/out/` captures) —
+   copy to `docs/evidence/` / `scripts/out/sessions/` in the main checkout BEFORE any removal.
+3. Distill the lane's state file one final time: general lessons → skills/rules.
+4. Append the feature's story to PROGRESS.md (the permanent compact record). Plans/specs
+   should already carry the SHIPPED banner from merge-time step 5 — verify, stamp any missed.
+5. Archive the state file → `agent-memory/archive/state-<lane>-<feature>-<date>.md`; create a
    fresh empty state file for the seat.
-5. Reset the lane's board section to `idle — awaiting next assignment` and update MISSION.
-6. If the seat won't be reused soon: `git worktree remove <path>` + delete the branch.
-7. New feature intake: founder brief → brainstorm/spec → write the new opening prompt →
+6. Reset the lane's board section to `idle — awaiting next assignment` and update MISSION.
+7. If the seat won't be reused soon: `git worktree remove <path>` + delete the branch.
+8. New feature intake: founder brief → brainstorm/spec → write the new opening prompt →
    update MISSION + the lane section → founder pastes the prompt in the lane session.
+
+## Re-mission runbook (supervisor, when a lane's MISSION changes but the seat continues)
+
+The path exercised when a lane finishes a chapter and the founder redirects it. A lane's
+identity lives in exactly four files; a re-mission touches all four, in this order:
+
+1. **The decision is already filed** — a `DECISION` line in cross-cutting.md the moment the
+   founder decides (parallel-work law). If missing, file it now with the founder's words.
+2. **Close the old chapter** — everything merged, findings filed, lessons graduated, evidence
+   rescued from the worktree (retirement step 2), plans/specs stamped SHIPPED.
+3. **Brainstorm with the founder** (in the LANE's session, brainstorming skill) → spec + plan
+   in `docs/superpowers/`. No identity rewrite before a spec exists — a lane must not be
+   reborn with a vague mission.
+4. **Rewrite the four identity files:**
+   - `agent-memory/BOARD.md` MISSION section — the lane's new one-line north star.
+   - `agent-memory/BOARD.md` lane section — reset status/next; old milestone stays as record.
+   - `docs/LAUNCH-KIT.md` — the lane's opening prompt rewritten for the new mission (this is
+     the file a fresh session is BORN from; a stale prompt births a lane with a dead mission).
+   - `agent-memory/state-<lane>.md` — distill + archive per retirement steps 3+5.
+5. **Relaunch** — founder pastes the new prompt in the lane session; the loop resumes.

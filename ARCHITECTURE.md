@@ -41,8 +41,9 @@ View: /app/live/[id] (loadCompletedCall → LiveTranscriptView, karaoke word-syn
 
 ### B. Live call (the crown jewel)
 ```
-Recall.ai bot joins Zoom → live engine (scripts/live-broadcast.mjs)
-  → raw captions + audio, corrected by Gemini, buffered ~5 min
+Recall.ai bot joins Zoom → Recall engine (scripts/live-broadcast.mjs)
+                         OR IVRIT engine (scripts/live-ivrit-broadcast.ts)
+  → raw captions / PCM chunks → corrected/transcribed, buffered ~5 min
 Browser: /app/live/[id] → LiveSession → LiveBroadcastView (karaoke captions synced to audio)
   → audio survives navigation via LiveAudioProvider + GlobalLiveBar
   → source ends → buffer drains at 1× → finish pipeline runs
@@ -72,6 +73,8 @@ Proxy routes the browser talks to: /api/live/state, /api/live/finish, /api/live/
 | `app/app/chat/page.tsx` | `/app/chat` | **Chat** — LLM chat over the transcript DB. |
 | `app/app/company/[id]/page.tsx` | `/app/company/[id]` | **Company page** — header, Overview + Investor-Calls tabs, My Quotes. |
 | `app/app/live/[id]/page.tsx` | `/app/live/[id]` | **Live transcript page** — live karaoke AND finished replay (one view, two modes). |
+| `app/app/workspace/page.tsx` | `/app/workspace` | **Workspace** — design-demo workspace view. |
+| `app/app/agents/page.tsx` | `/app/agents` | **Agents** — design-demo agents view. |
 | `app/app/settings/page.tsx` | `/app/settings` | Profile & settings. |
 
 ### Gateway + shared
@@ -136,6 +139,7 @@ pre-launch task.
 | `TranscriptBody.tsx` | The scrolling karaoke transcript body. |
 | `TranscriptSidePanel.tsx` | Side panel (speakers/timeline), minimizable. |
 | `TranscriptChatPanel.tsx` | In-transcript side chat ("Ask Atlas"). |
+| `FacetPanes.tsx` | Facet-pane layout container (design-demo multi-column live view). |
 
 ### Chat — `components/chat/`
 | File | What it does |
@@ -161,7 +165,8 @@ pre-launch task.
 | File | What it does |
 |---|---|
 | `calendar/CalendarView.tsx` | Month calendar (All calls vs My Calendar). |
-| `ds/` | The design-system primitives: `Avatar` · `EntityRow` · `IconButton` · `Logo` · `BrandWordmark` · `LanguageToggle` · `SectionHeader` · `SelectableRow` · `Surface` · `Tabs` · `icons.tsx` · `index.ts`. |
+| `ds/` | The design-system primitives: `Avatar` · `EntityRow` · `IconButton` · `Logo` · `BrandWordmark` · `LanguageToggle` · `SectionHeader` · `SelectableRow` · `Surface` · `Tabs` · `icons.tsx` · `AnimCanvas` · `LiveBeamAvatar` · `Monogram` · `index.ts`. |
+| `workspace/WorkspacePicker.tsx` | Workspace selector panel (design-demo). |
 | `auth/LoginForm.tsx`, `auth/JoinForm.tsx` | ⚠️ GATEWAY (Wave 2). |
 | `ui/dotted-surface.tsx` | ⚠️ GATEWAY (Wave 2) — the only file left in `ui/`. |
 
@@ -193,6 +198,11 @@ pre-launch task.
 | `finishLiveCall.ts` | Live → finished hand-off (raw text → Gemini, words, PCM→MP3 → a normal transcript row). Unit-tested. |
 | `loadCall.ts` | Loads a call (live or finished) for the viewer. |
 | `search.ts` | In-transcript search. Unit-tested. |
+| `ivritParse.ts` | Parses IVRIT/RunPod JSON chunk responses into our segment shape. |
+| `ivritStitcher.ts` | Stitches overlapping IVRIT chunks into a clean transcript stream. Unit-tested. |
+| `pcmChunker.ts` | Slices PCM audio into silence-aware chunks for IVRIT submission. Unit-tested. |
+| `wavEncode.ts` | Encodes raw PCM to WAV (44-byte header + payload). Unit-tested. |
+| `call-stubs.ts` | Design-demo live-call stubs (typed, to be replaced by real feed). Unit-tested. |
 
 ### Other lib
 | File | What it does |
@@ -203,29 +213,46 @@ pre-launch task.
 | `correction.ts` | `KNOWN_CORRECTIONS` deterministic fixes. |
 | `i18n/` | `config`, `LocaleProvider`, `server`, `format`, `dictionaries/{en,he,index}`. |
 | `design/tokens.ts` | Design tokens in code. |
+| `design/anim.ts` | Animation helpers (keyframe curves, spring config) for `AnimCanvas`. Unit-tested. |
+| `workspace/data.ts` | Design-demo workspace feed (typed stub, to be replaced by real feed). Unit-tested. |
+| `agents/data.ts` | Design-demo agents feed (typed stub, to be replaced by real feed). Unit-tested. |
+| `company/overview-stub.ts` | Design-demo company extras (typed stub, to be replaced). Unit-tested. |
+| `calendar/event-meta.ts` | Design-demo event metadata (typed stub, to be replaced). Unit-tested. |
 | `types.ts` | The `Transcript` shape (= the shape of `formatted_data`). |
 | `utils.ts` | Small helpers (`cn()` class merge, `isValidVideoUrl`). |
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — 45 tests)
+### Tests (run via `npm test` — 77 tests as of 2026-07-14)
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
-· `live/liveTiming.test.ts` · `live/syncEngine.test.ts` · `live/search.test.ts` · `scripts/lib/measure-core.test.ts`.
+· `live/liveTiming.test.ts` · `live/syncEngine.test.ts` · `live/search.test.ts`
+· `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts` · `live/wavEncode.test.ts`
+· `live/call-stubs.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`
+· `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
+· `scripts/lib/measure-core.test.ts`.
 
 ---
 
 ## 6. Scripts — `scripts/` (triaged 2026-07-02: every file has a purpose)
 
-- **Live engine + test harness:** `live-broadcast.mjs` (THE live engine — Recall webhooks/websocket,
-  Gemini correction, buffered broadcast, viewer proxy target), `live-replay-engine.mjs` (fake a live
-  feed from a recorded session, no Zoom needed), `prep-replay-session.mjs` (prep a recorded session
-  for replay), `live-webinar-bots.mjs` (Zoom-webinar bot tooling — relevant to Mission 4),
-  `finish-live-call.ts` + `verify-finish.ts` (run/verify the finish hand-off offline).
+- **Live engines** (both serve the same `:8788` `/state`+`/pcm` contract — run one at a time):
+  `live-broadcast.mjs` (Recall engine — webhooks/websocket, Gemini correction, buffered broadcast),
+  `live-ivrit-broadcast.ts` (IVRIT engine — audio-only Recall bot → IVRIT/RunPod chunks, run via `tsx`).
+  Replay/test stand-ins: `live-replay-engine.mjs` (fake a live feed from a recorded session),
+  `replay-audio-feeder.mjs` (stream an archived PCM into the IVRIT engine's websocket — no Zoom).
+  Bot helpers: `start-ivrit-bot.mjs` (create the Recall audio-only bot then exit),
+  `prep-replay-session.mjs` (prep a session for replay),
+  `live-webinar-bots.mjs` (Zoom-webinar bot tooling — Mission 4).
+  Hand-off: `finish-live-call.ts` + `verify-finish.ts` (run/verify the finish hand-off offline).
 - **Pipeline tools:** `reformat.mjs` (re-run formatting only — cheap retry), `reprocess-audio.mjs`
   (backfill audio/word-timings on old rows), `transcribe-batch.mjs` + `review-urls.txt`
   (batch links through the product — drives `/transcript-review`).
 - **Quality measurement:** `run-experiment.ts` + `measure.ts` + `lib/measure-core.ts` (+ its test) —
   diff a candidate transcript against the human gold (`fixtures/ampa-q1-2026.gold.txt`).
+  `compare-live-quality.ts` (diff IVRIT-chunked vs Recall captions on same audio; vs whole-file IVRIT reference if present),
+  `make-wholefile-reference.ts` (send the full session PCM to IVRIT as one call — isolates chunking cost),
+  `spike-ivrit-live.ts` (latency spike: validates RunPod blob input + warm/cold round-trip time).
+  `lib/runpod-live.ts` (shared RunPod client used by the quality and spike scripts).
 - **Build/assets:** `install-yt-dlp.js` (runs in `npm run build`), `prep-brand-assets.mjs`
   (regenerates `public/brand/` from the logo — documented in `BrandWordmark`).
 - **`fixtures/`:** the ampa gold set + `recall-spike.transcript.json` (load-bearing: demo call +
@@ -255,6 +282,10 @@ additive migrations only.**
 `package.json` · `tsconfig.json` · `next.config.js` · `tailwind.config.ts` · `postcss.config.js` ·
 `nixpacks.toml` (Railway build) · `CLAUDE.md` · `PROGRESS.md` · `LEGACY.md` · this file.
 
+### Static assets
+`public/atlas-anim.js` (GSAP animation bootstrap, consumed by `AnimCanvas.tsx`) ·
+`public/brand/` (logo variants — `atlas-wordmark.{png,svg}`, `atlas-A.svg`, `tase-mark.png` — generated by `prep-brand-assets.mjs`).
+
 ### Harness — `.claude/` (the smart environment, built 2026-07-02)
 | File | What it does |
 |---|---|
@@ -265,10 +296,14 @@ additive migrations only.**
 | `rules/parallel-work.md` | Fleet law: ports, board protocol, engine ownership, shared-surface posts. |
 | `rules/db.md` | Shared-with-production DB: additive-only migration law. |
 | `rules/live.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). |
+| `rules/app.md` | App-level gotchas: Hebrew PDF, sign-out anti-patterns, Railway redirects, transcript validation leniency. |
 | `skills/verify-app/` | `/verify-app` — self-seeing verification loop (Chrome MCP screenshots) + per-lane recipes. |
 | `skills/ship/` | `/ship` — the lane/supervisor shipping ritual (only the supervisor pushes main). |
 | `skills/live-test/` | `/live-test` — run a real Recall+Zoom live test end-to-end. |
 | `skills/transcript-review/` | `/transcript-review` — the transcript-quality gate. |
+| `skills/fleet-lint/` | `/fleet-lint` — drift-check the whole environment (BOARD, rules, docs, open actions). |
+| `agents/atlas-reviewer.md` | `atlas-reviewer` agent definition — the code/design review persona. |
+| `hooks/gate-tests.mjs` | Fire-test matrix for pre-bash-gate.mjs (60 cases) — run + extend it on EVERY hook change. |
 
 **Fleet memory (git-ignored, main checkout only):** `agent-memory/BOARD.md` (the shared brain —
 all sessions read/write live via absolute path) + `state-<lane>.md` per session. Founder-provided

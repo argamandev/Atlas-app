@@ -1,5 +1,7 @@
 # Design Parity Pass — Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this
 > plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Inline execution is
 > REQUIRED (not subagent-driven): the audit loop depends on session-level MCP tools (Chrome,

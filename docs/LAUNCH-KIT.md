@@ -160,5 +160,6 @@ new ones · distills every lesson a lane learns into skills and rules so the fle
 - Destructive SQL (Bash AND Supabase MCP), `.env` reads, force-pushes, lane-pushes-to-main: **hook-blocked**.
 - Every edit is auto-formatted + typechecked by the PostToolUse hook.
 - DB is shared with production: additive-only, appended to cross-cutting.md first.
-- One lane = one port; live engine :8788 claimed on the board.
+- One lane = one port (numbers live in `.claude/rules/parallel-work.md` only); live engine
+  :8788 claimed in `agent-memory/cross-cutting.md`, released when done.
 - Nothing is "done" without /verify-app evidence; nothing reaches main except through /ship.

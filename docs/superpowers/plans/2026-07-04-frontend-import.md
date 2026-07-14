@@ -1,5 +1,7 @@
 # Frontend Import (Claude Design → Atlas) Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Import the Claude Design frontend — layout, animations, aesthetics — faithfully into the Atlas Next.js app for Home, Calendar, Chat, Company (+tabs), Call view, and Ask Atlas, keeping real backend wiring; Workspace/Agents land as navigable stubs.
