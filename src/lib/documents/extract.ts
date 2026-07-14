@@ -1,0 +1,87 @@
+// Per-page Hebrew text extraction (spike-verified 2026-07-14, docs/superpowers/specs/
+// 2026-07-14-multiview-backend-design.md). pdf.js getTextContent gives logically-ordered
+// Hebrew strings per item; only the WITHIN-LINE item order needs geometric repair.
+// IMPORTANT: import this module only from scripts (tsx) — never from Next server code —
+// so pdfjs-dist stays out of the server bundle.
+
+export interface TextItem {
+  str: string
+  x: number
+  y: number
+}
+
+const HEB = /[֐-׿]/
+// LTR run members: digit/Latin tokens AND joiner punctuation between them ("-", "/", ".")
+// — a naive run break on "-" reversed reference numbers like 2026-01-029201 in the spike.
+const LTRISH = /^[0-9A-Za-z]/
+const JOINER = /^[-–—/.,:%()]+$/
+
+/** Rebuild one page's reading order: group items into lines by y (±2pt jitter),
+ *  lines top-to-bottom, items right-to-left with LTR runs kept left-to-right. */
+export function reassemblePage(items: TextItem[]): string {
+  const kept = items.filter((i) => i.str.trim().length > 0)
+  if (kept.length === 0) return ''
+  // group by y with jitter tolerance: sort by y desc, start a new line when the gap > 2
+  const sorted = [...kept].sort((a, b) => b.y - a.y)
+  const lines: TextItem[][] = []
+  for (const it of sorted) {
+    const line = lines[lines.length - 1]
+    if (line && Math.abs(line[0].y - it.y) <= 2) line.push(it)
+    else lines.push([it])
+  }
+  return lines.map(lineToText).join('\n')
+}
+
+function lineToText(line: TextItem[]): string {
+  const rtl = [...line].sort((a, b) => b.x - a.x) // visual RTL: rightmost first
+  const out: TextItem[] = []
+  let run: TextItem[] = []
+  const isLtrStart = (it: TextItem) => !HEB.test(it.str) && LTRISH.test(it.str.trim())
+  const flush = () => {
+    if (run.length) {
+      out.push(...run.reverse()) // run collected right-to-left → reverse back to LTR
+      run = []
+    }
+  }
+  // Joiners ("-", "/", "." …) may only CONTINUE a run when the NEXT item in this
+  // descending-x iteration is itself an LTR token — i.e. a joiner joins BETWEEN two LTR
+  // tokens (2026 - 01 - 029201). A trailing joiner with no LTR token after it (e.g. a
+  // closing ")" at the left edge of the line) is not part of the run — it stays a
+  // standalone token in its own visual position.
+  for (let idx = 0; idx < rtl.length; idx++) {
+    const it = rtl[idx]
+    const next = rtl[idx + 1]
+    const isJoiner = !HEB.test(it.str) && JOINER.test(it.str.trim())
+    const joinerContinuesRun = isJoiner && run.length > 0 && next !== undefined && isLtrStart(next)
+    if (isLtrStart(it) || joinerContinuesRun) run.push(it)
+    else {
+      flush()
+      out.push(it)
+    }
+  }
+  flush()
+  return out
+    .map((i) => i.str)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Full-PDF extraction for the ingest script. Dynamic import keeps pdfjs out of any
+ *  accidental server-bundle path. */
+export async function extractPdfPages(data: Uint8Array): Promise<{ pageCount: number; pages: string[] }> {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const doc = await getDocument({ data, useSystemFonts: true }).promise
+  const pages: string[] = []
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p)
+    const tc = await page.getTextContent()
+    const items: TextItem[] = []
+    for (const it of tc.items) {
+      if ('str' in it) items.push({ str: it.str, x: it.transform[4], y: it.transform[5] })
+    }
+    pages.push(reassemblePage(items))
+  }
+  await doc.destroy()
+  return { pageCount: pages.length, pages }
+}
