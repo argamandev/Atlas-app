@@ -32,10 +32,10 @@ call's state leaks. **Always restart it.**
 - Verify clean: `curl -s http://localhost:8788/state` → expect `audioStartRel:null, liveEnded:false,
   endedAt:null, lines:[]`.
 
-## Step 2 — Dev server on :3000
-- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/app/home` → 200. If not, start `npm run dev`
-  (background) and poll until 200. If it 500s with `MODULE_NOT_FOUND` the `.next` is stale → kill dev,
-  `rm -rf .next`, restart.
+## Step 2 — Dev server on YOUR lane port (rules/parallel-work.md)
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/app/home` → 200. If not, start
+  `npm run dev -- -p <port>` (background) and poll until 200. If it 500s with `MODULE_NOT_FOUND`
+  the `.next` is stale → kill dev, `rm -rf .next`, restart.
 - Buffer = `NEXT_PUBLIC_LIVE_BUFFER_SEC` in `.env.local`. Confirm it's the value the founder wants
   (3 min = 180, 4 min = 240). Changing it needs a dev-server restart (NEXT_PUBLIC is inlined at start).
 

@@ -303,7 +303,7 @@ additive migrations only.**
 | `skills/transcript-review/` | `/transcript-review` — the transcript-quality gate. |
 | `skills/fleet-lint/` | `/fleet-lint` — drift-check the whole environment (BOARD, rules, docs, open actions). |
 | `agents/atlas-reviewer.md` | `atlas-reviewer` agent definition — the code/design review persona. |
-| `hooks/gate-tests.mjs` | Extra gate: runs the test suite before commits. |
+| `hooks/gate-tests.mjs` | Fire-test matrix for pre-bash-gate.mjs (60 cases) — run + extend it on EVERY hook change. |
 
 **Fleet memory (git-ignored, main checkout only):** `agent-memory/BOARD.md` (the shared brain —
 all sessions read/write live via absolute path) + `state-<lane>.md` per session. Founder-provided

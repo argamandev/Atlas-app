@@ -1,9 +1,10 @@
 # Parallel-work law (multi-session fleet)
 
 - Ports: supervisor 3000 · frontend 3001 · ivrit 3002 · multiview 3003. THIS LINE is the
-  single source of truth for ports — other docs say "your port per parallel-work.md", they
-  never restate the numbers. Never take another lane's port. Live engine :8788 is
-  SINGLE-OWNER — claim it in the cross-cutting log before starting it; release when done.
+  single source of truth for ports — when any other doc restates a number and disagrees,
+  this line wins; new/edited docs must reference it, not restate (fleet-lint check 6 flags
+  restatements). Never take another lane's port. Live engine :8788 is SINGLE-OWNER — claim
+  it in the cross-cutting log before starting it; release when done.
 - Shared memory (absolute paths — work from any worktree):
   - `C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md` — mission + lane sections. Read at
     session start and before big moves. Edit ONLY your own lane section.
