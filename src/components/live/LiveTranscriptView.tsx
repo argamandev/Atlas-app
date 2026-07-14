@@ -794,7 +794,7 @@ export function LiveTranscriptView({
           quote={chat.seed}
           seedNonce={chat.nonce}
           docRef={chat.docRef}
-          onClose={() => setChat((c) => ({ ...c, open: false }))}
+          onClose={() => setChat((c) => ({ ...c, open: false, docRef: null }))}
         />
       )}
     </div>

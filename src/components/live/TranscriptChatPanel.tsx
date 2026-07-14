@@ -224,7 +224,10 @@ export function TranscriptChatPanel({
             </div>
             <button
               type="button"
-              onClick={() => setRef('')}
+              onClick={() => {
+                setRef('')
+                setRefDoc(null)
+              }}
               title={dict.common.remove}
               className="call-muted mt-0.5 flex flex-none transition-colors hover:call-ink"
             >
