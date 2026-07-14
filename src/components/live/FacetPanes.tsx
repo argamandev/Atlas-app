@@ -140,13 +140,16 @@ export function ReportPane({
 }: {
   companyId?: string | null
   quarter?: string | null
-  onAskSelection?: (text: string, page: number | null, documentId: string) => void
+  onAskSelection?: (text: string, pages: number[], documentId: string) => void
   style?: React.CSSProperties
 }) {
   const { dict } = useI18n()
   const report = reportStub()
   const [doc, setDoc] = useState<{ id: string; title: string; pageCount: number } | null>(null)
   useEffect(() => {
+    // A company/quarter change must never leave a stale PDF rendering while the next lookup
+    // is in flight (or finds nothing) — clear before anything else runs.
+    setDoc(null)
     if (!companyId || !quarter) return
     let dead = false
     fetch(
@@ -158,7 +161,7 @@ export function ReportPane({
         const d = j?.documents?.find((x: { docType: string }) => x.docType === 'report')
         if (!dead && d) setDoc({ id: d.id, title: d.title, pageCount: d.pageCount })
       })
-      .catch(() => {})
+      .catch((err) => console.warn('[ReportPane] documents fetch failed', err))
     return () => {
       dead = true
     }

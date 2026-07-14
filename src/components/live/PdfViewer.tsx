@@ -8,6 +8,15 @@ import { useEffect, useRef, useState } from 'react'
 // Pages stay white in both call themes — a document reads like paper.
 type PdfLib = typeof import('pdfjs-dist')
 
+// Nearest .pdfpage ancestor of a selection endpoint (data-page carries the page number).
+function pageOf(node: Node | null): number | null {
+  while (node) {
+    if (node instanceof HTMLElement && node.dataset.page) return Number(node.dataset.page)
+    node = node.parentNode
+  }
+  return null
+}
+
 export function PdfViewer({
   docId,
   pageCount,
@@ -15,7 +24,7 @@ export function PdfViewer({
 }: {
   docId: string
   pageCount: number
-  onAskSelection?: (text: string, page: number | null, documentId: string) => void
+  onAskSelection?: (text: string, pages: number[], documentId: string) => void
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [doc, setDoc] = useState<any>(null)
@@ -73,22 +82,22 @@ export function PdfViewer({
     const sel = window.getSelection()
     const text = sel?.toString().trim() ?? ''
     if (!text || !sel || sel.rangeCount === 0) return
-    // page number: nearest .pdfpage ancestor of the selection start
-    let node: Node | null = sel.getRangeAt(0).startContainer
-    let page: number | null = null
-    while (node) {
-      if (node instanceof HTMLElement && node.dataset.page) {
-        page = Number(node.dataset.page)
-        break
-      }
-      node = node.parentNode
-    }
-    onAskSelection(text, page, docId)
+    // A selection can span two pages — ground on both the start AND end page, not just start.
+    const range = sel.getRangeAt(0)
+    const pages = Array.from(
+      new Set(
+        [pageOf(range.startContainer), pageOf(range.endContainer)].filter((n): n is number => n !== null)
+      )
+    ).sort((a, b) => a - b)
+    onAskSelection(text, pages, docId)
   }
 
   if (failed) {
     return (
-      <div className="call-hair call-card-bg call-muted rounded-lg border p-6 text-center text-[13px]">
+      <div
+        dir="rtl"
+        className="call-hair call-card-bg call-muted rounded-lg border p-6 text-center text-[13px]"
+      >
         <p className="mb-3">לא הצלחנו לטעון את המסמך.</p>
         <button
           type="button"

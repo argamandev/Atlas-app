@@ -18,8 +18,6 @@ create table if not exists public.company_documents (
   updated_at timestamptz not null default now(),
   unique (company_id, quarter, doc_type)
 );
-create index if not exists company_documents_company_quarter_idx
-  on public.company_documents(company_id, quarter);
 
 create table if not exists public.document_pages (
   id uuid primary key default gen_random_uuid(),

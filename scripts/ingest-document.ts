@@ -26,6 +26,10 @@ const file = arg('file')
 const company = arg('company')
 const quarter = arg('quarter')
 const docType = (arg('type') ?? 'report') as 'report' | 'slides'
+if (docType !== 'report' && docType !== 'slides') {
+  console.error(`--type must be 'report' or 'slides' (got '${docType}')`)
+  process.exit(1)
+}
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 

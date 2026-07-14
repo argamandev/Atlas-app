@@ -102,7 +102,7 @@ export function LiveTranscriptView({
     open: boolean
     seed: string
     nonce: number
-    docRef: { documentId: string; page: number | null } | null
+    docRef: { documentId: string; pages: number[] } | null
   }>({
     open: false,
     seed: '',
@@ -274,8 +274,8 @@ export function LiveTranscriptView({
 
   // A passage marked inside the report PDF → open the side chat seeded with it (same UX as
   // transcript highlights), tagged with document + page so /api/chat grounds on the page text.
-  function onReportAsk(text: string, page: number | null, documentId: string) {
-    setChat((c) => ({ open: true, seed: text, nonce: c.nonce + 1, docRef: { documentId, page } }))
+  function onReportAsk(text: string, pages: number[], documentId: string) {
+    setChat((c) => ({ open: true, seed: text, nonce: c.nonce + 1, docRef: { documentId, pages } }))
   }
 
   // Reassign the selected run to a speaker → recompute + persist the overlay → reload (Feature 1).

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getChatContext, getDocumentContext } from '@/lib/chat/context'
+import { getRequestUserId } from '@/lib/auth'
 
 // Chat over the transcript DB (brief §5.3), now **streamed** (Feature 5). Gemini 3.5 Flash —
 // same engine + GEMINI_API_KEY as the formatting pipeline. We proxy Gemini's SSE stream and
@@ -108,7 +109,10 @@ export async function POST(req: NextRequest) {
     ? { text: liveContext.slice(0, 40_000), source: null }
     : await getChatContext(companyId, transcriptId)
 
-  const docBlock = documentRef ? await getDocumentContext(documentRef).catch(() => '') : ''
+  // Document grounding is auth-gated even though chat itself is not — documentRef reads company
+  // documents via supabaseAdmin (bypasses RLS), so only a signed-in user may trigger that lookup.
+  const userId = documentRef ? await getRequestUserId(req) : null
+  const docBlock = documentRef && userId ? await getDocumentContext(documentRef).catch(() => '') : ''
 
   const system =
     'You are Atlas, a research assistant for Israeli public-company investor calls. ' +

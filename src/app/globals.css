@@ -385,9 +385,9 @@
 /* Tables don't inherit `direction` reliably once set to display:block, so pin it to the
    wrapper's resolved direction — Hebrew puts the first column on the far right; English stays LTR. */
 .md[dir='rtl'] table { direction: rtl; }
+.md[dir='ltr'] table { direction: ltr; }
 
 /* pdf.js text layer (multiview M1): transparent selectable text over each page canvas */
 .pdfpage { position: relative; direction: ltr; }
 .pdftext { position: absolute; inset: 0; overflow: hidden; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; }
 .pdftext :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
-.md[dir='ltr'] table { direction: ltr; }

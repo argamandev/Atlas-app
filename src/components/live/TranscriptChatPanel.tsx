@@ -39,8 +39,8 @@ export function TranscriptChatPanel({
   quote: string
   /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
-  /** multiview: the pending reference came from the report PDF (document + page) */
-  docRef?: { documentId: string; page: number | null } | null
+  /** multiview: the pending reference came from the report PDF (document + pages) */
+  docRef?: { documentId: string; pages: number[] } | null
   onClose: () => void
   /** hero second line override — "about this call" (default) vs "about this company" */
   heroLine2?: string
@@ -77,9 +77,17 @@ export function TranscriptChatPanel({
     const usedRef = ref.trim()
     const usedDoc = refDoc
     const history = messages.map((m) => ({ role: m.role, content: m.content }))
+    // Label the passage by page(s): "(page 4)" for one, "(pages 4–5)" for a start/end span,
+    // omitted entirely when no page could be resolved from the selection.
+    const pageLabel =
+      usedDoc && usedDoc.pages.length > 0
+        ? usedDoc.pages.length > 1
+          ? ` (pages ${usedDoc.pages[0]}–${usedDoc.pages[usedDoc.pages.length - 1]})`
+          : ` (page ${usedDoc.pages[0]})`
+        : ''
     const apiMessage = usedRef
       ? usedDoc
-        ? `Regarding this passage from the company's quarterly report${usedDoc.page ? ` (page ${usedDoc.page})` : ''}: "${usedRef}"\n\n${text}`
+        ? `Regarding this passage from the company's quarterly report${pageLabel}: "${usedRef}"\n\n${text}`
         : `Regarding this quote from the investor call: "${usedRef}"\n\n${text}`
       : text
     setMessages((prev) => [
@@ -109,9 +117,7 @@ export function TranscriptChatPanel({
           transcriptId,
           liveContext,
           history,
-          documentRef: usedDoc
-            ? { documentId: usedDoc.documentId, pages: usedDoc.page ? [usedDoc.page] : [] }
-            : undefined,
+          documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
         },
         (delta) => {
           full += delta
