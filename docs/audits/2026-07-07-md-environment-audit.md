@@ -79,4 +79,30 @@ The environment is structurally sound and genuinely self-improving — the funne
 
 ## Disposition (supervisor-maintained — update as findings are fixed)
 
-- [ ] Not yet triaged with the founder. Fix plan pending founder review (2026-07-07).
+Founder approved the fix plan 2026-07-14 (DECISION line in cross-cutting.md). Executed on
+`chore/environment-audit-fixes` the same day:
+
+- [x] 1 — /ship step 6 appends a MERGE line; ≥3 since last LINT forces /fleet-lint
+- [x] 2 — ARCHITECTURE.md updated (both merges) + "update ARCHITECTURE" is /ship merge step 5
+- [x] 3 — plan/spec stamping moved to merge-time; IVRIT M1 + Lane F + stray file stamped (8 files)
+- [x] 4 — Lane I evidence rescued → docs/evidence/ivrit-m1/ + scripts/out/sessions/; rescue is retirement step 2
+- [x] 5 — agent-memory snapshot ritual in /fleet-lint (check 11); first snapshot 2026-07-14
+- [x] 6, 8, 12 — supervisor dated note/graduation-marker exception in parallel-work.md; Lane M note filed
+- [x] 7 — counts-from-git rule (parallel-work.md + /ship lane step 7)
+- [x] 9 — state-supervisor.md rewritten; state-file freshness added to fleet-lint check 1
+- [x] 10 — transcript-review pointers (correction.ts), lane port, modern framing
+- [x] 11 — re-mission runbook written into /ship; LAUNCH-KIT-vs-board check in fleet-lint check 6
+- [x] 13 — Edit/Write denies on both logs + bash-gate truncation blocks (51 gate tests pass)
+- [x] 14 — LAUNCH-KIT :8788 claim corrected to cross-cutting.md
+- [x] 15 — docs/evidence/ convention (README + verify-app step 9 + /ship lane step 6)
+- [x] 16 — VISION: IVRIT engine marked SHIPPED (Lane I), disambiguated from Mission 4 (Lane M)
+- [x] 17 — CLAUDE.md two-engine line
+- [x] 19, 20 — log headers: AMEND/CORRECTION declared; LESSON + MERGE types added; LINT reserved
+- [x] 21 — log compaction thresholds = fleet-lint check 10
+- [x] 22 — security notes + audits/evidence indexed in CLAUDE.md doc map; stray v2-results stamped
+- [x] 23 — live-test port + call-id parameterized
+- [x] 24 — fleet-lint check 7 reframed evidence-based
+- [x] 25 — ENVIRONMENT.md stray fence removed
+- [x] 26 — parallel-work.md declared single source for ports
+- [ ] 18 — open-founder-actions tracking (Supabase token rotation still open) — folded into the
+      board's open-items practice; the token rotation itself remains a FOUNDER action.
