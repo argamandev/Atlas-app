@@ -32,9 +32,9 @@ alter table public.company_documents enable row level security;
 alter table public.document_pages enable row level security;
 
 -- Signed-in users read; writes only via service role (which bypasses RLS).
-drop policy if exists company_documents_read on public.company_documents;
+-- No drop-policy guards: the tables are new, and the fleet's destructive-SQL hook
+-- rejects any statement containing DROP POLICY.
 create policy company_documents_read on public.company_documents
   for select to authenticated using (true);
-drop policy if exists document_pages_read on public.document_pages;
 create policy document_pages_read on public.document_pages
   for select to authenticated using (true);
