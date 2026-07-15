@@ -8,6 +8,23 @@ import { useEffect, useRef, useState } from 'react'
 // Pages stay white in both call themes — a document reads like paper.
 type PdfLib = typeof import('pdfjs-dist')
 
+// pdf.js is loaded NATIVELY from public/ (like its worker), never through webpack:
+// Next 14's webpack mis-wraps the pdfjs-dist 5.4.x ESM bundle and it dies at import
+// time with "Object.defineProperty called on non-object" (pdf.js#20478, webpack#20095,
+// fixed only in webpack >= 5.103). public/pdf.min.mjs + public/pdf.worker.min.mjs are
+// committed copies of the SAME pdfjs-dist build — re-sync BOTH if the package bumps.
+const PDFJS_SRC = '/pdf.min.mjs'
+let pdfjsPromise: Promise<PdfLib> | null = null
+function loadPdfjs(): Promise<PdfLib> {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import(/* webpackIgnore: true */ PDFJS_SRC).then((pdfjs: PdfLib) => {
+      pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+      return pdfjs
+    })
+  }
+  return pdfjsPromise
+}
+
 // Nearest .pdfpage ancestor of a selection endpoint (data-page carries the page number).
 function pageOf(node: Node | null): number | null {
   while (node) {
@@ -41,11 +58,7 @@ export function PdfViewer({
     setDoc(null)
     ;(async () => {
       try {
-        const pdfjs: PdfLib = await import('pdfjs-dist')
-        // `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)` fails the Next
-        // production build (Terser chokes on `import.meta` in the emitted worker chunk) — the
-        // worker is copied to public/ instead (see /ship notes) and referenced by static path.
-        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+        const pdfjs = await loadPdfjs()
         const task = pdfjs.getDocument({ url: `/api/documents/${encodeURIComponent(docId)}/file` })
         loaded = await task.promise
         if (!dead) setDoc(loaded)
@@ -153,7 +166,7 @@ function PdfPage({ doc, pageNo, width }: { doc: any; pageNo: number; width: numb
     let textLayer: any = null
     ;(async () => {
       try {
-        const pdfjs: PdfLib = await import('pdfjs-dist')
+        const pdfjs = await loadPdfjs()
         if (dead) return
         const page = await doc.getPage(pageNo)
         if (dead) return

@@ -71,7 +71,10 @@ function lineToText(line: TextItem[]): string {
  *  accidental server-bundle path. */
 export async function extractPdfPages(data: Uint8Array): Promise<{ pageCount: number; pages: string[] }> {
   const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
-  const doc = await getDocument({ data, useSystemFonts: true }).promise
+  // pdf.js TRANSFERS the buffer it is given (detaching the caller's array — it silently
+  // becomes zero-length). Hand it a copy so callers can keep using their bytes; the ingest
+  // upload once stored a 0-byte PDF because extraction ran first on the same array.
+  const doc = await getDocument({ data: new Uint8Array(data), useSystemFonts: true }).promise
   const pages: string[] = []
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p)

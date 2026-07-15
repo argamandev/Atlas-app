@@ -18,7 +18,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return new Response(data.stream(), {
     headers: {
       'content-type': 'application/pdf',
-      'cache-control': 'private, max-age=3600',
+      // no-store: the storage path is stable per (company, quarter, type), so a re-ingest
+      // MUST invalidate viewers — an hour-long cache once pinned a bad upload in the browser.
+      'cache-control': 'private, no-store',
     },
   })
 }
