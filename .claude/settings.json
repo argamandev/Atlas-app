@@ -10,7 +10,8 @@
       "Bash(git log*)",
       "Bash(git branch*)",
       "Bash(curl -s http://localhost:*)",
-      "Bash(node scripts/live-replay-engine.mjs*)"
+      "Bash(node scripts/live-replay-engine.mjs*)",
+      "Bash(node scripts/append-log.mjs *)"
     ],
     "deny": [
       "Read(./.env*)",
