@@ -29,7 +29,7 @@ import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from 
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
-import { usePlayer, usePlayerTime } from '@/lib/player/PlayerProvider'
+import { usePlayer, usePlayerTimeDerived } from '@/lib/player/PlayerProvider'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
@@ -54,15 +54,20 @@ export function LiveTranscriptView({
   // player and reads the playhead from it, rather than owning an <audio> element. This is
   // what lets the audio keep playing while you browse/chat and return via the Return chip.
   const player = usePlayer()
-  const currentTime = usePlayerTime()
   const playing = player.playing
   const isActiveCall = player.call?.id === call.id
-  const effTime = isActiveCall ? currentTime : 0
+  // Derived-value subscriptions, NOT the raw 60fps clock: this view renders the whole
+  // transcript, and per-frame re-renders froze hour-long word-timed calls. The view now
+  // re-renders only when the active word (or the displayed second) actually changes.
+  const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
+  const activeIndex = usePlayerTimeDerived((t) => (isActiveCall ? activeWordIndex(flat, t) : -1))
+  const clockSec = usePlayerTimeDerived((t) => (isActiveCall ? Math.floor(t) : 0))
   // remember the last playhead so the "Open audio bar" chip can resume where the user closed it
+  // (second granularity is plenty — clockSec keeps this off the 60fps tick)
   const lastPosRef = useRef(0)
   useEffect(() => {
-    if (isActiveCall) lastPosRef.current = currentTime
-  }, [isActiveCall, currentTime])
+    if (isActiveCall) lastPosRef.current = player.getCurrentTime()
+  }, [isActiveCall, clockSec, player])
 
   // Tell the player this call is being displayed (URL-independent) so the Return-to-transcript chip
   // hides while we're on it — including the inline live→finished swap, where the URL stays /app/live/live.
@@ -118,8 +123,6 @@ export function LiveTranscriptView({
   const [editMode, setEditMode] = useState(false)
   const canEdit = call.companyId != null && call.id !== 'demo'
 
-  const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
-  const activeIndex = useMemo(() => activeWordIndex(flat, effTime), [flat, effTime])
   const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
   const name = locale === 'en' ? (call.companyNameEn ?? call.companyName) : call.companyName
   const title = `${name} — ${call.quarter}`
@@ -310,7 +313,7 @@ export function LiveTranscriptView({
         text: sel.text,
         speaker: sel.speaker ?? activeSpeaker,
         quarter: call.quarter,
-        startSec: effTime,
+        startSec: isActiveCall ? player.getCurrentTime() : 0,
         anchor: sel.segmentId ? { segmentId: sel.segmentId, text: sel.text.slice(0, 80) } : null,
       })
       // Clickable toast → jump straight to that company's My Quotes tab (audio keeps playing).
@@ -502,7 +505,7 @@ export function LiveTranscriptView({
             >
               {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
               <span className="font-mono-num tabular-nums" dir="ltr">
-                {formatClock(effTime)}
+                {formatClock(clockSec)}
               </span>
             </button>
             <span className="call-muted text-[11.5px]">{dict.live.viewLabel}</span>

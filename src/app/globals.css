@@ -389,5 +389,9 @@
 
 /* pdf.js text layer (multiview M1): transparent selectable text over each page canvas */
 .pdfpage { position: relative; direction: ltr; }
-.pdftext { position: absolute; inset: 0; overflow: hidden; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; }
+/* --total-scale-factor is the variable pdf.js 5.4 actually uses in its inline font-size
+   calc(); it must be derived from the --scale-factor the viewer sets (pdf.js's own
+   pdf_viewer.css does exactly this). Without it the calc() collapses and every span
+   falls back to 16px — selected text rendered comically large over the page. */
+.pdftext { --total-scale-factor: calc(var(--scale-factor) * var(--user-unit, 1)); position: absolute; inset: 0; overflow: hidden; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; }
 .pdftext :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }

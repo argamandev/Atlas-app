@@ -72,6 +72,19 @@ export function usePlayerTime(): number {
   return useSyncExternalStore(p.subscribeTime, p.getCurrentTime, () => 0)
 }
 
+/** Derived playhead value (active word index, whole seconds, …). `compute` runs at tick
+ *  rate, but the component re-renders only when the derived PRIMITIVE changes — wiring the
+ *  raw 60fps clock into a large view froze hour-long word-timed calls (every frame
+ *  re-rendered thousands of word spans). Keep `compute` cheap; memoization not required. */
+export function usePlayerTimeDerived<T extends number | string | boolean>(compute: (t: number) => T): T {
+  const p = usePlayer()
+  return useSyncExternalStore(
+    p.subscribeTime,
+    () => compute(p.getCurrentTime()),
+    () => compute(0)
+  )
+}
+
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [call, setCall] = useState<PlayerCall | null>(null)
