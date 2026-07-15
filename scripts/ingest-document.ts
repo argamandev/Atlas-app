@@ -49,10 +49,15 @@ async function main() {
     process.exit(1)
   }
   const db = createClient(url, key)
-  // resolve company: uuid passes through, anything else is looked up as a ticker
+  // resolve company: uuid passes through, anything else is looked up as a TASE security id
+  // (the companies table has no 'ticker' column — tase_security_id is the ticker-like key)
   let companyId = company
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(company)) {
-    const { data } = await db.from('companies').select('id, name').eq('ticker', company).maybeSingle()
+    const { data } = await db
+      .from('companies')
+      .select('id, name')
+      .eq('tase_security_id', company)
+      .maybeSingle()
     if (!data) {
       console.error(`No company with ticker ${company}`)
       process.exit(1)
