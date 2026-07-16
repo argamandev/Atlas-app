@@ -178,6 +178,19 @@ export function ReportPane({
       ?.scrollIntoView({ block: 'start', inline: 'nearest' })
     setPage(target)
   }
+  // Zoomed pages overflow to one side (RTL pane anchors them left) — recenter whenever the
+  // zoom changes, and give ← → pan buttons for fine adjustment (founder round 4).
+  useEffect(() => {
+    const sc = scrollRef.current
+    if (!sc) return
+    const max = sc.scrollWidth - sc.clientWidth
+    if (max <= 0) return
+    // Chrome RTL scroll coordinates run [ -max .. 0 ]; LTR runs [ 0 .. max ]
+    sc.scrollLeft = (getComputedStyle(sc).direction === 'rtl' ? -1 : 1) * (max / 2)
+  }, [zoom])
+  const panBy = (dir: 1 | -1) =>
+    // physical coordinates: positive always moves the view right, in both directions
+    scrollRef.current?.scrollBy({ left: dir * scrollRef.current.clientWidth * 0.4, behavior: 'smooth' })
   useEffect(() => {
     // A company/quarter change must never leave a stale PDF rendering while the next lookup
     // is in flight (or finds nothing) — clear before anything else runs.
@@ -257,6 +270,27 @@ export function ReportPane({
                   className="rounded px-1.5 text-[13px] leading-none transition-colors hover:call-ink disabled:opacity-40"
                 >
                   +
+                </button>
+              </span>
+            )}
+            {doc && zoom > 100 && (
+              // pan the zoomed page left/right — it overflows the pane once zoom > 100
+              <span className="call-muted flex items-center gap-0.5" dir="ltr">
+                <button
+                  type="button"
+                  aria-label="pan left"
+                  onClick={() => panBy(-1)}
+                  className="rounded px-1.5 text-[12px] leading-none transition-colors hover:call-ink"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  aria-label="pan right"
+                  onClick={() => panBy(1)}
+                  className="rounded px-1.5 text-[12px] leading-none transition-colors hover:call-ink"
+                >
+                  →
                 </button>
               </span>
             )}

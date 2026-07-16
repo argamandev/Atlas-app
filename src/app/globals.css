@@ -418,7 +418,10 @@
    pdf_viewer.css does exactly this). Without it the calc() collapses and every span
    falls back to 16px — selected text rendered comically large over the page. */
 .pdftext { --total-scale-factor: calc(var(--scale-factor) * var(--user-unit, 1)); position: absolute; inset: 0; overflow: hidden; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; }
-.pdftext :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+/* z-index 1 mirrors pdf.js's own ".textLayer > :not(.markedContent)" rule: glyph spans must
+   paint ABOVE .endOfContent (z-index 0, LAST child) or the armed guard swallows every drag
+   at pointerdown and nothing is selectable (founder round 4, "I just can't mark"). */
+.pdftext :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; z-index: 1; }
 /* pdf.js viewer's anti-balloon guard: while a drag-selection is live (.selecting via
    pointerdown/up in PdfViewer), .endOfContent grows from a sliver below the text to cover
    the whole layer. The pointer then always has an unselectable anchor under it — without
