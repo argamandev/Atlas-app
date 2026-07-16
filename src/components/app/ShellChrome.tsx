@@ -14,9 +14,9 @@ import { ReturnToLiveChip } from './ReturnToLiveChip'
 // in-column bar). Pages keep their own bottom padding inside their scroll areas so the last lines
 // clear the floating pill. The `relative` wrapper is the positioning context the docked bars anchor to.
 export function ShellChrome({ children }: { children: React.ReactNode }) {
-  const { call } = usePlayer()
+  const { call, barHidden } = usePlayer()
   const live = useLiveAudio()
-  const dockOpen = !!call && !call.isLive
+  const dockOpen = !!call && !call.isLive && !barHidden
   const liveDockOpen = live.active && !live.viewing // live bar takes over once you leave the live page
 
   return (
