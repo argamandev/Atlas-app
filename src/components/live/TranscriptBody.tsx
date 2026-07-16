@@ -37,8 +37,12 @@ export function TranscriptBody({
   const rootRef = useRef<HTMLDivElement>(null)
   const activeWordRef = useRef<HTMLSpanElement>(null)
   const activeMatchRef = useRef<HTMLSpanElement>(null)
+  const scrollerRef = useRef<HTMLElement | null>(null)
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null)
   const [following, setFollowing] = useState(true) // auto-scroll follows the active word; a hand scroll pauses it
+  // the "back to current word" chip's arrow points TOWARD the word: ↑ when the user scrolled
+  // down past it, ↓ when they scrolled up above it (founder round 3)
+  const [wordIsAbove, setWordIsAbove] = useState(false)
   const matchSet = useMemo(() => new Set(searchMatches), [searchMatches])
 
   // starting global word index per segment
@@ -59,20 +63,39 @@ export function TranscriptBody({
     }
   }, [activeIndex, autoScroll, following])
 
+  // Where is the active word relative to the visible area? Drives the chip's arrow direction.
+  const updateWordSide = () => {
+    const w = activeWordRef.current
+    if (!w) return
+    const sc = scrollerRef.current
+    const box = sc ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight }
+    setWordIsAbove(w.getBoundingClientRect().top < (box.top + box.bottom) / 2)
+  }
+
   // Pause auto-follow the moment the user scrolls by hand. We listen for wheel/touch — genuine user input
   // that is NEVER fired by our own programmatic scrollIntoView — so the page stops yanking back to the word.
   useEffect(() => {
     let sc: HTMLElement | null = rootRef.current?.parentElement ?? null
     while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement
+    scrollerRef.current = sc
     const target: HTMLElement | Window = sc ?? window
     const pause = () => setFollowing(false)
+    // scroll (any source) retargets the chip arrow — cheap: two getBoundingClientRect calls
+    const onScroll = () => updateWordSide()
     target.addEventListener('wheel', pause, { passive: true })
     target.addEventListener('touchmove', pause, { passive: true })
+    target.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       target.removeEventListener('wheel', pause)
       target.removeEventListener('touchmove', pause)
+      target.removeEventListener('scroll', onScroll)
     }
   }, [])
+
+  // While paused, the active word keeps moving as the call plays — keep the arrow honest.
+  useEffect(() => {
+    if (!following) updateWordSide()
+  }, [following, activeIndex])
 
   // Toggling the master auto-scroll switch (re)engages following.
   useEffect(() => {
@@ -175,7 +198,7 @@ export function TranscriptBody({
             }}
             className="pointer-events-auto flex items-center gap-1 rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white shadow-popover transition-opacity hover:opacity-90"
           >
-            <span aria-hidden>↓</span> {followLabel ?? dict.live.backToLive}
+            <span aria-hidden>{wordIsAbove ? '↑' : '↓'}</span> {followLabel ?? dict.live.backToLive}
           </button>
         </div>
       )}

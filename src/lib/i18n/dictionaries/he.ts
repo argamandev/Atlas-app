@@ -232,7 +232,7 @@ export const he: Dictionary = {
     behindLive: 'מאחורי שיחת המשקיעים המקורית',
     buffering: 'אנחנו משהים {min} דק׳ משיחת המקור כדי להפיק תמלול חי',
     backToLive: 'חזרה לחי',
-    backToPlaying: 'חזרה לנוכחי',
+    backToPlaying: 'חזרה למילה הנוכחית',
     openAudioBar: 'פתחו את נגן השמע',
     slidesEmpty: 'המצגת תופיע כאן כשתקושר לשיחה.',
     reportEmpty: 'הדוח הרבעוני יופיע כאן כשיקושר.',
@@ -243,7 +243,8 @@ export const he: Dictionary = {
     karaokeTag: 'קריוקי',
     callSections: 'חלקי השיחה',
     askAtlas: 'שאלו את אטלס',
-    bufferExplainer: 'שיחות המתארחות באטלס משודרות בהשהיה של כ־4–5 דקות. התמלול וסנכרון הקריוקי מתחילים ברגע שהשידור נוחת.',
+    bufferExplainer:
+      'שיחות המתארחות באטלס משודרות בהשהיה של כ־4–5 דקות. התמלול וסנכרון הקריוקי מתחילים ברגע שהשידור נוחת.',
     enterLiveNow: 'כניסה לשידור עכשיו',
     askHeroLine1: 'שאלו כל דבר',
     askHeroLine2: 'על השיחה הזאת',
