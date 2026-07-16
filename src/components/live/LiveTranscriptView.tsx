@@ -88,6 +88,30 @@ export function LiveTranscriptView({
   const { colFlex, facetDivider } = useFacetColumns()
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
+
+  // Multi = the full-report experience (founder round 3): entering it collapses the app
+  // nav rail (CustomEvent — NavRail listens) and the speaker panel; we restore ONLY what we
+  // collapsed, on Single or unmount. Manual toggles afterwards win — this fires per view change.
+  const autoCollapsedRef = useRef(false)
+  useEffect(() => {
+    if (view === 'multi') {
+      window.dispatchEvent(new CustomEvent('atlas:rail-collapse', { detail: { collapsed: true } }))
+      setPanelCollapsed(true)
+      autoCollapsedRef.current = true
+    } else if (autoCollapsedRef.current) {
+      window.dispatchEvent(new CustomEvent('atlas:rail-collapse', { detail: { collapsed: false } }))
+      setPanelCollapsed(false)
+      autoCollapsedRef.current = false
+    }
+  }, [view])
+  useEffect(
+    () => () => {
+      // leaving the call page mid-Multi must not strand the whole app with a collapsed rail
+      if (autoCollapsedRef.current)
+        window.dispatchEvent(new CustomEvent('atlas:rail-collapse', { detail: { collapsed: false } }))
+    },
+    []
+  )
   const [toast, setToast] = useState<Toast | null>(null)
   const [selection, setSelection] = useState<{
     text: string
@@ -782,23 +806,27 @@ export function LiveTranscriptView({
           </div>
         )}
 
-        {/* "Open audio bar" — reopen the docked bar after ✕, resuming where you left off */}
-        {call.audioUrl && !isActiveCall && (
+        {/* "Open audio bar" — reopen the docked bar after ✕. If the call is still loaded
+            (the ✕ only hides the bar now — audio may well still be playing) this is a pure
+            un-hide; otherwise reload the call at the last playhead. */}
+        {call.audioUrl && (!isActiveCall || player.barHidden) && (
           <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center">
             <button
               type="button"
               onClick={() =>
-                player.load({
-                  id: call.id,
-                  companyId: call.companyId,
-                  title: name,
-                  subtitle: call.quarter,
-                  logoUrl: call.logoUrl,
-                  audioUrl: call.audioUrl!,
-                  isLive: false,
-                  duration: call.transcript.durationSec || undefined,
-                  startAt: lastPosRef.current,
-                })
+                isActiveCall
+                  ? player.showBar()
+                  : player.load({
+                      id: call.id,
+                      companyId: call.companyId,
+                      title: name,
+                      subtitle: call.quarter,
+                      logoUrl: call.logoUrl,
+                      audioUrl: call.audioUrl!,
+                      isLive: false,
+                      duration: call.transcript.durationSec || undefined,
+                      startAt: lastPosRef.current,
+                    })
               }
               className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white shadow-popover transition-opacity hover:opacity-90"
             >

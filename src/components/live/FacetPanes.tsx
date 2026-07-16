@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/ds/icons'
 import { slideStubs, reportStub } from '@/lib/live/call-stubs'
@@ -154,6 +154,30 @@ export function ReportPane({
       const i = ZOOM_STEPS.indexOf(z)
       return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))] ?? 100
     })
+  // Page navigation beside the zoom (founder round 3): ‹ N / total › jumps whole pages;
+  // scrolling by hand keeps N honest (the last page whose top passed the pane's top wins).
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState(1)
+  function trackPage() {
+    const sc = scrollRef.current
+    if (!sc) return
+    const top = sc.getBoundingClientRect().top
+    let cur = 1
+    sc.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => {
+      if (el.getBoundingClientRect().top <= top + 24) cur = Number(el.dataset.page) || cur
+    })
+    setPage(cur)
+  }
+  function goToPage(n: number) {
+    if (!doc) return
+    const target = Math.min(doc.pageCount, Math.max(1, n))
+    // instant, not smooth: the label setState re-renders the pane mid-animation and Chrome
+    // cancels the smooth scroll a few pixels in — the jump silently never arrived
+    scrollRef.current
+      ?.querySelector(`[data-page="${target}"]`)
+      ?.scrollIntoView({ block: 'start', inline: 'nearest' })
+    setPage(target)
+  }
   useEffect(() => {
     // A company/quarter change must never leave a stale PDF rendering while the next lookup
     // is in flight (or finds nothing) — clear before anything else runs.
@@ -181,6 +205,31 @@ export function ReportPane({
         label={dict.live.report}
         right={
           <span className="flex items-center gap-2.5">
+            {doc && doc.pageCount > 1 && (
+              <span className="call-muted flex items-center gap-0.5" dir="ltr">
+                <button
+                  type="button"
+                  aria-label="previous page"
+                  onClick={() => goToPage(page - 1)}
+                  disabled={page <= 1}
+                  className="flex rounded p-1 transition-colors hover:call-ink disabled:opacity-40"
+                >
+                  <ChevronLeftIcon size={13} strokeWidth={1.8} />
+                </button>
+                <span className="font-mono-num min-w-[44px] text-center text-[10.5px] tabular-nums">
+                  {page} / {doc.pageCount}
+                </span>
+                <button
+                  type="button"
+                  aria-label="next page"
+                  onClick={() => goToPage(page + 1)}
+                  disabled={page >= doc.pageCount}
+                  className="flex rounded p-1 transition-colors hover:call-ink disabled:opacity-40"
+                >
+                  <ChevronRightIcon size={13} strokeWidth={1.8} />
+                </button>
+              </span>
+            )}
             {doc && (
               <span className="call-muted flex items-center gap-0.5" dir="ltr">
                 <button
@@ -215,7 +264,7 @@ export function ReportPane({
           </span>
         }
       />
-      <div className="atscroll flex-1 overflow-auto p-[22px]">
+      <div ref={scrollRef} onScroll={trackPage} className="atscroll flex-1 overflow-auto p-[22px]">
         {doc ? (
           <PdfViewer docId={doc.id} pageCount={doc.pageCount} zoom={zoom} onAskSelection={onAskSelection} />
         ) : (

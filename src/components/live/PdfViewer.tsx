@@ -34,6 +34,22 @@ function pageOf(node: Node | null): number | null {
   return null
 }
 
+// The seeded passage, rebuilt from the selection's text nodes. sel.toString() on a pdf.js
+// text layer concatenates adjacent spans with NO separator (they're absolutely positioned,
+// not flowing text), so words ran together in the chat reference. Joining every selected
+// text node with a single space reads like the printed line.
+function selectionText(sel: Selection): string {
+  const parts: string[] = []
+  for (let i = 0; i < sel.rangeCount; i++) {
+    const walker = document.createTreeWalker(sel.getRangeAt(i).cloneContents(), NodeFilter.SHOW_TEXT)
+    while (walker.nextNode()) {
+      const t = walker.currentNode.textContent?.trim()
+      if (t) parts.push(t)
+    }
+  }
+  return parts.join(' ').replace(/\s+/g, ' ').trim()
+}
+
 export function PdfViewer({
   docId,
   pageCount,
@@ -93,11 +109,28 @@ export function PdfViewer({
     }
   }, [])
 
+  // While a drag-selection is live, every text layer gets .selecting so its .endOfContent
+  // covers the layer (see globals.css) — the pdf.js-viewer guard against selections
+  // ballooning to whole paragraphs when the pointer leaves the glyph spans mid-drag.
+  function onPointerDown() {
+    hostRef.current?.querySelectorAll('.pdftext').forEach((el) => el.classList.add('selecting'))
+  }
+  useEffect(() => {
+    const clear = () =>
+      hostRef.current
+        ?.querySelectorAll('.pdftext.selecting')
+        .forEach((el) => el.classList.remove('selecting'))
+    // window, not the host: the drag can end (pointerup) outside the pane
+    window.addEventListener('pointerup', clear)
+    return () => window.removeEventListener('pointerup', clear)
+  }, [])
+
   function onMouseUp() {
     if (!onAskSelection) return
     const sel = window.getSelection()
-    const text = sel?.toString().trim() ?? ''
-    if (!text || !sel || sel.rangeCount === 0) return
+    if (!sel || sel.rangeCount === 0) return
+    const text = selectionText(sel)
+    if (!text) return
     // A selection can span two pages — ground on both the start AND end page, not just start.
     const range = sel.getRangeAt(0)
     const pages = Array.from(
@@ -135,7 +168,13 @@ export function PdfViewer({
   // zoomed pages simply overflow it and the pane's overflow-auto scrolls horizontally.
   const pageWidth = Math.floor((width * zoom) / 100)
   return (
-    <div ref={hostRef} data-ask="1" onMouseUp={onMouseUp} className="flex flex-col gap-3">
+    <div
+      ref={hostRef}
+      data-ask="1"
+      onPointerDown={onPointerDown}
+      onMouseUp={onMouseUp}
+      className="flex flex-col gap-3"
+    >
       {doc && pageWidth > 0
         ? Array.from({ length: pageCount }, (_, i) => (
             <PdfPage key={i + 1} doc={doc} pageNo={i + 1} width={pageWidth} />
@@ -209,6 +248,10 @@ function PdfPage({ doc, pageNo, width }: { doc: any; pageNo: number; width: numb
           viewport,
         })
         await textLayer.render()
+        // the anti-balloon selection anchor (grows to cover the layer while .selecting)
+        const end = document.createElement('div')
+        end.className = 'endOfContent'
+        textDiv.appendChild(end)
       } catch (err) {
         const name = (err as { name?: string } | undefined)?.name
         // A cancelled render/text-layer rejects with RenderingCancelledException /

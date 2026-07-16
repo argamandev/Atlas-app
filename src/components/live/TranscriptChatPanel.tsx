@@ -187,7 +187,9 @@ export function TranscriptChatPanel({
                     <QuoteIcon size={11} />
                     {dict.chat.referringTo}
                   </div>
-                  <p className="call-muted line-clamp-3 text-xs leading-relaxed">{m.reference}</p>
+                  {/* transcript-like air (founder round 3): the marked passage should read as
+                      nicely in the chat as it does in the transcript */}
+                  <p className="call-muted line-clamp-4 text-[12.5px] leading-[1.8]">{m.reference}</p>
                 </div>
               )}
               <div
@@ -224,7 +226,7 @@ export function TranscriptChatPanel({
             </span>
             <div
               dir={detectDir(ref)}
-              className="call-ink line-clamp-3 min-w-0 flex-1 text-[12.5px] leading-[1.55]"
+              className="call-ink line-clamp-4 min-w-0 flex-1 text-[12.5px] leading-[1.8]"
             >
               {ref}
             </div>

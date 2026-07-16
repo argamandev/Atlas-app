@@ -392,6 +392,24 @@
    wrapper's resolved direction — Hebrew puts the first column on the far right; English stays LTR. */
 .md[dir='rtl'] table { direction: rtl; }
 .md[dir='ltr'] table { direction: ltr; }
+/* Dark call theme (founder round 3): the base .md inks above are light-theme constants —
+   near-black strong/heading/table text disappears on the dark call background. Re-ink the
+   structure from the call vars + white-alpha fills; the light app chat is untouched. */
+[data-call-theme='dark'] .md strong,
+[data-call-theme='dark'] .md h1,
+[data-call-theme='dark'] .md h2,
+[data-call-theme='dark'] .md h3,
+[data-call-theme='dark'] .md h4,
+[data-call-theme='dark'] .md th { color: var(--call-ink); }
+[data-call-theme='dark'] .md a { color: #e89a5e; }
+[data-call-theme='dark'] .md a:hover { color: #f0b183; }
+[data-call-theme='dark'] .md code { background: rgba(255, 255, 255, 0.09); }
+[data-call-theme='dark'] .md pre { background: rgba(255, 255, 255, 0.06); }
+[data-call-theme='dark'] .md blockquote { border-inline-start-color: rgba(255, 255, 255, 0.18); color: var(--call-muted); }
+[data-call-theme='dark'] .md hr { border-top-color: rgba(255, 255, 255, 0.12); }
+[data-call-theme='dark'] .md th, [data-call-theme='dark'] .md td { border-color: rgba(255, 255, 255, 0.14); }
+[data-call-theme='dark'] .md th { background: rgba(255, 255, 255, 0.06); }
+[data-call-theme='dark'] .md tr:nth-child(even) td { background: rgba(255, 255, 255, 0.03); }
 
 /* pdf.js text layer (multiview M1): transparent selectable text over each page canvas */
 .pdfpage { position: relative; direction: ltr; }
@@ -401,3 +419,10 @@
    falls back to 16px — selected text rendered comically large over the page. */
 .pdftext { --total-scale-factor: calc(var(--scale-factor) * var(--user-unit, 1)); position: absolute; inset: 0; overflow: hidden; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; }
 .pdftext :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+/* pdf.js viewer's anti-balloon guard: while a drag-selection is live (.selecting via
+   pointerdown/up in PdfViewer), .endOfContent grows from a sliver below the text to cover
+   the whole layer. The pointer then always has an unselectable anchor under it — without
+   this, leaving the glyph spans mid-drag anchors the selection to the page and it balloons
+   to whole paragraphs (founder round 3, "second marking selects everything"). */
+.pdftext .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.pdftext.selecting .endOfContent { inset: 0; }
