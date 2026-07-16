@@ -37,10 +37,13 @@ function pageOf(node: Node | null): number | null {
 export function PdfViewer({
   docId,
   pageCount,
+  zoom = 100,
   onAskSelection,
 }: {
   docId: string
   pageCount: number
+  /** Chrome-style page zoom percentage; >100 overflows horizontally (pane scrolls). */
+  zoom?: number
   onAskSelection?: (text: string, pages: number[], documentId: string) => void
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -127,11 +130,15 @@ export function PdfViewer({
     )
   }
 
+  // Zoomed page width in px. The host keeps the PANE's width (its clientWidth feeds the
+  // fit-to-width measurement — sizing it to zoomed children would feed back into itself);
+  // zoomed pages simply overflow it and the pane's overflow-auto scrolls horizontally.
+  const pageWidth = Math.floor((width * zoom) / 100)
   return (
     <div ref={hostRef} data-ask="1" onMouseUp={onMouseUp} className="flex flex-col gap-3">
-      {doc && width > 0
+      {doc && pageWidth > 0
         ? Array.from({ length: pageCount }, (_, i) => (
-            <PdfPage key={i + 1} doc={doc} pageNo={i + 1} width={width} />
+            <PdfPage key={i + 1} doc={doc} pageNo={i + 1} width={pageWidth} />
           ))
         : null}
     </div>
@@ -230,8 +237,8 @@ function PdfPage({ doc, pageNo, width }: { doc: any; pageNo: number; width: numb
     <div
       ref={wrapRef}
       data-page={pageNo}
-      className="pdfpage w-full rounded-md bg-white shadow-sm"
-      style={{ aspectRatio: `1 / ${ratio}` }}
+      className="pdfpage flex-none rounded-md bg-white shadow-sm"
+      style={{ aspectRatio: `1 / ${ratio}`, width }}
     />
   )
 }

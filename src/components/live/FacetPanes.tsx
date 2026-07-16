@@ -146,6 +146,14 @@ export function ReportPane({
   const { dict } = useI18n()
   const report = reportStub()
   const [doc, setDoc] = useState<{ id: string; title: string; pageCount: number } | null>(null)
+  // Chrome-style page zoom (founder round 2): stepped, % label click = back to 100.
+  const ZOOM_STEPS = [75, 90, 100, 110, 125, 150, 175, 200]
+  const [zoom, setZoom] = useState(100)
+  const zoomBy = (dir: 1 | -1) =>
+    setZoom((z) => {
+      const i = ZOOM_STEPS.indexOf(z)
+      return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))] ?? 100
+    })
   useEffect(() => {
     // A company/quarter change must never leave a stale PDF rendering while the next lookup
     // is in flight (or finds nothing) — clear before anything else runs.
@@ -171,11 +179,45 @@ export function ReportPane({
     <div data-facet="report" style={style} className="flex min-w-[300px] flex-1 flex-col overflow-hidden">
       <PaneHeader
         label={dict.live.report}
-        right={<span className="call-muted text-[11px]">{doc ? doc.title : dict.live.reportFreely}</span>}
+        right={
+          <span className="flex items-center gap-2.5">
+            {doc && (
+              <span className="call-muted flex items-center gap-0.5" dir="ltr">
+                <button
+                  type="button"
+                  aria-label="zoom out"
+                  onClick={() => zoomBy(-1)}
+                  disabled={zoom === ZOOM_STEPS[0]}
+                  className="rounded px-1.5 text-[13px] leading-none transition-colors hover:call-ink disabled:opacity-40"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  title="100%"
+                  onClick={() => setZoom(100)}
+                  className="font-mono-num w-[38px] text-center text-[10.5px] tabular-nums transition-colors hover:call-ink"
+                >
+                  {zoom}%
+                </button>
+                <button
+                  type="button"
+                  aria-label="zoom in"
+                  onClick={() => zoomBy(1)}
+                  disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+                  className="rounded px-1.5 text-[13px] leading-none transition-colors hover:call-ink disabled:opacity-40"
+                >
+                  +
+                </button>
+              </span>
+            )}
+            <span className="call-muted text-[11px]">{doc ? doc.title : dict.live.reportFreely}</span>
+          </span>
+        }
       />
       <div className="atscroll flex-1 overflow-auto p-[22px]">
         {doc ? (
-          <PdfViewer docId={doc.id} pageCount={doc.pageCount} onAskSelection={onAskSelection} />
+          <PdfViewer docId={doc.id} pageCount={doc.pageCount} zoom={zoom} onAskSelection={onAskSelection} />
         ) : (
           <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
             <div className="mb-1.5 font-display text-[21px]">{report.title}</div>

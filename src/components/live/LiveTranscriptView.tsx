@@ -100,6 +100,8 @@ export function LiveTranscriptView({
   } | null>(null)
   const [query, setQuery] = useState('')
   const [matchPos, setMatchPos] = useState(0)
+  // search lives as an icon in the chips row (founder round 2); closing it clears the query
+  const [searchOpen, setSearchOpen] = useState(false)
   // in-transcript side chat (Feature 6): open + the seeded quote + a nonce so re-starring re-seeds
   // docRef (multiview): set only when a report-PDF selection seeded the chat, so /api/chat can
   // ground on document + page text; any transcript highlight clears it back to null.
@@ -497,6 +499,89 @@ export function LiveTranscriptView({
             </div>
           </div>
           <div className="flex items-center gap-2.5">
+            {/* relocated sub-toolbar controls (founder round 2): the strip below is gone,
+                its icons live here so the panes get the vertical room */}
+            <div className="flex items-center gap-0.5">
+              <IconButton label={dict.live.copy} size={28} onClick={copyAll}>
+                <CopyTextIcon size={15} />
+              </IconButton>
+              <IconButton
+                label={dict.company.openInChat}
+                size={28}
+                onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null }))}
+              >
+                <SparkleIcon size={15} />
+              </IconButton>
+              {canEdit && (
+                <IconButton
+                  label={dict.live.editSpeakers}
+                  active={editMode}
+                  size={28}
+                  onClick={() => setEditMode((v) => !v)}
+                >
+                  <PencilIcon size={15} />
+                </IconButton>
+              )}
+              <IconButton
+                label={dict.live.searchTranscript}
+                active={searchOpen}
+                size={28}
+                onClick={() =>
+                  setSearchOpen((open) => {
+                    if (open) {
+                      setQuery('')
+                      setMatchPos(0)
+                    }
+                    return !open
+                  })
+                }
+              >
+                <SearchIcon size={15} />
+              </IconButton>
+              {searchOpen && (
+                <span className="ms-1 flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value)
+                      setMatchPos(0)
+                    }}
+                    placeholder={dict.live.searchTranscript}
+                    className="call-hair call-ink w-40 rounded-md border bg-transparent px-2 py-1 text-xs outline-none placeholder:opacity-50"
+                  />
+                  {query && (
+                    <span className="call-faint flex items-center gap-1 text-2xs">
+                      <span className="tabular-nums">
+                        {matches.length ? matchPos + 1 : 0}/{matches.length}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={!matches.length}
+                        onClick={() => setMatchPos((p) => (p - 1 + matches.length) % matches.length)}
+                        className="px-1 hover:call-ink disabled:opacity-40"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!matches.length}
+                        onClick={() => setMatchPos((p) => (p + 1) % matches.length)}
+                        className="px-1 hover:call-ink disabled:opacity-40"
+                      >
+                        ›
+                      </button>
+                    </span>
+                  )}
+                </span>
+              )}
+              {editMode && (
+                <span className="ms-1 hidden text-2xs text-ink-faint xl:inline">
+                  {dict.live.editSpeakersHint}
+                </span>
+              )}
+            </div>
+            <span className="call-hair h-4 w-px border-s" />
             <button
               type="button"
               onClick={playPause}
@@ -529,72 +614,6 @@ export function LiveTranscriptView({
                 {dict.live.viewMulti}
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* sub-toolbar (design lines 429-440): icon row over a hairline */}
-        <div className="call-hair flex items-center justify-between border-b px-[22px] py-[7px]">
-          <div className="flex items-center gap-0.5">
-            <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
-              <CopyTextIcon size={16} />
-            </IconButton>
-            <IconButton
-              label={dict.company.openInChat}
-              size={30}
-              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null }))}
-            >
-              <SparkleIcon size={16} />
-            </IconButton>
-            {canEdit && (
-              <IconButton
-                label={dict.live.editSpeakers}
-                active={editMode}
-                size={30}
-                onClick={() => setEditMode((v) => !v)}
-              >
-                <PencilIcon size={16} />
-              </IconButton>
-            )}
-            {editMode && (
-              <span className="ms-1 hidden text-2xs text-ink-faint sm:inline">
-                {dict.live.editSpeakersHint}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <SearchIcon size={15} className="text-ink-faint" />
-            <input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setMatchPos(0)
-              }}
-              placeholder={dict.live.searchTranscript}
-              className="w-44 bg-transparent text-xs text-ink outline-none placeholder:text-ink-faint"
-            />
-            {query && (
-              <span className="flex items-center gap-1 text-2xs text-ink-faint">
-                <span className="tabular-nums">
-                  {matches.length ? matchPos + 1 : 0}/{matches.length}
-                </span>
-                <button
-                  type="button"
-                  disabled={!matches.length}
-                  onClick={() => setMatchPos((p) => (p - 1 + matches.length) % matches.length)}
-                  className="px-1 hover:text-ink disabled:opacity-40"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  disabled={!matches.length}
-                  onClick={() => setMatchPos((p) => (p + 1) % matches.length)}
-                  className="px-1 hover:text-ink disabled:opacity-40"
-                >
-                  ›
-                </button>
-              </span>
-            )}
           </div>
         </div>
 

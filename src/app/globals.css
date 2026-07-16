@@ -75,6 +75,12 @@
 /* Ask-Atlas selection: yellow ONLY inside data-ask scopes (design lines 21-24) */
 [data-ask] ::selection{background:#FCE44D;color:#1C1B19}
 [data-ask] ::-moz-selection{background:#FCE44D;color:#1C1B19}
+/* PDF pages: selection must read like a highlighter over the PRINTED text — the overlay
+   glyphs stay invisible even while selected (the data-ask ink color made a second,
+   slightly-off copy of every word appear = "buggy"), and the wash is translucent so the
+   canvas text shows through. */
+[data-ask] .pdftext ::selection{background:rgba(252,228,77,.45);color:transparent}
+[data-ask] .pdftext ::-moz-selection{background:rgba(252,228,77,.45);color:transparent}
 
 /* ── Color schemes (design dc lines 2284-2297): the rail/shell variables the
    Theme toggle cycles. Default (no attribute) = Black rail, today's look. ── */
