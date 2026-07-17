@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { dragToPageRect, scaleRect, snipRenderScale } from '@/lib/documents/snip'
+import type { ChatSnip } from '@/lib/api/chat'
 
 // Real-PDF viewer for the Report facet pane (multiview M1). pdf.js canvas per page +
 // TextLayer (transparent selectable text — pdf.js's own bidi positioning). Pages render
@@ -55,12 +57,26 @@ export function PdfViewer({
   pageCount,
   zoom = 100,
   onAskSelection,
+  snipArmed = false,
+  onSnip,
+  onSnipCancel,
+  onSnipError,
 }: {
   docId: string
   pageCount: number
   /** Chrome-style page zoom percentage; >100 overflows horizontally (pane scrolls). */
   zoom?: number
-  onAskSelection?: (text: string, pages: number[], documentId: string) => void
+  onAskSelection?: (
+    text: string,
+    pages: number[],
+    documentId: string,
+    anchor: { top: number; left: number }
+  ) => void
+  /** Pinge: snip mode armed by the pane's scissors button */
+  snipArmed?: boolean
+  onSnip?: (snip: ChatSnip, anchor: { top: number; left: number }) => void
+  onSnipCancel?: () => void
+  onSnipError?: () => void
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [doc, setDoc] = useState<any>(null)
@@ -125,6 +141,103 @@ export function PdfViewer({
     return () => window.removeEventListener('pointerup', clear)
   }, [])
 
+  // ── Pinge snip mode (spec 2026-07-17) ────────────────────────────────────────
+  // Drag state in viewport coords; pageNo locked at pointerdown (a snip belongs to one page).
+  const [snipDrag, setSnipDrag] = useState<{
+    pageNo: number
+    start: { x: number; y: number }
+    cur: { x: number; y: number }
+  } | null>(null)
+
+  useEffect(() => {
+    if (!snipArmed) {
+      setSnipDrag(null)
+      return
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onSnipCancel?.()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [snipArmed, onSnipCancel])
+
+  function pageUnder(x: number, y: number): { el: HTMLElement; pageNo: number } | null {
+    for (const el of Array.from(hostRef.current?.querySelectorAll<HTMLElement>('[data-page]') ?? [])) {
+      const r = el.getBoundingClientRect()
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)
+        return { el, pageNo: Number(el.dataset.page) }
+    }
+    return null
+  }
+
+  // Offscreen high-res capture (spec approach 1): re-render JUST this page at up to 2x
+  // (reduced so the crop's long side ≤1600px), crop the rect, PNG. The on-screen zoom
+  // never affects output quality — rectPdf is in PDF units.
+  async function captureSnip(
+    pageNo: number,
+    rectPdf: { x: number; y: number; width: number; height: number }
+  ) {
+    const page = await doc.getPage(pageNo)
+    const scale = snipRenderScale(rectPdf)
+    const viewport = page.getViewport({ scale })
+    const full = document.createElement('canvas')
+    full.width = Math.ceil(viewport.width)
+    full.height = Math.ceil(viewport.height)
+    await page.render({ canvasContext: full.getContext('2d')!, viewport }).promise
+    const crop = scaleRect(rectPdf, scale)
+    const out = document.createElement('canvas')
+    out.width = Math.max(1, Math.round(crop.width))
+    out.height = Math.max(1, Math.round(crop.height))
+    out
+      .getContext('2d')!
+      .drawImage(full, crop.x, crop.y, crop.width, crop.height, 0, 0, out.width, out.height)
+    return out.toDataURL('image/png')
+  }
+
+  async function finishSnip(x: number, y: number) {
+    const d = snipDrag
+    setSnipDrag(null)
+    if (!d) {
+      onSnipCancel?.()
+      return
+    }
+    const pageEl = hostRef.current?.querySelector<HTMLElement>(`[data-page="${d.pageNo}"]`)
+    if (!pageEl || !doc) {
+      onSnipCancel?.()
+      return
+    }
+    const pr = pageEl.getBoundingClientRect()
+    const cssRect = dragToPageRect(
+      d.start,
+      { x, y },
+      {
+        left: pr.left,
+        top: pr.top,
+        width: pr.width,
+        height: pr.height,
+      }
+    )
+    if (!cssRect) {
+      onSnipCancel?.() // accidental click / sub-threshold drag
+      return
+    }
+    try {
+      const page = await doc.getPage(d.pageNo)
+      const base = page.getViewport({ scale: 1 })
+      const cssScale = pr.width / base.width // rendered CSS px per PDF unit (zoom-dependent)
+      const rectPdf = scaleRect(cssRect, 1 / cssScale)
+      const dataUrl = await captureSnip(d.pageNo, rectPdf)
+      onSnip?.(
+        { dataUrl, page: d.pageNo, documentId: docId },
+        { top: Math.min(d.start.y, y), left: (d.start.x + x) / 2 }
+      )
+    } catch (err) {
+      console.error('[PdfViewer] snip capture failed', (err as Error).message)
+      onSnipError?.()
+      onSnipCancel?.()
+    }
+  }
+
   function onMouseUp() {
     if (!onAskSelection) return
     const sel = window.getSelection()
@@ -138,7 +251,8 @@ export function PdfViewer({
         [pageOf(range.startContainer), pageOf(range.endContainer)].filter((n): n is number => n !== null)
       )
     ).sort((a, b) => a - b)
-    onAskSelection(text, pages, docId)
+    const r = range.getBoundingClientRect()
+    onAskSelection(text, pages, docId, { top: r.top, left: r.left + r.width / 2 })
   }
 
   if (failed) {
@@ -173,13 +287,69 @@ export function PdfViewer({
       data-ask="1"
       onPointerDown={onPointerDown}
       onMouseUp={onMouseUp}
-      className="flex flex-col gap-3"
+      className="relative flex flex-col gap-3"
     >
       {doc && pageWidth > 0
         ? Array.from({ length: pageCount }, (_, i) => (
             <PdfPage key={i + 1} doc={doc} pageNo={i + 1} width={pageWidth} />
           ))
         : null}
+      {snipArmed && (
+        <div
+          className="absolute inset-0 z-20 cursor-crosshair touch-none select-none"
+          onPointerDown={(e) => {
+            e.preventDefault()
+            const p = pageUnder(e.clientX, e.clientY)
+            if (!p) {
+              onSnipCancel?.() // click in the gutter between/outside pages exits
+              return
+            }
+            ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+            setSnipDrag({
+              pageNo: p.pageNo,
+              start: { x: e.clientX, y: e.clientY },
+              cur: { x: e.clientX, y: e.clientY },
+            })
+          }}
+          onPointerMove={(e) => setSnipDrag((d) => (d ? { ...d, cur: { x: e.clientX, y: e.clientY } } : d))}
+          onPointerUp={(e) => void finishSnip(e.clientX, e.clientY)}
+        >
+          {(() => {
+            const host = hostRef.current?.getBoundingClientRect()
+            if (!snipDrag || !host)
+              return <div className="pointer-events-none absolute inset-0 bg-black/15" />
+            const x0 = Math.min(snipDrag.start.x, snipDrag.cur.x) - host.left
+            const y0 = Math.min(snipDrag.start.y, snipDrag.cur.y) - host.top
+            const x1 = Math.max(snipDrag.start.x, snipDrag.cur.x) - host.left
+            const y1 = Math.max(snipDrag.start.y, snipDrag.cur.y) - host.top
+            return (
+              <>
+                {/* classic screenshot-tool veil: four shaded bands around a clear window */}
+                <div
+                  className="pointer-events-none absolute bg-black/15"
+                  style={{ left: 0, right: 0, top: 0, height: y0 }}
+                />
+                <div
+                  className="pointer-events-none absolute bg-black/15"
+                  style={{ left: 0, right: 0, top: y1, bottom: 0 }}
+                />
+                <div
+                  className="pointer-events-none absolute bg-black/15"
+                  style={{ left: 0, width: x0, top: y0, height: y1 - y0 }}
+                />
+                <div
+                  className="pointer-events-none absolute bg-black/15"
+                  style={{ left: x1, right: 0, top: y0, height: y1 - y0 }}
+                />
+                <div
+                  className="pointer-events-none absolute border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.45)]"
+                  style={{ left: x0, top: y0, width: x1 - x0, height: y1 - y0 }}
+                />
+              </>
+            )
+          })()}
+        </div>
+      )}
     </div>
   )
 }

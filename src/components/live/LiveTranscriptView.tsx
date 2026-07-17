@@ -303,7 +303,12 @@ export function LiveTranscriptView({
 
   // A passage marked inside the report PDF → open the side chat seeded with it (same UX as
   // transcript highlights), tagged with document + page so /api/chat grounds on the page text.
-  function onReportAsk(text: string, pages: number[], documentId: string) {
+  function onReportAsk(
+    text: string,
+    pages: number[],
+    documentId: string,
+    _anchor: { top: number; left: number }
+  ) {
     setChat((c) => ({ open: true, seed: text, nonce: c.nonce + 1, docRef: { documentId, pages } }))
   }
 
