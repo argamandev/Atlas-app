@@ -120,6 +120,10 @@ export const he: Dictionary = {
     thinking: 'חושב…',
     slashHint: 'הקלידו / לפקודות, @ כדי לאזכר חברה',
     referringTo: 'בהתייחס ל',
+    snipCap: 'עד 4 גזירים בשאלה',
+    snipDefault: 'הסבירו מה מציג הקטע המצורף.',
+    snipFailed: 'הגזירה נכשלה — נסו שוב',
+    pageShort: 'עמ׳',
     suggestions: [
       'סכמו את שיחת המשקיעים האחרונה בשלוש נקודות',
       'אילו הנחיות צופות פני עתיד נתנה ההנהלה?',
@@ -243,6 +247,7 @@ export const he: Dictionary = {
     karaokeTag: 'קריוקי',
     callSections: 'חלקי השיחה',
     askAtlas: 'שאלו את אטלס',
+    snip: 'גזירה לצ׳אט',
     bufferExplainer:
       'שיחות המתארחות באטלס משודרות בהשהיה של כ־4–5 דקות. התמלול וסנכרון הקריוקי מתחילים ברגע שהשידור נוחת.',
     enterLiveNow: 'כניסה לשידור עכשיו',

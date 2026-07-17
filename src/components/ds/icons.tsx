@@ -298,6 +298,15 @@ export const CopyTextIcon = (p: IconProps) => (
     <path d="M11.8 13H17.2M14.5 13V17.5" />
   </Base>
 )
+export const ScissorsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="6" cy="6" r="3" />
+    <path d="M8.12 8.12 12 12" />
+    <path d="M20 4 8.12 15.88" />
+    <circle cx="6" cy="18" r="3" />
+    <path d="M14.8 14.8 20 20" />
+  </Base>
+)
 export const QuoteIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M9 7c-2.2 0-3.5 1.6-3.5 3.6 0 1.9 1.3 3.1 3 3.1.3 1.6-.6 2.6-2 3.3M18 7c-2.2 0-3.5 1.6-3.5 3.6 0 1.9 1.3 3.1 3 3.1.3 1.6-.6 2.6-2 3.3" />
