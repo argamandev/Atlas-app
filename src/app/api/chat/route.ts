@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getChatContext, getDocumentContext } from '@/lib/chat/context'
 import { getRequestUserId } from '@/lib/auth'
+import {
+  parseAttachments,
+  snipCaption,
+  geminiSnipParts,
+  openAiSnipContent,
+  type ChatAttachment,
+} from '@/lib/chat/attachments'
+import { getDocumentMeta } from '@/lib/documents'
 
 // Chat over the transcript DB (brief §5.3), now **streamed** (Feature 5). Gemini 3.5 Flash —
 // same engine + GEMINI_API_KEY as the formatting pipeline. We proxy Gemini's SSE stream and
@@ -32,7 +40,8 @@ async function openAiFallback(
   system: string,
   recent: ChatMessage[],
   message: string,
-  sourceHeader: string
+  sourceHeader: string,
+  snipContent: Array<Record<string, unknown>> = []
 ): Promise<Response | null> {
   const key = process.env.OPENAI_API_KEY
   if (!key) return null
@@ -44,7 +53,16 @@ async function openAiFallback(
         role: m.role,
         content: m.content,
       })),
-      { role: 'user', content: message },
+      {
+        role: 'user',
+        content:
+          snipContent.length > 0
+            ? ([
+                ...snipContent,
+                { type: 'text', text: message },
+              ] as unknown as OpenAI.Chat.Completions.ChatCompletionContentPart[])
+            : message,
+      },
     ]
     const completion = await openai.chat.completions.create({
       model: CHAT_FALLBACK_MODEL,
@@ -98,6 +116,8 @@ export async function POST(req: NextRequest) {
     Array.isArray(body.documentRef.pages)
       ? { documentId: body.documentRef.documentId, pages: body.documentRef.pages }
       : undefined
+  // Pinge snips: validated here, auth-gated below exactly like documentRef.
+  let attachments: ChatAttachment[] = parseAttachments(body?.attachments)
   const history: ChatMessage[] = Array.isArray(body?.history) ? body.history : []
   if (!message) return NextResponse.json({ error: 'message required' }, { status: 400 })
 
@@ -111,8 +131,29 @@ export async function POST(req: NextRequest) {
 
   // Document grounding is auth-gated even though chat itself is not — documentRef reads company
   // documents via supabaseAdmin (bypasses RLS), so only a signed-in user may trigger that lookup.
-  const userId = documentRef ? await getRequestUserId(req) : null
-  const docBlock = documentRef && userId ? await getDocumentContext(documentRef).catch(() => '') : ''
+  const userId = documentRef || attachments.length > 0 ? await getRequestUserId(req) : null
+  // No signed-in user → no document access of any kind (same policy + launch-notes flag as docRef).
+  if (!userId) attachments = []
+
+  // Snipped pages ride the documentRef page-text grounding: image = authority on the
+  // numbers, page prose = surrounding context (spec 2026-07-17).
+  let groundingRef = documentRef
+  if (attachments.length > 0) {
+    const snipDocId = attachments[0].documentId
+    const pages = Array.from(
+      new Set([
+        ...(groundingRef && groundingRef.documentId === snipDocId ? groundingRef.pages : []),
+        ...attachments.map((a) => a.page),
+      ])
+    )
+    if (!groundingRef || groundingRef.documentId === snipDocId) {
+      groundingRef = { documentId: snipDocId, pages }
+    }
+  }
+  const snipMeta =
+    attachments.length > 0 ? await getDocumentMeta(attachments[0].documentId).catch(() => null) : null
+  const captions = attachments.map((a) => snipCaption(snipMeta ? { title: snipMeta.title } : null, a.page))
+  const docBlock = groundingRef && userId ? await getDocumentContext(groundingRef).catch(() => '') : ''
 
   const system =
     'You are Atlas, a research assistant for Israeli public-company investor calls. ' +
@@ -121,6 +162,9 @@ export async function POST(req: NextRequest) {
     'When the user asks for a comparison or a list, use a clean Markdown table. ' +
     'Reply in the user’s language (Hebrew or English). ' +
     'Respond with only your final answer — no exploratory reasoning or meta-commentary.' +
+    (attachments.length > 0
+      ? '\nSnipped images from the quarterly report are attached. Read the numbers from the image itself — it is the authoritative source — and mention the page number when you cite it.'
+      : '') +
     (docBlock
       ? '\nWhen a REPORT CONTEXT block is present, connect the report to the call: relate the marked passage to what management said on the call when relevant.\n\n' +
         docBlock +
@@ -133,7 +177,7 @@ export async function POST(req: NextRequest) {
   while (recent.length > 0 && recent[0].role !== 'user') recent = recent.slice(1)
   const contents = [
     ...recent.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
-    { role: 'user', parts: [{ text: message }] },
+    { role: 'user', parts: [...geminiSnipParts(attachments, captions), { text: message }] },
   ]
 
   const sourceHeader = ctx.source ? encodeURIComponent(JSON.stringify(ctx.source)) : ''
@@ -167,7 +211,13 @@ export async function POST(req: NextRequest) {
       console.error('[POST /api/chat] Gemini', upstream.status, detail.slice(0, 300))
     }
     // Gemini down or blipped → GPT-4.1 so the chat doesn't die mid-call.
-    const fallback = await openAiFallback(system, recent, message, sourceHeader)
+    const fallback = await openAiFallback(
+      system,
+      recent,
+      message,
+      sourceHeader,
+      openAiSnipContent(attachments, captions)
+    )
     if (fallback) return fallback
     return NextResponse.json({ error: 'Chat is temporarily unavailable.' }, { status: 500 })
   }
