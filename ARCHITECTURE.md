@@ -56,6 +56,8 @@ Proxy routes the browser talks to: /api/live/state, /api/live/finish, /api/live/
 ```
 /app/chat  → ChatView → POST /api/chat
   → builds context from transcripts (src/lib/chat/context.ts)
+  → optional documentRef (a marked report passage) adds a REPORT CONTEXT block
+    from document_pages (auth-gated in-route; src/lib/chat/documentBlock.ts)
   → streams Gemini 3.5 Flash tokens (SSE) back to the browser, markdown-rendered
 ```
 
@@ -106,6 +108,8 @@ pre-launch task.
 | `live/finish/route.ts` | Triggers/polls the live→finished hand-off. |
 | `live/finished-call/[id]/route.ts` | Fetch the finished transcript produced from a live call. |
 | `live/pcm/route.ts` | Live audio (PCM) stream proxy. |
+| `documents/route.ts` | Auth-gated: which real documents exist for a company+quarter (Report pane asks). |
+| `documents/[id]/file/route.ts` | Auth-gated PDF bytes from the private `company-documents` bucket (`private, no-store` — re-ingests must invalidate viewers). |
 | `auth/signout/route.ts` | Sign out (plain link target — do not turn into a dropdown). |
 | `access-request/route.ts`, `admin/requests/route.ts` | Request access + admin review. |
 
@@ -139,7 +143,8 @@ pre-launch task.
 | `TranscriptBody.tsx` | The scrolling karaoke transcript body. |
 | `TranscriptSidePanel.tsx` | Side panel (speakers/timeline), minimizable. |
 | `TranscriptChatPanel.tsx` | In-transcript side chat ("Ask Atlas"). |
-| `FacetPanes.tsx` | Facet-pane layout container (design-demo multi-column live view). |
+| `FacetPanes.tsx` | Facet-pane layout container (Single/Multi columns); Report pane loads the real company+quarter PDF via `/api/documents`, stub card fallback when none exists. |
+| `PdfViewer.tsx` | pdf.js viewer (native import from `public/pdf.min.mjs`) — selectable Hebrew text layer, zoom/pan/page-nav; marked passage → Ask Atlas `documentRef`. |
 
 ### Chat — `components/chat/`
 | File | What it does |
@@ -207,8 +212,10 @@ pre-launch task.
 ### Other lib
 | File | What it does |
 |---|---|
-| `player/PlayerProvider.tsx` | Global **recorded**-audio player context (survives navigation + chat). |
-| `chat/context.ts` | Builds the context block fed to Gemini for chat (context-stuffing, no vector DB). |
+| `player/PlayerProvider.tsx` | Global **recorded**-audio player context (survives navigation + chat) — incl. `usePlayerTimeDerived()` (subscribe to derived word/second, not the raw 60fps playhead) and `barHidden`. |
+| `chat/context.ts` | Builds the context block fed to Gemini for chat (context-stuffing, no vector DB) + `getDocumentContext()` for marked report passages. |
+| `chat/documentBlock.ts` | Pure REPORT-CONTEXT block composer (per-page char budget). Unit-tested. |
+| `documents/` | Multiview M1 backend: `extract.ts` (Hebrew-safe per-page PDF text — y-group → RTL desc-x with LTR runs; unit-tested quirk cases), `ingest.ts` (idempotent upload+extract+seed), `index.ts` (server-only reads: `getDocumentsFor`, `getDocumentMeta`, `getPageText`). |
 | `transcription.ts` | **The pipeline.** IVRIT/Whisper transcription + Gemini formatting (`formatTranscript`, `parseGeminiOutput`, `parseTitleMeta`) + GPT-4.1 fallback. |
 | `correction.ts` | `KNOWN_CORRECTIONS` deterministic fixes. |
 | `i18n/` | `config`, `LocaleProvider`, `server`, `format`, `dictionaries/{en,he,index}`. |
@@ -223,13 +230,13 @@ pre-launch task.
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — 77 tests as of 2026-07-14)
+### Tests (run via `npm test` — 86 tests as of 2026-07-17; the list in `package.json` is explicit — add new test files there)
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
 · `live/liveTiming.test.ts` · `live/syncEngine.test.ts` · `live/search.test.ts`
 · `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts` · `live/wavEncode.test.ts`
 · `live/call-stubs.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`
 · `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
-· `scripts/lib/measure-core.test.ts`.
+· `documents/extract.test.ts` · `chat/documentContext.test.ts` · `scripts/lib/measure-core.test.ts`.
 
 ---
 
@@ -253,6 +260,12 @@ pre-launch task.
   `make-wholefile-reference.ts` (send the full session PCM to IVRIT as one call — isolates chunking cost),
   `spike-ivrit-live.ts` (latency spike: validates RunPod blob input + warm/cold round-trip time).
   `lib/runpod-live.ts` (shared RunPod client used by the quality and spike scripts).
+- **Documents (Multiview):** `ingest-document.ts` (CLI: PDF → private bucket + per-page extracted
+  text; idempotent per company+quarter+type — its core becomes the MAYA auto-fetch later),
+  `retranscribe-call.ts` (CLI: additive re-transcription with karaoke word-timings for
+  pre-karaoke rows; writes a NEW `<id>_live` row).
+- **Fleet:** `append-log.mjs` — the sanctioned append-only door to `agent-memory/{cross-cutting,ready-queue}.md`
+  (allow-listed in `.claude/settings.json`; ad-hoc shell appends are classifier-blocked).
 - **Build/assets:** `install-yt-dlp.js` (runs in `npm run build`), `prep-brand-assets.mjs`
   (regenerates `public/brand/` from the logo — documented in `BrandWordmark`).
 - **`fixtures/`:** the ampa gold set + `recall-spike.transcript.json` (load-bearing: demo call +
@@ -274,6 +287,8 @@ pre-launch task.
 | `20260613_009_speaker_names_quote_anchor_conversations` | speaker names + quote anchors + **`conversations`** |
 | `20260614_010_quote_folders` | **`quote_folders`** + `quotes.folder_id` |
 | `20260614_011_speaker_edits` | `transcripts.speaker_edits` (diarization overlay) |
+| `20260714_012_company_documents` | **`company_documents` + `document_pages`** (RLS, read=authenticated) + private `company-documents` bucket — Multiview M1 |
+| `20260716_013_user_quotes_rls` | RLS enable on parked `user_quotes` (Advisor finding; applied founder-side) |
 
 `supabase/config.toml` = Supabase CLI config. **The DB is shared with the frozen old repo —
 additive migrations only.**
@@ -284,7 +299,10 @@ additive migrations only.**
 
 ### Static assets
 `public/atlas-anim.js` (GSAP animation bootstrap, consumed by `AnimCanvas.tsx`) ·
-`public/brand/` (logo variants — `atlas-wordmark.{png,svg}`, `atlas-A.svg`, `tase-mark.png` — generated by `prep-brand-assets.mjs`).
+`public/brand/` (logo variants — `atlas-wordmark.{png,svg}`, `atlas-A.svg`, `tase-mark.png` — generated by `prep-brand-assets.mjs`) ·
+`public/pdf.min.mjs` + `public/pdf.worker.min.mjs` (committed pdfjs-dist 5.4.296 copies, imported
+natively by `PdfViewer.tsx` because Next 14's webpack mangles the pdfjs ESM bundle — **re-sync BOTH
+on any pdfjs-dist bump**).
 
 ### Harness — `.claude/` (the smart environment, built 2026-07-02)
 | File | What it does |
@@ -328,5 +346,6 @@ honest list:
    `useSyncExternalStore` pattern before adding more consumers (reviewer flag, 2026-06-27).
 4. **Finish-trigger lives on the live page** — if the user navigates away at the exact moment a call
    ends, the finish fires only when they return. Handle before report-season concurrency.
-5. **Inert legacy DB tables** (watchlist/alerts/etc. + a few foreign tables in shared Supabase) —
-   harmless; clean up at deployment time, coordinated with the old repo's retirement.
+5. **Inert legacy DB tables** (watchlist/alerts/etc. in shared Supabase) — harmless; clean up at
+   deployment time, coordinated with the old repo's retirement. (The 4 foreign tables from a
+   non-Timlul project were founder-DROPPED 2026-07-16.)

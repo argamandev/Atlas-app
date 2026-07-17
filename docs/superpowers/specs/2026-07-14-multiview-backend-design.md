@@ -1,5 +1,8 @@
 # Multiview Backend — Design (M1: Report pane, end to end)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+> (M1 = Report pane, shipped 2026-07-17 @ 2c2b464. The Slides fast-follow on the same engine remains future work.)
+
 **Date:** 2026-07-14 · **Lane:** M (multiview-backend, branch `feat/multiview-backend`) ·
 **Status:** founder-approved (brainstorm 2026-07-14, all 5 sections)
 

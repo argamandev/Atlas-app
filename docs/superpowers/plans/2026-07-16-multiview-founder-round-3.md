@@ -1,5 +1,7 @@
 # Multiview — founder round 3 (2026-07-16)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 Founder feedback after reviewing round 2 on :3003. Items 1–8 = this plan (lane-executable).
 Item 9 (new Tigbur Q1-2026 transcript from YouTube) and item 10 ("Pinge" snip-to-chat feature)
 are NOT in this plan — 9 needs the transcription pipeline + founder-run source download,

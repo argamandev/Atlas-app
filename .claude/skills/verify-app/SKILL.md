@@ -53,3 +53,19 @@ marked passage → screenshot the multi-panel layout.
   navigating them to about:blank). A leftover live-view tab from a verify pass became the
   founder's broken viewer the next day (he reused the open tab — stale React state + stale
   `?delay=` query, 2026-07-04).
+- **Hidden/never-visible windows lie** (2026-07-16/17): Chrome freezes rAF + CSS transitions
+  in hidden tabs (pdf.js text layers stall until foregrounded — a "missing text layer" there
+  is tab visibility, not a bug) and DEFERS media loading in never-visible automation windows
+  (readyState stays 0, no error). So: verify collapse/expand by CLASS not pixels, karaoke by
+  DATA not motion, foreground the tab for PDF checks, and hand audible playback to the founder.
+- **If audio stalls at readyState 0 browser-wide**, diagnose with a blob-URL wav — if even
+  THAT won't load metadata, Chrome's media service is hung (renderers freeze on any media
+  IPC): stop verifying, say so; only a full browser restart clears it. Not app code.
+- **Verify interactive features via a REAL input path** (or its hit-test equivalent:
+  `elementFromPoint` mid-state), never only programmatic Range/state checks — a programmatic-
+  selection verify passed while actual drag-marking was 100% broken (z-index regression,
+  2026-07-17). CDP synthetic drags can't create native selections; that residue goes to a
+  founder hand-check.
+- **Unit tests + reviews cannot see live-schema/browser/runtime-contract bugs** — the first
+  real-data run of Multiview M1 found three (nonexistent column, bundler-mangled dep, buffer-
+  transfer detachment). Every plan gets a real-data verification task; it is not optional.

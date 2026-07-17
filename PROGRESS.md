@@ -5,6 +5,37 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-17 — Multiview M1 SHIPPED (Lane M; reviewer-APPROVED, founder rounds 2–4 included)
+
+**Status:** merged to `main` (`2c2b464`) + pushed. Mission 4.2's first milestone: a REAL
+quarterly-report PDF lives beside the transcript — rendered, markable, and Ask-Atlas-able
+(the core differentiator). 24 commits, 38 files, +3180/−129 on `feat/multiview-backend`.
+
+- **The chain, end to end:** additive migration `20260714_012` (`company_documents` +
+  `document_pages`, RLS, private bucket — applied to the shared DB) → Hebrew-safe per-page
+  extraction (y-group → RTL descending-x with LTR-run handling, quirk-case unit tests) →
+  idempotent ingest CLI (Tigbur Q1+Q2 2026 seeded, 31/31 pages) → auth-gated `/api/documents`
+  + file stream → pdf.js viewer with selectable Hebrew text layer → marked passage seeds
+  Ask Atlas with `documentRef`, grounded on stored page text (auth-gated in `/api/chat`).
+- **Why pdf.js is committed to `public/`:** Next 14's webpack mangles the pdfjs-dist 5.4 ESM
+  bundle; the viewer imports `public/pdf.min.mjs` natively — re-sync both copies on any bump
+  (reviewer WARNING filed: declare pdfjs-dist as a direct pinned dep).
+- **Founder rounds 2–4 (all filed):** native yellow-wash PDF selection (no doubled glyphs) ·
+  zoom 75–200% + pan + auto-recenter + page nav · rail-black audio bar (token change) ·
+  bar-close keeps playback · Multi auto-collapses the rail · `usePlayerTimeDerived()` fixed
+  hour-long calls freezing (60fps full-tree re-renders) · real Tigbur Q1-2026 call
+  (`PyuMxe88e8g_live`, 275 word-timed segments) via new `retranscribe-call.ts`.
+- **Also ships:** `scripts/append-log.mjs` — the fleet's sanctioned append-only log door
+  (ad-hoc shell appends are classifier-blocked; allow rule in settings.json).
+- **Verification (two-gate):** atlas-reviewer APPROVED — 0 blockers, 2 WARNINGs + 4 NITs, all
+  filed as FINDINGs in ready-queue (headline: pdfjs-dist undeclared; stub-report fallback on
+  fetch error has no demo marker) · supervisor battery independent on branch AND merged main:
+  86/86 · tsc · build · eyes-on e2e evidence: `docs/evidence/feat-multiview-backend/`.
+  Open founder item: one-look at the new call's audible playback (Chrome defers media in
+  never-visible automation windows).
+
+---
+
 ## 2026-07-14 — Environment-audit fixes SHIPPED (supervisor; 25/26 findings, reviewer-APPROVED, warnings fixed pre-merge)
 
 **Status:** merged to `main` (`bd49940`) + pushed. Founder-approved execution of the

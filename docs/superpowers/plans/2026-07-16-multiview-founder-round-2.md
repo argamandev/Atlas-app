@@ -1,5 +1,7 @@
 # Multiview — founder round 2 (marking polish · breathing room · zoom)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 **Date:** 2026-07-16 · **Lane:** M (`feat/multiview-backend`) · **Status:** founder-approved
 ("you can explore the code, write a plan, execute this plan and verify yourself")
 
