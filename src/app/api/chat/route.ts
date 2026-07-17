@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { getChatContext } from '@/lib/chat/context'
+import { getChatContext, getDocumentContext } from '@/lib/chat/context'
+import { getRequestUserId } from '@/lib/auth'
 
 // Chat over the transcript DB (brief §5.3), now **streamed** (Feature 5). Gemini 3.5 Flash —
 // same engine + GEMINI_API_KEY as the formatting pipeline. We proxy Gemini's SSE stream and
@@ -89,6 +90,14 @@ export async function POST(req: NextRequest) {
   // The LIVE view sends the on-screen captions directly (there's no completed transcript yet) so the
   // chat is grounded on the call in front of the user — not a DB lookup that could hit another company.
   const liveContext: string | undefined = body?.liveContext || undefined
+  // Multiview M1: a marked PDF passage arrives with its document + page numbers; the stored
+  // page text becomes a labeled REPORT CONTEXT block beside the transcript.
+  const documentRef: { documentId: string; pages: number[] } | undefined =
+    body?.documentRef &&
+    typeof body.documentRef.documentId === 'string' &&
+    Array.isArray(body.documentRef.pages)
+      ? { documentId: body.documentRef.documentId, pages: body.documentRef.pages }
+      : undefined
   const history: ChatMessage[] = Array.isArray(body?.history) ? body.history : []
   if (!message) return NextResponse.json({ error: 'message required' }, { status: 400 })
 
@@ -100,6 +109,11 @@ export async function POST(req: NextRequest) {
     ? { text: liveContext.slice(0, 40_000), source: null }
     : await getChatContext(companyId, transcriptId)
 
+  // Document grounding is auth-gated even though chat itself is not — documentRef reads company
+  // documents via supabaseAdmin (bypasses RLS), so only a signed-in user may trigger that lookup.
+  const userId = documentRef ? await getRequestUserId(req) : null
+  const docBlock = documentRef && userId ? await getDocumentContext(documentRef).catch(() => '') : ''
+
   const system =
     'You are Atlas, a research assistant for Israeli public-company investor calls. ' +
     'Answer the user using the transcript context below when relevant, and cite the speaker by name. ' +
@@ -107,6 +121,11 @@ export async function POST(req: NextRequest) {
     'When the user asks for a comparison or a list, use a clean Markdown table. ' +
     'Reply in the user’s language (Hebrew or English). ' +
     'Respond with only your final answer — no exploratory reasoning or meta-commentary.' +
+    (docBlock
+      ? '\nWhen a REPORT CONTEXT block is present, connect the report to the call: relate the marked passage to what management said on the call when relevant.\n\n' +
+        docBlock +
+        '\n'
+      : '') +
     (ctx.text ? `\n\n=== TRANSCRIPT CONTEXT ===\n${ctx.text}` : '\n\n(No transcript context is available.)')
 
   // Gemini requires the first turn to be 'user' and uses 'model' for the assistant.

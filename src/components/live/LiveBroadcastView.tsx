@@ -517,7 +517,11 @@ export function LiveBroadcastView({
             (multiFacets.has('slides') || multiFacets.has('transcript')) &&
             facetDivider}
           {(view === 'multi' ? multiFacets.has('report') : facet === 'report') && (
-            <ReportPane style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined} />
+            <ReportPane
+              companyId={companyId}
+              quarter={quarter}
+              style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined}
+            />
           )}
         </div>
 

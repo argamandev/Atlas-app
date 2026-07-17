@@ -23,7 +23,7 @@ export const tokens = {
     inkFaint: '#8A867C', // metadata: timestamps, tickers, captions (V2: design's warmer faint)
 
     // the single high-contrast element: the docked media player
-    player: '#2B2B2E', // warm graphite charcoal (not pure black)
+    player: '#0A0A0A', // matches the black nav rail (founder round-3: one continuous chrome)
     playerInk: '#ECECEA', // light text/icons on the player
     playerFaint: '#9A9A9D',
     playerTrack: '#4A4A4D',

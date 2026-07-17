@@ -4,11 +4,17 @@ export interface ChatSource {
   transcriptId: string
 }
 
+export interface DocumentRef {
+  documentId: string
+  pages: number[]
+}
+
 export interface ChatInput {
   message: string
   companyId?: string
   transcriptId?: string
   liveContext?: string // LIVE view: the on-screen captions, used directly as grounding context
+  documentRef?: DocumentRef // multiview: marked-PDF passage grounding (document + page numbers)
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
 

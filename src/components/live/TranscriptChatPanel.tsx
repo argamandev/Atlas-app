@@ -28,6 +28,7 @@ export function TranscriptChatPanel({
   liveContext,
   quote,
   seedNonce,
+  docRef,
   onClose,
   heroLine2,
 }: {
@@ -38,6 +39,8 @@ export function TranscriptChatPanel({
   quote: string
   /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
+  /** multiview: the pending reference came from the report PDF (document + pages) */
+  docRef?: { documentId: string; pages: number[] } | null
   onClose: () => void
   /** hero second line override — "about this call" (default) vs "about this company" */
   heroLine2?: string
@@ -47,6 +50,7 @@ export function TranscriptChatPanel({
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [ref, setRef] = useState<string>(quote) // the pending reference shown above the composer
+  const [refDoc, setRefDoc] = useState<typeof docRef>(docRef ?? null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -54,9 +58,12 @@ export function TranscriptChatPanel({
   // preventScroll is CRITICAL: focusing while the panel is mid slide-in (translateX) made the
   // browser scroll the whole document sideways to reveal the input — the "page pushes left" bug.
   useEffect(() => {
-    if (quote) setRef(quote)
+    if (quote) {
+      setRef(quote)
+      setRefDoc(docRef ?? null)
+    }
     inputRef.current?.focus({ preventScroll: true })
-  }, [seedNonce, quote])
+  }, [seedNonce, quote]) // docRef rides the same nonce
 
   const scrollToEnd = () => {
     const el = scrollRef.current
@@ -68,8 +75,21 @@ export function TranscriptChatPanel({
     const text = (explicit ?? input).trim()
     if (!text || sending) return
     const usedRef = ref.trim()
+    const usedDoc = refDoc
     const history = messages.map((m) => ({ role: m.role, content: m.content }))
-    const apiMessage = usedRef ? `Regarding this quote from the investor call: "${usedRef}"\n\n${text}` : text
+    // Label the passage by page(s): "(page 4)" for one, "(pages 4–5)" for a start/end span,
+    // omitted entirely when no page could be resolved from the selection.
+    const pageLabel =
+      usedDoc && usedDoc.pages.length > 0
+        ? usedDoc.pages.length > 1
+          ? ` (pages ${usedDoc.pages[0]}–${usedDoc.pages[usedDoc.pages.length - 1]})`
+          : ` (page ${usedDoc.pages[0]})`
+        : ''
+    const apiMessage = usedRef
+      ? usedDoc
+        ? `Regarding this passage from the company's quarterly report${pageLabel}: "${usedRef}"\n\n${text}`
+        : `Regarding this quote from the investor call: "${usedRef}"\n\n${text}`
+      : text
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text, reference: usedRef || undefined },
@@ -77,6 +97,7 @@ export function TranscriptChatPanel({
     ])
     setInput('')
     setRef('')
+    setRefDoc(null)
     setSending(true)
 
     const setLast = (patch: Partial<Msg>) =>
@@ -90,7 +111,14 @@ export function TranscriptChatPanel({
     let full = ''
     try {
       const { source } = await streamChat(
-        { message: apiMessage, companyId: companyId ?? undefined, transcriptId, liveContext, history },
+        {
+          message: apiMessage,
+          companyId: companyId ?? undefined,
+          transcriptId,
+          liveContext,
+          history,
+          documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
+        },
         (delta) => {
           full += delta
           setLast({ content: full })
@@ -159,7 +187,9 @@ export function TranscriptChatPanel({
                     <QuoteIcon size={11} />
                     {dict.chat.referringTo}
                   </div>
-                  <p className="call-muted line-clamp-3 text-xs leading-relaxed">{m.reference}</p>
+                  {/* transcript-like air (founder round 3): the marked passage should read as
+                      nicely in the chat as it does in the transcript */}
+                  <p className="call-muted line-clamp-4 text-[12.5px] leading-[1.8]">{m.reference}</p>
                 </div>
               )}
               <div
@@ -196,13 +226,16 @@ export function TranscriptChatPanel({
             </span>
             <div
               dir={detectDir(ref)}
-              className="call-ink line-clamp-3 min-w-0 flex-1 text-[12.5px] leading-[1.55]"
+              className="call-ink line-clamp-4 min-w-0 flex-1 text-[12.5px] leading-[1.8]"
             >
               {ref}
             </div>
             <button
               type="button"
-              onClick={() => setRef('')}
+              onClick={() => {
+                setRef('')
+                setRefDoc(null)
+              }}
               title={dict.common.remove}
               className="call-muted mt-0.5 flex flex-none transition-colors hover:call-ink"
             >

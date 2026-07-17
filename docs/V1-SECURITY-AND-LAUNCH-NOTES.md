@@ -30,6 +30,9 @@ institutional launch. Specifically:
    or keep `supabaseAdmin` but hard-require a real `userId`.
 4. **Apply migration `20260613_007`** (quotes + followed_calls) and delete the in-process
    fallback in `src/lib/db/quotes.ts` (it's per-process; quotes vanish on redeploy).
+5. **`/api/chat` POST is unauthenticated** (pre-existing; transcript context exposed to anon
+   callers) — documentRef grounding is now auth-gated in-route (2026-07-14, Lane M); decide at
+   the security pass whether the whole route should be gated.
 
 ## Fixed in this review pass (committed)
 

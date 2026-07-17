@@ -44,6 +44,15 @@ export function NavRail() {
     const saved = window.localStorage.getItem('atlas-scheme') as Scheme | null
     if (saved && SCHEMES.includes(saved)) setScheme(saved)
   }, [])
+
+  // The call view's Multi mode asks the rail to collapse for the full-report experience
+  // (founder round 3) and to restore when it's left. The user's own toggle still works —
+  // this only fires on view transitions.
+  useEffect(() => {
+    const onRailCollapse = (e: Event) => setCollapsed(Boolean((e as CustomEvent).detail?.collapsed))
+    window.addEventListener('atlas:rail-collapse', onRailCollapse)
+    return () => window.removeEventListener('atlas:rail-collapse', onRailCollapse)
+  }, [])
   useEffect(() => {
     if (scheme === 'blackRail') delete document.documentElement.dataset.scheme
     else document.documentElement.dataset.scheme = scheme

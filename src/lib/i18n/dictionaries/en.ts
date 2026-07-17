@@ -233,7 +233,7 @@ export const en = {
     behindLive: 'behind the sourced Investor Call',
     buffering: 'We buffer {min} minutes from the sourced Investor Call to generate a live transcript',
     backToLive: 'Back to live',
-    backToPlaying: 'Back to current',
+    backToPlaying: 'Back to current word',
     openAudioBar: 'Open audio bar',
     slidesEmpty: 'Slides will appear here when linked to this call.',
     reportEmpty: 'The quarterly report will appear here when linked.',
@@ -244,7 +244,8 @@ export const en = {
     karaokeTag: 'karaoke',
     callSections: 'Call sections',
     askAtlas: 'Ask Atlas',
-    bufferExplainer: 'Calls hosted on Atlas run on a ~4–5 minute broadcast delay. The transcript and karaoke sync begin the moment the stream lands.',
+    bufferExplainer:
+      'Calls hosted on Atlas run on a ~4–5 minute broadcast delay. The transcript and karaoke sync begin the moment the stream lands.',
     enterLiveNow: 'Enter live now',
     askHeroLine1: 'Ask anything',
     askHeroLine2: 'about this call',

@@ -9,7 +9,9 @@ import { MediaPlayer } from '@/components/live/MediaPlayer'
 export function GlobalPlayer() {
   const p = usePlayer()
   const currentTime = usePlayerTime()
-  if (!p.call) return null
+  // barHidden: the ✕ dismisses the BAR only — audio keeps playing (founder round 3);
+  // the transcript view's bottom chip (or loading any call) brings it back.
+  if (!p.call || p.barHidden) return null
   return (
     <MediaPlayer
       logoUrl={p.call.logoUrl}
@@ -24,7 +26,7 @@ export function GlobalPlayer() {
       onSeek={p.seek}
       onSkip={p.skip}
       onVolumeChange={p.setVolume}
-      onClose={p.close}
+      onClose={p.hideBar}
       chatNarrow={p.chatOpen}
     />
   )

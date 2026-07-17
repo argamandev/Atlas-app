@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/ds/icons'
 import { slideStubs, reportStub } from '@/lib/live/call-stubs'
+import { PdfViewer } from './PdfViewer'
 
 // Slides/Report facet panes (design lines 480-523) — shared by the finished call view
 // (Single + Multi) and the LIVE broadcast view, so both toggle the same content cards.
@@ -131,26 +132,187 @@ export function SlidesPane({ quarter, style }: { quarter?: string | null; style?
   )
 }
 
-export function ReportPane({ style }: { style?: React.CSSProperties }) {
+export function ReportPane({
+  companyId,
+  quarter,
+  onAskSelection,
+  style,
+}: {
+  companyId?: string | null
+  quarter?: string | null
+  onAskSelection?: (text: string, pages: number[], documentId: string) => void
+  style?: React.CSSProperties
+}) {
   const { dict } = useI18n()
   const report = reportStub()
+  const [doc, setDoc] = useState<{ id: string; title: string; pageCount: number } | null>(null)
+  // Chrome-style page zoom (founder round 2): stepped, % label click = back to 100.
+  const ZOOM_STEPS = [75, 90, 100, 110, 125, 150, 175, 200]
+  const [zoom, setZoom] = useState(100)
+  const zoomBy = (dir: 1 | -1) =>
+    setZoom((z) => {
+      const i = ZOOM_STEPS.indexOf(z)
+      return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))] ?? 100
+    })
+  // Page navigation beside the zoom (founder round 3): ‹ N / total › jumps whole pages;
+  // scrolling by hand keeps N honest (the last page whose top passed the pane's top wins).
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState(1)
+  function trackPage() {
+    const sc = scrollRef.current
+    if (!sc) return
+    const top = sc.getBoundingClientRect().top
+    let cur = 1
+    sc.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => {
+      if (el.getBoundingClientRect().top <= top + 24) cur = Number(el.dataset.page) || cur
+    })
+    setPage(cur)
+  }
+  function goToPage(n: number) {
+    if (!doc) return
+    const target = Math.min(doc.pageCount, Math.max(1, n))
+    // instant, not smooth: the label setState re-renders the pane mid-animation and Chrome
+    // cancels the smooth scroll a few pixels in — the jump silently never arrived
+    scrollRef.current
+      ?.querySelector(`[data-page="${target}"]`)
+      ?.scrollIntoView({ block: 'start', inline: 'nearest' })
+    setPage(target)
+  }
+  // Zoomed pages overflow to one side (RTL pane anchors them left) — recenter whenever the
+  // zoom changes, and give ← → pan buttons for fine adjustment (founder round 4).
+  useEffect(() => {
+    const sc = scrollRef.current
+    if (!sc) return
+    const max = sc.scrollWidth - sc.clientWidth
+    if (max <= 0) return
+    // Chrome RTL scroll coordinates run [ -max .. 0 ]; LTR runs [ 0 .. max ]
+    sc.scrollLeft = (getComputedStyle(sc).direction === 'rtl' ? -1 : 1) * (max / 2)
+  }, [zoom])
+  const panBy = (dir: 1 | -1) =>
+    // physical coordinates: positive always moves the view right, in both directions
+    scrollRef.current?.scrollBy({ left: dir * scrollRef.current.clientWidth * 0.4, behavior: 'smooth' })
+  useEffect(() => {
+    // A company/quarter change must never leave a stale PDF rendering while the next lookup
+    // is in flight (or finds nothing) — clear before anything else runs.
+    setDoc(null)
+    if (!companyId || !quarter) return
+    let dead = false
+    fetch(
+      `/api/documents?companyId=${encodeURIComponent(companyId)}&quarter=${encodeURIComponent(quarter)}`,
+      { credentials: 'include' }
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const d = j?.documents?.find((x: { docType: string }) => x.docType === 'report')
+        if (!dead && d) setDoc({ id: d.id, title: d.title, pageCount: d.pageCount })
+      })
+      .catch((err) => console.warn('[ReportPane] documents fetch failed', err))
+    return () => {
+      dead = true
+    }
+  }, [companyId, quarter])
+
   return (
     <div data-facet="report" style={style} className="flex min-w-[300px] flex-1 flex-col overflow-hidden">
       <PaneHeader
         label={dict.live.report}
-        right={<span className="call-muted text-[11px]">{dict.live.reportFreely}</span>}
+        right={
+          <span className="flex items-center gap-2.5">
+            {doc && doc.pageCount > 1 && (
+              <span className="call-muted flex items-center gap-0.5" dir="ltr">
+                <button
+                  type="button"
+                  aria-label="previous page"
+                  onClick={() => goToPage(page - 1)}
+                  disabled={page <= 1}
+                  className="flex rounded p-1 transition-colors hover:call-ink disabled:opacity-40"
+                >
+                  <ChevronLeftIcon size={13} strokeWidth={1.8} />
+                </button>
+                <span className="font-mono-num min-w-[44px] text-center text-[10.5px] tabular-nums">
+                  {page} / {doc.pageCount}
+                </span>
+                <button
+                  type="button"
+                  aria-label="next page"
+                  onClick={() => goToPage(page + 1)}
+                  disabled={page >= doc.pageCount}
+                  className="flex rounded p-1 transition-colors hover:call-ink disabled:opacity-40"
+                >
+                  <ChevronRightIcon size={13} strokeWidth={1.8} />
+                </button>
+              </span>
+            )}
+            {doc && (
+              <span className="call-muted flex items-center gap-0.5" dir="ltr">
+                <button
+                  type="button"
+                  aria-label="zoom out"
+                  onClick={() => zoomBy(-1)}
+                  disabled={zoom === ZOOM_STEPS[0]}
+                  className="rounded px-1.5 text-[13px] leading-none transition-colors hover:call-ink disabled:opacity-40"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  title="100%"
+                  onClick={() => setZoom(100)}
+                  className="font-mono-num w-[38px] text-center text-[10.5px] tabular-nums transition-colors hover:call-ink"
+                >
+                  {zoom}%
+                </button>
+                <button
+                  type="button"
+                  aria-label="zoom in"
+                  onClick={() => zoomBy(1)}
+                  disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+                  className="rounded px-1.5 text-[13px] leading-none transition-colors hover:call-ink disabled:opacity-40"
+                >
+                  +
+                </button>
+              </span>
+            )}
+            {doc && zoom > 100 && (
+              // pan the zoomed page left/right — it overflows the pane once zoom > 100
+              <span className="call-muted flex items-center gap-0.5" dir="ltr">
+                <button
+                  type="button"
+                  aria-label="pan left"
+                  onClick={() => panBy(-1)}
+                  className="rounded px-1.5 text-[12px] leading-none transition-colors hover:call-ink"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  aria-label="pan right"
+                  onClick={() => panBy(1)}
+                  className="rounded px-1.5 text-[12px] leading-none transition-colors hover:call-ink"
+                >
+                  →
+                </button>
+              </span>
+            )}
+            <span className="call-muted text-[11px]">{doc ? doc.title : dict.live.reportFreely}</span>
+          </span>
+        }
       />
-      <div className="atscroll flex-1 overflow-auto p-[22px]">
-        <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
-          <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
-          <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
-          {report.paragraphs.map((p) => (
-            <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
-              {p}
-            </p>
-          ))}
-          <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
-        </div>
+      <div ref={scrollRef} onScroll={trackPage} className="atscroll flex-1 overflow-auto p-[22px]">
+        {doc ? (
+          <PdfViewer docId={doc.id} pageCount={doc.pageCount} zoom={zoom} onAskSelection={onAskSelection} />
+        ) : (
+          <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
+            <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
+            <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
+            {report.paragraphs.map((p) => (
+              <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
+                {p}
+              </p>
+            ))}
+            <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
+          </div>
+        )}
       </div>
     </div>
   )

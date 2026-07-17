@@ -62,3 +62,24 @@ export async function getChatContext(companyId?: string, transcriptId?: string):
     source: { company: fd.company ?? '', quarter: fd.quarter ?? '', transcriptId: hit.id },
   }
 }
+
+// ── Document grounding (multiview M1) ──────────────────────────────────────────
+// A marked PDF passage arrives with { documentId, pages }; we ground the answer on the
+// stored page text + the transcript. Mission-5 hook: company_knowledge will extend THIS
+// composition point (spec 2026-07-14).
+import { getDocumentMeta, getPageText } from '@/lib/documents'
+import { buildDocumentBlock } from './documentBlock'
+
+export { buildDocumentBlock }
+
+export async function getDocumentContext(ref: { documentId: string; pages: number[] }): Promise<string> {
+  const pages = Array.from(new Set(ref.pages))
+    .filter((n) => Number.isInteger(n) && n >= 1)
+    .slice(0, 4)
+  if (pages.length === 0) return ''
+  const [meta, texts] = await Promise.all([
+    getDocumentMeta(ref.documentId),
+    getPageText(ref.documentId, pages),
+  ])
+  return buildDocumentBlock(meta ? { title: meta.title, quarter: meta.quarter } : null, texts)
+}

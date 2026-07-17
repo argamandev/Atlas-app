@@ -29,7 +29,7 @@ import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from 
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
-import { usePlayer, usePlayerTime } from '@/lib/player/PlayerProvider'
+import { usePlayer, usePlayerTimeDerived } from '@/lib/player/PlayerProvider'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
@@ -54,15 +54,20 @@ export function LiveTranscriptView({
   // player and reads the playhead from it, rather than owning an <audio> element. This is
   // what lets the audio keep playing while you browse/chat and return via the Return chip.
   const player = usePlayer()
-  const currentTime = usePlayerTime()
   const playing = player.playing
   const isActiveCall = player.call?.id === call.id
-  const effTime = isActiveCall ? currentTime : 0
+  // Derived-value subscriptions, NOT the raw 60fps clock: this view renders the whole
+  // transcript, and per-frame re-renders froze hour-long word-timed calls. The view now
+  // re-renders only when the active word (or the displayed second) actually changes.
+  const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
+  const activeIndex = usePlayerTimeDerived((t) => (isActiveCall ? activeWordIndex(flat, t) : -1))
+  const clockSec = usePlayerTimeDerived((t) => (isActiveCall ? Math.floor(t) : 0))
   // remember the last playhead so the "Open audio bar" chip can resume where the user closed it
+  // (second granularity is plenty — clockSec keeps this off the 60fps tick)
   const lastPosRef = useRef(0)
   useEffect(() => {
-    if (isActiveCall) lastPosRef.current = currentTime
-  }, [isActiveCall, currentTime])
+    if (isActiveCall) lastPosRef.current = player.getCurrentTime()
+  }, [isActiveCall, clockSec, player])
 
   // Tell the player this call is being displayed (URL-independent) so the Return-to-transcript chip
   // hides while we're on it — including the inline live→finished swap, where the URL stays /app/live/live.
@@ -83,6 +88,30 @@ export function LiveTranscriptView({
   const { colFlex, facetDivider } = useFacetColumns()
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
+
+  // Multi = the full-report experience (founder round 3): entering it collapses the app
+  // nav rail (CustomEvent — NavRail listens) and the speaker panel; we restore ONLY what we
+  // collapsed, on Single or unmount. Manual toggles afterwards win — this fires per view change.
+  const autoCollapsedRef = useRef(false)
+  useEffect(() => {
+    if (view === 'multi') {
+      window.dispatchEvent(new CustomEvent('atlas:rail-collapse', { detail: { collapsed: true } }))
+      setPanelCollapsed(true)
+      autoCollapsedRef.current = true
+    } else if (autoCollapsedRef.current) {
+      window.dispatchEvent(new CustomEvent('atlas:rail-collapse', { detail: { collapsed: false } }))
+      setPanelCollapsed(false)
+      autoCollapsedRef.current = false
+    }
+  }, [view])
+  useEffect(
+    () => () => {
+      // leaving the call page mid-Multi must not strand the whole app with a collapsed rail
+      if (autoCollapsedRef.current)
+        window.dispatchEvent(new CustomEvent('atlas:rail-collapse', { detail: { collapsed: false } }))
+    },
+    []
+  )
   const [toast, setToast] = useState<Toast | null>(null)
   const [selection, setSelection] = useState<{
     text: string
@@ -95,11 +124,21 @@ export function LiveTranscriptView({
   } | null>(null)
   const [query, setQuery] = useState('')
   const [matchPos, setMatchPos] = useState(0)
+  // search lives as an icon in the chips row (founder round 2); closing it clears the query
+  const [searchOpen, setSearchOpen] = useState(false)
   // in-transcript side chat (Feature 6): open + the seeded quote + a nonce so re-starring re-seeds
-  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({
+  // docRef (multiview): set only when a report-PDF selection seeded the chat, so /api/chat can
+  // ground on document + page text; any transcript highlight clears it back to null.
+  const [chat, setChat] = useState<{
+    open: boolean
+    seed: string
+    nonce: number
+    docRef: { documentId: string; pages: number[] } | null
+  }>({
     open: false,
     seed: '',
     nonce: 0,
+    docRef: null,
   })
   // side chat open → tell the global docked bar to narrow to its left (so offline = live)
   useEffect(() => {
@@ -110,8 +149,6 @@ export function LiveTranscriptView({
   const [editMode, setEditMode] = useState(false)
   const canEdit = call.companyId != null && call.id !== 'demo'
 
-  const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
-  const activeIndex = useMemo(() => activeWordIndex(flat, effTime), [flat, effTime])
   const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
   const name = locale === 'en' ? (call.companyNameEn ?? call.companyName) : call.companyName
   const title = `${name} — ${call.quarter}`
@@ -243,7 +280,7 @@ export function LiveTranscriptView({
     // If the side chat is already open, drop the highlight straight into the chat input as a
     // reference (no popup, no extra clicks) — Claude-style. Edit mode still uses the popup.
     if (chat.open && !editMode) {
-      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1 }))
+      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1, docRef: null }))
       setSelection(null)
       return
     }
@@ -262,6 +299,12 @@ export function LiveTranscriptView({
       fromWord: range?.from,
       toWord: range?.to,
     })
+  }
+
+  // A passage marked inside the report PDF → open the side chat seeded with it (same UX as
+  // transcript highlights), tagged with document + page so /api/chat grounds on the page text.
+  function onReportAsk(text: string, pages: number[], documentId: string) {
+    setChat((c) => ({ open: true, seed: text, nonce: c.nonce + 1, docRef: { documentId, pages } }))
   }
 
   // Reassign the selected run to a speaker → recompute + persist the overlay → reload (Feature 1).
@@ -296,7 +339,7 @@ export function LiveTranscriptView({
         text: sel.text,
         speaker: sel.speaker ?? activeSpeaker,
         quarter: call.quarter,
-        startSec: effTime,
+        startSec: isActiveCall ? player.getCurrentTime() : 0,
         anchor: sel.segmentId ? { segmentId: sel.segmentId, text: sel.text.slice(0, 80) } : null,
       })
       // Clickable toast → jump straight to that company's My Quotes tab (audio keeps playing).
@@ -397,7 +440,7 @@ export function LiveTranscriptView({
             </div>
             <button
               type="button"
-              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
+              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null }))}
               className="call-hair call-ink flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] transition-opacity hover:opacity-80"
             >
               <SparkleIcon size={14} strokeWidth={1.6} />
@@ -480,6 +523,89 @@ export function LiveTranscriptView({
             </div>
           </div>
           <div className="flex items-center gap-2.5">
+            {/* relocated sub-toolbar controls (founder round 2): the strip below is gone,
+                its icons live here so the panes get the vertical room */}
+            <div className="flex items-center gap-0.5">
+              <IconButton label={dict.live.copy} size={28} onClick={copyAll}>
+                <CopyTextIcon size={15} />
+              </IconButton>
+              <IconButton
+                label={dict.company.openInChat}
+                size={28}
+                onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null }))}
+              >
+                <SparkleIcon size={15} />
+              </IconButton>
+              {canEdit && (
+                <IconButton
+                  label={dict.live.editSpeakers}
+                  active={editMode}
+                  size={28}
+                  onClick={() => setEditMode((v) => !v)}
+                >
+                  <PencilIcon size={15} />
+                </IconButton>
+              )}
+              <IconButton
+                label={dict.live.searchTranscript}
+                active={searchOpen}
+                size={28}
+                onClick={() =>
+                  setSearchOpen((open) => {
+                    if (open) {
+                      setQuery('')
+                      setMatchPos(0)
+                    }
+                    return !open
+                  })
+                }
+              >
+                <SearchIcon size={15} />
+              </IconButton>
+              {searchOpen && (
+                <span className="ms-1 flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value)
+                      setMatchPos(0)
+                    }}
+                    placeholder={dict.live.searchTranscript}
+                    className="call-hair call-ink w-40 rounded-md border bg-transparent px-2 py-1 text-xs outline-none placeholder:opacity-50"
+                  />
+                  {query && (
+                    <span className="call-faint flex items-center gap-1 text-2xs">
+                      <span className="tabular-nums">
+                        {matches.length ? matchPos + 1 : 0}/{matches.length}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={!matches.length}
+                        onClick={() => setMatchPos((p) => (p - 1 + matches.length) % matches.length)}
+                        className="px-1 hover:call-ink disabled:opacity-40"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!matches.length}
+                        onClick={() => setMatchPos((p) => (p + 1) % matches.length)}
+                        className="px-1 hover:call-ink disabled:opacity-40"
+                      >
+                        ›
+                      </button>
+                    </span>
+                  )}
+                </span>
+              )}
+              {editMode && (
+                <span className="ms-1 hidden text-2xs text-ink-faint xl:inline">
+                  {dict.live.editSpeakersHint}
+                </span>
+              )}
+            </div>
+            <span className="call-hair h-4 w-px border-s" />
             <button
               type="button"
               onClick={playPause}
@@ -488,7 +614,7 @@ export function LiveTranscriptView({
             >
               {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
               <span className="font-mono-num tabular-nums" dir="ltr">
-                {formatClock(effTime)}
+                {formatClock(clockSec)}
               </span>
             </button>
             <span className="call-muted text-[11.5px]">{dict.live.viewLabel}</span>
@@ -512,72 +638,6 @@ export function LiveTranscriptView({
                 {dict.live.viewMulti}
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* sub-toolbar (design lines 429-440): icon row over a hairline */}
-        <div className="call-hair flex items-center justify-between border-b px-[22px] py-[7px]">
-          <div className="flex items-center gap-0.5">
-            <IconButton label={dict.live.copy} size={30} onClick={copyAll}>
-              <CopyTextIcon size={16} />
-            </IconButton>
-            <IconButton
-              label={dict.company.openInChat}
-              size={30}
-              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
-            >
-              <SparkleIcon size={16} />
-            </IconButton>
-            {canEdit && (
-              <IconButton
-                label={dict.live.editSpeakers}
-                active={editMode}
-                size={30}
-                onClick={() => setEditMode((v) => !v)}
-              >
-                <PencilIcon size={16} />
-              </IconButton>
-            )}
-            {editMode && (
-              <span className="ms-1 hidden text-2xs text-ink-faint sm:inline">
-                {dict.live.editSpeakersHint}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <SearchIcon size={15} className="text-ink-faint" />
-            <input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setMatchPos(0)
-              }}
-              placeholder={dict.live.searchTranscript}
-              className="w-44 bg-transparent text-xs text-ink outline-none placeholder:text-ink-faint"
-            />
-            {query && (
-              <span className="flex items-center gap-1 text-2xs text-ink-faint">
-                <span className="tabular-nums">
-                  {matches.length ? matchPos + 1 : 0}/{matches.length}
-                </span>
-                <button
-                  type="button"
-                  disabled={!matches.length}
-                  onClick={() => setMatchPos((p) => (p - 1 + matches.length) % matches.length)}
-                  className="px-1 hover:text-ink disabled:opacity-40"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  disabled={!matches.length}
-                  onClick={() => setMatchPos((p) => (p + 1) % matches.length)}
-                  className="px-1 hover:text-ink disabled:opacity-40"
-                >
-                  ›
-                </button>
-              </span>
-            )}
           </div>
         </div>
 
@@ -643,7 +703,12 @@ export function LiveTranscriptView({
             (multiFacets.has('slides') || multiFacets.has('transcript')) &&
             facetDivider}
           {(view === 'multi' ? multiFacets.has('report') : tab === 'report') && (
-            <ReportPane style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined} />
+            <ReportPane
+              companyId={call.companyId}
+              quarter={call.quarter}
+              onAskSelection={onReportAsk}
+              style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined}
+            />
           )}
         </div>
 
@@ -712,7 +777,7 @@ export function LiveTranscriptView({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 }))
+                  setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1, docRef: null }))
                   setSelection(null)
                 }}
                 className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
@@ -741,23 +806,27 @@ export function LiveTranscriptView({
           </div>
         )}
 
-        {/* "Open audio bar" — reopen the docked bar after ✕, resuming where you left off */}
-        {call.audioUrl && !isActiveCall && (
+        {/* "Open audio bar" — reopen the docked bar after ✕. If the call is still loaded
+            (the ✕ only hides the bar now — audio may well still be playing) this is a pure
+            un-hide; otherwise reload the call at the last playhead. */}
+        {call.audioUrl && (!isActiveCall || player.barHidden) && (
           <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center">
             <button
               type="button"
               onClick={() =>
-                player.load({
-                  id: call.id,
-                  companyId: call.companyId,
-                  title: name,
-                  subtitle: call.quarter,
-                  logoUrl: call.logoUrl,
-                  audioUrl: call.audioUrl!,
-                  isLive: false,
-                  duration: call.transcript.durationSec || undefined,
-                  startAt: lastPosRef.current,
-                })
+                isActiveCall
+                  ? player.showBar()
+                  : player.load({
+                      id: call.id,
+                      companyId: call.companyId,
+                      title: name,
+                      subtitle: call.quarter,
+                      logoUrl: call.logoUrl,
+                      audioUrl: call.audioUrl!,
+                      isLive: false,
+                      duration: call.transcript.durationSec || undefined,
+                      startAt: lastPosRef.current,
+                    })
               }
               className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white shadow-popover transition-opacity hover:opacity-90"
             >
@@ -774,7 +843,8 @@ export function LiveTranscriptView({
           transcriptId={call.id === 'demo' ? undefined : call.id}
           quote={chat.seed}
           seedNonce={chat.nonce}
-          onClose={() => setChat((c) => ({ ...c, open: false }))}
+          docRef={chat.docRef}
+          onClose={() => setChat((c) => ({ ...c, open: false, docRef: null }))}
         />
       )}
     </div>

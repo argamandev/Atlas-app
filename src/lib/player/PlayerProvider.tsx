@@ -49,6 +49,11 @@ interface PlayerApi {
   skip: (delta: number) => void
   setVolume: (v: number) => void
   close: () => void
+  /** The docked bar's ✕ hides the BAR, not the audio (founder round 3): playback, the
+   *  chips-row timer and karaoke all keep running; showBar()/load() bring the bar back. */
+  barHidden: boolean
+  hideBar: () => void
+  showBar: () => void
   getCurrentTime: () => number
   subscribeTime: (cb: () => void) => () => void
   viewingId: string | null
@@ -72,6 +77,19 @@ export function usePlayerTime(): number {
   return useSyncExternalStore(p.subscribeTime, p.getCurrentTime, () => 0)
 }
 
+/** Derived playhead value (active word index, whole seconds, …). `compute` runs at tick
+ *  rate, but the component re-renders only when the derived PRIMITIVE changes — wiring the
+ *  raw 60fps clock into a large view froze hour-long word-timed calls (every frame
+ *  re-rendered thousands of word spans). Keep `compute` cheap; memoization not required. */
+export function usePlayerTimeDerived<T extends number | string | boolean>(compute: (t: number) => T): T {
+  const p = usePlayer()
+  return useSyncExternalStore(
+    p.subscribeTime,
+    () => compute(p.getCurrentTime()),
+    () => compute(0)
+  )
+}
+
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [call, setCall] = useState<PlayerCall | null>(null)
@@ -80,6 +98,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [volume, setVolumeState] = useState(1)
   const [viewingId, setViewingId] = useState<string | null>(null) // call a LiveTranscriptView is displaying (URL-independent)
   const [chatOpen, setChatOpen] = useState(false) // in-transcript side chat open → narrow the docked bar
+  const [barHidden, setBarHidden] = useState(false) // bar UI dismissed while audio keeps playing
 
   // time store — a mutable ref + listener set, driven by rAF while playing + timeupdate.
   const timeRef = useRef(0)
@@ -138,7 +157,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const load = useCallback((c: PlayerCall) => {
     setCall((prev) => (prev?.id === c.id ? prev : c))
+    setBarHidden(false) // loading (or re-summoning) a call always surfaces the bar
   }, [])
+  const hideBar = useCallback(() => setBarHidden(true), [])
+  const showBar = useCallback(() => setBarHidden(false), [])
   const play = useCallback(() => {
     void audioRef.current?.play().catch(() => {})
   }, [])
@@ -194,6 +216,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     skip,
     setVolume,
     close,
+    barHidden,
+    hideBar,
+    showBar,
     getCurrentTime,
     subscribeTime,
     viewingId,
