@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { streamChat, type ChatSource } from '@/lib/api/chat'
+import { streamChat, type ChatSource, type ChatSnip } from '@/lib/api/chat'
+import { appendSnip } from '@/lib/documents/snip'
 import { CitationChip } from '@/components/chat/CitationPopover'
 import { ThinkingDots } from '@/components/chat/ThinkingDots'
 import { Markdown } from '@/components/chat/Markdown'
@@ -18,6 +19,7 @@ interface Msg {
   role: 'user' | 'assistant'
   content: string
   reference?: string
+  snips?: ChatSnip[]
   source?: ChatSource | null
   streaming?: boolean
 }
@@ -29,6 +31,7 @@ export function TranscriptChatPanel({
   quote,
   seedNonce,
   docRef,
+  snip,
   onClose,
   heroLine2,
 }: {
@@ -41,6 +44,8 @@ export function TranscriptChatPanel({
   seedNonce: number
   /** multiview: the pending reference came from the report PDF (document + pages) */
   docRef?: { documentId: string; pages: number[] } | null
+  /** Pinge: a fresh snip to attach (rides seedNonce like docRef) */
+  snip?: ChatSnip | null
   onClose: () => void
   /** hero second line override — "about this call" (default) vs "about this company" */
   heroLine2?: string
@@ -51,6 +56,9 @@ export function TranscriptChatPanel({
   const [sending, setSending] = useState(false)
   const [ref, setRef] = useState<string>(quote) // the pending reference shown above the composer
   const [refDoc, setRefDoc] = useState<typeof docRef>(docRef ?? null)
+  const [snips, setSnips] = useState<ChatSnip[]>([]) // Pinge chip stack (≤ SNIP_MAX)
+  const [capMsg, setCapMsg] = useState(false)
+  const lastNonce = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -58,12 +66,26 @@ export function TranscriptChatPanel({
   // preventScroll is CRITICAL: focusing while the panel is mid slide-in (translateX) made the
   // browser scroll the whole document sideways to reveal the input — the "page pushes left" bug.
   useEffect(() => {
-    if (quote) {
-      setRef(quote)
-      setRefDoc(docRef ?? null)
+    // nonce-guarded so re-renders with the same seed never double-apply (esp. snips)
+    if (seedNonce !== lastNonce.current) {
+      lastNonce.current = seedNonce
+      if (quote) {
+        setRef(quote)
+        setRefDoc(docRef ?? null)
+      }
+      if (snip) {
+        setSnips((prev) => {
+          const r = appendSnip(prev, snip)
+          if (r.dropped) {
+            setCapMsg(true)
+            setTimeout(() => setCapMsg(false), 2500)
+          }
+          return r.list
+        })
+      }
     }
     inputRef.current?.focus({ preventScroll: true })
-  }, [seedNonce, quote]) // docRef rides the same nonce
+  }, [seedNonce, quote, snip, docRef]) // quote/docRef/snip all ride the nonce
 
   const scrollToEnd = () => {
     const el = scrollRef.current
@@ -73,7 +95,8 @@ export function TranscriptChatPanel({
 
   async function send(explicit?: string) {
     const text = (explicit ?? input).trim()
-    if (!text || sending) return
+    const usedSnips = snips
+    if ((!text && usedSnips.length === 0) || sending) return
     const usedRef = ref.trim()
     const usedDoc = refDoc
     const history = messages.map((m) => ({ role: m.role, content: m.content }))
@@ -90,14 +113,22 @@ export function TranscriptChatPanel({
         ? `Regarding this passage from the company's quarterly report${pageLabel}: "${usedRef}"\n\n${text}`
         : `Regarding this quote from the investor call: "${usedRef}"\n\n${text}`
       : text
+    // Snips can be sent without typed text — a default question keeps the model pointed.
+    const outMessage = apiMessage || dict.chat.snipDefault
     setMessages((prev) => [
       ...prev,
-      { role: 'user', content: text, reference: usedRef || undefined },
+      {
+        role: 'user',
+        content: text,
+        reference: usedRef || undefined,
+        snips: usedSnips.length ? usedSnips : undefined,
+      },
       { role: 'assistant', content: '', streaming: true },
     ])
     setInput('')
     setRef('')
     setRefDoc(null)
+    setSnips([])
     setSending(true)
 
     const setLast = (patch: Partial<Msg>) =>
@@ -112,12 +143,13 @@ export function TranscriptChatPanel({
     try {
       const { source } = await streamChat(
         {
-          message: apiMessage,
+          message: outMessage,
           companyId: companyId ?? undefined,
           transcriptId,
           liveContext,
           history,
           documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
+          attachments: usedSnips.length ? usedSnips : undefined,
         },
         (delta) => {
           full += delta
@@ -177,6 +209,19 @@ export function TranscriptChatPanel({
         {messages.map((m, i) =>
           m.role === 'user' ? (
             <div key={i} className="flex animate-fade-up flex-col items-end gap-1">
+              {m.snips && m.snips.length > 0 && (
+                // Pinge: what Atlas saw stays visible in the history (trust moment)
+                <div className="flex max-w-[92%] flex-wrap justify-end gap-1.5" dir="ltr">
+                  {m.snips.map((s, j) => (
+                    <img
+                      key={j}
+                      src={s.dataUrl}
+                      alt={`${dict.chat.pageShort} ${s.page}`}
+                      className="call-hair h-20 w-auto max-w-[170px] rounded-[8px] border bg-white object-contain"
+                    />
+                  ))}
+                </div>
+              )}
               {m.reference && (
                 // Flat reference attachment, call-themed (flips with Dark/Light).
                 <div
@@ -192,12 +237,14 @@ export function TranscriptChatPanel({
                   <p className="call-muted line-clamp-4 text-[12.5px] leading-[1.8]">{m.reference}</p>
                 </div>
               )}
-              <div
-                dir="auto"
-                className="call-raised-bg call-ink max-w-[92%] rounded-[14px] rounded-ee-[4px] px-3.5 py-2 text-sm leading-relaxed"
-              >
-                {m.content}
-              </div>
+              {m.content && (
+                <div
+                  dir="auto"
+                  className="call-raised-bg call-ink max-w-[92%] rounded-[14px] rounded-ee-[4px] px-3.5 py-2 text-sm leading-relaxed"
+                >
+                  {m.content}
+                </div>
+              )}
             </div>
           ) : (
             <div key={i} className="call-ink animate-fade-in text-sm leading-relaxed">
@@ -219,6 +266,32 @@ export function TranscriptChatPanel({
 
       {/* in-call composer (design lines 555-570): reference chip above a call-chip field */}
       <div className="flex-none px-4 pb-4 pt-3.5">
+        {snips.length > 0 && (
+          // Pinge chip stack: thumbnail + page label + remove, above the reference block
+          <div className="mb-2.5 flex flex-wrap gap-2" dir="ltr">
+            {snips.map((s, i) => (
+              <div key={i} className="call-hair relative rounded-[10px] border bg-white p-1">
+                <img
+                  src={s.dataUrl}
+                  alt={`${dict.chat.pageShort} ${s.page}`}
+                  className="h-16 w-auto max-w-[150px] rounded-[6px] object-contain"
+                />
+                <span className="absolute bottom-1.5 start-1.5 rounded bg-black/50 px-1 text-[10px] leading-[1.5] text-white">
+                  {dict.chat.pageShort} {s.page}
+                </span>
+                <button
+                  type="button"
+                  aria-label={dict.common.remove}
+                  onClick={() => setSnips((prev) => prev.filter((_, j) => j !== i))}
+                  className="absolute -end-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                >
+                  <CloseIcon size={11} strokeWidth={2} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {capMsg && <div className="call-muted mb-2 text-[11.5px]">{dict.chat.snipCap}</div>}
         {ref && (
           <div className="call-hair mb-2.5 flex items-start gap-2 rounded-[14px] border px-[11px] py-[9px]">
             <span className="call-muted mt-0.5 flex-none">
@@ -263,7 +336,7 @@ export function TranscriptChatPanel({
             type="button"
             aria-label={dict.common.save}
             onClick={() => void send()}
-            disabled={sending || !input.trim()}
+            disabled={sending || (!input.trim() && snips.length === 0)}
             className="call-send-btn grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] transition-opacity disabled:opacity-40"
           >
             <ArrowUpIcon size={15} strokeWidth={2} />
