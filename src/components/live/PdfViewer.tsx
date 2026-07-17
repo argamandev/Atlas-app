@@ -304,7 +304,13 @@ export function PdfViewer({
               onSnipCancel?.() // click in the gutter between/outside pages exits
               return
             }
-            ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+            try {
+              // best-effort: keeps the drag alive if the pointer leaves the window; throws
+              // for synthetic pointers (test drivers) and stale ids — never load-bearing
+              ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+            } catch {
+              /* overlay covers the pane — move/up still land on it */
+            }
             setSnipDrag({
               pageNo: p.pageNo,
               start: { x: e.clientX, y: e.clientY },
