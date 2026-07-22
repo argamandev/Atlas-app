@@ -31,6 +31,15 @@ export function parseAttachments(raw: unknown): ChatAttachment[] {
   return out
 }
 
+/**
+ * Client-side pre-check mirroring parseAttachments' size cap: a snip past the cap would be
+ * silently stripped server-side while still rendering as a chip — warn instead of sending.
+ */
+export function attachmentOversized(dataUrl: string): boolean {
+  const payload = dataUrl.startsWith(PNG_PREFIX) ? dataUrl.length - PNG_PREFIX.length : dataUrl.length
+  return payload > ATTACHMENT_MAX_B64
+}
+
 /** Hebrew caption placed beside each image so answers can cite the page naturally. */
 export function snipCaption(meta: { title: string } | null, page: number): string {
   return meta ? `תצלום מעמוד ${page} של ${meta.title}` : `תצלום מעמוד ${page} מהדוח`
