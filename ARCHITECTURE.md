@@ -58,6 +58,9 @@ Proxy routes the browser talks to: /api/live/state, /api/live/finish, /api/live/
   → builds context from transcripts (src/lib/chat/context.ts)
   → optional documentRef (a marked report passage) adds a REPORT CONTEXT block
     from document_pages (auth-gated in-route; src/lib/chat/documentBlock.ts)
+  → optional attachments (Pinge snips: ≤4 PNG data URLs of report regions) become Gemini
+    inline_data parts + Hebrew page captions; validated + auth-gated like documentRef
+    (src/lib/chat/attachments.ts, pure + unit-tested)
   → streams Gemini 3.5 Flash tokens (SSE) back to the browser, markdown-rendered
 ```
 
@@ -142,9 +145,9 @@ pre-launch task.
 | `MediaPlayer.tsx` | Our audio player (play/seek/scrub). |
 | `TranscriptBody.tsx` | The scrolling karaoke transcript body. |
 | `TranscriptSidePanel.tsx` | Side panel (speakers/timeline), minimizable. |
-| `TranscriptChatPanel.tsx` | In-transcript side chat ("Ask Atlas"). |
+| `TranscriptChatPanel.tsx` | In-transcript side chat ("Ask Atlas") — also owns the Pinge snip-chip stack (≤4 thumbnails, ✕-remove, cap toast). |
 | `FacetPanes.tsx` | Facet-pane layout container (Single/Multi columns); Report pane loads the real company+quarter PDF via `/api/documents`, stub card fallback when none exists. |
-| `PdfViewer.tsx` | pdf.js viewer (native import from `public/pdf.min.mjs`) — selectable Hebrew text layer, zoom/pan/page-nav; marked passage → Ask Atlas `documentRef`. |
+| `PdfViewer.tsx` | pdf.js viewer (native import from `public/pdf.min.mjs`) — selectable Hebrew text layer, zoom/pan/page-nav; marked passage → Ask Atlas `documentRef`; Pinge scissors overlay (drag-rect → zoom-proof 2× offscreen crop via `lib/documents/snip.ts`). |
 
 ### Chat — `components/chat/`
 | File | What it does |
@@ -215,7 +218,8 @@ pre-launch task.
 | `player/PlayerProvider.tsx` | Global **recorded**-audio player context (survives navigation + chat) — incl. `usePlayerTimeDerived()` (subscribe to derived word/second, not the raw 60fps playhead) and `barHidden`. |
 | `chat/context.ts` | Builds the context block fed to Gemini for chat (context-stuffing, no vector DB) + `getDocumentContext()` for marked report passages. |
 | `chat/documentBlock.ts` | Pure REPORT-CONTEXT block composer (per-page char budget). Unit-tested. |
-| `documents/` | Multiview M1 backend: `extract.ts` (Hebrew-safe per-page PDF text — y-group → RTL desc-x with LTR runs; unit-tested quirk cases), `ingest.ts` (idempotent upload+extract+seed), `index.ts` (server-only reads: `getDocumentsFor`, `getDocumentMeta`, `getPageText`). |
+| `chat/attachments.ts` | Pinge attachment contract, pure: `parseAttachments` (PNG-only, ≤4, ~1.5MB decoded cap), Hebrew captions, Gemini/OpenAI message-part builders. Unit-tested. |
+| `documents/` | Multiview M1 backend: `extract.ts` (Hebrew-safe per-page PDF text — y-group → RTL desc-x with LTR runs; unit-tested quirk cases), `ingest.ts` (idempotent upload+extract+seed), `index.ts` (server-only reads: `getDocumentsFor`, `getDocumentMeta`, `getPageText`), `snip.ts` (pure Pinge crop geometry: drag→page-rect clamp + zoom-proof render-scale math; unit-tested). |
 | `transcription.ts` | **The pipeline.** IVRIT/Whisper transcription + Gemini formatting (`formatTranscript`, `parseGeminiOutput`, `parseTitleMeta`) + GPT-4.1 fallback. |
 | `correction.ts` | `KNOWN_CORRECTIONS` deterministic fixes. |
 | `i18n/` | `config`, `LocaleProvider`, `server`, `format`, `dictionaries/{en,he,index}`. |
@@ -230,13 +234,14 @@ pre-launch task.
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — 86 tests as of 2026-07-17; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — 99 tests as of 2026-07-23; the list in `package.json` is explicit — add new test files there)
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
 · `live/liveTiming.test.ts` · `live/syncEngine.test.ts` · `live/search.test.ts`
 · `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts` · `live/wavEncode.test.ts`
 · `live/call-stubs.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`
 · `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
-· `documents/extract.test.ts` · `chat/documentContext.test.ts` · `scripts/lib/measure-core.test.ts`.
+· `documents/extract.test.ts` · `documents/snip.test.ts` · `chat/documentContext.test.ts`
+· `chat/attachments.test.ts` · `scripts/lib/measure-core.test.ts`.
 
 ---
 

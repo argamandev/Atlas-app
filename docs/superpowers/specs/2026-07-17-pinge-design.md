@@ -1,5 +1,7 @@
 # Pinge — snip-to-chat (design spec, 2026-07-17)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
 Founder-brainstormed 2026-07-17 (item 10 of the round-3 note, promoted to its own feature).
 "Pinge" is our internal codename — the UI shows only a scissors icon with an i18n tooltip.
 

@@ -5,6 +5,33 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-23 — Pinge (snip-to-chat) SHIPPED (Lane M; reviewer-APPROVED, founder one-look passed)
+
+**Status:** merged to `main` (`2d6d409`) + pushed. Same-day founder-brainstormed feature
+(2026-07-17: brainstorm → spec → 9-task TDD plan → build → verify): financial tables are
+miserable as extracted text, so users snip them **as pixels** and Atlas reads the image.
+11 commits, 17 files, +2125/−40 on `feat/pinge` (stacked on merged multiview).
+
+- **The chain:** scissors on the Report pane → OS-style drag-rect → offscreen 2× pdf.js
+  re-render crop (zoom-proof PNG ≤1600px, no server round-trip) → thumbnail chips in Ask
+  Atlas (≤4, ✕-removable) → `/api/chat` gains additive `attachments` (validated in pure
+  `lib/chat/attachments.ts`, auth-gated exactly like `documentRef`) → Gemini `inline_data`
+  + Hebrew page captions + page-text grounding ride-along (GPT-4.1 fallback: `image_url`).
+  Real e2e: streamed answer cited page 6 and read the table digits from the pixels.
+- **Marking-UX unified (founder decision):** PDF text-mark no longer auto-opens chat —
+  floating Ask-Atlas button when chat is closed, auto-reference when open; same behavior
+  for text marks and snips, finished and live views.
+- **Verification (two-gate):** atlas-reviewer APPROVED — 0 blockers, 4 WARNINGs + 4 NITs
+  filed in ready-queue (headline: snip-only send poisons follow-up history with an empty
+  Gemini text part → silent GPT-4.1 downgrade; client never pre-checks the 2MB attachment
+  cap → silent server-side strip) · supervisor battery independent on branch AND merged
+  main: 99/99 (13 new TDD tests) · tsc · build · evidence `docs/evidence/feat-pinge/`.
+  Founder one-look passed 2026-07-23 ("works amazingly") — real-hand drag confirmed.
+- **Why merged before the founder's new design round:** the redesign touches the same
+  surfaces (chat panel, call view); merging first keeps the import on a clean base.
+
+---
+
 ## 2026-07-17 — Multiview M1 SHIPPED (Lane M; reviewer-APPROVED, founder rounds 2–4 included)
 
 **Status:** merged to `main` (`2c2b464`) + pushed. Mission 4.2's first milestone: a REAL
