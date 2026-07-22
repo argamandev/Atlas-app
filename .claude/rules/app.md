@@ -21,7 +21,10 @@
 - **Company-overview extras + Home quarter tag are STUB-FED** (`lib/company/overview-stub.ts`,
   hardcoded "Q2 2026" on Home) — fabricated demo facts on real pages. Must gain demo markers /
   real feeds before launch (FINDINGs filed 2026-07-14). Same class: a failed `/api/documents`
-  fetch silently falls back to the fabricated stub report in FacetPanes (FINDING 2026-07-17).
+  fetch silently falls back to the fabricated stub report in FacetPanes (FINDING 2026-07-17);
+  a >2MB Pinge snip renders as a chip client-side but is silently stripped server-side, model
+  answers without the image (FINDING 2026-07-23). Recurring class: degradation must be VISIBLE
+  — never render success UI for content the server dropped.
 - **pdf.js (Report pane) gotchas:** browser imports the COMMITTED `public/pdf.min.mjs` +
   `pdf.worker.min.mjs` natively (Next 14 webpack mangles the pdfjs ESM bundle) — re-sync both
   on any pdfjs-dist bump. `getDocument({data})` DETACHES the passed Uint8Array — hand it a
