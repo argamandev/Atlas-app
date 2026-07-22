@@ -123,6 +123,7 @@ export const he: Dictionary = {
     snipCap: 'עד 4 גזירים בשאלה',
     snipDefault: 'הסבירו מה מציג הקטע המצורף.',
     snipFailed: 'הגזירה נכשלה — נסו שוב',
+    snipTooBig: 'הגזיר גדול מדי — סמנו אזור קטן יותר',
     pageShort: 'עמ׳',
     suggestions: [
       'סכמו את שיחת המשקיעים האחרונה בשלוש נקודות',
@@ -241,6 +242,7 @@ export const he: Dictionary = {
     slidesEmpty: 'המצגת תופיע כאן כשתקושר לשיחה.',
     reportEmpty: 'הדוח הרבעוני יופיע כאן כשיקושר.',
     reportFreely: 'PDF · קריאה חופשית',
+    demoContent: 'תוכן הדגמה — לא נתוני חברה אמיתיים',
     viewLabel: 'תצוגה',
     viewSingle: 'יחיד',
     viewMulti: 'מרובה',

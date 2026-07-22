@@ -124,6 +124,7 @@ export const en = {
     snipCap: 'Up to 4 snips per question',
     snipDefault: 'Explain what this snippet shows.',
     snipFailed: 'Snip failed — try again',
+    snipTooBig: 'Snip too large — select a smaller area',
     pageShort: 'p.',
     suggestions: [
       'Summarize the latest investor call in 3 bullets',
@@ -242,6 +243,7 @@ export const en = {
     slidesEmpty: 'Slides will appear here when linked to this call.',
     reportEmpty: 'The quarterly report will appear here when linked.',
     reportFreely: 'PDF · read freely',
+    demoContent: 'Demo content — not real company data',
     viewLabel: 'View',
     viewSingle: 'Single',
     viewMulti: 'Multi',

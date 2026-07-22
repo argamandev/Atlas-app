@@ -772,7 +772,9 @@ export function LiveTranscriptView({
               quarter={call.quarter}
               onAskSelection={onReportAsk}
               onSnip={onReportSnip}
-              onSnipError={() => setToast({ text: dict.chat.snipFailed })}
+              onSnipError={(reason) =>
+                setToast({ text: reason === 'toolarge' ? dict.chat.snipTooBig : dict.chat.snipFailed })
+              }
               style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined}
             />
           )}
