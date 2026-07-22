@@ -121,6 +121,10 @@ export const en = {
     thinking: 'Thinking…',
     slashHint: 'Type / for commands, @ to mention a company',
     referringTo: 'Referring to',
+    snipCap: 'Up to 4 snips per question',
+    snipDefault: 'Explain what this snippet shows.',
+    snipFailed: 'Snip failed — try again',
+    pageShort: 'p.',
     suggestions: [
       'Summarize the latest investor call in 3 bullets',
       'List the forward-looking guidance management gave',
@@ -244,6 +248,7 @@ export const en = {
     karaokeTag: 'karaoke',
     callSections: 'Call sections',
     askAtlas: 'Ask Atlas',
+    snip: 'Snip to chat',
     bufferExplainer:
       'Calls hosted on Atlas run on a ~4–5 minute broadcast delay. The transcript and karaoke sync begin the moment the stream lands.',
     enterLiveNow: 'Enter live now',

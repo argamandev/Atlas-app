@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/ds/icons'
+import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon } from '@/components/ds/icons'
 import { slideStubs, reportStub } from '@/lib/live/call-stubs'
 import { PdfViewer } from './PdfViewer'
+import type { ChatSnip } from '@/lib/api/chat'
 
 // Slides/Report facet panes (design lines 480-523) — shared by the finished call view
 // (Single + Multi) and the LIVE broadcast view, so both toggle the same content cards.
@@ -136,11 +137,21 @@ export function ReportPane({
   companyId,
   quarter,
   onAskSelection,
+  onSnip,
+  onSnipError,
   style,
 }: {
   companyId?: string | null
   quarter?: string | null
-  onAskSelection?: (text: string, pages: number[], documentId: string) => void
+  onAskSelection?: (
+    text: string,
+    pages: number[],
+    documentId: string,
+    anchor: { top: number; left: number }
+  ) => void
+  /** Pinge: forwarded to PdfViewer; the scissors button renders only when provided */
+  onSnip?: (snip: ChatSnip, anchor: { top: number; left: number }) => void
+  onSnipError?: () => void
   style?: React.CSSProperties
 }) {
   const { dict } = useI18n()
@@ -149,6 +160,8 @@ export function ReportPane({
   // Chrome-style page zoom (founder round 2): stepped, % label click = back to 100.
   const ZOOM_STEPS = [75, 90, 100, 110, 125, 150, 175, 200]
   const [zoom, setZoom] = useState(100)
+  // Pinge: scissors arms snip mode on the PDF; one snip per arming.
+  const [snipArmed, setSnipArmed] = useState(false)
   const zoomBy = (dir: 1 | -1) =>
     setZoom((z) => {
       const i = ZOOM_STEPS.indexOf(z)
@@ -218,6 +231,18 @@ export function ReportPane({
         label={dict.live.report}
         right={
           <span className="flex items-center gap-2.5">
+            {doc && onSnip && (
+              <button
+                type="button"
+                title={dict.live.snip}
+                aria-label={dict.live.snip}
+                aria-pressed={snipArmed}
+                onClick={() => setSnipArmed((v) => !v)}
+                className={`flex rounded p-1 transition-colors ${snipArmed ? 'call-ink' : 'call-muted hover:call-ink'}`}
+              >
+                <ScissorsIcon size={14} strokeWidth={1.8} />
+              </button>
+            )}
             {doc && doc.pageCount > 1 && (
               <span className="call-muted flex items-center gap-0.5" dir="ltr">
                 <button
@@ -300,7 +325,19 @@ export function ReportPane({
       />
       <div ref={scrollRef} onScroll={trackPage} className="atscroll flex-1 overflow-auto p-[22px]">
         {doc ? (
-          <PdfViewer docId={doc.id} pageCount={doc.pageCount} zoom={zoom} onAskSelection={onAskSelection} />
+          <PdfViewer
+            docId={doc.id}
+            pageCount={doc.pageCount}
+            zoom={zoom}
+            onAskSelection={onAskSelection}
+            snipArmed={snipArmed}
+            onSnip={(s, anchor) => {
+              setSnipArmed(false) // one snip per arming
+              onSnip?.(s, anchor)
+            }}
+            onSnipCancel={() => setSnipArmed(false)}
+            onSnipError={onSnipError}
+          />
         ) : (
           <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
             <div className="mb-1.5 font-display text-[21px]">{report.title}</div>

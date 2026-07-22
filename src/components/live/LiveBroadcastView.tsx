@@ -22,6 +22,7 @@ import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from 
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
+import type { ChatSnip } from '@/lib/api/chat'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
 import { formatDate } from '@/lib/i18n/format'
@@ -104,8 +105,16 @@ export function LiveBroadcastView({
     segmentId: string | null
   } | null>(null)
   const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
-  const [chat, setChat] = useState<{ open: boolean; seed: string; nonce: number }>({
+  const [chat, setChat] = useState<{
+    open: boolean
+    seed: string
+    nonce: number
+    docRef: { documentId: string; pages: number[] } | null
+    snip: ChatSnip | null
+  }>({
     open: false,
+    docRef: null,
+    snip: null,
     seed: '',
     nonce: 0,
   })
@@ -126,6 +135,64 @@ export function LiveBroadcastView({
     setViewing(true)
     return () => setViewing(false)
   }, [setViewing])
+
+  // Pinge/unification (parity with the finished view): a PDF text-mark or snip made while
+  // the chat is CLOSED waits here, under a floating Ask-Atlas button at the anchor.
+  const [pdfPending, setPdfPending] = useState<
+    | {
+        kind: 'text'
+        text: string
+        pages: number[]
+        documentId: string
+        anchor: { top: number; left: number }
+      }
+    | { kind: 'snip'; snip: ChatSnip; anchor: { top: number; left: number } }
+    | null
+  >(null)
+  useEffect(() => {
+    if (!pdfPending) return
+    const clear = () => setPdfPending(null)
+    window.addEventListener('pointerdown', clear)
+    return () => window.removeEventListener('pointerdown', clear)
+  }, [pdfPending])
+
+  function onReportAsk(
+    text: string,
+    pages: number[],
+    documentId: string,
+    anchor: { top: number; left: number }
+  ) {
+    if (chat.open) {
+      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1, docRef: { documentId, pages }, snip: null }))
+    } else {
+      setPdfPending({ kind: 'text', text, pages, documentId, anchor })
+    }
+  }
+
+  function onReportSnip(snip: ChatSnip, anchor: { top: number; left: number }) {
+    if (chat.open) {
+      setChat((c) => ({ ...c, seed: '', nonce: c.nonce + 1, docRef: null, snip }))
+    } else {
+      setPdfPending({ kind: 'snip', snip, anchor })
+    }
+  }
+
+  function firePdfPending() {
+    const p = pdfPending
+    if (!p) return
+    setPdfPending(null)
+    if (p.kind === 'text') {
+      setChat((c) => ({
+        open: true,
+        seed: p.text,
+        nonce: c.nonce + 1,
+        docRef: { documentId: p.documentId, pages: p.pages },
+        snip: null,
+      }))
+    } else {
+      setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null, snip: p.snip }))
+    }
+  }
 
   // Side chat open → the global bar narrows to its left (mirrors the finished view).
   useEffect(() => {
@@ -212,7 +279,7 @@ export function LiveBroadcastView({
     }
     // chat open → drop the highlight straight into the composer as a reference (Claude-style)
     if (chat.open) {
-      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1 }))
+      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1, docRef: null, snip: null }))
       setSelection(null)
       return
     }
@@ -352,7 +419,9 @@ export function LiveBroadcastView({
             </div>
             <button
               type="button"
-              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1 }))}
+              onClick={() =>
+                setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null, snip: null }))
+              }
               className="call-hair call-ink flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] transition-opacity hover:opacity-80"
             >
               <SparkleIcon size={14} strokeWidth={1.6} />
@@ -520,10 +589,39 @@ export function LiveBroadcastView({
             <ReportPane
               companyId={companyId}
               quarter={quarter}
+              onAskSelection={onReportAsk}
+              onSnip={onReportSnip}
+              onSnipError={() => {}}
               style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined}
             />
           )}
         </div>
+
+        {/* Pinge/unification: pending PDF ask (text-mark or snip made with the chat closed) */}
+        {pdfPending && (
+          <div
+            style={{
+              position: 'fixed',
+              top: pdfPending.anchor.top,
+              left: pdfPending.anchor.left,
+              transform: 'translate(-50%, -120%)',
+            }}
+            className="z-50 flex items-center rounded-full bg-player px-1 py-1 shadow-player"
+          >
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                firePdfPending()
+              }}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+            >
+              <SparkleIcon size={14} />
+              {dict.live.askAtlas}
+            </button>
+          </div>
+        )}
 
         {selection && (
           <div
@@ -565,7 +663,13 @@ export function LiveBroadcastView({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
-                setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1 }))
+                setChat((c) => ({
+                  open: true,
+                  seed: selection.text,
+                  nonce: c.nonce + 1,
+                  docRef: null,
+                  snip: null,
+                }))
                 setSelection(null)
               }}
               className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
@@ -671,7 +775,9 @@ export function LiveBroadcastView({
           liveContext={liveCaptionsText}
           quote={chat.seed}
           seedNonce={chat.nonce}
-          onClose={() => setChat((c) => ({ ...c, open: false }))}
+          docRef={chat.docRef}
+          snip={chat.snip}
+          onClose={() => setChat((c) => ({ ...c, open: false, docRef: null, snip: null }))}
         />
       )}
     </div>

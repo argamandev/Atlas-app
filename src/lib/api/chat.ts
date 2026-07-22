@@ -9,12 +9,20 @@ export interface DocumentRef {
   pages: number[]
 }
 
+/** Pinge: one snipped region of the report PDF, captured client-side as a PNG data URL. */
+export interface ChatSnip {
+  dataUrl: string
+  page: number
+  documentId: string
+}
+
 export interface ChatInput {
   message: string
   companyId?: string
   transcriptId?: string
   liveContext?: string // LIVE view: the on-screen captions, used directly as grounding context
   documentRef?: DocumentRef // multiview: marked-PDF passage grounding (document + page numbers)
+  attachments?: ChatSnip[] // Pinge snips (≤4) — server validates + auth-gates like documentRef
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
 

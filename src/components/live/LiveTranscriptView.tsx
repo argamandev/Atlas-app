@@ -33,6 +33,7 @@ import { usePlayer, usePlayerTimeDerived } from '@/lib/player/PlayerProvider'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
+import type { ChatSnip } from '@/lib/api/chat'
 import { formatClock, formatDate } from '@/lib/i18n/format'
 import type { LiveCall } from '@/lib/live/loadCall'
 
@@ -134,12 +135,35 @@ export function LiveTranscriptView({
     seed: string
     nonce: number
     docRef: { documentId: string; pages: number[] } | null
+    snip: ChatSnip | null
   }>({
     open: false,
     seed: '',
     nonce: 0,
     docRef: null,
+    snip: null,
   })
+  // Pinge/unification: a PDF text-mark or snip made while the chat is CLOSED waits here,
+  // under a floating Ask-Atlas button at the selection/snip anchor.
+  const [pdfPending, setPdfPending] = useState<
+    | {
+        kind: 'text'
+        text: string
+        pages: number[]
+        documentId: string
+        anchor: { top: number; left: number }
+      }
+    | { kind: 'snip'; snip: ChatSnip; anchor: { top: number; left: number } }
+    | null
+  >(null)
+  // Any other pointerdown dismisses the pending button (same lifecycle as text selections);
+  // the button itself acts on pointerdown with stopPropagation, so it wins the race.
+  useEffect(() => {
+    if (!pdfPending) return
+    const clear = () => setPdfPending(null)
+    window.addEventListener('pointerdown', clear)
+    return () => window.removeEventListener('pointerdown', clear)
+  }, [pdfPending])
   // side chat open → tell the global docked bar to narrow to its left (so offline = live)
   useEffect(() => {
     player.setChatOpen(chat.open)
@@ -280,7 +304,7 @@ export function LiveTranscriptView({
     // If the side chat is already open, drop the highlight straight into the chat input as a
     // reference (no popup, no extra clicks) — Claude-style. Edit mode still uses the popup.
     if (chat.open && !editMode) {
-      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1, docRef: null }))
+      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1, docRef: null, snip: null }))
       setSelection(null)
       return
     }
@@ -303,8 +327,44 @@ export function LiveTranscriptView({
 
   // A passage marked inside the report PDF → open the side chat seeded with it (same UX as
   // transcript highlights), tagged with document + page so /api/chat grounds on the page text.
-  function onReportAsk(text: string, pages: number[], documentId: string) {
-    setChat((c) => ({ open: true, seed: text, nonce: c.nonce + 1, docRef: { documentId, pages } }))
+  // Unified marking rule (spec 2026-07-17): chat open → auto-reference; chat closed →
+  // floating Ask-Atlas button first (same UX as transcript marking).
+  function onReportAsk(
+    text: string,
+    pages: number[],
+    documentId: string,
+    anchor: { top: number; left: number }
+  ) {
+    if (chat.open) {
+      setChat((c) => ({ ...c, seed: text, nonce: c.nonce + 1, docRef: { documentId, pages }, snip: null }))
+    } else {
+      setPdfPending({ kind: 'text', text, pages, documentId, anchor })
+    }
+  }
+
+  function onReportSnip(snip: ChatSnip, anchor: { top: number; left: number }) {
+    if (chat.open) {
+      setChat((c) => ({ ...c, seed: '', nonce: c.nonce + 1, docRef: null, snip }))
+    } else {
+      setPdfPending({ kind: 'snip', snip, anchor })
+    }
+  }
+
+  function firePdfPending() {
+    const p = pdfPending
+    if (!p) return
+    setPdfPending(null)
+    if (p.kind === 'text') {
+      setChat((c) => ({
+        open: true,
+        seed: p.text,
+        nonce: c.nonce + 1,
+        docRef: { documentId: p.documentId, pages: p.pages },
+        snip: null,
+      }))
+    } else {
+      setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null, snip: p.snip }))
+    }
   }
 
   // Reassign the selected run to a speaker → recompute + persist the overlay → reload (Feature 1).
@@ -440,7 +500,9 @@ export function LiveTranscriptView({
             </div>
             <button
               type="button"
-              onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null }))}
+              onClick={() =>
+                setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null, snip: null }))
+              }
               className="call-hair call-ink flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] transition-opacity hover:opacity-80"
             >
               <SparkleIcon size={14} strokeWidth={1.6} />
@@ -532,7 +594,9 @@ export function LiveTranscriptView({
               <IconButton
                 label={dict.company.openInChat}
                 size={28}
-                onClick={() => setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null }))}
+                onClick={() =>
+                  setChat((c) => ({ open: true, seed: '', nonce: c.nonce + 1, docRef: null, snip: null }))
+                }
               >
                 <SparkleIcon size={15} />
               </IconButton>
@@ -707,10 +771,38 @@ export function LiveTranscriptView({
               companyId={call.companyId}
               quarter={call.quarter}
               onAskSelection={onReportAsk}
+              onSnip={onReportSnip}
+              onSnipError={() => setToast({ text: dict.chat.snipFailed })}
               style={view === 'multi' ? { flex: `${colFlex.report} 1 0px` } : undefined}
             />
           )}
         </div>
+
+        {/* Pinge/unification: pending PDF ask (text-mark or snip made with the chat closed) */}
+        {pdfPending && (
+          <div
+            style={{
+              position: 'fixed',
+              top: pdfPending.anchor.top,
+              left: pdfPending.anchor.left,
+              transform: 'translate(-50%, -120%)',
+            }}
+            className="z-50 flex items-center rounded-full bg-player px-1 py-1 shadow-player"
+          >
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                firePdfPending()
+              }}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
+            >
+              <SparkleIcon size={14} />
+              {dict.live.askAtlas}
+            </button>
+          </div>
+        )}
 
         {/* selection toolbar — reassign-to-speaker (edit mode) OR Save / Share / Star */}
         {selection &&
@@ -777,7 +869,13 @@ export function LiveTranscriptView({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  setChat((c) => ({ open: true, seed: selection.text, nonce: c.nonce + 1, docRef: null }))
+                  setChat((c) => ({
+                    open: true,
+                    seed: selection.text,
+                    nonce: c.nonce + 1,
+                    docRef: null,
+                    snip: null,
+                  }))
                   setSelection(null)
                 }}
                 className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-player-ink transition-colors hover:bg-white/15"
@@ -844,7 +942,8 @@ export function LiveTranscriptView({
           quote={chat.seed}
           seedNonce={chat.nonce}
           docRef={chat.docRef}
-          onClose={() => setChat((c) => ({ ...c, open: false, docRef: null }))}
+          snip={chat.snip}
+          onClose={() => setChat((c) => ({ ...c, open: false, docRef: null, snip: null }))}
         />
       )}
     </div>
