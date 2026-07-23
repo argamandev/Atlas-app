@@ -33,6 +33,16 @@ console clean + tests green.
 **Frontend import:** screenshot each imported page vs its reference in design-import/ —
 side-by-side compare (structure, spacing, typography, colors). Check both EN and HE (RTL flip).
 Workspace/Agents pages must render fully from stub data (no backend calls).
+Parity laws (graduated from the 7-round 2026-07 grind): (1) verify against the RENDERED
+design only — serve it locally, probe computed styles / canvas measureText; bundle CSS and
+template text LIE (rules/app.md has the two-font-stack story). (2) Measure the FRAME first
+(rail width, page paddings, max-widths) — components can match while proportions are off.
+(3) A/B EVERY page including stubs that "look done" — never invent anatomy the design
+doesn't have. (4) A founder-reported visual diff gets MEASURED before any code changes
+(screenshot row-profile / pixel compare) — one "loose spacing" report measured identical to
+the mockup; chasing it would have broken real parity. (5) Missing data ⇒ typed stub modules
+at the design's demo density — never render a sparser page. (6) The founder gate is a
+side-by-side comparison walkthrough, not a claim.
 
 **Ivrit pipeline:** replay the archived session (scripts/out/sessions/2026-07-01-tamis-live/)
 through YOUR pipeline; assert programmatically: word timestamps strictly non-decreasing,
