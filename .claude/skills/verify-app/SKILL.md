@@ -12,6 +12,8 @@ console clean + tests green.
 
 1. Your dev server, YOUR port (rules/parallel-work.md): frontend 3001 · ivrit 3002 ·
    multiview 3003 · supervisor 3000. `npm run dev -- -p <port>` in your worktree.
+   KILL any dev server left from a previous session first (check who owns the port) — a
+   stale server serves the OLD build and your verification lies to you (bit Lane M 07-23).
 2. Load Chrome MCP tools (ToolSearch "select:mcp__claude-in-chrome__tabs_context_mcp,
    mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,
    mcp__claude-in-chrome__tabs_create_mcp,mcp__claude-in-chrome__read_console_messages" in ONE call).
