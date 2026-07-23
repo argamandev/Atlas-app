@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   parseAttachments,
+  attachmentOversized,
   snipCaption,
   geminiSnipParts,
   openAiSnipContent,
@@ -34,6 +35,14 @@ test('parseAttachments: caps count at ATTACHMENT_MAX and size at ATTACHMENT_MAX_
   assert.equal(parseAttachments(six).length, ATTACHMENT_MAX)
   const fat = { ...good(), dataUrl: PNG + 'a'.repeat(ATTACHMENT_MAX_B64 + 1) }
   assert.deepEqual(parseAttachments([fat]), [])
+})
+
+test('attachmentOversized: same boundary parseAttachments strips at', () => {
+  // The client must warn BEFORE sending — a stripped snip still renders as a chip,
+  // so without this check the model answers without the image and the user never knows.
+  assert.equal(attachmentOversized(PNG + 'a'.repeat(ATTACHMENT_MAX_B64)), false)
+  assert.equal(attachmentOversized(PNG + 'a'.repeat(ATTACHMENT_MAX_B64 + 1)), true)
+  assert.equal(parseAttachments([{ ...good(), dataUrl: PNG + 'a'.repeat(ATTACHMENT_MAX_B64) }]).length, 1)
 })
 
 test('snipCaption: with and without document metadata', () => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { dragToPageRect, scaleRect, snipRenderScale } from '@/lib/documents/snip'
+import { attachmentOversized } from '@/lib/chat/attachments'
 import type { ChatSnip } from '@/lib/api/chat'
 
 // Real-PDF viewer for the Report facet pane (multiview M1). pdf.js canvas per page +
@@ -76,7 +77,8 @@ export function PdfViewer({
   snipArmed?: boolean
   onSnip?: (snip: ChatSnip, anchor: { top: number; left: number }) => void
   onSnipCancel?: () => void
-  onSnipError?: () => void
+  /** 'toolarge' = capture ok but past the server's attachment cap (would be silently stripped) */
+  onSnipError?: (reason: 'capture' | 'toolarge') => void
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [doc, setDoc] = useState<any>(null)
@@ -227,13 +229,19 @@ export function PdfViewer({
       const cssScale = pr.width / base.width // rendered CSS px per PDF unit (zoom-dependent)
       const rectPdf = scaleRect(cssRect, 1 / cssScale)
       const dataUrl = await captureSnip(d.pageNo, rectPdf)
+      if (attachmentOversized(dataUrl)) {
+        // /api/chat would strip it while the chip still renders — refuse loudly instead
+        onSnipError?.('toolarge')
+        onSnipCancel?.()
+        return
+      }
       onSnip?.(
         { dataUrl, page: d.pageNo, documentId: docId },
         { top: Math.min(d.start.y, y), left: (d.start.x + x) / 2 }
       )
     } catch (err) {
       console.error('[PdfViewer] snip capture failed', (err as Error).message)
-      onSnipError?.()
+      onSnipError?.('capture')
       onSnipCancel?.()
     }
   }

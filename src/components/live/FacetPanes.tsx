@@ -151,7 +151,7 @@ export function ReportPane({
   ) => void
   /** Pinge: forwarded to PdfViewer; the scissors button renders only when provided */
   onSnip?: (snip: ChatSnip, anchor: { top: number; left: number }) => void
-  onSnipError?: () => void
+  onSnipError?: (reason: 'capture' | 'toolarge') => void
   style?: React.CSSProperties
 }) {
   const { dict } = useI18n()
@@ -340,6 +340,10 @@ export function ReportPane({
           />
         ) : (
           <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
+            {/* the stub card is FABRICATED content (also the fetch-error fallback) — always say so */}
+            <span className="call-hair call-muted mb-4 inline-block rounded-full border px-2.5 py-1 text-[11px] font-medium">
+              {dict.live.demoContent}
+            </span>
             <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
             <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
             {report.paragraphs.map((p) => (

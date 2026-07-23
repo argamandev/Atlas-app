@@ -10,6 +10,7 @@ import {
   type ChatAttachment,
 } from '@/lib/chat/attachments'
 import { getDocumentMeta } from '@/lib/documents'
+import { sanitizeHistory } from '@/lib/chat/history'
 
 // Chat over the transcript DB (brief §5.3), now **streamed** (Feature 5). Gemini 3.5 Flash —
 // same engine + GEMINI_API_KEY as the formatting pipeline. We proxy Gemini's SSE stream and
@@ -118,7 +119,9 @@ export async function POST(req: NextRequest) {
       : undefined
   // Pinge snips: validated here, auth-gated below exactly like documentRef.
   let attachments: ChatAttachment[] = parseAttachments(body?.attachments)
-  const history: ChatMessage[] = Array.isArray(body?.history) ? body.history : []
+  // Sanitized (not just typed): an empty-content turn becomes a Gemini {text:''} part,
+  // which rejects the whole request — the client filters too, but the body is untrusted.
+  const history: ChatMessage[] = sanitizeHistory(body?.history)
   if (!message) return NextResponse.json({ error: 'message required' }, { status: 400 })
 
   if (!apiKey) {

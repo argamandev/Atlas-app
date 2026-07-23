@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { streamChat, type ChatSource, type ChatSnip } from '@/lib/api/chat'
+import { sanitizeHistory } from '@/lib/chat/history'
 import { appendSnip } from '@/lib/documents/snip'
 import { CitationChip } from '@/components/chat/CitationPopover'
 import { ThinkingDots } from '@/components/chat/ThinkingDots'
@@ -18,6 +19,8 @@ import { detectDir } from '@/lib/utils'
 interface Msg {
   role: 'user' | 'assistant'
   content: string
+  /** what /api/chat actually received (reference-labeled / snip default) — replayed as history */
+  apiContent?: string
   reference?: string
   snips?: ChatSnip[]
   source?: ChatSource | null
@@ -99,7 +102,7 @@ export function TranscriptChatPanel({
     if ((!text && usedSnips.length === 0) || sending) return
     const usedRef = ref.trim()
     const usedDoc = refDoc
-    const history = messages.map((m) => ({ role: m.role, content: m.content }))
+    const history = sanitizeHistory(messages)
     // Label the passage by page(s): "(page 4)" for one, "(pages 4–5)" for a start/end span,
     // omitted entirely when no page could be resolved from the selection.
     const pageLabel =
@@ -120,6 +123,7 @@ export function TranscriptChatPanel({
       {
         role: 'user',
         content: text,
+        apiContent: outMessage,
         reference: usedRef || undefined,
         snips: usedSnips.length ? usedSnips : undefined,
       },
