@@ -5,6 +5,30 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-07-23 — Review-warnings sweep SHIPPED (Lane M; reviewer-APPROVED, zero findings)
+
+**Status:** merged to `main` (`78af6fe`) + pushed. All 6 earmarked reviewer WARNINGs from
+the pinge + multiview verdicts fixed in one small branch (4 commits, 14 files) — deliberately
+merged BEFORE the founder's new app-wide design round lands on the same surfaces.
+
+- **Chat history hygiene:** snip-only sends no longer poison follow-ups into silent GPT-4.1
+  fallback — new pure `lib/chat/history.ts` `sanitizeHistory` (drops empty turns, prefers
+  `apiContent` = what the model actually received), applied client-side AND on the untrusted
+  body in `/api/chat`. Behaviorally probed against real Gemini (pre-fix history 400'd).
+- **Silent degradation made visible** (the rules/app.md defect class): oversized snips now
+  refused client-side with a toast (same constant + arithmetic as the server cap — no drift
+  possible) · live view toasts snip-capture failures · stub report card carries a
+  demo-content pill in both locales (covers no-doc, fetch-error, and 401 paths).
+- **Supply-chain fix:** `pdfjs-dist` pinned exact `5.4.296` as a direct dependency, matching
+  the committed `public/pdf.min.mjs` copies (was transitive via pdf-parse — a bump would
+  have silently desynced viewer and ingest).
+- **Verification (two-gate):** atlas-reviewer APPROVED with ZERO findings — verified each
+  fix against the original finding text, re-ran 104/104 + tsc itself · supervisor battery
+  independent on branch AND merged main: 104/104 (5 new TDD tests) · tsc · build ·
+  evidence `docs/evidence/fix-review-warnings/`.
+
+---
+
 ## 2026-07-23 — Pinge (snip-to-chat) SHIPPED (Lane M; reviewer-APPROVED, founder one-look passed)
 
 **Status:** merged to `main` (`2d6d409`) + pushed. Same-day founder-brainstormed feature
