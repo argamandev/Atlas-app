@@ -35,7 +35,7 @@ export function CollapsiblePanel({
           <div className="mb-[18px] flex items-center justify-between">
             {title ? (
               // design panel labels are system caps (line 190), not mono
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A867C]">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#767676]">
                 {title}
               </span>
             ) : (

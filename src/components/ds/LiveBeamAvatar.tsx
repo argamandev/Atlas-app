@@ -39,7 +39,7 @@ export function LiveBeamAvatar({
       <span
         dir="auto"
         className={cn(
-          'relative z-[2] flex items-center justify-center rounded-full border-2 bg-[#ECE9E2] font-semibold text-ink',
+          'relative z-[2] flex items-center justify-center rounded-full border-2 bg-[#F0F0F0] font-semibold text-ink',
           SURFACE_BORDER[surface]
         )}
         style={{

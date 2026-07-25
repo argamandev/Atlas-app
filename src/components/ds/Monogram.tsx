@@ -1,4 +1,4 @@
-// The design's avatar language: a warm letter chip (#ECE9E2) with the entity's
+// The design's avatar language: a warm letter chip (#F0F0F0) with the entity's
 // first character — used instead of logo images across the imported design
 // (company header 48px, overview cards 38px, reported-results head 34px).
 export function Monogram({
@@ -19,7 +19,7 @@ export function Monogram({
     <span
       dir="auto"
       aria-hidden="true"
-      className={`flex flex-none items-center justify-center bg-[#ECE9E2] text-ink ${className}`}
+      className={`flex flex-none items-center justify-center bg-[#F0F0F0] text-ink ${className}`}
       style={{
         width: size,
         height: size,
