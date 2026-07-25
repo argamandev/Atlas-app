@@ -80,7 +80,7 @@ export const tokens = {
     // 2026-07-25; the only shadow family in Harvey, everything else is bordered flat.
     pane: '0 8px 26px -18px rgba(28,24,14,0.30), 0 1px 3px rgba(28,24,14,0.05)',
     // V2 (Claude Design): the design's one soft lift for search field + live card
-    soft: '0 1px 3px rgba(28,27,25,0.06), 0 8px 24px rgba(28,27,25,0.04)',
+    soft: '0 1px 3px rgba(28,24,14,0.06), 0 8px 24px rgba(28,24,14,0.04)',
     card: '0 1px 2px rgba(20,18,15,0.05), 0 1px 1px rgba(20,18,15,0.03)',
     float: '0 24px 70px -20px rgba(20,18,15,0.16), 0 2px 8px -2px rgba(20,18,15,0.07)',
     window: '0 24px 64px -16px rgba(0,0,0,0.28), 0 2px 8px -2px rgba(0,0,0,0.10)',

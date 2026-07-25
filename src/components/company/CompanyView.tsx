@@ -127,7 +127,7 @@ export function CompanyView({
             <div className="flex min-w-0 items-center gap-3.5">
               <Monogram name={name} size={48} fontSize={21} radius={11} />
               <div className="min-w-0 text-start">
-                <h1 className="font-head text-[27px] font-bold leading-[1.1] tracking-[-0.03em] text-ink">
+                <h1 className="font-display text-[27px] font-medium leading-[1.1] tracking-[-0.02em] text-ink">
                   <span dir="auto">{name}</span>
                 </h1>
                 <div className="mt-1.5 flex flex-wrap items-center gap-[9px]">

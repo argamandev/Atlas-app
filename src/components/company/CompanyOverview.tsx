@@ -285,7 +285,7 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
         </span>
         <div
           className="overflow-hidden rounded-[16px] border border-[#DEDEDE] bg-[#F7F7F7]"
-          style={{ boxShadow: '0 1px 3px rgba(28,27,25,.045), 0 14px 34px -26px rgba(28,27,25,.14)' }}
+          style={{ boxShadow: '0 1px 3px rgba(28,24,14,.045), 0 14px 34px -26px rgba(28,24,14,.14)' }}
         >
           <div className="flex items-center justify-between gap-3.5 border-b border-[#EAEAEA] px-[22px] py-[17px]">
             <div className="flex min-w-0 items-center gap-3">
