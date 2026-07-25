@@ -307,6 +307,13 @@ export const ScissorsIcon = (p: IconProps) => (
     <path d="M14.8 14.8 20 20" />
   </Base>
 )
+// Design round 2: composer mic (future voice-ask affordance, design aa-ic row)
+export const MicIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="9" y="2.5" width="6" height="11" rx="3" />
+    <path d="M6 11a6 6 0 0012 0M12 17v4" />
+  </Base>
+)
 export const QuoteIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M9 7c-2.2 0-3.5 1.6-3.5 3.6 0 1.9 1.3 3.1 3 3.1.3 1.6-.6 2.6-2 3.3M18 7c-2.2 0-3.5 1.6-3.5 3.6 0 1.9 1.3 3.1 3 3.1.3 1.6-.6 2.6-2 3.3" />

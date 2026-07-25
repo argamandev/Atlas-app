@@ -234,23 +234,9 @@
   color: transparent;
 }
 
-/* Harvey multiview floats (Design Round 2): in Multi, every pane is a white card on the
-   light backdrop — the probed pane recipe (white, 16px, faint border, the ONE Harvey
-   shadow family). The drag-divider line disappears; the gutter itself is the gap. */
-.facet-floats > [data-facet] {
-  background: #ffffff;
-  border: 1px solid rgba(28, 24, 14, 0.06);
-  border-radius: 16px;
-  box-shadow:
-    0 8px 26px -18px rgba(28, 24, 14, 0.3),
-    0 1px 3px rgba(28, 24, 14, 0.05);
-}
-.facet-floats .group\/div > div {
-  background: transparent !important;
-}
-
 /* Harvey is the single theme (Design Round 2) — the data-scheme cycle is gone;
-   rail/shell colors come straight from tokens via tailwind.config. */
+   rail/shell colors come straight from tokens via tailwind.config. (Pane floats are
+   structural now: FacetPanes' PaneCard, label rows outside on the backdrop.) */
 /* the collapsed-rail "A" monogram is a dark asset: invert it on the black rail */
 .rail-logo-img {
   filter: invert(1);

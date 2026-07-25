@@ -254,6 +254,11 @@ export const he: Dictionary = {
     askHeroLine2: 'על השיחה הזאת',
     askHeroCompany: 'על החברה הזאת',
     askHeroSub: 'האודיו ממשיך להתנגן בזמן שאתם שואלים.',
+    // composer captions (design round 2): what Atlas is connected to, per context
+    askFollowLive: 'אטלס עוקב אחרי השיחה בשידור חי. שאלו על כל מה שנאמר.',
+    askConnectedCall: 'אטלס מחובר להקשר של השיחה הזאת. שאלו כל מה שתרצו.',
+    askConnectedCompany: 'אטלס מחובר להקשר של החברה הזאת. שאלו כל מה שתרצו.',
+    voiceSoon: 'שאלה קולית — בקרוב',
     slideLabel: 'שקופית',
   },
   player: {

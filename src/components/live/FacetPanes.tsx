@@ -64,9 +64,11 @@ export function useFacetColumns() {
       title="Drag to resize · double-click to reset"
       className="group/div flex w-[9px] flex-none cursor-col-resize items-stretch justify-center select-none"
     >
+      {/* Harvey: the gutter itself is the gap between floating cards — no visible line
+          except the ink feedback while actually dragging */}
       <div
         className="w-px group-hover/div:w-[2px]"
-        style={{ background: dragging ? 'var(--call-ink)' : 'var(--call-hair)' }}
+        style={{ background: dragging ? 'var(--call-ink)' : 'transparent' }}
       />
     </div>
   )
@@ -75,13 +77,22 @@ export function useFacetColumns() {
 
 export function PaneHeader({ label, right }: { label: string; right?: React.ReactNode }) {
   return (
-    // FIXED 36px band — the design equalizes header heights across panes (Slides gets
-    // 6px vertical padding vs 9px, dc line 482) so every bottom hairline meets the
-    // gutters at the same y. A fixed height keeps them fitting whatever `right` holds.
-    <div className="call-hair flex h-9 flex-none items-center justify-between border-b px-[18px]">
+    // Harvey (design round 2): the label row sits ON THE BACKDROP, above the floating
+    // content card — no band, no separator line. Fixed height keeps rows level across panes.
+    <div className="flex h-[26px] flex-none items-center justify-between px-1.5">
       {/* Harvey pane labels (probed): 12.5px, weight 700, 0.12em caps, full ink */}
       <span className="call-ink text-[12.5px] font-bold uppercase tracking-[0.12em]">{label}</span>
       {right}
+    </div>
+  )
+}
+
+// Harvey float (design round 2, probed): the content card every pane's body lives in —
+// white, 16px, faint warm border, THE pane shadow. Label rows stay outside on the backdrop.
+export function PaneCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-[rgba(28,24,14,0.06)] bg-white shadow-pane">
+      {children}
     </div>
   )
 }
@@ -92,7 +103,7 @@ export function SlidesPane({ quarter, style }: { quarter?: string | null; style?
   const slides = slideStubs()
   const slide = slides[slideIdx % slides.length]
   return (
-    <div data-facet="slides" style={style} className="flex min-w-[280px] flex-1 flex-col overflow-hidden">
+    <div data-facet="slides" style={style} className="flex min-w-[280px] flex-1 flex-col gap-1.5 overflow-hidden">
       <PaneHeader
         label={dict.live.slides}
         right={
@@ -117,19 +128,21 @@ export function SlidesPane({ quarter, style }: { quarter?: string | null; style?
           </span>
         }
       />
-      <div className="atscroll flex-1 overflow-auto p-[22px]">
-        <div
-          dir="rtl"
-          data-ask="1"
-          className="call-hair call-card-bg call-ink flex min-h-[260px] flex-col justify-center rounded-lg border p-[34px]"
-        >
-          <div className="call-muted mb-3 font-mono-num text-[11px] uppercase tracking-[0.14em]" dir="rtl">
-            {[quarter, `${dict.live.slideLabel} ${slideIdx + 1}`].filter(Boolean).join(' · ')}
+      <PaneCard>
+        <div className="atscroll flex-1 overflow-auto p-[22px]">
+          <div
+            dir="rtl"
+            data-ask="1"
+            className="call-hair call-ink flex min-h-[260px] flex-col justify-center rounded-lg border bg-white p-[34px]"
+          >
+            <div className="call-muted mb-3 font-mono-num text-[11px] uppercase tracking-[0.14em]" dir="rtl">
+              {[quarter, `${dict.live.slideLabel} ${slideIdx + 1}`].filter(Boolean).join(' · ')}
+            </div>
+            <div className="mb-3.5 font-display text-[23px]">{slide.title}</div>
+            <div className="text-[14.5px] leading-[1.9]">{slide.body}</div>
           </div>
-          <div className="mb-3.5 font-display text-[23px]">{slide.title}</div>
-          <div className="text-[14.5px] leading-[1.9]">{slide.body}</div>
         </div>
-      </div>
+      </PaneCard>
     </div>
   )
 }
@@ -240,7 +253,7 @@ export function ReportPane({
   }, [companyId, quarter])
 
   return (
-    <div data-facet="report" style={style} className="flex min-w-[300px] flex-1 flex-col overflow-hidden">
+    <div data-facet="report" style={style} className="flex min-w-[300px] flex-1 flex-col gap-1.5 overflow-hidden">
       <PaneHeader
         label={dict.live.report}
         right={
@@ -337,8 +350,9 @@ export function ReportPane({
           </span>
         }
       />
-      <div ref={scrollRef} onScroll={trackPage} className="atscroll flex-1 overflow-auto p-[22px]">
-        {doc ? (
+      <PaneCard>
+        <div ref={scrollRef} onScroll={trackPage} className="atscroll flex-1 overflow-auto p-[22px]">
+          {doc ? (
           <PdfViewer
             docId={doc.id}
             pageCount={doc.pageCount}
@@ -368,7 +382,8 @@ export function ReportPane({
             <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
           </div>
         )}
-      </div>
+        </div>
+      </PaneCard>
     </div>
   )
 }

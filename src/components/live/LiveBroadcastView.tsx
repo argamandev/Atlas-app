@@ -18,7 +18,7 @@ import {
   FileIcon,
   PlusIcon,
 } from '@/components/ds/icons'
-import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
+import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -364,7 +364,8 @@ export function LiveBroadcastView({
     <div className="call-bg call-ink flex h-full min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
         {/* identity header (63px, design lines 253-268) */}
-        <header className="call-hair flex h-[63px] flex-none items-center justify-between gap-3 border-b px-6">
+        {/* Harvey: flat identity header — no separator line (design h 58, pad 26) */}
+        <header className="flex h-[58px] flex-none items-center justify-between gap-3 px-[26px]">
           <div className="flex min-w-0 items-center gap-2.5" dir="ltr">
             <Logo src={logoUrl} name={companyName} size={30} className="rounded-[7px]" />
             <span className="call-ink max-w-[460px] truncate text-[13.5px] font-semibold">
@@ -417,8 +418,9 @@ export function LiveBroadcastView({
           </div>
         </header>
 
-        {/* facet controls (live view pins Transcript) — Harvey: floating white card row */}
-        <div className="mx-4 mt-2.5 flex flex-none items-center justify-between rounded-[14px] border border-[rgba(28,24,14,0.06)] bg-white px-4 shadow-pane">
+        {/* facet controls (live view pins Transcript) — Harvey (probed): flat row, no card,
+            no separator; the float lives in the pane cards below */}
+        <div className="flex flex-none items-center justify-between px-6">
           <div className="flex items-center gap-[22px] text-[13.5px]">
             <button
               type="button"
@@ -461,7 +463,7 @@ export function LiveBroadcastView({
                     }}
                     className={`flex items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[12.5px] transition-colors ${
                       active
-                        ? 'call-raised-bg call-ink border border-transparent font-semibold'
+                        ? 'call-hair call-panel-bg call-ink border font-semibold'
                         : 'call-hair call-muted border font-medium hover:call-ink'
                     }`}
                   >
@@ -512,15 +514,15 @@ export function LiveBroadcastView({
             with drag-resize gutters. Columns keep min-widths and the ROW scrolls horizontally
             instead of squishing; the live audio + karaoke keep running through it all. */}
         <div
-          className={`atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden ${
-            view === 'multi' ? 'facet-floats bg-desktop px-4 pb-4 pt-3' : ''
+          className={`atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-2 ${
+            view === 'multi' ? 'bg-desktop' : ''
           }`}
         >
           {(view === 'multi' ? multiFacets.has('transcript') : facet === 'transcript') && (
             <div
               data-facet="transcript"
               style={view === 'multi' ? { flex: `${colFlex.transcript} 1 0px` } : undefined}
-              className="flex min-w-[340px] flex-1 flex-col overflow-hidden"
+              className="flex min-w-[340px] flex-1 flex-col gap-1.5 overflow-hidden"
             >
               <PaneHeader
                 label={dict.live.transcript}
@@ -535,26 +537,28 @@ export function LiveBroadcastView({
                   </span>
                 }
               />
-              <div
-                data-ask="1"
-                className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
-                onMouseUp={onTextSelect}
-                onScroll={() => selection && setSelection(null)}
-              >
-                {phase === 'playing' && words.length === 0 && (
-                  <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
-                    ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
-                  </div>
-                )}
-                <TranscriptBody
-                  transcript={transcript}
-                  activeIndex={activeIndex}
-                  autoScroll={autoScroll}
-                  onWordClick={seek}
-                  karaoke
-                  followLabel={dict.live.backToLive}
-                />
-              </div>
+              <PaneCard>
+                <div
+                  data-ask="1"
+                  className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-4"
+                  onMouseUp={onTextSelect}
+                  onScroll={() => selection && setSelection(null)}
+                >
+                  {phase === 'playing' && words.length === 0 && (
+                    <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
+                      ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+                    </div>
+                  )}
+                  <TranscriptBody
+                    transcript={transcript}
+                    activeIndex={activeIndex}
+                    autoScroll={autoScroll}
+                    onWordClick={seek}
+                    karaoke
+                    followLabel={dict.live.backToLive}
+                  />
+                </div>
+              </PaneCard>
             </div>
           )}
           {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}

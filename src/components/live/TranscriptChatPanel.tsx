@@ -9,7 +9,7 @@ import { armSnip, getSnipTarget, subscribeSnipTarget } from '@/lib/live/snipBrid
 import { CitationChip } from '@/components/chat/CitationPopover'
 import { ThinkingDots } from '@/components/chat/ThinkingDots'
 import { Markdown } from '@/components/chat/Markdown'
-import { SparkleIcon, CloseIcon, QuoteIcon, ArrowUpIcon, ScissorsIcon } from '@/components/ds/icons'
+import { SparkleIcon, CloseIcon, QuoteIcon, ArrowUpIcon, ScissorsIcon, MicIcon } from '@/components/ds/icons'
 import { detectDir } from '@/lib/utils'
 
 // In-transcript side chat (Feature 6, refined). Opens beside the transcript; the transcript
@@ -179,7 +179,8 @@ export function TranscriptChatPanel({
     // in-call chat dock — Harvey (design round 2, probed): 347px, docked full-height,
     // hairline border-s, no heavy edge shadow (the panel is flat, the panes float)
     <aside className="aa-panel call-hair hidden w-[347px] shrink-0 flex-col border-s lg:flex">
-      <header className="call-hair flex h-[63px] flex-none items-center justify-between gap-2 border-b pe-3.5 ps-5">
+      {/* Harvey: flat panel header — no separator line, level with the identity header */}
+      <header className="flex h-[58px] flex-none items-center justify-between gap-2 pe-3.5 ps-5">
         <span className="call-ink flex items-center gap-[9px] text-[15px] font-semibold tracking-[-0.01em]">
           <SparkleIcon size={22} />
           {dict.live.askAtlas}
@@ -344,35 +345,49 @@ export function TranscriptChatPanel({
             className="call-ink max-h-[120px] w-full resize-none bg-transparent pb-[3px] pt-[2px] text-[14.5px] leading-[1.45] outline-none"
           />
           <div className="mt-2 flex items-center justify-between">
-            <span className="flex items-center">
-              {snipAvailable && snipTarget && (
-                <button
-                  type="button"
-                  title={dict.live.snip}
-                  aria-label={dict.live.snip}
-                  onClick={armSnip}
-                  className="call-muted grid h-[28px] w-[28px] place-items-center rounded-[8px] transition-colors hover:call-ink"
-                >
-                  <ScissorsIcon size={15} strokeWidth={1.8} />
-                </button>
-              )}
-            </span>
+            {/* scissors is ALWAYS visible (founder round-2 note) — enabled only while a
+                real document pane is mounted (snipBridge); otherwise a quiet disabled state */}
             <button
               type="button"
-              aria-label={dict.common.save}
-              onClick={() => void send()}
-              disabled={sending || (!input.trim() && snips.length === 0)}
-              className="call-send-btn grid h-[30px] w-[30px] flex-none place-items-center rounded-full transition-opacity disabled:opacity-40"
+              title={dict.live.snip}
+              aria-label={dict.live.snip}
+              onClick={armSnip}
+              disabled={!(snipAvailable && snipTarget)}
+              className="call-muted grid h-[28px] w-[28px] place-items-center rounded-[8px] transition-colors enabled:hover:call-ink disabled:opacity-35"
             >
-              <ArrowUpIcon size={15} strokeWidth={2} />
+              <ScissorsIcon size={15} strokeWidth={1.8} />
             </button>
+            <span className="flex items-center gap-1.5">
+              {/* voice-ask affordance (design aa-ic row) — future feature, visibly disabled */}
+              <button
+                type="button"
+                title={dict.live.voiceSoon}
+                aria-label={dict.live.voiceSoon}
+                disabled
+                className="call-muted grid h-[28px] w-[28px] place-items-center rounded-[8px] opacity-50"
+              >
+                <MicIcon size={15} strokeWidth={1.7} />
+              </button>
+              <button
+                type="button"
+                aria-label={dict.common.save}
+                onClick={() => void send()}
+                disabled={sending || (!input.trim() && snips.length === 0)}
+                className="call-send-btn grid h-[30px] w-[30px] flex-none place-items-center rounded-full transition-opacity disabled:opacity-40"
+              >
+                <ArrowUpIcon size={15} strokeWidth={2} />
+              </button>
+            </span>
           </div>
         </div>
-        {liveContext !== undefined && (
-          <p className="call-muted mt-2 px-1 text-center text-[11.5px] leading-[1.5]">
-            {dict.live.askHeroSub}
-          </p>
-        )}
+        {/* what Atlas is connected to, per context (design round 2 captions) */}
+        <p className="call-muted mt-2 px-1 text-center text-[11.5px] leading-[1.5]">
+          {liveContext !== undefined
+            ? dict.live.askFollowLive
+            : transcriptId
+              ? dict.live.askConnectedCall
+              : dict.live.askConnectedCompany}
+        </p>
       </div>
     </aside>
   )
