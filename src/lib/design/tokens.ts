@@ -42,9 +42,9 @@ export const tokens = {
   // harvey-design-tokens.json). Single theme: black rail, white page, gray panels.
   // Spec: docs/superpowers/specs/2026-07-25-design-round-2-harvey-import-design.md ──
   harvey: {
-    shell: '#FAFAFA', // the page background, everywhere (incl. call views — light per spec)
-    paper: '#F7F7F7', // raised inputs/flat cards (search 52px, upcoming-calls card)
-    panel: '#F0F0F0', // docked panels (Ask Atlas panel, composer field)
+    shell: '#FFFFFF', // main content background ("white background" — design mainBg, harvey)
+    paper: '#F7F7F7', // raised inputs/flat cards on white (search 52px, upcoming-calls card)
+    panel: '#F0F0F0', // docked panels (Ask Atlas panel + its composer field)
     hairline: '#DEDEDE', // the 1px border on cards/inputs/panels (bordered, not shadowed)
     rail: '#0A0A0A', // black nav rail (230px, border-right railHair)
     railText: '#6B6862', // rail item text (active differs by weight 600 vs 450, not hue)
@@ -53,12 +53,13 @@ export const tokens = {
     railHair: 'rgba(255,255,255,0.09)', // rail hairlines / chip borders
     ask: '#FCE44D', // Ask-Atlas selection/highlight ONLY (functional accent, not theme)
     askInk: '#1C1B19', // ink on ask-yellow
-    // composer (Harvey: neutral gray family, black send)
-    field: '#F0F0F0', // composer field fill (= panel)
-    fieldLine: '#DEDEDE', // composer field border (= hairline)
-    chipBg: '#F7F7F7', // suggestion chip fill (= paper)
-    sendIdle: '#0A0A0A', // send button — Harvey's black circle
-    ghost: '#8A8A8A', // ghost/placeholder text (neutralized; verify at panel eyes-on)
+    // composer (Harvey neutral family — values from the design's own warm→Harvey
+    // translation table, Atlas MVP.dc.html line 154 [data-scheme="harvey"] block)
+    field: '#F7F7F7', // chat-page composer field fill (panel composer uses `panel`)
+    fieldLine: '#DBDBDB', // composer field border
+    chipBg: '#FFFFFF', // suggestion chip fill
+    sendIdle: '#E6E6E6', // send button idle (black circle = the active/armed state)
+    ghost: '#8A8A8A', // ghost/placeholder text
   },
 
   // soft, consistent rounded corners (brief §3.3)

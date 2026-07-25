@@ -48,9 +48,6 @@ export const en = {
     collapseSidebar: 'Collapse sidebar',
     workspace: 'Workspace',
     agents: 'Agents',
-    themeWarm: 'Theme · Warm',
-    themeBlackRail: 'Theme · Black rail',
-    themeBlackWhite: 'Theme · Black + white',
   },
   workspace: {
     title: 'Workspaces',

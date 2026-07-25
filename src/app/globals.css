@@ -5,129 +5,348 @@
 /* ── V2 (Claude Design import) animation vocabulary — keyframe bodies copied VERBATIM
    from design-import/Atlas MVP.dc.html lines 17-31 and reference/live-beam.html.
    Do not retune; the design's rhythm is the contract. ── */
-@keyframes atpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.78)}}
-@keyframes atline{from{transform:translateY(4px)}to{transform:none}}
-@keyframes atblink{0%,49%{opacity:1}50%,100%{opacity:0}}
-@keyframes atsettle{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes atpulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.78);
+  }
+}
+@keyframes atline {
+  from {
+    transform: translateY(4px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes atblink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes atsettle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 /* design .ln-pulse values EXACT (dc line 57) */
-@keyframes radar-pulse{0%{transform:scale(0.72);opacity:0.85}70%{opacity:0.14}100%{transform:scale(1.75);opacity:0}}
-@keyframes dot-blink{0%,100%{opacity:1}50%{opacity:0.35}}
-@keyframes askSlideIn{from{transform:translateX(100%)}to{transform:none}}
-@keyframes askSlideInRtl{from{transform:translateX(-100%)}to{transform:none}}
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.14;
+  }
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+@keyframes dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes askSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes askSlideInRtl {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
 /* design update 2026-07-06: ask-panel slide + ping + word entrance */
-@keyframes atping{0%{transform:scale(.6);opacity:.55}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
-@keyframes atpanelin{from{transform:translateX(100%);opacity:.85}to{transform:none;opacity:1}}
-@keyframes atpanelinRtl{from{transform:translateX(-100%);opacity:.85}to{transform:none;opacity:1}}
-@keyframes atwordin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
-.aa-panel{animation:atpanelin .52s cubic-bezier(.22,.61,.36,1) both}
-.aa-w{display:inline-block;animation:atwordin .6s cubic-bezier(.22,.61,.36,1) both}
-@media (prefers-reduced-motion:reduce){.aa-panel,.aa-w{animation:none!important}}
-[dir='rtl'] .aa-panel{animation-name:atpanelinRtl}
+@keyframes atping {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes atpanelin {
+  from {
+    transform: translateX(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes atpanelinRtl {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes atwordin {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.aa-panel {
+  animation: atpanelin 0.52s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.aa-w {
+  display: inline-block;
+  animation: atwordin 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aa-panel,
+  .aa-w {
+    animation: none !important;
+  }
+}
+[dir='rtl'] .aa-panel {
+  animation-name: atpanelinRtl;
+}
 
 /* the design's soft content scrollbar (main page areas) */
-.atscroll::-webkit-scrollbar{width:10px;height:10px}
-.atscroll::-webkit-scrollbar-thumb{background:rgba(28,27,25,.13);border-radius:9px;border:3px solid transparent;background-clip:content-box}
-.atscroll::-webkit-scrollbar-track{background:transparent}
-
-/* ── Call-view theming (design lines 216-431): dark-first, Light via toggle.
-   Components use the .call-* semantic classes; flipping data-call-theme reskins the
-   whole call frame without threading a theme prop. Dark values probed from the
-   rendered design (warm dark, not neutral). ── */
-/* dark values from the design source (dc line 2366-2371): bg MATCHES THE RAIL (#0A0A0A) */
-[data-call-theme='dark'] {
-  --call-bg: #0a0a0a;
-  --call-panel: #26241b;
-  --call-raised: #1a1a18;
-  --call-hover: #141412;
-  --call-track: #1a1a18;
-  --call-ink: #edeae1;
-  --call-muted: #8a867c;
-  --call-faint: #6f6c64;
-  --call-hair: #232320;
-  --call-card: #161614;
+.atscroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
-[data-call-theme='light'] {
-  --call-bg: #f5f3ee;
-  --call-panel: #ece9e2;
-  --call-raised: #ece9e2;
-  --call-hover: #ece9e2;
-  --call-track: #ece9e2;
-  --call-ink: #1c1b19;
-  --call-muted: #6b6862;
-  --call-faint: #8a867c;
-  --call-hair: #e6e2da;
+.atscroll::-webkit-scrollbar-thumb {
+  background: rgba(28, 27, 25, 0.13);
+  border-radius: 9px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.atscroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Call-view surfaces: Harvey LIGHT is the only call theme (Design Round 2 spec
+   decision 3 — call views go light; the dark/light data-call-theme fork is gone).
+   Values = the old light set passed through the design's warm→Harvey translation
+   table (dc line 154). Vars live on :root so the .call-* semantic classes keep
+   working while components still carry the attribute; Task 6 removes the attribute. ── */
+:root {
+  --call-bg: #ffffff;
+  --call-panel: #f0f0f0;
+  --call-raised: #f0f0f0;
+  --call-hover: #f4f4f4;
+  --call-track: #f0f0f0;
+  --call-ink: #0a0a0a;
+  --call-muted: #575757;
+  --call-faint: #767676;
+  --call-hair: #dedede;
   --call-card: #ffffff;
 }
-[data-call-theme] { background: var(--call-bg); color: var(--call-ink); }
-.call-bg { background: var(--call-bg); }
-.call-panel-bg { background: var(--call-panel); }
-.call-raised-bg { background: var(--call-raised); }
-.call-hover-bg:hover { background: var(--call-hover); }
-.call-card-bg { background: var(--call-card); }
-.call-track-bg { background: var(--call-track); }
-.call-ink { color: var(--call-ink); }
+[data-call-theme] {
+  background: var(--call-bg);
+  color: var(--call-ink);
+}
+.call-bg {
+  background: var(--call-bg);
+}
+.call-panel-bg {
+  background: var(--call-panel);
+}
+.call-raised-bg {
+  background: var(--call-raised);
+}
+.call-hover-bg:hover {
+  background: var(--call-hover);
+}
+.call-card-bg {
+  background: var(--call-card);
+}
+.call-track-bg {
+  background: var(--call-track);
+}
+.call-ink {
+  color: var(--call-ink);
+}
 /* inverted send button (design line 568: bg callText / color callBg) */
-.call-send-btn { background: var(--call-ink); color: var(--call-bg); }
-.call-muted { color: var(--call-muted); }
-.call-faint { color: var(--call-faint); }
-.call-hair { border-color: var(--call-hair); }
+.call-send-btn {
+  background: var(--call-ink);
+  color: var(--call-bg);
+}
+.call-muted {
+  color: var(--call-muted);
+}
+.call-faint {
+  color: var(--call-faint);
+}
+.call-hair {
+  border-color: var(--call-hair);
+}
 
 /* Ask-Atlas selection: yellow ONLY inside data-ask scopes (design lines 21-24) */
-[data-ask] ::selection{background:#FCE44D;color:#1C1B19}
-[data-ask] ::-moz-selection{background:#FCE44D;color:#1C1B19}
+[data-ask] ::selection {
+  background: #fce44d;
+  color: #0a0a0a;
+}
+[data-ask] ::-moz-selection {
+  background: #fce44d;
+  color: #0a0a0a;
+}
 /* PDF pages: selection must read like a highlighter over the PRINTED text — the overlay
    glyphs stay invisible even while selected (the data-ask ink color made a second,
    slightly-off copy of every word appear = "buggy"), and the wash is translucent so the
    canvas text shows through. */
-[data-ask] .pdftext ::selection{background:rgba(252,228,77,.45);color:transparent}
-[data-ask] .pdftext ::-moz-selection{background:rgba(252,228,77,.45);color:transparent}
-
-/* ── Color schemes (design dc lines 2284-2297): the rail/shell variables the
-   Theme toggle cycles. Default (no attribute) = Black rail, today's look. ── */
-[data-scheme='warm'] {
-  --rail-bg: #f2f0ea;
-  --rail-text: #6b6862;
-  --rail-strong: #1c1b19;
-  --rail-active: #ece9e2;
-  --rail-chip: #faf9f6;
-  --rail-hair: #e6e2da;
+[data-ask] .pdftext ::selection {
+  background: rgba(252, 228, 77, 0.45);
+  color: transparent;
 }
-[data-scheme='blackWhite'] {
-  --shell-bg: #ffffff;
+[data-ask] .pdftext ::-moz-selection {
+  background: rgba(252, 228, 77, 0.45);
+  color: transparent;
 }
-/* the collapsed-rail "A" monogram is a dark asset: invert it on dark rails only */
-.rail-logo-img { filter: invert(1); }
-[data-scheme='warm'] .rail-logo-img { filter: none; }
 
-/* Design hover utilities — VERBATIM from Atlas MVP.dc.html (lines 88-121) */
-.ov-play .ov-pbtn{transition:transform .14s ease}
-.ov-play:hover .ov-pbtn{transform:scale(1.06)}
-.ov-ghost{transition:border-color .16s ease}
-.ov-ghost:hover{border-color:#9C978B!important}
-.hov-fill{transition:background .15s ease}
-.hov-fill:hover{background:#F2EFE8!important}
-.hov-fill2{transition:background .15s ease}
-.hov-fill2:hover{background:#EFEAE0!important}
-.hov-filld{transition:background .15s ease}
-.hov-filld:hover{background:rgba(28,27,25,.04)!important}
-.hov-doc{transition:border-color .15s ease,background .15s ease}
-.hov-doc:hover{border-color:#C9C1B1!important;background:#F2EFE8!important}
-.hov-peer{transition:border-color .15s ease,transform .14s ease}
-.hov-peer:hover{border-color:#C9C1B1!important;transform:translateY(-1px)}
-.hov-border{transition:border-color .15s ease}
-.hov-border:hover{border-color:#C9C1B1!important}
-.hov-borderi{transition:border-color .15s ease}
-.hov-borderi:hover{border-color:#1C1B19!important}
-.hov-ink{transition:color .15s ease}
-.hov-ink:hover{color:#1C1B19!important}
+/* Harvey is the single theme (Design Round 2) — the data-scheme cycle is gone;
+   rail/shell colors come straight from tokens via tailwind.config. */
+/* the collapsed-rail "A" monogram is a dark asset: invert it on the black rail */
+.rail-logo-img {
+  filter: invert(1);
+}
+
+/* Design hover utilities — Atlas MVP.dc.html base classes, values passed through the
+   design's own warm→Harvey translation table (dc line 154 [data-scheme="harvey"]) */
+.ov-play .ov-pbtn {
+  transition: transform 0.14s ease;
+}
+.ov-play:hover .ov-pbtn {
+  transform: scale(1.06);
+}
+.ov-ghost {
+  transition: border-color 0.16s ease;
+}
+.ov-ghost:hover {
+  border-color: #8a8a8a !important;
+}
+.hov-fill {
+  transition: background 0.15s ease;
+}
+.hov-fill:hover {
+  background: #f4f4f4 !important;
+}
+.hov-fill2 {
+  transition: background 0.15s ease;
+}
+.hov-fill2:hover {
+  background: #f0f0f0 !important;
+}
+.hov-filld {
+  transition: background 0.15s ease;
+}
+.hov-filld:hover {
+  background: rgba(10, 10, 10, 0.04) !important;
+}
+.hov-doc {
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.hov-doc:hover {
+  border-color: #bcbcbc !important;
+  background: #f4f4f4 !important;
+}
+.hov-peer {
+  transition:
+    border-color 0.15s ease,
+    transform 0.14s ease;
+}
+.hov-peer:hover {
+  border-color: #bcbcbc !important;
+  transform: translateY(-1px);
+}
+.hov-border {
+  transition: border-color 0.15s ease;
+}
+.hov-border:hover {
+  border-color: #bcbcbc !important;
+}
+.hov-borderi {
+  transition: border-color 0.15s ease;
+}
+.hov-borderi:hover {
+  border-color: #0a0a0a !important;
+}
+.hov-ink {
+  transition: color 0.15s ease;
+}
+.hov-ink:hover {
+  color: #0a0a0a !important;
+}
 
 /* Calendar event hover context card (design .cal-ev/.cal-ctx, RTL-aware inset) */
-.cal-ev{position:relative}
-.cal-ctx{display:none;position:absolute;top:calc(100% + 5px);inset-inline-end:0;z-index:30;width:220px;background:#FFFFFF;border:1px solid #E6E2DA;border-radius:9px;box-shadow:0 4px 16px rgba(28,27,25,.10),0 1px 3px rgba(28,27,25,.06);padding:10px 12px;text-align:start;pointer-events:none}
-.cal-ev:hover .cal-ctx{display:block}
+.cal-ev {
+  position: relative;
+}
+.cal-ctx {
+  display: none;
+  position: absolute;
+  top: calc(100% + 5px);
+  inset-inline-end: 0;
+  z-index: 30;
+  width: 220px;
+  background: #ffffff;
+  border: 1px solid #dedede;
+  border-radius: 9px;
+  box-shadow:
+    0 4px 16px rgba(28, 24, 14, 0.1),
+    0 1px 3px rgba(28, 24, 14, 0.06);
+  padding: 10px 12px;
+  text-align: start;
+  pointer-events: none;
+}
+.cal-ev:hover .cal-ctx {
+  display: block;
+}
 
-@media (prefers-reduced-motion:reduce){
-  [data-beam-ring],[data-beam-dot],.anim-settle,.anim-atblink{animation-duration:.001s!important;animation-iteration-count:1!important}
+@media (prefers-reduced-motion: reduce) {
+  [data-beam-ring],
+  [data-beam-dot],
+  .anim-settle,
+  .anim-atblink {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 @layer base {
@@ -141,7 +360,7 @@
 
   body {
     background-color: #050505;
-    color: #FFFFFF;
+    color: #ffffff;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -154,7 +373,7 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #0B0B0B;
+    background: #0b0b0b;
   }
 
   ::-webkit-scrollbar-thumb {
@@ -163,18 +382,18 @@
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #C04A00;
+    background: #c04a00;
   }
 
   ::selection {
     background: rgba(192, 74, 0, 0.25);
-    color: #FFFFFF;
+    color: #ffffff;
   }
 
   /* Transcript text uses a yellow highlighter when you select/mark words. */
   .select-mark ::selection {
-    background: #FDE047;
-    color: #1A1A1A;
+    background: #fde047;
+    color: #1a1a1a;
   }
 }
 
@@ -206,11 +425,11 @@
   }
 
   .border-subtle {
-    border-color: #1F1F1F;
+    border-color: #1f1f1f;
   }
 
   .text-gradient-orange {
-    background: linear-gradient(135deg, #FF6A00, #D45500);
+    background: linear-gradient(135deg, #ff6a00, #d45500);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -236,13 +455,23 @@
 }
 
 @keyframes tickerScroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 @keyframes blink {
-  0%, 49%  { opacity: 1; }
-  50%, 100% { opacity: 0; }
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .animate-blink {
@@ -260,30 +489,55 @@
 }
 
 @media print {
-  .no-print { display: none !important; }
+  .no-print {
+    display: none !important;
+  }
 
   body {
     background: #ffffff !important;
     color: #111111 !important;
   }
 
-  .max-w-6xl { max-width: 100% !important; padding: 0 !important; }
+  .max-w-6xl {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
 
-  .sticky { position: static !important; }
+  .sticky {
+    position: static !important;
+  }
 
-  .bg-card, [class*="bg-card"] { background: #ffffff !important; }
-  [class*="bg-bg"] { background: #ffffff !important; }
+  .bg-card,
+  [class*='bg-card'] {
+    background: #ffffff !important;
+  }
+  [class*='bg-bg'] {
+    background: #ffffff !important;
+  }
 
-  [class*="border-border"] { border-color: #d1d5db !important; }
+  [class*='border-border'] {
+    border-color: #d1d5db !important;
+  }
 
-  [class*="text-text-primary"] { color: #111111 !important; }
-  [class*="text-muted"] { color: #555555 !important; }
-  [class*="text-white"] { color: #111111 !important; }
-  [class*="text-accent"] { color: #C04A00 !important; }
-  [class*="text-text-secondary"] { color: #333333 !important; }
+  [class*='text-text-primary'] {
+    color: #111111 !important;
+  }
+  [class*='text-muted'] {
+    color: #555555 !important;
+  }
+  [class*='text-white'] {
+    color: #111111 !important;
+  }
+  [class*='text-accent'] {
+    color: #c04a00 !important;
+  }
+  [class*='text-text-secondary'] {
+    color: #333333 !important;
+  }
 
   /* If printed while editing, render inputs/textareas as plain readable text */
-  input, textarea {
+  input,
+  textarea {
     border: none !important;
     background: transparent !important;
     color: #111111 !important;
@@ -293,24 +547,28 @@
     appearance: none !important;
   }
 
-  mark { background: #ffe08a !important; color: #111111 !important; }
+  mark {
+    background: #ffe08a !important;
+    color: #111111 !important;
+  }
 }
 
 /* ── V1 light design system (Quartr-style macOS feel) ── */
 @layer utilities {
-  /* macOS desktop backdrop — a soft, warm stone/marble wash (pure CSS, no asset). */
+  /* Harvey: the marble desktop is gone — one flat near-white behind everything
+     (design body bg; the warm→Harvey table maps the old marble base #E7E2DA here). */
   .desktop-backdrop {
-    background-color: #e7e2da;
-    background-image:
-      radial-gradient(120% 80% at 15% 8%, rgba(255, 255, 255, 0.55), transparent 60%),
-      radial-gradient(100% 90% at 85% 18%, rgba(214, 205, 193, 0.45), transparent 55%),
-      radial-gradient(130% 120% at 72% 92%, rgba(193, 183, 168, 0.42), transparent 62%),
-      linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(176, 166, 151, 0.16));
+    background-color: #fafafa;
   }
 
   /* Thin, quiet scrollbars for the light panels. */
-  .app-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-  .app-scroll::-webkit-scrollbar-track { background: transparent; }
+  .app-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .app-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
   .app-scroll::-webkit-scrollbar-thumb {
     background: rgba(20, 20, 20, 0.14);
     border-radius: 9999px;
@@ -321,8 +579,13 @@
     background: rgba(20, 20, 20, 0.24);
     background-clip: padding-box;
   }
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
   /* Karaoke "upcoming text fades to gray" mask (brief §5.5 / §3.6.11). */
   .karaoke-fade {
@@ -332,8 +595,19 @@
 }
 
 /* Go-to-quote: brief highlight of the anchored line (#5). */
-@keyframes quoteFlash { 0%, 100% { background: transparent } 20% { background: rgba(192, 74, 0, 0.14) } }
-.quote-flash { animation: quoteFlash 2s ease-out; border-radius: 8px; }
+@keyframes quoteFlash {
+  0%,
+  100% {
+    background: transparent;
+  }
+  20% {
+    background: rgba(192, 74, 0, 0.14);
+  }
+}
+.quote-flash {
+  animation: quoteFlash 2s ease-out;
+  border-radius: 8px;
+}
 
 /* ── V1 design-pass motion helpers ── */
 /* Typewriter / streaming caret — a thin blinking bar that sits on the baseline of
@@ -363,35 +637,126 @@
 
 /* ── Chat markdown (Features 5/6): clean, Claude-like rich text. Normal text color/size
    inherit from the message container; we style structure, emphasis, lists, tables, code. ── */
-.md > :first-child { margin-top: 0; }
-.md > :last-child { margin-bottom: 0; }
-.md p { margin: 0 0 0.7em; }
-.md strong { font-weight: 600; color: #1b1b1a; }
-.md em { font-style: italic; }
-.md a { color: #c04a00; text-decoration: underline; text-underline-offset: 2px; }
-.md a:hover { color: #a03800; }
-.md ul, .md ol { margin: 0.4em 0 0.8em; padding-inline-start: 1.4em; }
-.md li { margin: 0.2em 0; }
-.md ul { list-style: disc; }
-.md ol { list-style: decimal; }
-.md h1, .md h2, .md h3, .md h4 { font-weight: 700; line-height: 1.3; color: #1b1b1a; margin: 1em 0 0.5em; }
-.md h1 { font-size: 1.35em; }
-.md h2 { font-size: 1.2em; }
-.md h3 { font-size: 1.08em; }
-.md h4 { font-size: 1em; }
-.md code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; background: rgba(20, 18, 15, 0.06); padding: 0.1em 0.35em; border-radius: 5px; }
-.md pre { background: rgba(20, 18, 15, 0.05); padding: 12px 14px; border-radius: 10px; overflow-x: auto; margin: 0.6em 0 0.9em; }
-.md pre code { background: none; padding: 0; font-size: 0.85em; }
-.md blockquote { margin: 0.6em 0; padding-inline-start: 0.9em; border-inline-start: 3px solid rgba(20, 18, 15, 0.12); color: #6c6c68; }
-.md hr { border: none; border-top: 1px solid rgba(20, 18, 15, 0.08); margin: 1em 0; }
-.md table { border-collapse: collapse; width: 100%; margin: 0.5em 0 0.9em; font-size: 0.95em; display: block; overflow-x: auto; }
-.md th, .md td { border: 1px solid rgba(20, 18, 15, 0.1); padding: 7px 11px; text-align: start; vertical-align: top; }
-.md th { font-weight: 600; background: rgba(20, 18, 15, 0.035); color: #1b1b1a; }
-.md tr:nth-child(even) td { background: rgba(20, 18, 15, 0.018); }
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+.md p {
+  margin: 0 0 0.7em;
+}
+.md strong {
+  font-weight: 600;
+  color: #1b1b1a;
+}
+.md em {
+  font-style: italic;
+}
+.md a {
+  color: #c04a00;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md a:hover {
+  color: #a03800;
+}
+.md ul,
+.md ol {
+  margin: 0.4em 0 0.8em;
+  padding-inline-start: 1.4em;
+}
+.md li {
+  margin: 0.2em 0;
+}
+.md ul {
+  list-style: disc;
+}
+.md ol {
+  list-style: decimal;
+}
+.md h1,
+.md h2,
+.md h3,
+.md h4 {
+  font-weight: 700;
+  line-height: 1.3;
+  color: #1b1b1a;
+  margin: 1em 0 0.5em;
+}
+.md h1 {
+  font-size: 1.35em;
+}
+.md h2 {
+  font-size: 1.2em;
+}
+.md h3 {
+  font-size: 1.08em;
+}
+.md h4 {
+  font-size: 1em;
+}
+.md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: rgba(20, 18, 15, 0.06);
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+}
+.md pre {
+  background: rgba(20, 18, 15, 0.05);
+  padding: 12px 14px;
+  border-radius: 10px;
+  overflow-x: auto;
+  margin: 0.6em 0 0.9em;
+}
+.md pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+}
+.md blockquote {
+  margin: 0.6em 0;
+  padding-inline-start: 0.9em;
+  border-inline-start: 3px solid rgba(20, 18, 15, 0.12);
+  color: #6c6c68;
+}
+.md hr {
+  border: none;
+  border-top: 1px solid rgba(20, 18, 15, 0.08);
+  margin: 1em 0;
+}
+.md table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0 0.9em;
+  font-size: 0.95em;
+  display: block;
+  overflow-x: auto;
+}
+.md th,
+.md td {
+  border: 1px solid rgba(20, 18, 15, 0.1);
+  padding: 7px 11px;
+  text-align: start;
+  vertical-align: top;
+}
+.md th {
+  font-weight: 600;
+  background: rgba(20, 18, 15, 0.035);
+  color: #1b1b1a;
+}
+.md tr:nth-child(even) td {
+  background: rgba(20, 18, 15, 0.018);
+}
 /* Tables don't inherit `direction` reliably once set to display:block, so pin it to the
    wrapper's resolved direction — Hebrew puts the first column on the far right; English stays LTR. */
-.md[dir='rtl'] table { direction: rtl; }
-.md[dir='ltr'] table { direction: ltr; }
+.md[dir='rtl'] table {
+  direction: rtl;
+}
+.md[dir='ltr'] table {
+  direction: ltr;
+}
 /* Dark call theme (founder round 3): the base .md inks above are light-theme constants —
    near-black strong/heading/table text disappears on the dark call background. Re-ink the
    structure from the call vars + white-alpha fills; the light app chat is untouched. */
@@ -400,32 +765,83 @@
 [data-call-theme='dark'] .md h2,
 [data-call-theme='dark'] .md h3,
 [data-call-theme='dark'] .md h4,
-[data-call-theme='dark'] .md th { color: var(--call-ink); }
-[data-call-theme='dark'] .md a { color: #e89a5e; }
-[data-call-theme='dark'] .md a:hover { color: #f0b183; }
-[data-call-theme='dark'] .md code { background: rgba(255, 255, 255, 0.09); }
-[data-call-theme='dark'] .md pre { background: rgba(255, 255, 255, 0.06); }
-[data-call-theme='dark'] .md blockquote { border-inline-start-color: rgba(255, 255, 255, 0.18); color: var(--call-muted); }
-[data-call-theme='dark'] .md hr { border-top-color: rgba(255, 255, 255, 0.12); }
-[data-call-theme='dark'] .md th, [data-call-theme='dark'] .md td { border-color: rgba(255, 255, 255, 0.14); }
-[data-call-theme='dark'] .md th { background: rgba(255, 255, 255, 0.06); }
-[data-call-theme='dark'] .md tr:nth-child(even) td { background: rgba(255, 255, 255, 0.03); }
+[data-call-theme='dark'] .md th {
+  color: var(--call-ink);
+}
+[data-call-theme='dark'] .md a {
+  color: #e89a5e;
+}
+[data-call-theme='dark'] .md a:hover {
+  color: #f0b183;
+}
+[data-call-theme='dark'] .md code {
+  background: rgba(255, 255, 255, 0.09);
+}
+[data-call-theme='dark'] .md pre {
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-call-theme='dark'] .md blockquote {
+  border-inline-start-color: rgba(255, 255, 255, 0.18);
+  color: var(--call-muted);
+}
+[data-call-theme='dark'] .md hr {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+[data-call-theme='dark'] .md th,
+[data-call-theme='dark'] .md td {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+[data-call-theme='dark'] .md th {
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-call-theme='dark'] .md tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.03);
+}
 
 /* pdf.js text layer (multiview M1): transparent selectable text over each page canvas */
-.pdfpage { position: relative; direction: ltr; }
+.pdfpage {
+  position: relative;
+  direction: ltr;
+}
 /* --total-scale-factor is the variable pdf.js 5.4 actually uses in its inline font-size
    calc(); it must be derived from the --scale-factor the viewer sets (pdf.js's own
    pdf_viewer.css does exactly this). Without it the calc() collapses and every span
    falls back to 16px — selected text rendered comically large over the page. */
-.pdftext { --total-scale-factor: calc(var(--scale-factor) * var(--user-unit, 1)); position: absolute; inset: 0; overflow: hidden; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; }
+.pdftext {
+  --total-scale-factor: calc(var(--scale-factor) * var(--user-unit, 1));
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+}
 /* z-index 1 mirrors pdf.js's own ".textLayer > :not(.markedContent)" rule: glyph spans must
    paint ABOVE .endOfContent (z-index 0, LAST child) or the armed guard swallows every drag
    at pointerdown and nothing is selectable (founder round 4, "I just can't mark"). */
-.pdftext :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; z-index: 1; }
+.pdftext :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  z-index: 1;
+}
 /* pdf.js viewer's anti-balloon guard: while a drag-selection is live (.selecting via
    pointerdown/up in PdfViewer), .endOfContent grows from a sliver below the text to cover
    the whole layer. The pointer then always has an unselectable anchor under it — without
    this, leaving the glyph spans mid-drag anchors the selection to the page and it balloons
    to whole paragraphs (founder round 3, "second marking selects everything"). */
-.pdftext .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
-.pdftext.selecting .endOfContent { inset: 0; }
+.pdftext .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+.pdftext.selecting .endOfContent {
+  inset: 0;
+}

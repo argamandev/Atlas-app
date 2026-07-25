@@ -47,9 +47,6 @@ export const he: Dictionary = {
     collapseSidebar: 'כיווץ סרגל הצד',
     workspace: 'סביבת עבודה',
     agents: 'סוכנים',
-    themeWarm: 'ערכת נושא · חמה',
-    themeBlackRail: 'ערכת נושא · פס שחור',
-    themeBlackWhite: 'ערכת נושא · שחור-לבן',
   },
   workspace: {
     title: 'סביבות עבודה',
