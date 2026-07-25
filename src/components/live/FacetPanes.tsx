@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon } from '@/components/ds/icons'
 import { slideStubs, reportStub } from '@/lib/live/call-stubs'
+import { setSnipTarget } from '@/lib/live/snipBridge'
 import { PdfViewer } from './PdfViewer'
 import type { ChatSnip } from '@/lib/api/chat'
 
@@ -162,6 +163,19 @@ export function ReportPane({
   const [zoom, setZoom] = useState(100)
   // Pinge: scissors arms snip mode on the PDF; one snip per arming.
   const [snipArmed, setSnipArmed] = useState(false)
+  // Design round 2: the Ask Atlas composer carries a second scissors — it arms THIS pane's
+  // snip mode from across the tree (same window-event bridge as atlas:rail-collapse).
+  useEffect(() => {
+    const arm = () => setSnipArmed(true)
+    window.addEventListener('atlas:arm-snip', arm)
+    return () => window.removeEventListener('atlas:arm-snip', arm)
+  }, [])
+  // …and the composer's scissors renders only while a REAL doc is snippable here
+  // (stub fallback = no target; a do-nothing scissors would be invisible degradation).
+  useEffect(() => {
+    setSnipTarget(Boolean(doc && onSnip))
+    return () => setSnipTarget(false)
+  }, [doc, onSnip])
   const zoomBy = (dir: 1 | -1) =>
     setZoom((z) => {
       const i = ZOOM_STEPS.indexOf(z)

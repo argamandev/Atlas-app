@@ -930,6 +930,7 @@ export function LiveTranscriptView({
           seedNonce={chat.nonce}
           docRef={chat.docRef}
           snip={chat.snip}
+          snipAvailable={view === 'multi' ? multiFacets.has('report') : tab === 'report'}
           onClose={() => setChat((c) => ({ ...c, open: false, docRef: null, snip: null }))}
         />
       )}

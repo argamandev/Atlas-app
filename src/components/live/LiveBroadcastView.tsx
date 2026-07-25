@@ -761,6 +761,7 @@ export function LiveBroadcastView({
           seedNonce={chat.nonce}
           docRef={chat.docRef}
           snip={chat.snip}
+          snipAvailable={view === 'multi' ? multiFacets.has('report') : facet === 'report'}
           onClose={() => setChat((c) => ({ ...c, open: false, docRef: null, snip: null }))}
         />
       )}
