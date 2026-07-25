@@ -489,8 +489,8 @@ export function LiveBroadcastView({
               <button
                 type="button"
                 onClick={() => setView('single')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  view === 'single' ? 'call-bg call-ink' : 'call-muted'
+                className={`rounded-pill px-3 py-[5px] text-[12px] font-medium transition-colors ${
+                  view === 'single' ? 'bg-ink text-paper' : 'call-muted'
                 }`}
               >
                 {dict.live.viewSingle}
@@ -498,8 +498,8 @@ export function LiveBroadcastView({
               <button
                 type="button"
                 onClick={() => setView('multi')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  view === 'multi' ? 'call-bg call-ink' : 'call-muted'
+                className={`rounded-pill px-3 py-[5px] text-[12px] font-medium transition-colors ${
+                  view === 'multi' ? 'bg-ink text-paper' : 'call-muted'
                 }`}
               >
                 {dict.live.viewMulti}

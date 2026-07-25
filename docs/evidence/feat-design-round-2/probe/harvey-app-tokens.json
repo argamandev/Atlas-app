@@ -1,0 +1,18 @@
+{
+  "_meta": {
+    "source": "the APP at http://127.0.0.1:3001 (dev), probed with the same probe-harvey.js anchors",
+    "probedAt": "2026-07-25",
+    "runs": ["home EN", "finished-call PyuMxe88e8g_live EN (Multi + Ask Atlas open)"]
+  },
+  "rail": { "backgroundColor": "rgb(10, 10, 10)", "width": "230px", "borderRight": "1px solid rgba(255, 255, 255, 0.09)", "_vsDesign": "EXACT" },
+  "headline": { "fontFamily": "Newsreader, Georgia, serif", "fontSize": "42px", "fontWeight": "500", "letterSpacing": "-0.84px", "color": "rgb(10, 10, 10)", "_vsDesign": "EXACT" },
+  "bodyText": { "fontFamily": "SF Pro Text stack", "fontSize": "16px", "color": "rgb(87, 87, 87)", "_vsDesign": "EXACT" },
+  "sectionLabel": { "fontSize": "11px", "letterSpacing": "1.54px", "color": "rgb(118, 118, 118)", "fontWeight": "600", "textTransform": "uppercase", "_vsDesign": "EXACT" },
+  "pageBg": { "value": "rgb(255, 255, 255)", "_vsDesign": "EXACT (design harvey mainBg #FFFFFF; body behind #FAFAFA = app desktop token)" },
+  "searchBox": { "backgroundColor": "rgb(247, 247, 247)", "border": "1px solid rgb(222, 222, 222)", "boxShadow": "none", "borderRadius": "12px", "_vsDesign": "EXACT (border+shadow fixed during the diff: was #E5E5E5 + shadow-soft)" },
+  "paneCard": { "backgroundColor": "rgb(255, 255, 255)", "border": "1px solid rgba(28, 24, 14, 0.06)", "borderRadius": "16px", "boxShadow": "rgba(28, 24, 14, 0.3) 0px 8px 26px -18px, rgba(28, 24, 14, 0.05) 0px 1px 3px 0px", "count": 3, "_vsDesign": "EXACT" },
+  "composerBox": { "backgroundColor": "rgb(240, 240, 240)", "border": "1px solid rgb(222, 222, 222)", "borderRadius": "12px", "_vsDesign": "EXACT" },
+  "askPanel": { "width": 347, "_vsDesign": "EXACT width; panel surface renders white (design's own panel-bg probe was ambiguous — matches design screenshots)" },
+  "viewPill": { "fontSize": "12px", "active": "black pill (bg-ink) w/ light text", "_vsDesign": "MATCH — fixed during the diff (was white-active 11px). NOTE: getComputedStyle probes on this ticking view returned stale values; verified by rendered screenshot per the parity law (rendered design is the truth, and so is the rendered app)." },
+  "player": { "backgroundColor": "rgb(10, 10, 10)", "borderRadius": "9999px", "height": 54, "_vsDesign": "black pill EXACT; height 54 vs design 52 — accepted 2px deviation (app player carries more controls; founder round-3 kept OUR charcoal segmented player over the design's, so player internals are intentionally not parity-matched)" }
+}

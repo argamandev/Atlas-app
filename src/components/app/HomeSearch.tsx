@@ -53,7 +53,7 @@ export function HomeSearch() {
 
   return (
     <div ref={boxRef} className="relative w-full">
-      <div className="flex items-center gap-2.5 rounded-card border border-subtle-strong bg-paper py-[13px] pe-4 ps-[18px] shadow-soft transition-shadow focus-within:shadow-float">
+      <div className="flex items-center gap-2.5 rounded-card border border-hairline bg-paper py-[13px] pe-4 ps-[18px] transition-shadow focus-within:shadow-float">
         <SearchIcon size={17} strokeWidth={1.7} className="flex-none text-ink-faint" />
         <input
           value={q}
