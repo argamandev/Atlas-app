@@ -79,7 +79,6 @@ export function LiveTranscriptView({
 
   const [tab, setTab] = useState('transcript')
   // V2 (Claude Design): call view is dark-first with a Light toggle; Single|Multi facets.
-  const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
   const [view, setView] = useState<'single' | 'multi'>('single')
   // Multi view composes facets: ALL chips are ×-removable (founder round-3: transcript too —
   // audio keeps playing without it); the last visible facet can't be removed.
@@ -435,11 +434,11 @@ export function LiveTranscriptView({
 
   const segTogBtn = (on: boolean) =>
     `rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-      on ? 'bg-ink text-white dark-toggle-on' : 'call-muted hover:call-ink'
+      on ? 'bg-ink text-white' : 'call-muted hover:call-ink'
     }`
 
   return (
-    <div data-call-theme={callTheme} className="flex h-full min-h-0 flex-1">
+    <div className="call-bg call-ink flex h-full min-h-0 flex-1">
       {/* context panel — chapters/sections + speakers (RTL Hebrew). Minimizes to a thin rail while the
           in-transcript chat is open (one click from returning), instead of unmounting. */}
       <TranscriptSidePanel
@@ -478,26 +477,6 @@ export function LiveTranscriptView({
             )}
           </div>
           <div className="flex flex-none items-center gap-3.5">
-            <div className="call-track-bg flex rounded-pill p-[3px]">
-              <button
-                type="button"
-                onClick={() => setCallTheme('dark')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  callTheme === 'dark' ? 'call-bg call-ink' : 'call-muted'
-                }`}
-              >
-                Dark
-              </button>
-              <button
-                type="button"
-                onClick={() => setCallTheme('light')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  callTheme === 'light' ? 'call-card-bg call-ink' : 'call-muted'
-                }`}
-              >
-                Light
-              </button>
-            </div>
             <button
               type="button"
               onClick={() =>
@@ -519,8 +498,10 @@ export function LiveTranscriptView({
           </div>
         </header>
 
-        {/* facet controls: Back to Overview | Transcript · Slides · Report — View Single|Multi */}
-        <div className="call-hair flex flex-none items-center justify-between border-b px-6">
+        {/* facet controls: Back to Overview | Transcript · Slides · Report — View Single|Multi.
+            Harvey: the row FLOATS as a soft white card (design: flat title, gently-floating
+            tab row); the pane cards below float the same way in Multi. */}
+        <div className="mx-4 mt-2.5 flex flex-none items-center justify-between rounded-[14px] border border-[rgba(28,24,14,0.06)] bg-white px-4 shadow-pane">
           <div className="flex items-center gap-[22px] text-[13.5px]">
             <button
               type="button"
@@ -708,7 +689,11 @@ export function LiveTranscriptView({
         {/* body — Single: the active facet; Multi: Transcript | Slides | Report side by side.
             Design line 443: columns keep min-widths and the ROW scrolls horizontally instead
             of squishing — this is what keeps text from reflowing when the chat dock opens. */}
-        <div className="atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+        <div
+          className={`atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden ${
+            view === 'multi' ? 'facet-floats bg-desktop px-4 pb-4 pt-3' : ''
+          }`}
+        >
           {(view === 'multi' ? multiFacets.has('transcript') : tab === 'transcript') && (
             <div
               data-facet="transcript"

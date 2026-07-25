@@ -78,8 +78,8 @@ export function PaneHeader({ label, right }: { label: string; right?: React.Reac
     // 6px vertical padding vs 9px, dc line 482) so every bottom hairline meets the
     // gutters at the same y. A fixed height keeps them fitting whatever `right` holds.
     <div className="call-hair flex h-9 flex-none items-center justify-between border-b px-[18px]">
-      {/* design pane labels are system-font caps (line 449), not mono */}
-      <span className="call-muted text-[10.5px] font-semibold uppercase tracking-[0.14em]">{label}</span>
+      {/* Harvey pane labels (probed): 12.5px, weight 700, 0.12em caps, full ink */}
+      <span className="call-ink text-[12.5px] font-bold uppercase tracking-[0.12em]">{label}</span>
       {right}
     </div>
   )

@@ -176,10 +176,6 @@
   --call-hair: #dedede;
   --call-card: #ffffff;
 }
-[data-call-theme] {
-  background: var(--call-bg);
-  color: var(--call-ink);
-}
 .call-bg {
   background: var(--call-bg);
 }
@@ -236,6 +232,21 @@
 [data-ask] .pdftext ::-moz-selection {
   background: rgba(252, 228, 77, 0.45);
   color: transparent;
+}
+
+/* Harvey multiview floats (Design Round 2): in Multi, every pane is a white card on the
+   light backdrop — the probed pane recipe (white, 16px, faint border, the ONE Harvey
+   shadow family). The drag-divider line disappears; the gutter itself is the gap. */
+.facet-floats > [data-facet] {
+  background: #ffffff;
+  border: 1px solid rgba(28, 24, 14, 0.06);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 26px -18px rgba(28, 24, 14, 0.3),
+    0 1px 3px rgba(28, 24, 14, 0.05);
+}
+.facet-floats .group\/div > div {
+  background: transparent !important;
 }
 
 /* Harvey is the single theme (Design Round 2) — the data-scheme cycle is gone;
@@ -757,46 +768,7 @@
 .md[dir='ltr'] table {
   direction: ltr;
 }
-/* Dark call theme (founder round 3): the base .md inks above are light-theme constants —
-   near-black strong/heading/table text disappears on the dark call background. Re-ink the
-   structure from the call vars + white-alpha fills; the light app chat is untouched. */
-[data-call-theme='dark'] .md strong,
-[data-call-theme='dark'] .md h1,
-[data-call-theme='dark'] .md h2,
-[data-call-theme='dark'] .md h3,
-[data-call-theme='dark'] .md h4,
-[data-call-theme='dark'] .md th {
-  color: var(--call-ink);
-}
-[data-call-theme='dark'] .md a {
-  color: #e89a5e;
-}
-[data-call-theme='dark'] .md a:hover {
-  color: #f0b183;
-}
-[data-call-theme='dark'] .md code {
-  background: rgba(255, 255, 255, 0.09);
-}
-[data-call-theme='dark'] .md pre {
-  background: rgba(255, 255, 255, 0.06);
-}
-[data-call-theme='dark'] .md blockquote {
-  border-inline-start-color: rgba(255, 255, 255, 0.18);
-  color: var(--call-muted);
-}
-[data-call-theme='dark'] .md hr {
-  border-top-color: rgba(255, 255, 255, 0.12);
-}
-[data-call-theme='dark'] .md th,
-[data-call-theme='dark'] .md td {
-  border-color: rgba(255, 255, 255, 0.14);
-}
-[data-call-theme='dark'] .md th {
-  background: rgba(255, 255, 255, 0.06);
-}
-[data-call-theme='dark'] .md tr:nth-child(even) td {
-  background: rgba(255, 255, 255, 0.03);
-}
+/* (Design Round 2: the dark call theme is gone — .md renders on light surfaces only.) */
 
 /* pdf.js text layer (multiview M1): transparent selectable text over each page canvas */
 .pdfpage {

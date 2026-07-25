@@ -315,7 +315,7 @@ export function CompanyView({
       {/* Ask Atlas side dock (design toggleCompanyChat): in-page, light call-theme scope
           gives the shared panel its light variables */}
       {chatOpen && (
-        <div data-call-theme="light" className="flex min-h-0">
+        <div className="flex min-h-0">
           <TranscriptChatPanel
             companyId={company.id}
             transcriptId={undefined}

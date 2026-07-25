@@ -104,7 +104,6 @@ export function LiveBroadcastView({
     speaker: string | null
     segmentId: string | null
   } | null>(null)
-  const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
   const [chat, setChat] = useState<{
     open: boolean
     seed: string
@@ -362,7 +361,7 @@ export function LiveBroadcastView({
   ] as const
 
   return (
-    <div data-call-theme={callTheme} className="flex h-full min-h-0 flex-1">
+    <div className="call-bg call-ink flex h-full min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
         {/* identity header (63px, design lines 253-268) */}
         <header className="call-hair flex h-[63px] flex-none items-center justify-between gap-3 border-b px-6">
@@ -397,26 +396,6 @@ export function LiveBroadcastView({
                 <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
               </span>
             )}
-            <div className="call-track-bg flex rounded-pill p-[3px]">
-              <button
-                type="button"
-                onClick={() => setCallTheme('dark')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  callTheme === 'dark' ? 'call-bg call-ink' : 'call-muted'
-                }`}
-              >
-                Dark
-              </button>
-              <button
-                type="button"
-                onClick={() => setCallTheme('light')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  callTheme === 'light' ? 'call-card-bg call-ink' : 'call-muted'
-                }`}
-              >
-                Light
-              </button>
-            </div>
             <button
               type="button"
               onClick={() =>
@@ -438,8 +417,8 @@ export function LiveBroadcastView({
           </div>
         </header>
 
-        {/* facet controls (live view pins Transcript) */}
-        <div className="call-hair flex flex-none items-center justify-between border-b px-6">
+        {/* facet controls (live view pins Transcript) — Harvey: floating white card row */}
+        <div className="mx-4 mt-2.5 flex flex-none items-center justify-between rounded-[14px] border border-[rgba(28,24,14,0.06)] bg-white px-4 shadow-pane">
           <div className="flex items-center gap-[22px] text-[13.5px]">
             <button
               type="button"
@@ -532,7 +511,11 @@ export function LiveBroadcastView({
         {/* body — Single: the active facet; Multi: Transcript | Slides | Report side by side
             with drag-resize gutters. Columns keep min-widths and the ROW scrolls horizontally
             instead of squishing; the live audio + karaoke keep running through it all. */}
-        <div className="atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+        <div
+          className={`atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden ${
+            view === 'multi' ? 'facet-floats bg-desktop px-4 pb-4 pt-3' : ''
+          }`}
+        >
           {(view === 'multi' ? multiFacets.has('transcript') : facet === 'transcript') && (
             <div
               data-facet="transcript"
@@ -726,9 +709,8 @@ export function LiveBroadcastView({
               key={ringSecs ?? 'ring-init'}
               mode="buffer"
               secs={ringSecs ?? delaySec}
-              /* ink = the INK color, inverted from the theme (design callInkMode, dc 2422) —
-                 dark frame needs LIGHT numbers */
-              ink={callTheme === 'dark' ? 'light' : 'dark'}
+              /* Harvey call frame is light — dark ink numbers on the ring */
+              ink="dark"
               fill
               className="absolute inset-0 block h-full w-full"
             />
