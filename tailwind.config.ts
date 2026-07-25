@@ -35,32 +35,34 @@ const config: Config = {
         'player-track': tokens.color.playerTrack,
         live: tokens.color.live,
 
-        // ── V2 (Claude Design import) surfaces ──
-        // shell + rail read CSS variables so the design's color-scheme toggle
-        // (Warm / Black rail / Black + white) can reskin them; defaults = Black rail.
-        shell: 'var(--shell-bg, #F5F3EE)',
-        paper: tokens.v2.paper,
-        rail: 'var(--rail-bg, #0A0A0A)',
-        'rail-text': 'var(--rail-text, #A6A29A)',
-        'rail-strong': 'var(--rail-strong, #FFFFFF)',
-        'rail-active': 'var(--rail-active, rgba(255,255,255,0.10))',
-        'rail-chip': 'var(--rail-chip, rgba(255,255,255,0.06))',
-        'rail-hair': 'var(--rail-hair, rgba(255,255,255,0.09))',
-        ask: tokens.v2.ask,
-        'ask-ink': tokens.v2.askInk,
-        'call-dark': tokens.v2.callDark,
-        'call-panel': tokens.v2.callPanel,
-        'call-raised': tokens.v2.callRaised,
-        'call-hover': tokens.v2.callHover,
-        'call-track': tokens.v2.callTrack,
-        'call-ink': tokens.v2.callInk,
-        'call-muted': tokens.v2.callMuted,
-        'call-faint': tokens.v2.callFaint,
-        field: tokens.v2.field,
-        'field-line': tokens.v2.fieldLine,
-        'chip-bg': tokens.v2.chipBg,
-        'send-idle': tokens.v2.sendIdle,
-        ghost: tokens.v2.ghost,
+        // ── Harvey surfaces (Design Round 2, 2026-07-25) — single theme, no CSS-var
+        // indirection (theme cycle removed per spec; vars stripped from globals.css) ──
+        shell: tokens.harvey.shell,
+        paper: tokens.harvey.paper,
+        rail: tokens.harvey.rail,
+        'rail-text': tokens.harvey.railText,
+        'rail-strong': '#FFFFFF',
+        'rail-active': tokens.harvey.railActive,
+        'rail-chip': tokens.harvey.railChip,
+        'rail-hair': tokens.harvey.railHair,
+        ask: tokens.harvey.ask,
+        'ask-ink': tokens.harvey.askInk,
+        // call-* LIGHT REMAP (spec decision 3: call views go light). These aliases keep
+        // the 131 existing call-* class sites rendering during the restyle; Task 6
+        // migrates those sites onto the standard tokens and DELETES these aliases.
+        'call-dark': tokens.harvey.shell,
+        'call-panel': tokens.harvey.panel,
+        'call-raised': tokens.harvey.paper,
+        'call-hover': tokens.harvey.panel,
+        'call-track': tokens.harvey.hairline,
+        'call-ink': tokens.color.ink,
+        'call-muted': tokens.color.inkMuted,
+        'call-faint': tokens.color.inkFaint,
+        field: tokens.harvey.field,
+        'field-line': tokens.harvey.fieldLine,
+        'chip-bg': tokens.harvey.chipBg,
+        'send-idle': tokens.harvey.sendIdle,
+        ghost: tokens.harvey.ghost,
       },
       fontFamily: {
         // ── V2 parity pass: THE design's base stack (probed from the rendered
@@ -104,6 +106,7 @@ const config: Config = {
       },
       boxShadow: {
         // Soft, diffuse elevation used in exactly three places (brief §3.4).
+        pane: tokens.shadow.pane, // Harvey float — multiview pane cards ONLY
         soft: tokens.shadow.soft,
         card: tokens.shadow.card,
         float: tokens.shadow.float,

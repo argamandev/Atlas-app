@@ -9,18 +9,19 @@
 
 export const tokens = {
   color: {
-    // surfaces
-    desktop: '#E7E2DA', // stone/marble desktop backdrop base (veined via CSS gradient)
-    canvas: '#FFFFFF', // the floating window + content canvas
-    panel: '#F7F6F3', // sidebar / expanded-panel surface (faint warm gray)
-    subtle: '#EFEDE8', // selection / hover fill (the one highlight token)
-    subtleStrong: '#E5E2DB',
-    hairline: 'rgba(20,20,20,0.08)', // the only divider, used sparingly
+    // surfaces — Harvey retune 2026-07-25 (probe: harvey-design-tokens.json): the warm
+    // family goes neutral; page/desktop are one flat #FAFAFA (no marble backdrop in Harvey)
+    desktop: '#FAFAFA',
+    canvas: '#FFFFFF', // floating pane cards / content canvas
+    panel: '#F0F0F0', // docked panel surface (Ask Atlas panel, composer field)
+    subtle: '#EFEFEF', // selection / hover fill (the one highlight token)
+    subtleStrong: '#E5E5E5',
+    hairline: '#DEDEDE', // the 1px card/input/panel border (Harvey is bordered, not shadowed)
 
     // text hierarchy — weight + gray value carry hierarchy, never loud color
-    ink: '#1B1B1A', // primary: names, headers, key values (near-black, warm)
-    inkMuted: '#6C6C68', // secondary: roles, labels
-    inkFaint: '#8A867C', // metadata: timestamps, tickers, captions (V2: design's warmer faint)
+    ink: '#0A0A0A', // primary: names, headers, key values (Harvey near-black, neutral)
+    inkMuted: '#575757', // secondary: roles, labels, body copy
+    inkFaint: '#767676', // metadata: timestamps, section labels, captions
 
     // the single high-contrast element: the docked media player
     player: '#0A0A0A', // matches the black nav rail (founder round-3: one continuous chrome)
@@ -36,33 +37,28 @@ export const tokens = {
     black: '#000000',
   },
 
-  // ── V2 surfaces (Claude Design import, 2026-07) — values probed from the rendered
-  // design's computed styles (design-import/Atlas MVP.dc.html, locked "Black rail" theme) ──
-  v2: {
-    shell: '#F5F3EE', // main page area behind all content
-    paper: '#FAF9F6', // raised inputs/cards on the cream shell (search, live card)
-    rail: '#0A0A0A', // black nav rail
-    railText: '#A6A29A', // inactive rail item text
+  // ── Harvey surfaces (Design Round 2 import, 2026-07-25) — values probed from the
+  // RENDERED design in verified Harvey mode (docs/evidence/feat-design-round-2/probe/
+  // harvey-design-tokens.json). Single theme: black rail, white page, gray panels.
+  // Spec: docs/superpowers/specs/2026-07-25-design-round-2-harvey-import-design.md ──
+  harvey: {
+    shell: '#FAFAFA', // the page background, everywhere (incl. call views — light per spec)
+    paper: '#F7F7F7', // raised inputs/flat cards (search 52px, upcoming-calls card)
+    panel: '#F0F0F0', // docked panels (Ask Atlas panel, composer field)
+    hairline: '#DEDEDE', // the 1px border on cards/inputs/panels (bordered, not shadowed)
+    rail: '#0A0A0A', // black nav rail (230px, border-right railHair)
+    railText: '#6B6862', // rail item text (active differs by weight 600 vs 450, not hue)
     railActive: 'rgba(255,255,255,0.10)', // active item fill (+ white text)
     railChip: 'rgba(255,255,255,0.06)', // quick-access chip fill
     railHair: 'rgba(255,255,255,0.09)', // rail hairlines / chip borders
-    ask: '#FCE44D', // Ask-Atlas selection/highlight ONLY
+    ask: '#FCE44D', // Ask-Atlas selection/highlight ONLY (functional accent, not theme)
     askInk: '#1C1B19', // ink on ask-yellow
-    // call view dark theme (warm dark, not neutral gray)
-    callDark: '#16150F', // call root background
-    callPanel: '#26241B', // raised panels (sections rail rows, chips)
-    callRaised: '#2A281F', // stronger raised (active chips, toggles)
-    callHover: '#1F1D17', // hover fill
-    callTrack: '#3A382F', // progress tracks / dividers
-    callInk: '#EDEAE1', // primary text on dark
-    callMuted: '#B8B3A8', // secondary text on dark
-    callFaint: '#8A867C', // metadata on dark
-    // chat composer (design update 2026-07-06: the warm field family)
-    field: '#F3EEE4', // composer field fill
-    fieldLine: '#E4DED1', // composer field border
-    chipBg: '#FBFAF7', // suggestion chip fill
-    sendIdle: '#E4DDCE', // send button, idle
-    ghost: '#9C978B', // ghost/placeholder text
+    // composer (Harvey: neutral gray family, black send)
+    field: '#F0F0F0', // composer field fill (= panel)
+    fieldLine: '#DEDEDE', // composer field border (= hairline)
+    chipBg: '#F7F7F7', // suggestion chip fill (= paper)
+    sendIdle: '#0A0A0A', // send button — Harvey's black circle
+    ghost: '#8A8A8A', // ghost/placeholder text (neutralized; verify at panel eyes-on)
   },
 
   // soft, consistent rounded corners (brief §3.3)
@@ -79,6 +75,9 @@ export const tokens = {
   // `card` (barely-there lift for list rows / cards) and `float` (the search +
   // composer hover-float) are the softer, more diffuse recipes from the V1 design pass.
   shadow: {
+    // Harvey: THE float recipe — multiview pane cards (white, 16px radius). Probed
+    // 2026-07-25; the only shadow family in Harvey, everything else is bordered flat.
+    pane: '0 8px 26px -18px rgba(28,24,14,0.30), 0 1px 3px rgba(28,24,14,0.05)',
     // V2 (Claude Design): the design's one soft lift for search field + live card
     soft: '0 1px 3px rgba(28,27,25,0.06), 0 8px 24px rgba(28,27,25,0.04)',
     card: '0 1px 2px rgba(20,18,15,0.05), 0 1px 1px rgba(20,18,15,0.03)',
