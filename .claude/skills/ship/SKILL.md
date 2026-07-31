@@ -34,6 +34,13 @@ main is always working. Only the supervisor pushes it. There are two roles:
 ## If you are the SUPERVISOR
 
 1. Take the oldest unprocessed ready-queue entry. `git fetch origin && git checkout <branch>`.
+   **First, check whether the lane is still LIVE** — a ready-queue entry does not mean the
+   session ended. The tell: `git log -1 <branch>` newer than the lane's last board line, or a
+   recently-modified `agent-memory/state-<lane>.md`. Never ask the founder "is that port
+   leftover?" — they run several sessions and cannot know; on that answer a supervisor once
+   killed a live lane's dev server (2026-07-31, no work lost, but the founder took the blame
+   for a supervisor error). NEVER kill a process, wipe a `.next`, or run a build inside another
+   lane's worktree while its session may be live. Verify in YOUR checkout instead.
 2. **Dispatch the `atlas-reviewer` subagent on the branch** (fresh context, zero attachment —
    it checks correctness, iron rules, scope, secrets, evidence). Read its verdict. Then do
    your own pass over `git diff main...<branch>` for mission fit: does this advance the lane's
@@ -46,6 +53,10 @@ main is always working. Only the supervisor pushes it. There are two roles:
    board section; stop here.
 4. Merge: `git checkout main && git merge --no-ff <branch>` → battery again on main →
    `git push origin main`. Delete merged branch (coordinate with the lane for worktree branches).
+   **A running dev server owns `.next`** — `npm run build` against a worktree it owns fails with
+   `PageNotFoundError: /_document` or MODULE_NOT_FOUND. That is a stale artifact, NOT a broken
+   branch: kill the dev server, `rm -rf .next`, rebuild. Best avoided entirely — run the build
+   on merged main in your own checkout (per step 1, don't build inside a live lane's worktree).
 5. **Merge-time doc truth** (these fire at EVERY merge — retirement is too rare to carry them):
    - Append PROGRESS.md entry (3-5 bullets: what + why + verification).
    - Update ARCHITECTURE.md for any new/moved/deleted files this merge introduces.
