@@ -33,11 +33,11 @@ export default async function HomePage() {
           {/* hero: greeting + search (design: 60px top, 620px hero column, 42px headline) */}
           <div className="mx-auto flex w-full max-w-[620px] animate-fade-up flex-col items-center gap-2.5 pt-[60px] text-center">
             <TodayLine />
-            {/* founder round-4/5: the design's DISPLAY stack (font-head — Arial on Windows,
-                SF Pro Display on Mac), bold, -0.03em — probed from the rendered CD home */}
+            {/* Harvey headlines are the serif display voice: Newsreader 500, -0.02em
+                (design harvey headFont/headWeight/headLs; probed 42px on the rendered home) */}
             <Greeting
               name={userId ? userName : undefined}
-              className="font-head text-[34px] font-bold tracking-[-0.03em] text-ink sm:text-[42px]"
+              className="font-display text-[34px] font-medium tracking-[-0.02em] text-ink sm:text-[42px]"
             />
             <p className="text-[16px] text-ink-muted">{dict.home.discoverSubhead}</p>
             <div className="mt-[18px] w-full">
@@ -53,7 +53,7 @@ export default async function HomePage() {
               action={
                 <Link
                   href="/app/calendar"
-                  className="hov-ink flex items-center gap-1 text-[12.5px] font-medium text-[#6B6862]"
+                  className="hov-ink flex items-center gap-1 text-[12.5px] font-medium text-[#575757]"
                 >
                   {dict.company.viewAll}
                   <ChevronRightIcon size={13} strokeWidth={1.8} className="rtl:rotate-180" />
@@ -63,7 +63,7 @@ export default async function HomePage() {
             {upcoming.length === 0 ? (
               <p className="px-2.5 py-6 text-sm text-ink-faint">{dict.home.noUpcoming}</p>
             ) : (
-              <div className="overflow-hidden rounded-card border border-[#E6E2DA] bg-paper">
+              <div className="overflow-hidden rounded-card border border-[#DEDEDE] bg-paper">
                 {upcoming.map((call, i) => (
                   <UpcomingCard
                     key={call.id}

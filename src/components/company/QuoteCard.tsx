@@ -109,7 +109,7 @@ export function QuoteCard({
 
   return (
     // design .atq card (line 770): static border, NO hover shadow/ring — only the actions fade in
-    <div data-ask="1" className="group relative rounded-[10px] border border-[#ECE7DD] bg-white px-4 py-3.5">
+    <div data-ask="1" className="group relative rounded-[10px] border border-[#EAEAEA] bg-white px-4 py-3.5">
       {toast && (
         <span className="pointer-events-none absolute end-3 top-3 rounded-full bg-ink px-2 py-0.5 text-2xs font-medium text-white">
           {toast}

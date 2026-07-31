@@ -18,7 +18,7 @@ import {
   FileIcon,
   PlusIcon,
 } from '@/components/ds/icons'
-import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
+import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -104,7 +104,6 @@ export function LiveBroadcastView({
     speaker: string | null
     segmentId: string | null
   } | null>(null)
-  const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
   const [chat, setChat] = useState<{
     open: boolean
     seed: string
@@ -362,10 +361,11 @@ export function LiveBroadcastView({
   ] as const
 
   return (
-    <div data-call-theme={callTheme} className="flex h-full min-h-0 flex-1">
+    <div className="call-bg call-ink flex h-full min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
         {/* identity header (63px, design lines 253-268) */}
-        <header className="call-hair flex h-[63px] flex-none items-center justify-between gap-3 border-b px-6">
+        {/* Harvey: flat identity header — no separator line (design h 58, pad 26) */}
+        <header className="flex h-[58px] flex-none items-center justify-between gap-3 px-[26px]">
           <div className="flex min-w-0 items-center gap-2.5" dir="ltr">
             <Logo src={logoUrl} name={companyName} size={30} className="rounded-[7px]" />
             <span className="call-ink max-w-[460px] truncate text-[13.5px] font-semibold">
@@ -397,26 +397,6 @@ export function LiveBroadcastView({
                 <span className="text-2xs font-bold tracking-wide text-live">{dict.live.liveBadge}</span>
               </span>
             )}
-            <div className="call-track-bg flex rounded-pill p-[3px]">
-              <button
-                type="button"
-                onClick={() => setCallTheme('dark')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  callTheme === 'dark' ? 'call-bg call-ink' : 'call-muted'
-                }`}
-              >
-                Dark
-              </button>
-              <button
-                type="button"
-                onClick={() => setCallTheme('light')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  callTheme === 'light' ? 'call-card-bg call-ink' : 'call-muted'
-                }`}
-              >
-                Light
-              </button>
-            </div>
             <button
               type="button"
               onClick={() =>
@@ -438,8 +418,9 @@ export function LiveBroadcastView({
           </div>
         </header>
 
-        {/* facet controls (live view pins Transcript) */}
-        <div className="call-hair flex flex-none items-center justify-between border-b px-6">
+        {/* facet controls (live view pins Transcript) — Harvey (probed): flat row, no card,
+            no separator; the float lives in the pane cards below */}
+        <div className="flex flex-none items-center justify-between px-6">
           <div className="flex items-center gap-[22px] text-[13.5px]">
             <button
               type="button"
@@ -482,7 +463,7 @@ export function LiveBroadcastView({
                     }}
                     className={`flex items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[12.5px] transition-colors ${
                       active
-                        ? 'call-raised-bg call-ink border border-transparent font-semibold'
+                        ? 'call-hair call-panel-bg call-ink border font-semibold'
                         : 'call-hair call-muted border font-medium hover:call-ink'
                     }`}
                   >
@@ -510,8 +491,8 @@ export function LiveBroadcastView({
               <button
                 type="button"
                 onClick={() => setView('single')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  view === 'single' ? 'call-bg call-ink' : 'call-muted'
+                className={`rounded-pill px-3 py-[5px] text-[12px] font-medium transition-colors ${
+                  view === 'single' ? 'bg-ink text-paper' : 'call-muted'
                 }`}
               >
                 {dict.live.viewSingle}
@@ -519,8 +500,8 @@ export function LiveBroadcastView({
               <button
                 type="button"
                 onClick={() => setView('multi')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  view === 'multi' ? 'call-bg call-ink' : 'call-muted'
+                className={`rounded-pill px-3 py-[5px] text-[12px] font-medium transition-colors ${
+                  view === 'multi' ? 'bg-ink text-paper' : 'call-muted'
                 }`}
               >
                 {dict.live.viewMulti}
@@ -532,12 +513,16 @@ export function LiveBroadcastView({
         {/* body — Single: the active facet; Multi: Transcript | Slides | Report side by side
             with drag-resize gutters. Columns keep min-widths and the ROW scrolls horizontally
             instead of squishing; the live audio + karaoke keep running through it all. */}
-        <div className="atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+        <div
+          className={`atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-2 ${
+            view === 'multi' ? 'bg-desktop' : ''
+          }`}
+        >
           {(view === 'multi' ? multiFacets.has('transcript') : facet === 'transcript') && (
             <div
               data-facet="transcript"
               style={view === 'multi' ? { flex: `${colFlex.transcript} 1 0px` } : undefined}
-              className="flex min-w-[340px] flex-1 flex-col overflow-hidden"
+              className="flex min-w-[340px] flex-1 flex-col gap-1.5 overflow-hidden"
             >
               <PaneHeader
                 label={dict.live.transcript}
@@ -552,26 +537,28 @@ export function LiveBroadcastView({
                   </span>
                 }
               />
-              <div
-                data-ask="1"
-                className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-2"
-                onMouseUp={onTextSelect}
-                onScroll={() => selection && setSelection(null)}
-              >
-                {phase === 'playing' && words.length === 0 && (
-                  <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
-                    ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
-                  </div>
-                )}
-                <TranscriptBody
-                  transcript={transcript}
-                  activeIndex={activeIndex}
-                  autoScroll={autoScroll}
-                  onWordClick={seek}
-                  karaoke
-                  followLabel={dict.live.backToLive}
-                />
-              </div>
+              <PaneCard>
+                <div
+                  data-ask="1"
+                  className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-4"
+                  onMouseUp={onTextSelect}
+                  onScroll={() => selection && setSelection(null)}
+                >
+                  {phase === 'playing' && words.length === 0 && (
+                    <div className="pt-16 text-center text-sm text-ink-faint" dir="rtl">
+                      ממתינים לכתוביות החיות… <span className="opacity-70">(התמלול מגיע בהשהיה קצרה)</span>
+                    </div>
+                  )}
+                  <TranscriptBody
+                    transcript={transcript}
+                    activeIndex={activeIndex}
+                    autoScroll={autoScroll}
+                    onWordClick={seek}
+                    karaoke
+                    followLabel={dict.live.backToLive}
+                  />
+                </div>
+              </PaneCard>
             </div>
           )}
           {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}
@@ -717,18 +704,19 @@ export function LiveBroadcastView({
           onClose={() => router.push('/app/home')}
         />
 
-        {/* buffering / join overlay — the design's live-buffer canvas (design lines 392-401) */}
+        {/* buffering / join overlay — the design's live-buffer canvas (design lines 392-401).
+            top-[58px] tracks the identity header's h-[58px] above — the two must move together,
+            or a strip of the facet-control row shows above the overlay. */}
         {phase !== 'playing' && (
-          <div className="call-bg absolute inset-x-0 bottom-0 top-[63px] z-40 overflow-hidden">
+          <div className="call-bg absolute inset-x-0 bottom-0 top-[58px] z-40 overflow-hidden">
             {/* the countdown lives INSIDE the canvas ring (EST. LIVE IN mm:ss) — keyed by the
                 first real remaining so the ring starts from truth, then self-ticks in sync */}
             <AnimCanvas
               key={ringSecs ?? 'ring-init'}
               mode="buffer"
               secs={ringSecs ?? delaySec}
-              /* ink = the INK color, inverted from the theme (design callInkMode, dc 2422) —
-                 dark frame needs LIGHT numbers */
-              ink={callTheme === 'dark' ? 'light' : 'dark'}
+              /* Harvey call frame is light — dark ink numbers on the ring */
+              ink="dark"
               fill
               className="absolute inset-0 block h-full w-full"
             />
@@ -779,6 +767,7 @@ export function LiveBroadcastView({
           seedNonce={chat.nonce}
           docRef={chat.docRef}
           snip={chat.snip}
+          snipAvailable={view === 'multi' ? multiFacets.has('report') : facet === 'report'}
           onClose={() => setChat((c) => ({ ...c, open: false, docRef: null, snip: null }))}
         />
       )}

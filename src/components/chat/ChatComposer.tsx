@@ -105,7 +105,7 @@ export function ChatComposer({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-[18px] border border-field-line bg-field transition-shadow focus-within:border-[#D6CDBB] focus-within:shadow-[0_0_0_3px_rgba(214,205,187,0.28)]'
+        'overflow-hidden rounded-[18px] border border-field-line bg-field transition-shadow focus-within:border-[#C9C9C9] focus-within:shadow-[0_0_0_3px_rgba(201,201,201,0.28)]'
       )}
     >
       {reference && (

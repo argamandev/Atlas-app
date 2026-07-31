@@ -127,11 +127,11 @@ export function CompanyView({
             <div className="flex min-w-0 items-center gap-3.5">
               <Monogram name={name} size={48} fontSize={21} radius={11} />
               <div className="min-w-0 text-start">
-                <h1 className="font-head text-[27px] font-bold leading-[1.1] tracking-[-0.03em] text-ink">
+                <h1 className="font-display text-[27px] font-medium leading-[1.1] tracking-[-0.02em] text-ink">
                   <span dir="auto">{name}</span>
                 </h1>
                 <div className="mt-1.5 flex flex-wrap items-center gap-[9px]">
-                  <span className="font-mono-num text-[12.5px] text-[#8A867C]">
+                  <span className="font-mono-num text-[12.5px] text-[#767676]">
                     {[
                       industry,
                       company.ticker ? `TASE ${company.ticker}` : null,
@@ -140,14 +140,14 @@ export function CompanyView({
                       .filter(Boolean)
                       .join(' · ')}
                   </span>
-                  <span className="h-3 w-px flex-none bg-[#DDD8CE]" />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#A8A498]">
+                  <span className="h-3 w-px flex-none bg-[#D2D2D2]" />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#9C9C9C]">
                     {dict.company.indices}
                   </span>
                   {stub.indices.map((ix) => (
                     <span
                       key={ix}
-                      className="rounded-full border border-[#E6E2DA] bg-paper px-[9px] py-[2px] font-mono-num text-[11px] text-[#6B6862]"
+                      className="rounded-full border border-[#DEDEDE] bg-paper px-[9px] py-[2px] font-mono-num text-[11px] text-[#575757]"
                       dir="ltr"
                     >
                       {ix}
@@ -175,7 +175,7 @@ export function CompanyView({
                 <button
                   type="button"
                   onClick={openInChat}
-                  className="hov-border flex items-center gap-[7px] rounded-lg border border-[#E0DACE] px-3.5 py-2 text-[14px] font-semibold text-ink"
+                  className="hov-border flex items-center gap-[7px] rounded-lg border border-[#D5D5D5] px-3.5 py-2 text-[14px] font-semibold text-ink"
                 >
                   <SparkleIcon size={22} />
                   {dict.company.askAtlas}
@@ -315,7 +315,7 @@ export function CompanyView({
       {/* Ask Atlas side dock (design toggleCompanyChat): in-page, light call-theme scope
           gives the shared panel its light variables */}
       {chatOpen && (
-        <div data-call-theme="light" className="flex min-h-0">
+        <div className="flex min-h-0">
           <TranscriptChatPanel
             companyId={company.id}
             transcriptId={undefined}

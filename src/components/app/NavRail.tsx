@@ -14,7 +14,6 @@ import {
   WorkspacesIcon,
   AgentsIcon,
   GlobeIcon,
-  ThemeIcon,
   ProfileIcon,
   CollapseIcon,
   SearchIcon,
@@ -24,26 +23,17 @@ import {
 
 type NavItem = { key: string; href: string; icon: (p: IconProps) => JSX.Element; label: string }
 
-// V2 black nav rail (Claude Design import, design lines 38–89, locked "Black rail" theme):
+// Harvey black nav rail (Design Round 2, single theme — the cycle is gone per spec
+// docs/superpowers/specs/2026-07-25-design-round-2-harvey-import-design.md):
 // wordmark → Quick access ⌘K chip → Home / Calendar / Chat / Workspace / Agents →
 // (bottom) Profile / language toggle / collapse. Active item: white text on rail-active fill.
 // Collapsed rail shows the "A" monogram and icon-only items.
-// the design's three color schemes, cycled by the Theme rail button (dc lines 2284-2297)
-const SCHEMES = ['blackRail', 'warm', 'blackWhite'] as const
-type Scheme = (typeof SCHEMES)[number]
 
 export function NavRail() {
   const { dict, locale } = useI18n()
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
-  const [scheme, setScheme] = useState<Scheme>('blackRail')
-
-  // restore + apply the saved scheme; the attribute drives the CSS variables
-  useEffect(() => {
-    const saved = window.localStorage.getItem('atlas-scheme') as Scheme | null
-    if (saved && SCHEMES.includes(saved)) setScheme(saved)
-  }, [])
 
   // The call view's Multi mode asks the rail to collapse for the full-report experience
   // (founder round 3) and to restore when it's left. The user's own toggle still works —
@@ -53,18 +43,11 @@ export function NavRail() {
     window.addEventListener('atlas:rail-collapse', onRailCollapse)
     return () => window.removeEventListener('atlas:rail-collapse', onRailCollapse)
   }, [])
+  // one-time cleanup: browsers that saved a pre-Harvey scheme keep a dead attribute otherwise
   useEffect(() => {
-    if (scheme === 'blackRail') delete document.documentElement.dataset.scheme
-    else document.documentElement.dataset.scheme = scheme
-    window.localStorage.setItem('atlas-scheme', scheme)
-  }, [scheme])
-
-  const schemeLabel: Record<Scheme, string> = {
-    warm: dict.nav.themeWarm,
-    blackRail: dict.nav.themeBlackRail,
-    blackWhite: dict.nav.themeBlackWhite,
-  }
-  const cycleScheme = () => setScheme((s) => SCHEMES[(SCHEMES.indexOf(s) + 1) % SCHEMES.length])
+    delete document.documentElement.dataset.scheme
+    window.localStorage.removeItem('atlas-scheme')
+  }, [])
 
   const otherLocale: Locale = locale === 'he' ? 'en' : 'he'
   function toggleLocale() {
@@ -177,15 +160,6 @@ export function NavRail() {
         >
           <GlobeIcon size={18} strokeWidth={1.6} className="flex-none" />
           {!collapsed && <span className="truncate">{localeNames[otherLocale]}</span>}
-        </button>
-        <button
-          type="button"
-          onClick={cycleScheme}
-          title={schemeLabel[scheme]}
-          className={itemClasses(false)}
-        >
-          <ThemeIcon size={18} strokeWidth={1.6} className="flex-none" />
-          {!collapsed && <span className="truncate">{schemeLabel[scheme]}</span>}
         </button>
         <button
           type="button"

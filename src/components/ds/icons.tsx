@@ -204,13 +204,8 @@ export const CollapseIcon = (p: IconProps) => (
     <path d="M13 7l-5 5 5 5M19 7l-5 5 5 5" />
   </Base>
 )
-// V2 parity: the rail Theme toggle — half-filled circle (design line 173)
-export const ThemeIcon = (p: IconProps) => (
-  <Base {...p}>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 3a9 9 0 010 18z" fill="currentColor" stroke="none" />
-  </Base>
-)
+// (ThemeIcon removed in design round 2 — Harvey is the single theme, so the rail's
+//  theme toggle and its half-filled-circle glyph are both gone.)
 export const SunIcon = (p: IconProps) => (
   <Base {...p}>
     <circle cx="12" cy="12" r="4" />
@@ -305,6 +300,13 @@ export const ScissorsIcon = (p: IconProps) => (
     <path d="M20 4 8.12 15.88" />
     <circle cx="6" cy="18" r="3" />
     <path d="M14.8 14.8 20 20" />
+  </Base>
+)
+// Design round 2: composer mic (future voice-ask affordance, design aa-ic row)
+export const MicIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="9" y="2.5" width="6" height="11" rx="3" />
+    <path d="M6 11a6 6 0 0012 0M12 17v4" />
   </Base>
 )
 export const QuoteIcon = (p: IconProps) => (

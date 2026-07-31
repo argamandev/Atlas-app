@@ -1,0 +1,35 @@
+{
+  "workspaceH1": {
+    "found": true,
+    "text": "Workspaces",
+    "fontFamily": "Newsreader, Georgia, serif",
+    "fontWeight": "500",
+    "fontSize": "34px"
+  },
+  "railText": [
+    {
+      "label": "Home",
+      "color": "rgb(133, 129, 122)"
+    },
+    {
+      "label": "Calendar",
+      "color": "rgb(133, 129, 122)"
+    },
+    {
+      "label": "Chat",
+      "color": "rgb(133, 129, 122)"
+    },
+    {
+      "label": "Workspace",
+      "color": "rgb(255, 255, 255)"
+    },
+    {
+      "label": "Agents",
+      "color": "rgb(133, 129, 122)"
+    }
+  ],
+  "companyUrl": "NO COMPANY LINK FOUND at /app/companies",
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

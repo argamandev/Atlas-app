@@ -48,9 +48,6 @@ export const en = {
     collapseSidebar: 'Collapse sidebar',
     workspace: 'Workspace',
     agents: 'Agents',
-    themeWarm: 'Theme · Warm',
-    themeBlackRail: 'Theme · Black rail',
-    themeBlackWhite: 'Theme · Black + white',
   },
   workspace: {
     title: 'Workspaces',
@@ -258,6 +255,11 @@ export const en = {
     askHeroLine2: 'about this call',
     askHeroCompany: 'about this company',
     askHeroSub: 'The audio keeps playing while you ask.',
+    // composer captions (design round 2): what Atlas is connected to, per context
+    askFollowLive: "Atlas is following this call live. Ask about anything that's been said.",
+    askConnectedCall: "Atlas is connected to this call's context. Ask whatever you'd like.",
+    askConnectedCompany: "Atlas is connected to this company's context. Ask whatever you'd like.",
+    voiceSoon: 'Voice ask — coming soon',
     slideLabel: 'Slide',
   },
   player: {

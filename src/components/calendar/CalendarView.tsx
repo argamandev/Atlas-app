@@ -117,11 +117,11 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
       <div className="w-full animate-fade-up">
         {/* header: title + market/mine toggle (design lines 266-272) */}
         <div className="mb-1.5 flex items-start justify-between">
-          {/* founder round-5: the design's DISPLAY stack (font-head) — probed from rendered CD */}
-          <h1 className="font-head text-[30px] font-bold tracking-[-0.03em] text-ink">
+          {/* Harvey headlines: Newsreader 500, -0.02em (design harvey headFont) */}
+          <h1 className="font-display text-[30px] font-medium tracking-[-0.02em] text-ink">
             {dict.calendar.title}
           </h1>
-          <div className="flex rounded-full bg-[#ECE9E2] p-[3px]">
+          <div className="flex rounded-full bg-panel p-[3px]">
             <button
               type="button"
               onClick={() => setMode('all')}
@@ -191,15 +191,15 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                   className={cn(
                     'flex items-center gap-[7px] rounded-full border py-[5px] pe-2.5 ps-[11px] text-[12.5px] transition-colors',
                     on
-                      ? 'border-[#E0DACE] bg-[#ECE9E2] font-semibold text-ink'
-                      : 'border-[#E6E2DA] bg-transparent font-medium text-[#8A867C]'
+                      ? 'border-[#D5D5D5] bg-[#F0F0F0] font-semibold text-ink'
+                      : 'border-[#DEDEDE] bg-transparent font-medium text-[#767676]'
                   )}
                 >
                   <span className="flex" style={{ color: EVENT_KIND_META[k].accent }}>
                     <Icon size={13} />
                   </span>
                   {kindLabel[k]}
-                  <span className={cn('flex', on ? 'text-ink' : 'text-[#B7B2A6]')}>
+                  <span className={cn('flex', on ? 'text-ink' : 'text-[#ADADAD]')}>
                     {on ? <CloseIcon size={12} strokeWidth={2} /> : <PlusIcon size={12} strokeWidth={2} />}
                   </span>
                 </button>
@@ -210,16 +210,16 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
 
         {/* filter hint (design line 294) */}
         <div className="mb-3.5">
-          <span className="text-[12px] text-[#9A968C]">{dict.calendar.filterHint}</span>
+          <span className="text-[12px] text-[#8A8A8A]">{dict.calendar.filterHint}</span>
         </div>
 
         {/* grid (design lines 297-338): paper sheet; overflow VISIBLE so hover cards escape */}
-        <div className="rounded-card border border-[#E6E2DA] bg-paper">
-          <div className="grid grid-cols-7 border-b border-[#E6E2DA]">
+        <div className="rounded-card border border-[#DEDEDE] bg-paper">
+          <div className="grid grid-cols-7 border-b border-[#DEDEDE]">
             {weekdays.map((w) => (
               <div
                 key={w}
-                className="px-3 py-2.5 text-start text-[11px] uppercase tracking-[0.1em] text-[#9A968C]"
+                className="px-3 py-2.5 text-start text-[11px] uppercase tracking-[0.1em] text-[#8A8A8A]"
               >
                 {w}
               </div>
@@ -237,7 +237,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
               return (
                 <div
                   key={k}
-                  className="flex min-h-[104px] flex-col gap-[5px] border-b border-e border-[#ECE7DD] px-[9px] py-2"
+                  className="flex min-h-[104px] flex-col gap-[5px] border-b border-e border-[#EAEAEA] px-[9px] py-2"
                 >
                   {day && (
                     <span
@@ -261,7 +261,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         key={c.id}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData('text/plain', c.id)}
-                        className="cal-ev flex w-full cursor-grab items-center gap-[5px] rounded-md border border-[#E6E2DA] bg-white py-1 pe-[5px] ps-[6px]"
+                        className="cal-ev flex w-full cursor-grab items-center gap-[5px] rounded-md border border-[#DEDEDE] bg-white py-1 pe-[5px] ps-[6px]"
                       >
                         <span className="flex flex-none" style={{ color: EVENT_KIND_META[kind].accent }}>
                           <Icon size={12} />
@@ -275,14 +275,14 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         <span className="min-w-0 flex-1 truncate text-start text-[11px] text-ink">
                           <span dir="auto">{name}</span>
                         </span>
-                        <span className="flex-none font-mono-num text-[10px] text-[#8A867C]" dir="ltr">
+                        <span className="flex-none font-mono-num text-[10px] text-[#767676]" dir="ltr">
                           {isLive ? dict.live.liveBadge : formatTime(c.scheduledAt, locale)}
                         </span>
                         <button
                           type="button"
                           onClick={() => follow(c.id, !isFollowed)}
                           title={isFollowed ? dict.calendar.inCalendar : dict.calendar.addToCalendar}
-                          className={cn('flex flex-none', isFollowed ? 'text-ink' : 'text-[#B7B2A6]')}
+                          className={cn('flex flex-none', isFollowed ? 'text-ink' : 'text-[#ADADAD]')}
                         >
                           {isFollowed ? (
                             <CheckIcon size={13} strokeWidth={2} />
@@ -298,7 +298,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                           >
                             {kindSingular[kind]}
                           </div>
-                          <div className="text-[11.5px] leading-[1.5] text-[#3A382F]" dir="auto">
+                          <div className="text-[11.5px] leading-[1.5] text-[#2A2A2A]" dir="auto">
                             {name} · {c.quarter} · {formatDate(c.scheduledAt, locale)} ·{' '}
                             {isLive ? dict.live.liveBadge : formatTime(c.scheduledAt, locale)}
                             {isFollowed ? ` · ${dict.calendar.inCalendar}` : ''}

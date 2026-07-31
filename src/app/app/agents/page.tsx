@@ -13,7 +13,7 @@ export default async function AgentsPage() {
   const locale = getLocale()
   const dict = getDictionary(locale)
   const { agents, scheduled, finished } = await getAgentsPageData()
-  const label = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A867C]'
+  const label = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-[#767676]'
 
   return (
     <AppPage contentClassName="bg-shell">
@@ -23,7 +23,7 @@ export default async function AgentsPage() {
           className="flex-none bg-[#0A0A0A] px-[30px] py-3.5 font-mono-num text-[13.5px] font-medium leading-[1.62] tracking-[0.01em] text-white antialiased"
           dir="ltr"
         >
-          <div className="text-[#8F8B82]">&gt; {dict.agents.ready}</div>
+          <div className="text-[#767676]">&gt; {dict.agents.ready}</div>
         </div>
 
         {/* body (design lines 1582-1650) */}
@@ -34,9 +34,9 @@ export default async function AgentsPage() {
               <div className={`${label} mb-3.5`}>{dict.agents.myAgents}</div>
               <div className="grid min-w-0 grid-cols-1 gap-3.5 sm:grid-cols-2">
                 {agents.map((a) => (
-                  <div key={a.id} className="rounded-[10px] border border-[#E6E2DA] bg-paper px-4 py-[15px]">
+                  <div key={a.id} className="rounded-[10px] border border-[#DEDEDE] bg-paper px-4 py-[15px]">
                     <div className="mb-2.5 flex items-center gap-2" dir="ltr">
-                      <span className="font-mono-num text-[13px] text-[#B8B3A8]">&gt;</span>
+                      <span className="font-mono-num text-[13px] text-[#ADADAD]">&gt;</span>
                       <span className="font-mono-num text-[14px] font-semibold tracking-[-0.01em] text-ink">
                         {a.name}
                       </span>
@@ -51,8 +51,8 @@ export default async function AgentsPage() {
                           </>
                         ) : (
                           <>
-                            <span className="h-[6px] w-[6px] rounded-full bg-[#C4BFB4]" />
-                            <span className="font-mono-num text-[11px] text-[#9A968C]">
+                            <span className="h-[6px] w-[6px] rounded-full bg-[#B8B8B8]" />
+                            <span className="font-mono-num text-[11px] text-[#8A8A8A]">
                               {dict.agents.idle}
                             </span>
                           </>
@@ -60,19 +60,19 @@ export default async function AgentsPage() {
                       </span>
                     </div>
                     <div
-                      className="mb-[9px] font-mono-num text-[10.5px] uppercase tracking-[0.08em] text-[#8A867C]"
+                      className="mb-[9px] font-mono-num text-[10.5px] uppercase tracking-[0.08em] text-[#767676]"
                       dir="ltr"
                     >
                       {a.domain}
                     </div>
-                    <p className="text-[12.5px] leading-[1.55] text-[#6B6862]">{a.description}</p>
+                    <p className="text-[12.5px] leading-[1.55] text-[#575757]">{a.description}</p>
                   </div>
                 ))}
 
-                {/* create card (design lines 1610-1615): THIN dash #CBC5B8 + black circle */}
+                {/* create card (design lines 1610-1615): THIN dash #BFBFBF + black circle */}
                 <button
                   type="button"
-                  className="flex min-h-[104px] flex-col items-center justify-center gap-[9px] rounded-[10px] border border-dashed border-[#CBC5B8] p-4 text-[#6B6862]"
+                  className="flex min-h-[104px] flex-col items-center justify-center gap-[9px] rounded-[10px] border border-dashed border-[#BFBFBF] p-4 text-[#575757]"
                 >
                   <span className="grid h-8 w-8 place-items-center rounded-full bg-[#0A0A0A] text-white">
                     <PlusIcon size={18} strokeWidth={1.8} />
@@ -84,26 +84,26 @@ export default async function AgentsPage() {
               </div>
 
               <div className={`${label} mb-3 mt-[30px]`}>{dict.agents.finishedTasks}</div>
-              <div className="flex flex-col overflow-hidden rounded-[10px] border border-[#E6E2DA] bg-paper">
+              <div className="flex flex-col overflow-hidden rounded-[10px] border border-[#DEDEDE] bg-paper">
                 {finished.map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    className="hov-fill flex w-full items-center gap-3 border-b border-[#ECE7DD] px-[15px] py-[13px] text-start last:border-b-0"
+                    className="hov-fill flex w-full items-center gap-3 border-b border-[#EAEAEA] px-[15px] py-[13px] text-start last:border-b-0"
                   >
                     <CheckIcon size={16} strokeWidth={1.9} className="flex-none text-[#4F7A52]" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13.5px] font-semibold text-ink" dir="auto">
                         {t.title}
                       </div>
-                      <div className="mt-px font-mono-num text-[11.5px] text-[#8A867C]" dir="ltr">
+                      <div className="mt-px font-mono-num text-[11.5px] text-[#767676]" dir="ltr">
                         {t.meta}
                       </div>
                     </div>
                     <ChevronRightIcon
                       size={16}
                       strokeWidth={1.7}
-                      className="flex-none text-[#B8B3A8] rtl:rotate-180"
+                      className="flex-none text-[#ADADAD] rtl:rotate-180"
                     />
                   </button>
                 ))}
@@ -117,14 +117,14 @@ export default async function AgentsPage() {
                 {scheduled.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center gap-[11px] rounded-[10px] border border-[#E6E2DA] bg-paper px-3.5 py-[13px]"
+                    className="flex items-center gap-[11px] rounded-[10px] border border-[#DEDEDE] bg-paper px-3.5 py-[13px]"
                   >
-                    <ClockIcon size={17} strokeWidth={1.6} className="flex-none text-[#8A867C]" />
+                    <ClockIcon size={17} strokeWidth={1.6} className="flex-none text-[#767676]" />
                     <div className="min-w-0 flex-1 text-[13px] font-semibold text-ink" dir="auto">
                       {s.name}
                     </div>
                     <span
-                      className="flex-none whitespace-nowrap rounded-md bg-[#ECE9E2] px-2 py-[3px] font-mono-num text-[11px] text-[#6B6862]"
+                      className="flex-none whitespace-nowrap rounded-md bg-[#F0F0F0] px-2 py-[3px] font-mono-num text-[11px] text-[#575757]"
                       dir="ltr"
                     >
                       {s.scheduleLabel}

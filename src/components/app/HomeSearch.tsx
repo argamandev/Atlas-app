@@ -53,7 +53,7 @@ export function HomeSearch() {
 
   return (
     <div ref={boxRef} className="relative w-full">
-      <div className="flex items-center gap-2.5 rounded-card border border-subtle-strong bg-paper py-[13px] pe-4 ps-[18px] shadow-soft transition-shadow focus-within:shadow-float">
+      <div className="flex items-center gap-2.5 rounded-card border border-hairline bg-paper py-[13px] pe-4 ps-[18px] transition-shadow focus-within:shadow-float">
         <SearchIcon size={17} strokeWidth={1.7} className="flex-none text-ink-faint" />
         <input
           value={q}
@@ -67,10 +67,10 @@ export function HomeSearch() {
           title="Covering every company listed on the Tel Aviv Stock Exchange"
           className="pointer-events-none flex flex-none items-center gap-[9px]"
         >
-          <span className="h-5 w-px bg-[#E0DACE]" />
+          <span className="h-5 w-px bg-[#D5D5D5]" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/tase-mark.png" alt="" className="h-[15px] w-auto opacity-60" />
-          <span className="text-[11px] font-semibold tracking-[0.11em] text-[#9A968C]">TASE</span>
+          <span className="text-[11px] font-semibold tracking-[0.11em] text-[#8A8A8A]">TASE</span>
         </span>
       </div>
 

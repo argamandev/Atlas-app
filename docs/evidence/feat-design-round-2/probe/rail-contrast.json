@@ -1,0 +1,45 @@
+{
+  "standard": "WCAG 2.1 relative luminance + contrast ratio (w3.org/TR/WCAG21 #dfn-relative-luminance, #dfn-contrast-ratio)",
+  "computedBy": "Lane F, 2026-07-31 — real luminance computation, not eyeballed",
+  "railBackground": "#0A0A0A",
+  "railBackgroundLuminance": 0.003035,
+  "threshold": {
+    "AA_normalText": 4.5,
+    "AA_largeText": 3,
+    "AAA_normalText": 7
+  },
+  "candidates": [
+    {
+      "hex": "#A6A29A",
+      "ratio": 7.784,
+      "passesAA": true,
+      "note": "pre-round-2 value on main"
+    },
+    {
+      "hex": "#6B6862",
+      "ratio": 3.565,
+      "passesAA": false,
+      "note": "design import as probed (harvey-design-tokens.json:10) — the reviewer WARNING"
+    },
+    {
+      "hex": "#7C7C7C",
+      "ratio": 4.743,
+      "passesAA": true,
+      "note": "bare minimum named by the founder"
+    },
+    {
+      "hex": "#85817A",
+      "ratio": 5.108,
+      "passesAA": true,
+      "note": "SHIPPED — founder decision 2026-07-31"
+    }
+  ],
+  "shipped": "#85817A",
+  "decision": "Founder decision 2026-07-31: railText must PASS WCAG AA 4.5:1 against the rail. This is a DELIBERATE DEVIATION from the design import — a future parity probe must NOT restore #6B6862.",
+  "alsoOnRail": {
+    "railActiveText": {
+      "hex": "#FFFFFF",
+      "ratio": 19.798
+    }
+  }
+}

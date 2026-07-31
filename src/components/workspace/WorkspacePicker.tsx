@@ -22,13 +22,13 @@ export function WorkspacePicker({ workspaces }: { workspaces: Workspace[] }) {
       <div className="mx-auto w-full max-w-[960px]">
         {/* header row (design lines 1071-1092) */}
         <div className="flex items-start justify-between gap-5">
-          <h1 className="font-head text-[34px] font-semibold tracking-[-0.02em] text-ink">
+          <h1 className="font-display text-[34px] font-medium tracking-[-0.02em] text-ink">
             {dict.workspace.title}
           </h1>
           <div className="flex flex-none items-center gap-4 pt-[5px]">
             <button
               type="button"
-              className="flex items-center gap-[5px] text-[14px] text-[#6B6862] transition-colors hover:text-ink"
+              className="flex items-center gap-[5px] text-[14px] text-[#575757] transition-colors hover:text-ink"
             >
               {dict.workspace.sortNewest}
               <ChevronDownIcon size={14} strokeWidth={1.7} />
@@ -42,7 +42,7 @@ export function WorkspacePicker({ workspaces }: { workspaces: Workspace[] }) {
             </button>
           </div>
         </div>
-        <p className="mb-[22px] mt-2 max-w-[620px] text-[14px] text-[#6B6862]">{dict.workspace.subtitle}</p>
+        <p className="mb-[22px] mt-2 max-w-[620px] text-[14px] text-[#575757]">{dict.workspace.subtitle}</p>
 
         {/* search (design lines 1096-1099) */}
         <div className="relative mb-[22px]">
@@ -55,7 +55,7 @@ export function WorkspacePicker({ workspaces }: { workspaces: Workspace[] }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={dict.workspace.searchPlaceholder}
-            className="h-11 w-full rounded-[10px] border border-[#E6E2DA] bg-shell text-[14.5px] text-ink outline-none placeholder:text-ink-faint ltr:pl-[42px] ltr:pr-4 rtl:pl-4 rtl:pr-[42px]"
+            className="h-11 w-full rounded-[10px] border border-[#DEDEDE] bg-shell text-[14.5px] text-ink outline-none placeholder:text-ink-faint ltr:pl-[42px] ltr:pr-4 rtl:pl-4 rtl:pr-[42px]"
           />
         </div>
 
@@ -65,11 +65,11 @@ export function WorkspacePicker({ workspaces }: { workspaces: Workspace[] }) {
             <button
               key={w.id}
               type="button"
-              className="flex min-h-[152px] flex-col gap-3.5 rounded-card border border-[#E6E2DA] bg-shell p-[18px] text-start"
+              className="flex min-h-[152px] flex-col gap-3.5 rounded-card border border-[#DEDEDE] bg-shell p-[18px] text-start"
             >
               <div className="flex items-center justify-between">
                 <Monogram name={w.initial} size={38} fontSize={16} radius={9} />
-                <span className="font-mono-num text-[11px] text-[#9A968C]" dir="ltr">
+                <span className="font-mono-num text-[11px] text-[#8A8A8A]" dir="ltr">
                   {w.updatedLabel}
                 </span>
               </div>
@@ -77,11 +77,11 @@ export function WorkspacePicker({ workspaces }: { workspaces: Workspace[] }) {
                 <div className="mb-[3px] text-[15px] font-semibold tracking-[-0.01em] text-ink" dir="auto">
                   {w.name}
                 </div>
-                <div className="text-[12.5px] text-[#6B6862]" dir="auto">
+                <div className="text-[12.5px] text-[#575757]" dir="auto">
                   {w.subtitle}
                 </div>
               </div>
-              <div className="font-mono-num text-[11.5px] text-[#8A867C]" dir="ltr">
+              <div className="font-mono-num text-[11.5px] text-[#767676]" dir="ltr">
                 {w.fileCount} {dict.workspace.files}
               </div>
             </button>

@@ -1,0 +1,40 @@
+{
+  "_meta": {
+    "source": "design-import/Atlas MVP.dc.html served at http://127.0.0.1:4321/, RENDERED, theme label verified 'Theme · Harvey'",
+    "probedAt": "2026-07-25",
+    "viewport": "1920x855, Windows/Chrome",
+    "runs": ["home view", "call view (live, Multi, Ask Atlas open)"]
+  },
+  "pageBg": "rgb(250, 250, 250)",
+  "rail": { "backgroundColor": "rgb(10, 10, 10)", "width": "230px", "borderRight": "1px solid rgba(255, 255, 255, 0.09)" },
+  "railText": { "color": "rgb(107, 104, 98)", "fontSize": "14px", "activeFontWeight": "600", "inactiveFontWeight": "450" },
+  "quickAccess": { "backgroundColor": "rgba(255, 255, 255, 0.06)", "border": "1px solid rgba(255, 255, 255, 0.09)", "borderRadius": "8px", "color": "rgb(156, 156, 156)", "fontSize": "13.5px" },
+  "headline": { "fontFamily": "Newsreader, Georgia, serif", "fontSize": "42px", "fontWeight": "500", "letterSpacing": "-0.84px", "color": "rgb(10, 10, 10)" },
+  "bodyText": { "fontFamily": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", system-ui, sans-serif", "fontSize": "16px", "color": "rgb(87, 87, 87)" },
+  "ink": "rgb(10, 10, 10)",
+  "inkMuted": "rgb(87, 87, 87)",
+  "sectionLabel": { "fontFamily": "SF Pro Text stack", "fontSize": "11px", "letterSpacing": "1.54px", "color": "rgb(118, 118, 118)", "fontWeight": "600", "textTransform": "uppercase" },
+  "searchBox": { "backgroundColor": "rgb(247, 247, 247)", "border": "1px solid rgb(222, 222, 222)", "borderRadius": "12px", "boxShadow": "none", "height": "52px" },
+  "listCard": { "backgroundColor": "rgb(247, 247, 247)", "border": "1px solid rgb(222, 222, 222)", "borderRadius": "12px", "boxShadow": "none" },
+  "paneCard": { "backgroundColor": "rgb(255, 255, 255)", "border": "1px solid rgba(28, 24, 14, 0.06)", "borderRadius": "16px", "boxShadow": "rgba(28, 24, 14, 0.3) 0px 8px 26px -18px, rgba(28, 24, 14, 0.05) 0px 1px 3px 0px" },
+  "paneHeaderLabel": { "fontFamily": "SF Pro Text stack", "fontSize": "12.5px", "letterSpacing": "1.5px", "color": "rgb(10, 10, 10)", "fontWeight": "700" },
+  "viewPillActive": { "backgroundColor": "rgb(10, 10, 10)", "borderRadius": "999px", "fontSize": "12px", "color": "rgb(247, 247, 247)", "fontWeight": "500" },
+  "viewPillInactive": { "backgroundColor": "rgb(240, 240, 240)", "border": "1px solid rgb(222, 222, 222)", "borderRadius": "999px", "fontSize": "12.5px", "color": "rgb(10, 10, 10)" },
+  "askPanel": { "width": 347, "fracOfViewport": 0.181, "backgroundColor": "rgb(240, 240, 240)", "borderLeft": "1px solid rgb(222, 222, 222)", "borderRadius": "12px", "boxShadow": "none" },
+  "askHeading": { "tag": "H1", "fontFamily": "Newsreader, Georgia, serif", "fontSize": "29px", "fontWeight": "500", "color": "rgb(10, 10, 10)", "textAlign": "center" },
+  "followCaption": { "fontSize": "11.5px", "color": "rgb(87, 87, 87)" },
+  "composerBox": { "backgroundColor": "rgb(240, 240, 240)", "border": "1px solid rgb(222, 222, 222)", "borderRadius": "12px", "boxShadow": "none" },
+  "composerInput": { "fontFamily": "SF Pro Text stack", "fontSize": "14.5px", "color": "rgb(10, 10, 10)" },
+  "composerButtons": "4 buttons in composer box (scissors left; tuner, mic, black round send right)",
+  "speakerLabel": { "fontFamily": "SF Pro Text stack", "fontSize": "13px", "fontWeight": "600", "color": "rgb(10, 10, 10)" },
+  "timestampMono": { "fontFamily": "\"JetBrains Mono\", monospace", "fontSize": "11px", "color": "rgb(87, 87, 87)" },
+  "player": { "backgroundColor": "rgb(10, 10, 10)", "borderRadius": "999px", "height": 52 },
+  "liveAccent": { "color": "rgb(203, 75, 46)", "fontSize": "11.5px", "fontWeight": "500" },
+  "_sanityVsPlanAnchorTable": "ALL MATCH: pageBg #FAFAFA, panel #F0F0F0, raised #F7F7F7, hairline #DEDEDE, rail #0A0A0A/230px, Newsreader 42/500/-0.84, SF Pro Text stack, panel 347px, live #CB4B2E (rgb 203,75,46)",
+  "_notes": [
+    "Harvey float recipe (multiview panes) = white card, 16px radius, rgba(28,24,14) shadow pair — the ONE shadow family in Harvey; flat #F7F7F7+#DEDEDE bordered cards elsewhere.",
+    "Ask Atlas panel is DOCKED full-height (border-left, no shadow), gray #F0F0F0; panes float, panel does not.",
+    "Design theme cycle: Harvey → Harvey light → Warm → Black rail → Black + white; probes valid ONLY when label reads 'Theme · Harvey'.",
+    "railText #6B6862 same hue active+inactive; active differs by weight (600 vs 450) + white active-row treatment needs visual check in Task 4."
+  ]
+}

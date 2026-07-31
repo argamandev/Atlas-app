@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon } from '@/components/ds/icons'
 import { slideStubs, reportStub } from '@/lib/live/call-stubs'
+import { setSnipTarget } from '@/lib/live/snipBridge'
 import { PdfViewer } from './PdfViewer'
 import type { ChatSnip } from '@/lib/api/chat'
 
@@ -63,9 +64,11 @@ export function useFacetColumns() {
       title="Drag to resize · double-click to reset"
       className="group/div flex w-[9px] flex-none cursor-col-resize items-stretch justify-center select-none"
     >
+      {/* Harvey: the gutter itself is the gap between floating cards — no visible line
+          except the ink feedback while actually dragging */}
       <div
         className="w-px group-hover/div:w-[2px]"
-        style={{ background: dragging ? 'var(--call-ink)' : 'var(--call-hair)' }}
+        style={{ background: dragging ? 'var(--call-ink)' : 'transparent' }}
       />
     </div>
   )
@@ -74,13 +77,22 @@ export function useFacetColumns() {
 
 export function PaneHeader({ label, right }: { label: string; right?: React.ReactNode }) {
   return (
-    // FIXED 36px band — the design equalizes header heights across panes (Slides gets
-    // 6px vertical padding vs 9px, dc line 482) so every bottom hairline meets the
-    // gutters at the same y. A fixed height keeps them fitting whatever `right` holds.
-    <div className="call-hair flex h-9 flex-none items-center justify-between border-b px-[18px]">
-      {/* design pane labels are system-font caps (line 449), not mono */}
-      <span className="call-muted text-[10.5px] font-semibold uppercase tracking-[0.14em]">{label}</span>
+    // Harvey (design round 2): the label row sits ON THE BACKDROP, above the floating
+    // content card — no band, no separator line. Fixed height keeps rows level across panes.
+    <div className="flex h-[26px] flex-none items-center justify-between px-1.5">
+      {/* Harvey pane labels (probed): 12.5px, weight 700, 0.12em caps, full ink */}
+      <span className="call-ink text-[12.5px] font-bold uppercase tracking-[0.12em]">{label}</span>
       {right}
+    </div>
+  )
+}
+
+// Harvey float (design round 2, probed): the content card every pane's body lives in —
+// white, 16px, faint warm border, THE pane shadow. Label rows stay outside on the backdrop.
+export function PaneCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
+      {children}
     </div>
   )
 }
@@ -91,7 +103,11 @@ export function SlidesPane({ quarter, style }: { quarter?: string | null; style?
   const slides = slideStubs()
   const slide = slides[slideIdx % slides.length]
   return (
-    <div data-facet="slides" style={style} className="flex min-w-[280px] flex-1 flex-col overflow-hidden">
+    <div
+      data-facet="slides"
+      style={style}
+      className="flex min-w-[280px] flex-1 flex-col gap-1.5 overflow-hidden"
+    >
       <PaneHeader
         label={dict.live.slides}
         right={
@@ -116,19 +132,21 @@ export function SlidesPane({ quarter, style }: { quarter?: string | null; style?
           </span>
         }
       />
-      <div className="atscroll flex-1 overflow-auto p-[22px]">
-        <div
-          dir="rtl"
-          data-ask="1"
-          className="call-hair call-card-bg call-ink flex min-h-[260px] flex-col justify-center rounded-lg border p-[34px]"
-        >
-          <div className="call-muted mb-3 font-mono-num text-[11px] uppercase tracking-[0.14em]" dir="rtl">
-            {[quarter, `${dict.live.slideLabel} ${slideIdx + 1}`].filter(Boolean).join(' · ')}
+      <PaneCard>
+        <div className="atscroll flex-1 overflow-auto p-[22px]">
+          <div
+            dir="rtl"
+            data-ask="1"
+            className="call-hair call-ink flex min-h-[260px] flex-col justify-center rounded-lg border bg-white p-[34px]"
+          >
+            <div className="call-muted mb-3 font-mono-num text-[11px] uppercase tracking-[0.14em]" dir="rtl">
+              {[quarter, `${dict.live.slideLabel} ${slideIdx + 1}`].filter(Boolean).join(' · ')}
+            </div>
+            <div className="mb-3.5 font-display text-[23px]">{slide.title}</div>
+            <div className="text-[14.5px] leading-[1.9]">{slide.body}</div>
           </div>
-          <div className="mb-3.5 font-display text-[23px]">{slide.title}</div>
-          <div className="text-[14.5px] leading-[1.9]">{slide.body}</div>
         </div>
-      </div>
+      </PaneCard>
     </div>
   )
 }
@@ -162,6 +180,23 @@ export function ReportPane({
   const [zoom, setZoom] = useState(100)
   // Pinge: scissors arms snip mode on the PDF; one snip per arming.
   const [snipArmed, setSnipArmed] = useState(false)
+  // Design round 2: the Ask Atlas composer carries a second scissors — it arms THIS pane's
+  // snip mode from across the tree (same window-event bridge as atlas:rail-collapse).
+  useEffect(() => {
+    const arm = () => setSnipArmed(true)
+    window.addEventListener('atlas:arm-snip', arm)
+    return () => window.removeEventListener('atlas:arm-snip', arm)
+  }, [])
+  // …and the composer's scissors is ENABLED only while a REAL doc is snippable here
+  // (stub fallback = no target; the button still renders, visibly disabled).
+  // Depend on the derived boolean, not on [doc, onSnip]: onSnip is an unmemoized function
+  // declaration in the parent, so those deps changed identity on EVERY parent render and
+  // pushed a false→true blip through the global store many times a second during a live call.
+  const snippable = Boolean(doc && onSnip)
+  useEffect(() => {
+    setSnipTarget(snippable)
+    return () => setSnipTarget(false)
+  }, [snippable])
   const zoomBy = (dir: 1 | -1) =>
     setZoom((z) => {
       const i = ZOOM_STEPS.indexOf(z)
@@ -226,7 +261,11 @@ export function ReportPane({
   }, [companyId, quarter])
 
   return (
-    <div data-facet="report" style={style} className="flex min-w-[300px] flex-1 flex-col overflow-hidden">
+    <div
+      data-facet="report"
+      style={style}
+      className="flex min-w-[300px] flex-1 flex-col gap-1.5 overflow-hidden"
+    >
       <PaneHeader
         label={dict.live.report}
         right={
@@ -323,38 +362,44 @@ export function ReportPane({
           </span>
         }
       />
-      <div ref={scrollRef} onScroll={trackPage} className="atscroll flex-1 overflow-auto p-[22px]">
-        {doc ? (
-          <PdfViewer
-            docId={doc.id}
-            pageCount={doc.pageCount}
-            zoom={zoom}
-            onAskSelection={onAskSelection}
-            snipArmed={snipArmed}
-            onSnip={(s, anchor) => {
-              setSnipArmed(false) // one snip per arming
-              onSnip?.(s, anchor)
-            }}
-            onSnipCancel={() => setSnipArmed(false)}
-            onSnipError={onSnipError}
-          />
-        ) : (
-          <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
-            {/* the stub card is FABRICATED content (also the fetch-error fallback) — always say so */}
-            <span className="call-hair call-muted mb-4 inline-block rounded-full border px-2.5 py-1 text-[11px] font-medium">
-              {dict.live.demoContent}
-            </span>
-            <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
-            <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
-            {report.paragraphs.map((p) => (
-              <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
-                {p}
-              </p>
-            ))}
-            <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
-          </div>
-        )}
-      </div>
+      <PaneCard>
+        <div ref={scrollRef} onScroll={trackPage} className="atscroll flex-1 overflow-auto p-[22px]">
+          {doc ? (
+            <PdfViewer
+              docId={doc.id}
+              pageCount={doc.pageCount}
+              zoom={zoom}
+              onAskSelection={onAskSelection}
+              snipArmed={snipArmed}
+              onSnip={(s, anchor) => {
+                setSnipArmed(false) // one snip per arming
+                onSnip?.(s, anchor)
+              }}
+              onSnipCancel={() => setSnipArmed(false)}
+              onSnipError={onSnipError}
+            />
+          ) : (
+            <div
+              dir="rtl"
+              data-ask="1"
+              className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8"
+            >
+              {/* the stub card is FABRICATED content (also the fetch-error fallback) — always say so */}
+              <span className="call-hair call-muted mb-4 inline-block rounded-full border px-2.5 py-1 text-[11px] font-medium">
+                {dict.live.demoContent}
+              </span>
+              <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
+              <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
+              {report.paragraphs.map((p) => (
+                <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
+                  {p}
+                </p>
+              ))}
+              <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
+            </div>
+          )}
+        </div>
+      </PaneCard>
     </div>
   )
 }

@@ -25,7 +25,7 @@ import {
   SlidesIcon,
   FileIcon,
 } from '@/components/ds/icons'
-import { PaneHeader, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
+import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -79,7 +79,6 @@ export function LiveTranscriptView({
 
   const [tab, setTab] = useState('transcript')
   // V2 (Claude Design): call view is dark-first with a Light toggle; Single|Multi facets.
-  const [callTheme, setCallTheme] = useState<'dark' | 'light'>('dark')
   const [view, setView] = useState<'single' | 'multi'>('single')
   // Multi view composes facets: ALL chips are ×-removable (founder round-3: transcript too —
   // audio keeps playing without it); the last visible facet can't be removed.
@@ -435,11 +434,11 @@ export function LiveTranscriptView({
 
   const segTogBtn = (on: boolean) =>
     `rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-      on ? 'bg-ink text-white dark-toggle-on' : 'call-muted hover:call-ink'
+      on ? 'bg-ink text-white' : 'call-muted hover:call-ink'
     }`
 
   return (
-    <div data-call-theme={callTheme} className="flex h-full min-h-0 flex-1">
+    <div className="call-bg call-ink flex h-full min-h-0 flex-1">
       {/* context panel — chapters/sections + speakers (RTL Hebrew). Minimizes to a thin rail while the
           in-transcript chat is open (one click from returning), instead of unmounting. */}
       <TranscriptSidePanel
@@ -458,7 +457,8 @@ export function LiveTranscriptView({
       {/* main column — identity header, facet controls, transcript (design lines 251-296) */}
       <div className="relative flex min-w-0 flex-1 flex-col">
         {/* identity header (63px): tile · title · mono date — Dark/Light · Ask Atlas · close */}
-        <header className="call-hair flex h-[63px] flex-none items-center justify-between gap-3 border-b px-6">
+        {/* Harvey: flat identity header — no separator line (design h 58, pad 26) */}
+        <header className="flex h-[58px] flex-none items-center justify-between gap-3 px-[26px]">
           <div className="flex min-w-0 items-center gap-2.5" dir="ltr">
             <Logo src={call.logoUrl} name={title} size={30} className="rounded-[7px]" />
             <span className="call-ink max-w-[460px] truncate text-[13.5px] font-semibold">
@@ -478,26 +478,6 @@ export function LiveTranscriptView({
             )}
           </div>
           <div className="flex flex-none items-center gap-3.5">
-            <div className="call-track-bg flex rounded-pill p-[3px]">
-              <button
-                type="button"
-                onClick={() => setCallTheme('dark')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  callTheme === 'dark' ? 'call-bg call-ink' : 'call-muted'
-                }`}
-              >
-                Dark
-              </button>
-              <button
-                type="button"
-                onClick={() => setCallTheme('light')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  callTheme === 'light' ? 'call-card-bg call-ink' : 'call-muted'
-                }`}
-              >
-                Light
-              </button>
-            </div>
             <button
               type="button"
               onClick={() =>
@@ -519,8 +499,10 @@ export function LiveTranscriptView({
           </div>
         </header>
 
-        {/* facet controls: Back to Overview | Transcript · Slides · Report — View Single|Multi */}
-        <div className="call-hair flex flex-none items-center justify-between border-b px-6">
+        {/* facet controls: Back to Overview | Transcript · Slides · Report — View Single|Multi.
+            Harvey (probed): the row is FLAT on the backdrop — no card, no separator; the
+            float lives in the pane cards below. */}
+        <div className="flex flex-none items-center justify-between px-6">
           <div className="flex items-center gap-[22px] text-[13.5px]">
             <button
               type="button"
@@ -560,10 +542,10 @@ export function LiveTranscriptView({
                         setTab(key)
                       }
                     }}
-                    className={`flex items-center gap-[7px] rounded-full px-[11px] py-[5px] text-[12.5px] transition-colors ${
+                    className={`flex items-center gap-[7px] rounded-full border px-[11px] py-[5px] text-[12.5px] transition-colors ${
                       active
-                        ? 'call-raised-bg call-ink border border-transparent font-semibold'
-                        : 'call-hair call-muted border font-medium hover:call-ink'
+                        ? 'call-hair call-panel-bg call-ink font-semibold'
+                        : 'call-hair call-muted font-medium hover:call-ink'
                     }`}
                   >
                     <span className={`flex ${active ? 'call-ink' : 'call-muted'}`}>
@@ -686,8 +668,8 @@ export function LiveTranscriptView({
               <button
                 type="button"
                 onClick={() => setView('single')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  view === 'single' ? 'call-bg call-ink' : 'call-muted'
+                className={`rounded-pill px-3 py-[5px] text-[12px] font-medium transition-colors ${
+                  view === 'single' ? 'bg-ink text-paper' : 'call-muted'
                 }`}
               >
                 {dict.live.viewSingle}
@@ -695,8 +677,8 @@ export function LiveTranscriptView({
               <button
                 type="button"
                 onClick={() => setView('multi')}
-                className={`rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
-                  view === 'multi' ? 'call-bg call-ink' : 'call-muted'
+                className={`rounded-pill px-3 py-[5px] text-[12px] font-medium transition-colors ${
+                  view === 'multi' ? 'bg-ink text-paper' : 'call-muted'
                 }`}
               >
                 {dict.live.viewMulti}
@@ -708,12 +690,16 @@ export function LiveTranscriptView({
         {/* body — Single: the active facet; Multi: Transcript | Slides | Report side by side.
             Design line 443: columns keep min-widths and the ROW scrolls horizontally instead
             of squishing — this is what keeps text from reflowing when the chat dock opens. */}
-        <div className="atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+        <div
+          className={`atscroll flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-2 ${
+            view === 'multi' ? 'bg-desktop' : ''
+          }`}
+        >
           {(view === 'multi' ? multiFacets.has('transcript') : tab === 'transcript') && (
             <div
               data-facet="transcript"
               style={view === 'multi' ? { flex: `${colFlex.transcript} 1 0px` } : undefined}
-              className="flex min-w-[340px] flex-1 flex-col overflow-hidden"
+              className="flex min-w-[340px] flex-1 flex-col gap-1.5 overflow-hidden"
             >
               <PaneHeader
                 label={dict.live.transcript}
@@ -730,29 +716,31 @@ export function LiveTranscriptView({
                   ) : undefined
                 }
               />
-              <div
-                className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-4"
-                data-ask="1"
-                onMouseUp={onTextSelect}
-                onScroll={() => selection && setSelection(null)}
-              >
-                {!call.transcript.hasWordTimings && (
-                  <p className="call-panel-bg call-muted mb-4 rounded-md px-3 py-2 text-xs">
-                    {dict.live.noWordTimings}
-                  </p>
-                )}
-                <TranscriptBody
-                  transcript={call.transcript}
-                  activeIndex={activeIndex}
-                  autoScroll={autoScroll}
-                  onWordClick={seek}
-                  karaoke={call.transcript.hasWordTimings && isActiveCall}
-                  onRenameSpeaker={renameSpeaker}
-                  searchMatches={matches}
-                  activeMatch={matches[matchPos] ?? -1}
-                  followLabel={dict.live.backToPlaying}
-                />
-              </div>
+              <PaneCard>
+                <div
+                  className="atscroll relative min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-4"
+                  data-ask="1"
+                  onMouseUp={onTextSelect}
+                  onScroll={() => selection && setSelection(null)}
+                >
+                  {!call.transcript.hasWordTimings && (
+                    <p className="call-panel-bg call-muted mb-4 rounded-md px-3 py-2 text-xs">
+                      {dict.live.noWordTimings}
+                    </p>
+                  )}
+                  <TranscriptBody
+                    transcript={call.transcript}
+                    activeIndex={activeIndex}
+                    autoScroll={autoScroll}
+                    onWordClick={seek}
+                    karaoke={call.transcript.hasWordTimings && isActiveCall}
+                    onRenameSpeaker={renameSpeaker}
+                    searchMatches={matches}
+                    activeMatch={matches[matchPos] ?? -1}
+                    followLabel={dict.live.backToPlaying}
+                  />
+                </div>
+              </PaneCard>
             </div>
           )}
           {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}
@@ -945,6 +933,7 @@ export function LiveTranscriptView({
           seedNonce={chat.nonce}
           docRef={chat.docRef}
           snip={chat.snip}
+          snipAvailable={view === 'multi' ? multiFacets.has('report') : tab === 'report'}
           onClose={() => setChat((c) => ({ ...c, open: false, docRef: null, snip: null }))}
         />
       )}

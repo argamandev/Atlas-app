@@ -14,8 +14,8 @@ export function SectionHeader({
 }) {
   return (
     <div className={cn('flex items-center justify-between px-1', className)}>
-      {/* design section labels are SYSTEM-font caps (probed 11px/.14em/600 #8A867C), not mono */}
-      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A867C]">{label}</span>
+      {/* design section labels are SYSTEM-font caps (probed 11px/.14em/600 #767676), not mono */}
+      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#767676]">{label}</span>
       {action ? <div className="flex items-center text-ink-faint">{action}</div> : null}
     </div>
   )
