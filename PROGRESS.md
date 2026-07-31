@@ -5,6 +5,35 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-01 — Design round 2 "Harvey" SHIPPED (Lane F; reviewer-APPROVED after one fix round)
+
+**Status:** merged to `main` (`e977823`) + pushed. 16 commits, 52 files. The founder's second
+Claude Design round imported app-wide: ONE light theme replaces the whole theme-cycle system.
+
+- **The theme cycle is gone.** `data-scheme`/`atlas-scheme` and the dark-call token family
+  (`callDark`…`callFaint`) are removed; call views are now light like the rest of the app, with
+  a one-shot `localStorage` migration in `NavRail` for users carrying an old scheme. A 100-hex
+  warm→Harvey sweep was driven by the design's OWN translation table (`Atlas MVP.dc.html`
+  line 154), not by eye. New: `lib/live/snipBridge.ts` (TDD) moves the Pinge snip scissors into
+  the Ask Atlas composer, so both entry points arm the same crop.
+- **One deliberate deviation from the design, on the record:** the import's `railText` `#6B6862`
+  scored ~3.6:1 on the `#0A0A0A` rail — under WCAG AA. Founder decision: legibility wins.
+  Shipped `#85817A` = **5.109:1**, verified by real luminance math (`probe/rail-contrast.json`),
+  recorded at the token so a future parity probe does not "fix" it back to the design value.
+- **Verification (two-gate, two rounds):** round 1 returned CHANGES — 1 BLOCKER + 7 WARNING +
+  6 NIT, all 14 filed to the ready queue. The BLOCKER was an *evidence-integrity* failure, not a
+  code bug: the verification file cited a screenshot for "Ask Atlas panel visible" in which the
+  panel is closed, and the branch's headline surface had no committed visual evidence at all.
+  Lane F fixed all 14, captured the panel open in EN **and** HE, and closed both residuals it had
+  honestly carried (Gemini round-trip from a real snip; live surfaces run against a real `:8788`
+  replay engine). Round 2: APPROVED. Supervisor battery on merged main: 108/108 · tsc · build.
+- **Lesson filed:** two sessions were live on this branch at once and the supervisor killed the
+  lane's dev server after asking the founder whether the port was "leftover" — a question the
+  founder cannot answer. The supervisor must detect a live lane itself before touching anything
+  in another worktree. No work was lost. See `agent-memory/cross-cutting.md` 2026-07-31.
+
+---
+
 ## 2026-07-23 — Review-warnings sweep SHIPPED (Lane M; reviewer-APPROVED, zero findings)
 
 **Status:** merged to `main` (`78af6fe`) + pushed. All 6 earmarked reviewer WARNINGs from

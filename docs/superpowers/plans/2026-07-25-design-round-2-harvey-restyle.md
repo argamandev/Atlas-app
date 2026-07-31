@@ -1,5 +1,8 @@
 # Design Round 2 — Harvey Restyle Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md
+> + PROGRESS.md. Merged to main 2026-08-01 (`e977823`) after one reviewer fix round.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Re-skin every existing surface to the new design's Harvey aesthetic (black rail / white background / gray panels), import the new Ask Atlas panel + composer-scissors Pinge entry point, delete the theme cycle.

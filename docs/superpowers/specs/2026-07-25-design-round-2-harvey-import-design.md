@@ -1,5 +1,9 @@
 # Design Round 2 — "Harvey mode" app-wide restyle (import)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md
+> + PROGRESS.md. Merged to main 2026-08-01 (`e977823`). One deliberate deviation from this
+> spec shipped: `railText` `#85817A`, not the imported `#6B6862` (WCAG AA founder decision).
+
 **Status:** APPROVED by founder 2026-07-25 (brainstorm in Lane F session, decisions filed to
 cross-cutting.md same day). Branch `feat/design-round-2` off main (post multiview-M1 + Pinge +
 warnings sweep).

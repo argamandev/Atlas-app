@@ -211,6 +211,7 @@ pre-launch task.
 | `pcmChunker.ts` | Slices PCM audio into silence-aware chunks for IVRIT submission. Unit-tested. |
 | `wavEncode.ts` | Encodes raw PCM to WAV (44-byte header + payload). Unit-tested. |
 | `call-stubs.ts` | Design-demo live-call stubs (typed, to be replaced by real feed). Unit-tested. |
+| `snipBridge.ts` | Tiny global store letting the Ask Atlas composer arm the Report-pane snip crop (`atlas:arm-snip` event + `snippable` state) — the two snip entry points share one path. Unit-tested. |
 
 ### Other lib
 | File | What it does |
@@ -224,7 +225,7 @@ pre-launch task.
 | `transcription.ts` | **The pipeline.** IVRIT/Whisper transcription + Gemini formatting (`formatTranscript`, `parseGeminiOutput`, `parseTitleMeta`) + GPT-4.1 fallback. |
 | `correction.ts` | `KNOWN_CORRECTIONS` deterministic fixes. |
 | `i18n/` | `config`, `LocaleProvider`, `server`, `format`, `dictionaries/{en,he,index}`. |
-| `design/tokens.ts` | Design tokens in code. |
+| `design/tokens.ts` | Design tokens in code — ONE light theme ("Harvey", 2026-08-01); the theme cycle and the dark-call token family are gone. `railText` `#85817A` is a DELIBERATE deviation from the design import (WCAG AA 5.109:1 vs the design's ~3.6:1) — do not let a parity probe revert it. |
 | `design/anim.ts` | Animation helpers (keyframe curves, spring config) for `AnimCanvas`. Unit-tested. |
 | `workspace/data.ts` | Design-demo workspace feed (typed stub, to be replaced by real feed). Unit-tested. |
 | `agents/data.ts` | Design-demo agents feed (typed stub, to be replaced by real feed). Unit-tested. |
@@ -235,14 +236,15 @@ pre-launch task.
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — 104 tests as of 2026-07-23; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — 108 tests as of 2026-08-01; the list in `package.json` is explicit — add new test files there)
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
 · `live/liveTiming.test.ts` · `live/syncEngine.test.ts` · `live/search.test.ts`
 · `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts` · `live/wavEncode.test.ts`
 · `live/call-stubs.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`
 · `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
 · `documents/extract.test.ts` · `documents/snip.test.ts` · `chat/documentContext.test.ts`
-· `chat/attachments.test.ts` · `chat/history.test.ts` · `scripts/lib/measure-core.test.ts`.
+· `chat/attachments.test.ts` · `chat/history.test.ts` · `live/snipBridge.test.ts`
+· `scripts/lib/measure-core.test.ts`.
 
 ---
 
