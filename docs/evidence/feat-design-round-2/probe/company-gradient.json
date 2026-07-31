@@ -1,0 +1,13 @@
+{
+  "url": "http://localhost:3001/app/company/4404fd2e-0204-46c5-b610-2e878e1ed028",
+  "title": "Atlas",
+  "gradients": [
+    {
+      "tag": "DIV",
+      "cls": "px-[22px] py-5",
+      "bg": "linear-gradient(rgba(244, 244, 244, 0.5), rgba(244, 244, 244, 0))"
+    }
+  ],
+  "warmLeftovers": [],
+  "consoleErrors": []
+}

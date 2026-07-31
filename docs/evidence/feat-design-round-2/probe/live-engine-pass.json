@@ -1,0 +1,65 @@
+{
+  "buffering": {
+    "headerRect": {
+      "top": 0,
+      "left": 230,
+      "w": 1370,
+      "h": 58
+    },
+    "headerHeight": 58,
+    "overlayRect": {
+      "top": 930,
+      "left": 230,
+      "w": 1370,
+      "h": 70
+    },
+    "overlayTopCss": "930px",
+    "canvasRect": {
+      "top": 58,
+      "left": 230,
+      "w": 1370,
+      "h": 942
+    },
+    "gapBelowHeader": 872,
+    "bodyText": "Quick access ⌘K Home Calendar Chat Workspace Agents Profile עברית Collapse sidebar תמיס — Q2 2026 Aug 1, 2026 LIVE Ask Atlas Back to Overview Transcript Slides Report View Single Multi TRANSCRIPT LIVE · karaoke ת תמיס 0:"
+  },
+  "joined": true,
+  "playing": {
+    "headerRect": {
+      "top": 0,
+      "left": 230,
+      "w": 1370,
+      "h": 58
+    },
+    "headerHeight": 58,
+    "overlayRect": {
+      "top": 930,
+      "left": 230,
+      "w": 1370,
+      "h": 70
+    },
+    "overlayTopCss": "930px",
+    "canvasRect": null,
+    "gapBelowHeader": 872,
+    "bodyText": "Quick access ⌘K Home Calendar Chat Workspace Agents Profile עברית Collapse sidebar תמיס — Q2 2026 Aug 1, 2026 -0:42 behind the sourced Investor Call LIVE Ask Atlas Back to Overview Transcript Slides Report View Single Mu"
+  },
+  "playingProbe": {
+    "words": 0,
+    "hasOverlay": true,
+    "text": "Quick access ⌘K Home Calendar Chat Workspace Agents Profile עברית Collapse sidebar תמיס — Q2 2026 Aug 1, 2026 -0:42 behind the sourced Investor Call LIVE Ask Atlas Back to Overview Transcript Slides R"
+  },
+  "consoleErrors": [],
+  "overlayGeometry_CORRECTED": {
+    "headerHeightPx": 58,
+    "headerBottomPx": 58,
+    "overlayComputedTop": "58px",
+    "overlayZIndex": "40",
+    "overlayTopPx": 58,
+    "STRIP_GAP_PX": 0,
+    "overlayClass": "call-bg absolute inset-x-0 bottom-0 top-[58px] z-40 overflow-hidden",
+    "ringPainted": true,
+    "countdownText": null,
+    "consoleErrors": []
+  },
+  "note": "buffering.overlayRect / playing.overlayRect in this file targeted the WRONG z-40 element (a bottom bar); the authoritative measurement for FINDING #4 is overlayGeometry_CORRECTED below, anchored on the buffer canvas parent."
+}

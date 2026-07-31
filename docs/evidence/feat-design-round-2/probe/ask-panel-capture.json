@@ -1,0 +1,58 @@
+{
+  "en": {
+    "found": true,
+    "panelWidth": 347,
+    "panelHeight": 1000,
+    "bg": "rgba(0, 0, 0, 0)",
+    "dir": "ltr",
+    "composerButtons": [
+      {
+        "label": "Close",
+        "disabled": false
+      },
+      {
+        "label": "Snip to chat",
+        "disabled": true
+      },
+      {
+        "label": "Voice ask — coming soon",
+        "disabled": true
+      },
+      {
+        "label": "Save",
+        "disabled": true
+      }
+    ],
+    "consoleErrors": [],
+    "bytes": 311704,
+    "file": "C:/Users/Sagi/Desktop/Atlas-frontend/docs/evidence/feat-design-round-2/app-ask-panel-en.jpg"
+  },
+  "he": {
+    "found": true,
+    "panelWidth": 347,
+    "panelHeight": 1000,
+    "bg": "rgba(0, 0, 0, 0)",
+    "dir": "rtl",
+    "composerButtons": [
+      {
+        "label": "סגירה",
+        "disabled": false
+      },
+      {
+        "label": "גזירה לצ׳אט",
+        "disabled": true
+      },
+      {
+        "label": "שאלה קולית — בקרוב",
+        "disabled": true
+      },
+      {
+        "label": "שמירה",
+        "disabled": true
+      }
+    ],
+    "consoleErrors": [],
+    "bytes": 310008,
+    "file": "C:/Users/Sagi/Desktop/Atlas-frontend/docs/evidence/feat-design-round-2/app-ask-panel-he.jpg"
+  }
+}
