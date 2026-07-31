@@ -46,8 +46,14 @@ export const tokens = {
     paper: '#F7F7F7', // raised inputs/flat cards on white (search 52px, upcoming-calls card)
     panel: '#F0F0F0', // docked panels (Ask Atlas panel + its composer field)
     hairline: '#DEDEDE', // the 1px border on cards/inputs/panels (bordered, not shadowed)
+    floatLine: 'rgba(28,24,14,0.06)', // the faint edge on FLOATING pane cards (pairs with shadow.pane)
     rail: '#0A0A0A', // black nav rail (230px, border-right railHair)
-    railText: '#6B6862', // rail item text (active differs by weight 600 vs 450, not hue)
+    // DELIBERATE DEVIATION FROM THE IMPORT (founder decision 2026-07-31) — do NOT let a
+    // future parity probe "fix" this back to the design's #6B6862. That probed value sits at
+    // 3.57:1 on the #0A0A0A rail, under the WCAG AA 4.5:1 floor for body text; #85817A keeps
+    // the design's warm hue and measures 5.11:1 (computed, not eyeballed — the luminance math
+    // and every candidate are in docs/evidence/feat-design-round-2/probe/rail-contrast.json).
+    railText: '#85817A', // rail item text (active differs by weight 600 vs 450, not hue)
     railActive: 'rgba(255,255,255,0.10)', // active item fill (+ white text)
     railChip: 'rgba(255,255,255,0.06)', // quick-access chip fill
     railHair: 'rgba(255,255,255,0.09)', // rail hairlines / chip borders

@@ -4,8 +4,11 @@ import { setSnipTarget, getSnipTarget, subscribeSnipTarget } from './snipBridge'
 
 // The snip bridge carries "is there a real, snippable document pane mounted?" from
 // ReportPane to the Ask Atlas composer scissors (design round 2, second entry point).
-// The composer scissors must be HIDDEN when no real doc is present — rendering an
-// entry point that silently does nothing violates the visible-degradation law.
+// The composer scissors stays RENDERED and goes visibly DISABLED when no real doc is
+// present (founder round-2 note, 6661c02) — an entry point that silently did nothing
+// would violate the visible-degradation law; a disabled one does not.
+// These tests cover the store itself; the enabled/disabled binding lives in
+// TranscriptChatPanel (`disabled={!(snipAvailable && snipTarget)}`).
 
 test('starts unavailable', () => {
   setSnipTarget(false) // normalize

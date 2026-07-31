@@ -47,17 +47,12 @@ const config: Config = {
         'rail-hair': tokens.harvey.railHair,
         ask: tokens.harvey.ask,
         'ask-ink': tokens.harvey.askInk,
-        // call-* LIGHT REMAP (spec decision 3: call views go light). These aliases keep
-        // the 131 existing call-* class sites rendering during the restyle; Task 6
-        // migrates those sites onto the standard tokens and DELETES these aliases.
-        'call-dark': tokens.harvey.shell,
-        'call-panel': tokens.harvey.panel,
-        'call-raised': tokens.harvey.paper,
-        'call-hover': tokens.harvey.panel,
-        'call-track': tokens.harvey.hairline,
-        'call-ink': tokens.color.ink,
-        'call-muted': tokens.color.inkMuted,
-        'call-faint': tokens.color.inkFaint,
+        // NOTE: there are deliberately NO call-* colour aliases here. The ~131 call-*
+        // sites in the call views are plain globals.css classes (.call-ink, .call-bg …)
+        // driven by the :root --call-* vars, NOT Tailwind utilities — so bg-call-dark /
+        // text-call-ink and friends were never generated for anything and were removed
+        // in design round 2 rather than kept with inverted light values.
+        'float-line': tokens.harvey.floatLine,
         field: tokens.harvey.field,
         'field-line': tokens.harvey.fieldLine,
         'chip-bg': tokens.harvey.chipBg,

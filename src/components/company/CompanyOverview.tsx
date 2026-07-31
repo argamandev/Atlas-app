@@ -305,7 +305,10 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
           </div>
           <div
             className="px-[22px] py-5"
-            style={{ background: 'linear-gradient(180deg, rgba(242,238,230,.5), rgba(242,238,230,0))' }}
+            /* Harvey: the warm #F2EEE6 wash maps to #F4F4F4 per the design's own
+               translation table (Atlas MVP.dc.html line 154) — missed by the hex sweep
+               because it is an rgba() literal, not a hex. */
+            style={{ background: 'linear-gradient(180deg, rgba(244,244,244,.5), rgba(244,244,244,0))' }}
           >
             <div className="mb-3 flex items-center gap-[9px] font-mono-num text-[10px] uppercase tracking-[0.18em] text-[#767676]">
               {dict.company.fromTheCall}

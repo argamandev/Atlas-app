@@ -704,9 +704,11 @@ export function LiveBroadcastView({
           onClose={() => router.push('/app/home')}
         />
 
-        {/* buffering / join overlay — the design's live-buffer canvas (design lines 392-401) */}
+        {/* buffering / join overlay — the design's live-buffer canvas (design lines 392-401).
+            top-[58px] tracks the identity header's h-[58px] above — the two must move together,
+            or a strip of the facet-control row shows above the overlay. */}
         {phase !== 'playing' && (
-          <div className="call-bg absolute inset-x-0 bottom-0 top-[63px] z-40 overflow-hidden">
+          <div className="call-bg absolute inset-x-0 bottom-0 top-[58px] z-40 overflow-hidden">
             {/* the countdown lives INSIDE the canvas ring (EST. LIVE IN mm:ss) — keyed by the
                 first real remaining so the ring starts from truth, then self-ticks in sync */}
             <AnimCanvas

@@ -22,7 +22,7 @@ export function WorkspacePicker({ workspaces }: { workspaces: Workspace[] }) {
       <div className="mx-auto w-full max-w-[960px]">
         {/* header row (design lines 1071-1092) */}
         <div className="flex items-start justify-between gap-5">
-          <h1 className="font-head text-[34px] font-semibold tracking-[-0.02em] text-ink">
+          <h1 className="font-display text-[34px] font-medium tracking-[-0.02em] text-ink">
             {dict.workspace.title}
           </h1>
           <div className="flex flex-none items-center gap-4 pt-[5px]">
