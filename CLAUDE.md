@@ -41,6 +41,8 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
 
 - `ARCHITECTURE.md` — the codebase, file by file
 - `docs/VISION.md` — product vision, V1 description, roadmap
+- `docs/product/` — founder briefs for chapters not yet specced (current:
+  `2026-08-01-projects-workspace-agents-brief.md` — Projects · Workspace · Agents)
 - `docs/ENVIRONMENT.md` — how this smart environment works + the dev↔product mapping
 - `docs/LAUNCH-KIT.md` — fleet setup: worktrees + the 3 lane opening prompts
 - `PROGRESS.md` — decision log (append at ship time; compacted-era raw entries → `docs/archive/`)
