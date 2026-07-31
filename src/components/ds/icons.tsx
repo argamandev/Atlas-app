@@ -204,13 +204,8 @@ export const CollapseIcon = (p: IconProps) => (
     <path d="M13 7l-5 5 5 5M19 7l-5 5 5 5" />
   </Base>
 )
-// V2 parity: the rail Theme toggle — half-filled circle (design line 173)
-export const ThemeIcon = (p: IconProps) => (
-  <Base {...p}>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 3a9 9 0 010 18z" fill="currentColor" stroke="none" />
-  </Base>
-)
+// (ThemeIcon removed in design round 2 — Harvey is the single theme, so the rail's
+//  theme toggle and its half-filled-circle glyph are both gone.)
 export const SunIcon = (p: IconProps) => (
   <Base {...p}>
     <circle cx="12" cy="12" r="4" />

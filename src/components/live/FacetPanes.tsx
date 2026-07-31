@@ -91,7 +91,7 @@ export function PaneHeader({ label, right }: { label: string; right?: React.Reac
 // white, 16px, faint warm border, THE pane shadow. Label rows stay outside on the backdrop.
 export function PaneCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-[rgba(28,24,14,0.06)] bg-white shadow-pane">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
       {children}
     </div>
   )
@@ -103,7 +103,11 @@ export function SlidesPane({ quarter, style }: { quarter?: string | null; style?
   const slides = slideStubs()
   const slide = slides[slideIdx % slides.length]
   return (
-    <div data-facet="slides" style={style} className="flex min-w-[280px] flex-1 flex-col gap-1.5 overflow-hidden">
+    <div
+      data-facet="slides"
+      style={style}
+      className="flex min-w-[280px] flex-1 flex-col gap-1.5 overflow-hidden"
+    >
       <PaneHeader
         label={dict.live.slides}
         right={
@@ -183,12 +187,16 @@ export function ReportPane({
     window.addEventListener('atlas:arm-snip', arm)
     return () => window.removeEventListener('atlas:arm-snip', arm)
   }, [])
-  // …and the composer's scissors renders only while a REAL doc is snippable here
-  // (stub fallback = no target; a do-nothing scissors would be invisible degradation).
+  // …and the composer's scissors is ENABLED only while a REAL doc is snippable here
+  // (stub fallback = no target; the button still renders, visibly disabled).
+  // Depend on the derived boolean, not on [doc, onSnip]: onSnip is an unmemoized function
+  // declaration in the parent, so those deps changed identity on EVERY parent render and
+  // pushed a false→true blip through the global store many times a second during a live call.
+  const snippable = Boolean(doc && onSnip)
   useEffect(() => {
-    setSnipTarget(Boolean(doc && onSnip))
+    setSnipTarget(snippable)
     return () => setSnipTarget(false)
-  }, [doc, onSnip])
+  }, [snippable])
   const zoomBy = (dir: 1 | -1) =>
     setZoom((z) => {
       const i = ZOOM_STEPS.indexOf(z)
@@ -253,7 +261,11 @@ export function ReportPane({
   }, [companyId, quarter])
 
   return (
-    <div data-facet="report" style={style} className="flex min-w-[300px] flex-1 flex-col gap-1.5 overflow-hidden">
+    <div
+      data-facet="report"
+      style={style}
+      className="flex min-w-[300px] flex-1 flex-col gap-1.5 overflow-hidden"
+    >
       <PaneHeader
         label={dict.live.report}
         right={
@@ -353,35 +365,39 @@ export function ReportPane({
       <PaneCard>
         <div ref={scrollRef} onScroll={trackPage} className="atscroll flex-1 overflow-auto p-[22px]">
           {doc ? (
-          <PdfViewer
-            docId={doc.id}
-            pageCount={doc.pageCount}
-            zoom={zoom}
-            onAskSelection={onAskSelection}
-            snipArmed={snipArmed}
-            onSnip={(s, anchor) => {
-              setSnipArmed(false) // one snip per arming
-              onSnip?.(s, anchor)
-            }}
-            onSnipCancel={() => setSnipArmed(false)}
-            onSnipError={onSnipError}
-          />
-        ) : (
-          <div dir="rtl" data-ask="1" className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8">
-            {/* the stub card is FABRICATED content (also the fetch-error fallback) — always say so */}
-            <span className="call-hair call-muted mb-4 inline-block rounded-full border px-2.5 py-1 text-[11px] font-medium">
-              {dict.live.demoContent}
-            </span>
-            <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
-            <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
-            {report.paragraphs.map((p) => (
-              <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
-                {p}
-              </p>
-            ))}
-            <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
-          </div>
-        )}
+            <PdfViewer
+              docId={doc.id}
+              pageCount={doc.pageCount}
+              zoom={zoom}
+              onAskSelection={onAskSelection}
+              snipArmed={snipArmed}
+              onSnip={(s, anchor) => {
+                setSnipArmed(false) // one snip per arming
+                onSnip?.(s, anchor)
+              }}
+              onSnipCancel={() => setSnipArmed(false)}
+              onSnipError={onSnipError}
+            />
+          ) : (
+            <div
+              dir="rtl"
+              data-ask="1"
+              className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8"
+            >
+              {/* the stub card is FABRICATED content (also the fetch-error fallback) — always say so */}
+              <span className="call-hair call-muted mb-4 inline-block rounded-full border px-2.5 py-1 text-[11px] font-medium">
+                {dict.live.demoContent}
+              </span>
+              <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
+              <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
+              {report.paragraphs.map((p) => (
+                <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
+                  {p}
+                </p>
+              ))}
+              <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
+            </div>
+          )}
         </div>
       </PaneCard>
     </div>

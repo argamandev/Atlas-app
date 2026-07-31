@@ -353,7 +353,10 @@ export function TranscriptChatPanel({
               aria-label={dict.live.snip}
               onClick={armSnip}
               disabled={!(snipAvailable && snipTarget)}
-              className="call-muted grid h-[28px] w-[28px] place-items-center rounded-[8px] transition-colors enabled:hover:call-ink disabled:opacity-35"
+              /* hover ink via the Tailwind `ink` token, NOT `call-ink` — that one is a plain
+                 globals.css class, so `hover:call-ink` compiles to nothing (both resolve to
+                 #0A0A0A, so this is the same colour the class would have painted) */
+              className="call-muted grid h-[28px] w-[28px] place-items-center rounded-[8px] transition-colors enabled:hover:text-ink disabled:opacity-35"
             >
               <ScissorsIcon size={15} strokeWidth={1.8} />
             </button>
