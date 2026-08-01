@@ -22,6 +22,12 @@ export const tokens = {
     ink: '#0A0A0A', // primary: names, headers, key values (Harvey near-black, neutral)
     inkMuted: '#575757', // secondary: roles, labels, body copy
     inkFaint: '#767676', // metadata: timestamps, section labels, captions
+    // Fourth (faintest) text tier — added 2026-08-01 for the Projects/Workspace/Agents
+    // import, which distinguishes section labels from timestamps from mono counts.
+    // The design's own warm→Harvey table (Atlas MVP.dc.html:157) leaves --c-A19C90 /
+    // --c-B0AB9E / --c-C2BCAF UNSET, so they fall back to WARM literals in the rendered
+    // design; this neutral stands in for all three. Deliberate — do not "fix" to beige.
+    inkGhost: '#9C9C9C',
 
     // the single high-contrast element: the docked media player
     player: '#0A0A0A', // matches the black nav rail (founder round-3: one continuous chrome)
