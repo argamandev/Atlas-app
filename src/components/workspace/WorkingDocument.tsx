@@ -24,9 +24,32 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
   const { docHtml, setDocHtml } = useDemoState()
   const bodyRef = useRef<HTMLDivElement>(null)
   const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
 
-  // Locale-dependent, so the in-quote marker is never English-only. `html` is a
-  // string, so the effect below still compares by value and seeds exactly once.
+  // Disabling the PDF row removed the menu's only closing affordance (both rows are
+  // inert now), so it needs its own — same idiom as the sort menu in WorkspacePicker.
+  useEffect(() => {
+    if (!exportOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExportOpen(false)
+    }
+    window.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDown)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [exportOpen])
+
+  // Locale-dependent, so a FRESH seed is never English-only. `html` is a string, so
+  // the effect below still compares by value and seeds exactly once.
+  // Known limit: once the user edits, the seeded HTML is persisted into docHtml, and
+  // switching locale afterwards replays the stored marker in the language it was
+  // seeded in. The marker is still there, just not re-localized — acceptable because
+  // this whole fabricated block disappears when the backend serves real quotes.
   const html = docHtml[workspaceId] ?? seedHtml(dict)
 
   // Seed once; afterwards the DOM is the source of truth while editing, so we do
@@ -131,7 +154,7 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
             fake-success class rules/app.md exists to stop. The banner at the top
             of the page already states what is true about this document. */}
 
-        <div className="relative">
+        <div ref={exportRef} className="relative">
           <button
             type="button"
             onClick={() => setExportOpen((o) => !o)}
@@ -145,9 +168,10 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
               {/* NEITHER export is implemented this chapter — both say so rather
                   than render a dead or, worse, a HARMFUL button.
                   PDF used to call window.print(). On this layout (h-screen +
-                  overflow-hidden frame, document inside an overflow-auto pane, no
-                  @media print rules) that emits ONE page clipped to the current
-                  scroll offset. Scrolled to the quote it dropped the demo notice —
+                  overflow-hidden frame, document inside an overflow-auto pane) that
+                  emits ONE page clipped to the current scroll offset. globals.css:488
+                  DOES have an @media print block — it just contains nothing that
+                  unclips this frame, so do not read its existence as a fix. Scrolled to the quote it dropped the demo notice —
                   which sits at the top of the pane — and kept the fabricated quote
                   with its filing-shaped cite line, exporting invented words
                   attributed to a real named executive with no marker at all.

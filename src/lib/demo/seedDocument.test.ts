@@ -25,7 +25,7 @@ for (const [name, dict] of LOCALES) {
     assert.ok(html.includes(dict.demo.inlineHint), `the ${name} demo hint must appear in the seeded document`)
   })
 
-  test(`[${name}] the marker is INSIDE the quote block, so it travels with the quote`, () => {
+  test(`[${name}] the marker is INSIDE the attribution line, so it travels with the quote`, () => {
     const html = seedHtml(dict)
     const start = html.indexOf('<blockquote')
     const end = html.indexOf('</blockquote>')
@@ -38,7 +38,27 @@ for (const [name, dict] of LOCALES) {
       block.includes(dict.demo.inlineLabel),
       `the ${name} marker must live inside the blockquote, not merely somewhere on the page`
     )
-    assert.ok(block.includes('<cite'), 'the marker rides on the attribution line')
+
+    // Reviewer NIT, round 3: asserting `<cite>` merely EXISTS let the marker sit on a
+    // sibling <p> and still pass. The claim is that the marker rides on the attribution
+    // line, so scope the assertion to the <cite> itself.
+    const cite = block.slice(block.indexOf('<cite'), block.indexOf('</cite>'))
+    assert.ok(cite.length > 0, 'the quote must carry an attribution line')
+    assert.ok(
+      cite.includes(dict.demo.inlineLabel) && cite.includes(dict.demo.inlineHint),
+      `the ${name} marker must be in the <cite>, not merely somewhere in the blockquote`
+    )
+  })
+
+  test(`[${name}] mixed-direction runs in the attribution are bdi-isolated`, () => {
+    // `dir="auto"` resolves from the FIRST strong character — the Hebrew name — so an
+    // un-isolated English marker rendered right-aligned with its final period orphaned
+    // to the visual start of the line. Iron rule 5. Same remedy as the "sheets 4" fix.
+    const html = seedHtml(dict)
+    const cite = html.slice(html.indexOf('<cite'), html.indexOf('</cite>'))
+    assert.ok(cite.includes(`<bdi>${dict.demo.inlineLabel}`), 'the marker run must be isolated')
+    assert.ok(cite.includes('<bdi>CEO</bdi>'), 'the Latin role run must be isolated')
+    assert.ok(cite.includes('<bdi>מוטי בן־ארי</bdi>'), 'the Hebrew name run must be isolated')
   })
 }
 
@@ -54,5 +74,7 @@ test('the attribution still names its fabricated source, so the marker has somet
   // If the quote block is ever rewritten without a cite, the markers above become
   // decoration on nothing — fail loudly rather than pass vacuously.
   const html = seedHtml(en)
-  assert.match(html, /<cite[^>]*>[^<]*CEO[^<]*<\/cite>/)
+  const cite = html.slice(html.indexOf('<cite'), html.indexOf('</cite>'))
+  assert.ok(cite.includes('CEO'), 'the fabricated attribution must still name a role')
+  assert.ok(cite.includes('מוטי בן־ארי'), 'the fabricated attribution must still name its speaker')
 })

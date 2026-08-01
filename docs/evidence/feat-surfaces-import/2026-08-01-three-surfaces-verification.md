@@ -12,7 +12,7 @@ in a screenshot where it was closed.
 
 | Check | Result |
 |---|---|
-| `npm test` | **152/152** on the current tip (108 before this chapter → 132 with this branch's 24 → 149 with the gate's 17 → 152 with 3 agent-seed tests added in the founder rounds) |
+| `npm test` | **160/160** on the current tip (108 before this chapter → 132 with this branch's 24 → 149 with the gate's 17 → 152 with 3 agent-seed tests in the founder rounds → 158 with the round-2 export-marker tests → 160 with the round-3 bidi tests) |
 | `npx tsc --noEmit` | green |
 | `npm run build` | green (see §6) |
 | Console errors, EN | **0** across 11 surfaces, measured at the 149-test tip |
@@ -193,7 +193,7 @@ Known deltas left standing, deliberately:
 - The expand/collapse glyphs are corner-brackets and chevrons; the design uses
   diagonal arrows.
 
-Battery after this round: **152/152** (149 + 3 new agent-seed tests) · tsc · build
+Battery after **that** round: **152/152** (149 + 3 new agent-seed tests) · tsc · build
 green. The build first failed with `MODULE_NOT_FOUND` on `_document` — the
 documented "dev server owns `.next`" trap, not a broken branch; killed dev, removed
 `.next`, rebuilt green, restarted dev on :3001.
@@ -274,12 +274,23 @@ persistence is this repo's filed fake-data defect class.
 - **NEITHER export is implemented** — both rows render disabled with "Not in this build"
   rather than as dead buttons. **Export as PDF was disabled in the round-2 re-gate**: it had
   called `window.print()`, which on this layout (`h-screen` + `overflow-hidden` frame, document
-  inside an `overflow-auto` pane, no `@media print` rules) emits one page clipped to the current
-  scroll offset — dropping the demo notice and exporting the fabricated quote unmarked. A correct
-  Hebrew PDF needs a server-side render per `.claude/rules/app.md`; that is a feature, not a
-  stopgap, so the honest state is "not in this build". Note a residual the app cannot control: a
-  plain browser Ctrl+P still prints the clipped view, which is why the localized marker was
-  restored **inside** the `<cite>` rather than relying on the notice alone.
+  inside an `overflow-auto` pane) emits one page clipped to the current scroll offset — dropping
+  the demo notice and exporting the fabricated quote unmarked. (`globals.css:488` *does* contain
+  an `@media print` block, corrected below; it simply contains nothing that unclips this frame.)
+  A correct Hebrew PDF needs a server-side render per `.claude/rules/app.md`; that is a feature,
+  not a stopgap, so the honest state is "not in this build".
+- **CORRECTION (review round 3, 2026-08-01) — the residual is not fully closed.** This section
+  previously said the in-`<cite>` marker covers "a plain browser Ctrl+P". **Overstated.** The
+  round-3 reviewer rebuilt the layout from the real `seedHtml(he)`, the real `.atlas-doc` CSS and
+  the repo's own `@media print` block, and swept the pane's scroll offset through Chromium
+  `page.pdf()` + pdfjs: there is a **~28px band (scrollTop 350–378 of a 1605px range)** where the
+  print clip lands **between the quote and its cite line**, printing the fabricated Hebrew quote
+  with neither marker. It is materially milder than the original BLOCKER — the attribution is
+  clipped too, so no invented words are attributed to the named executive — and it is
+  user-initiated rather than app-initiated, which is why the gate returned WARNING and not a
+  re-BLOCK. Recorded rather than smoothed over: the app cannot fully control the browser's own
+  print, and the real fix is that this fabricated block disappears once retrieval serves real
+  quotes. This was the **third** round spent on this one element; see §11.
 - **CORRECTION (review round, 2026-08-01).** This section previously asserted that "the
   workspace side-chat reuses the existing Ask Atlas component" and that Pinge's
   highlight-to-ask was reused. **Neither is in the branch** — nothing under
