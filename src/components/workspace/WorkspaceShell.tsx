@@ -186,9 +186,9 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                       <span dir="auto" className="truncate text-[13px] font-semibold text-ink">
                         {docTitle(workspace)}
                       </span>
-                      <span className="text-[11px] text-ink-ghost">
-                        {dict.workspace.docDraftMeta.replace('{when}', dict.workspace.savedJustNow)}
-                      </span>
+                      {/* "Draft", not "saved just now" — nothing saves, and the
+                          timestamp was static anyway. */}
+                      <span className="text-[11px] text-ink-ghost">{dict.workspace.docDraftMeta}</span>
                     </span>
                   </button>
 

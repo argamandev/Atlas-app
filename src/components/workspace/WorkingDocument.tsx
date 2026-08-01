@@ -13,9 +13,13 @@ import { ChevronDownIcon } from '@/components/ds/icons'
 // editor library this chapter, because a real document model would lock in how
 // citations are stored BEFORE the backend chapter decides that.
 //
-// Content is FABRICATED (invented financials for a real TASE issuer, and a quote
-// attributed to a named executive), so the citation block carries an inline demo
-// marker on top of the page-level banner.
+// Content is FABRICATED — invented financials for a real TASE issuer, and a
+// quote attributed to a NAMED executive of that issuer. That is the most
+// dangerous element on the branch, so its marker deliberately lives OUTSIDE the
+// editable body: a marker inside `contentEditable` can be deleted by the user
+// (and rides out through Export as PDF once it is), and hardcoding it in
+// SEED_HTML made it English-only, so a Hebrew reader saw no marker at all on the
+// one element most likely to be mistaken for fact.
 
 const SEED_HTML = `
 <p>Tigbur runs the ninth-largest shipping operation in the world and roughly <b>40%</b> of Israeli container throughput. The privatization tender closes in September, and the questions that decide the price are less about the fleet than about who is allowed to own it.</p>
@@ -23,7 +27,7 @@ const SEED_HTML = `
 <p>Revenue climbed every year from <b>₪1.21B</b> (2022) to <b>₪1.56B</b> (2025) — an 8.3% CAGR — while operating margin only reached 3.7%. Growth is real; it is not yet profitable growth.</p>
 <blockquote data-citation="1">
   <p dir="rtl">אנחנו מעלים את תחזית ההכנסות לשנה כולה לטווח של 1.5 עד 1.6 מיליארד שקל.</p>
-  <cite dir="ltr">מוטי בן־ארי · CEO · Q2 2026 call · Q2 2026 deck.pdf — DEMO, invented quote</cite>
+  <cite dir="ltr">מוטי בן־ארי · CEO · Q2 2026 call · Q2 2026 deck.pdf</cite>
 </blockquote>
 <h2>Open questions</h2>
 <ul>
@@ -37,7 +41,6 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
   const { dict } = useI18n()
   const { docHtml, setDocHtml } = useDemoState()
   const bodyRef = useRef<HTMLDivElement>(null)
-  const [saved, setSaved] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
 
   const html = docHtml[workspaceId] ?? SEED_HTML
@@ -51,7 +54,6 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
   function persist() {
     if (!bodyRef.current) return
     setDocHtml(workspaceId, bodyRef.current.innerHTML)
-    setSaved(true)
   }
 
   function exec(command: string, value?: string) {
@@ -140,7 +142,10 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
         </button>
 
         <span className="flex-1" />
-        {saved && <span className="me-2 text-[12px] text-ink-ghost">✓ {dict.workspace.docSaved}</span>}
+        {/* NO "saved" confirmation here. Nothing saves — edits live in session
+            state and are gone on reload. A tick that says otherwise is the
+            fake-success class rules/app.md exists to stop. The banner at the top
+            of the page already states what is true about this document. */}
 
         <div className="relative">
           <button
@@ -178,15 +183,23 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
           <h1 dir="auto" className="mb-2 font-display text-[34px] font-medium tracking-[-0.02em] text-ink">
             {title}
           </h1>
-          <div className="mb-6 flex items-center gap-2 font-mono-num text-[11.5px] text-ink-ghost">
+          <div className="mb-2 flex items-center gap-2 font-mono-num text-[11.5px] text-ink-ghost">
             <span dir="ltr">{dict.workspace.docCitations.replace('{n}', '3')}</span>
             <DemoInline />
+          </div>
+          {/* OUTSIDE contentEditable on purpose — the user cannot delete this,
+              so it survives into Export as PDF with the quote it describes. */}
+          <div
+            dir="auto"
+            className="mb-6 flex items-start gap-2 rounded-lg bg-[rgba(180,140,60,.13)] px-2.5 py-2 text-[12px] leading-[1.5] text-[#8A6A2F]"
+          >
+            <DemoInline />
+            <span>{dict.workspace.docQuoteDemo}</span>
           </div>
           <div
             ref={bodyRef}
             contentEditable
             suppressContentEditableWarning
-            onInput={() => setSaved(false)}
             onBlur={persist}
             dir="auto"
             className="atlas-doc text-[15px] leading-[1.75] text-ink outline-none"
