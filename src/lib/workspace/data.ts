@@ -1,49 +1,310 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Workspace data interface — FRONTEND-ONLY STUB (Milestone 1).
-// The Workspace page renders exclusively through this module, so wiring the real
-// backend later is a swap here, not a page rebuild. Stub content mirrors the
-// design's demo workspaces (design-import/Atlas MVP.dc.html, workspace picker).
+// Workspace data interface — FRONTEND-ONLY STUB.
+// The Workspace surfaces render exclusively through this module, so wiring the
+// real backend later is a swap here, not a page rebuild. Content is ported from
+// the design source (design-import/Atlas MVP.dc.html): workspaces seed 2493-2512,
+// sorts 3490, threads 3505-3511, agent profiles 3585-3592, sessions 3600-3615,
+// legal areas 3643, steps 3647, findings 3653-3660, system agents 3829.
+//
+// EVERYTHING BELOW IS FABRICATED demo content about real TASE issuers — invented
+// financials and legal findings carrying `src` lines shaped like real citations.
+// Every surface rendering it shows a visible demo marker in both locales, and
+// finding rows carry an inline marker. See components/ds/DemoBanner.tsx and
+// .claude/rules/app.md (degradation must be VISIBLE).
 // ─────────────────────────────────────────────────────────────────────────────
+
+export type WsFileKind = 'pdf' | 'xlsx' | 'slide'
+
+export type WsFile = {
+  id: string
+  name: string
+  kind: WsFileKind
+  year?: string
+  /** the file the workspace is currently centred on */
+  live?: boolean
+}
 
 export type Workspace = {
   id: string
   name: string
-  /** e.g. "Tigbur Group · Shipping · TASE" */
+  /** e.g. "Tigbur Group · Shipping · TASE" — kept for the picker card */
   subtitle: string
   fileCount: number
   /** relative time label, e.g. "2h ago" */
   updatedLabel: string
   /** avatar tile glyph (Hebrew initial or emoji) */
   initial: string
+  /** e.g. "Tigbur Group" / "3 companies" */
+  company: string
+  /** e.g. "Shipping · TASE" / "Sector" */
+  sub: string
+  files: WsFile[]
+  agents: string[]
+  actions: string[]
+}
+
+export type WsThreadGroup = 'Today' | 'Yesterday' | 'Earlier'
+
+export type WsThread = {
+  id: string
+  title: string
+  snippet: string
+  when: string
+  group: WsThreadGroup
+}
+
+export type WsAgent = {
+  name: string
+  ini: string
+  role: string
+  /** what it read, e.g. "6 files · 412 pages" */
+  read: string
+  when: string
+  findings: string[]
+}
+
+export type WsActionKind = 'open' | 'build' | 'agent' | 'doc'
+export type WsAction = { text: string; when: string; kind: WsActionKind }
+export type WsSession = { label: string; items: WsAction[] }
+
+export type LegalSeverity = 'flag' | 'medium' | 'clear'
+export type LegalFinding = {
+  /** display label: "Flag" | "Medium" | "Clear" */
+  sev: string
+  k: LegalSeverity
+  text: string
+  src: string
+}
+
+function withCounts(w: Omit<Workspace, 'fileCount' | 'subtitle'>): Workspace {
+  return { ...w, fileCount: w.files.length, subtitle: `${w.company} · ${w.sub}` }
 }
 
 const DEMO_WORKSPACES: Workspace[] = [
-  {
+  withCounts({
     id: 'ws-tigbur-privatization',
     name: 'Tigbur — privatization review',
-    subtitle: 'Tigbur Group · Shipping · TASE',
-    fileCount: 6,
     updatedLabel: '2h ago',
     initial: 'ת',
-  },
-  {
+    company: 'Tigbur Group',
+    sub: 'Shipping · TASE',
+    files: [
+      { id: 'a22', name: '2022 annual.pdf', kind: 'pdf', year: '2022' },
+      { id: 'a23', name: '2023 annual.pdf', kind: 'pdf', year: '2023' },
+      { id: 'a24', name: '2024 annual.pdf', kind: 'pdf', year: '2024', live: true },
+      { id: 'a25', name: '2025 annual.pdf', kind: 'pdf', year: '2025' },
+      { id: 'fin', name: 'financials.xlsx', kind: 'xlsx' },
+      { id: 'deck', name: 'Q2 2026 deck.pdf', kind: 'slide' },
+    ],
+    agents: ['Doc reader', 'Tabulator'],
+    actions: ['Opened 4 reports', 'Built financials.xlsx'],
+  }),
+  withCounts({
     id: 'ws-qualitau-q2',
     name: 'Qualitau — Q2 deep dive',
-    subtitle: 'Qualitau · Semis · TASE',
-    fileCount: 2,
     updatedLabel: 'yesterday',
     initial: 'ק',
-  },
-  {
+    company: 'Qualitau',
+    sub: 'Semis · TASE',
+    files: [
+      { id: 'q24', name: '2024 annual.pdf', kind: 'pdf', year: '2024' },
+      { id: 'q25', name: '2025 annual.pdf', kind: 'pdf', year: '2025' },
+    ],
+    agents: ['Doc reader'],
+    actions: ['Opened 2 reports'],
+  }),
+  withCounts({
     id: 'ws-shipping-scan',
     name: 'Shipping sector scan',
-    subtitle: '3 companies · Sector',
-    fileCount: 1,
     updatedLabel: '4d ago',
     initial: '⚓',
+    company: '3 companies',
+    sub: 'Sector',
+    files: [{ id: 's1', name: 'peer comparison.xlsx', kind: 'xlsx' }],
+    agents: ['Tabulator'],
+    actions: ['Built comparison.xlsx'],
+  }),
+]
+
+export const WS_SORTS = {
+  updated: 'Last updated',
+  name: 'Name',
+  files: 'File count',
+} as const
+export type WsSortKey = keyof typeof WS_SORTS
+
+export const WS_THREADS: WsThread[] = [
+  {
+    id: 'c1',
+    title: 'Compare FY24 vs FY25 revenue',
+    snippet: 'Revenue rose every year — ₪1.21B → ₪1.56B, a +8.3% CAGR.',
+    when: '2m ago',
+    group: 'Today',
+  },
+  {
+    id: 'c2',
+    title: 'Who is actually bidding?',
+    snippet: 'Three consortia filed; two carry sovereign-fund money.',
+    when: '09:12',
+    group: 'Today',
+  },
+  {
+    id: 'c3',
+    title: 'The 2023 restatement',
+    snippet: 'Three line items were restated — freight, port fees, D&A.',
+    when: '17:40',
+    group: 'Yesterday',
+  },
+  {
+    id: 'c4',
+    title: 'Draft questions for the Q3 call',
+    snippet: 'Six questions, ordered by what the CFO has dodged before.',
+    when: '16:55',
+    group: 'Yesterday',
+  },
+  {
+    id: 'c5',
+    title: 'Union agreement obligations',
+    snippet: 'No-layoff undertaking runs to 2029 and survives a sale.',
+    when: 'Jun 24',
+    group: 'Earlier',
   },
 ]
 
+export const WS_THREAD_GROUPS: readonly WsThreadGroup[] = ['Today', 'Yesterday', 'Earlier'] as const
+
+export const WS_AGENT_PROFILES: Record<string, Omit<WsAgent, 'name'>> = {
+  'Doc reader': {
+    ini: 'DR',
+    role: 'Reads & structures filings',
+    read: '6 files · 412 pages',
+    when: '2h ago',
+    findings: ['Normalised 4 annual reports into one schema', 'Flagged 3 restated line items in FY2023'],
+  },
+  Tabulator: {
+    ini: 'TB',
+    role: 'Builds comparable tables',
+    read: 'financials.xlsx · 4 years',
+    when: '2h ago',
+    findings: ['Revenue CAGR +8.3% (2022→2025)', 'Operating margin improved to 3.7%'],
+  },
+  'Legal analyst': {
+    ini: 'LA',
+    role: 'Regulatory & contract review',
+    read: '6 files + 14 public filings',
+    when: 'just now',
+    findings: [
+      'Two open proceedings before the Antitrust Authority',
+      'Change-of-control clause in the Haifa port concession',
+    ],
+  },
+}
+
+export const SYSTEM_AGENTS = ['Doc reader', 'Tabulator', 'Risk scanner', 'Translator', 'Note-taker'] as const
+
+export const WS_SESSIONS: WsSession[] = [
+  {
+    label: 'This session · today',
+    items: [
+      { text: 'Opened 2024 annual.pdf', when: '09:41', kind: 'open' },
+      { text: 'Started the document “Tigbur — what we know”', when: '09:38', kind: 'doc' },
+    ],
+  },
+  {
+    label: 'Yesterday',
+    items: [
+      { text: 'Compared FY2024 and FY2025 side by side', when: '17:02', kind: 'open' },
+      { text: 'Built financials.xlsx from 4 reports', when: '16:20', kind: 'build' },
+      { text: 'Deployed the Tabulator agent', when: '16:14', kind: 'agent' },
+    ],
+  },
+  {
+    label: 'Jun 24',
+    items: [
+      { text: 'Opened דוח ועד העובדים.pdf', when: '11:47', kind: 'open' },
+      { text: 'Cited the CEO guidance quote in the document', when: '11:30', kind: 'doc' },
+      { text: 'Workspace created from the Q2 2026 call', when: '10:02', kind: 'build' },
+    ],
+  },
+]
+
+export const LEGAL_AREAS = ['Litigation', 'Regulatory', 'Contracts & liens', 'Ownership & control'] as const
+
+export const LEGAL_STEPS = [
+  'Reading 6 workspace files',
+  'Pulling 14 public filings & court records',
+  'Checking regulatory exposure',
+  'Reviewing contracts, liens & concessions',
+  'Drafting findings',
+] as const
+
+export const LEGAL_FINDINGS: LegalFinding[] = [
+  {
+    sev: 'Flag',
+    k: 'flag',
+    text: 'The Haifa port concession carries a change-of-control clause — the state may reopen terms on any transfer above 25%.',
+    src: '2024 annual.pdf · note 14',
+  },
+  {
+    sev: 'Flag',
+    k: 'flag',
+    text: 'Two open proceedings before the Israel Competition Authority relating to 2023 pricing on the Ashdod–Limassol lane.',
+    src: 'Public register · filed 2025-11-03',
+  },
+  {
+    sev: 'Medium',
+    k: 'medium',
+    text: 'Sovereign-fund holdings behind the leading bidder trigger a foreign-investment review under the 2022 advisory committee rules.',
+    src: 'דוח ועד העובדים.pdf · p. 6',
+  },
+  {
+    sev: 'Medium',
+    k: 'medium',
+    text: 'Fleet financing includes a maritime lien on four vessels; consent required before any share transfer.',
+    src: 'financials.xlsx · Debt schedule',
+  },
+  {
+    sev: 'Medium',
+    k: 'medium',
+    text: 'Collective agreement runs to 2029 with a no-layoff undertaking that survives a sale.',
+    src: '2025 annual.pdf · note 9',
+  },
+  {
+    sev: 'Clear',
+    k: 'clear',
+    text: 'No outstanding environmental enforcement actions; last inspection closed without findings.',
+    src: 'Ministry register · 2026-02',
+  },
+]
+
+/** Severity ink + wash, exactly as the design defines them (SEV, design line 3652). */
+export const LEGAL_SEVERITY_STYLE: Record<LegalSeverity, { color: string; background: string }> = {
+  flag: { color: '#B0533E', background: 'rgba(203,75,46,.10)' },
+  medium: { color: '#8A6A2F', background: 'rgba(180,140,60,.13)' },
+  clear: { color: '#4F7A52', background: 'rgba(79,122,82,.11)' },
+}
+
 export async function getWorkspaces(): Promise<Workspace[]> {
   return DEMO_WORKSPACES
+}
+
+export async function getWorkspace(id: string): Promise<Workspace | null> {
+  return DEMO_WORKSPACES.find((w) => w.id === id) ?? null
+}
+
+/** A workspace the user just created: no files, so it lands in the intake flow. */
+export function emptyWorkspace(id: string, name: string): Workspace {
+  return {
+    id,
+    name,
+    subtitle: 'Untitled · Draft',
+    fileCount: 0,
+    updatedLabel: 'just now',
+    initial: '+',
+    company: 'Untitled',
+    sub: 'Draft',
+    files: [],
+    agents: [],
+    actions: [],
+  }
 }
