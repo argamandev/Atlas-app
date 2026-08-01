@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (!user && requiresAuth(request.nextUrl.pathname)) {
-    const origin = resolveOrigin(request.headers, request.nextUrl.origin)
+    const origin = resolveOrigin(request.headers, request.nextUrl.origin, process.env.NEXT_PUBLIC_SITE_HOST)
     const target = loginRedirectTarget(request.nextUrl.pathname, request.nextUrl.search)
     return NextResponse.redirect(new URL(target, origin))
   }
