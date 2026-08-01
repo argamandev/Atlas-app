@@ -131,6 +131,34 @@ design's own layout behaviour, e.g. the suggestion chips: the design fits two on
 the first row at the docked width, mine fitted one until the chip type dropped to
 12px/11px padding (measured: 159 + 156 on row 1, 193 on row 2, panel 380px).
 
+**Correction round, same afternoon (`abb1556`).** The founder compared the built
+panel against his own reference capture and caught three things:
+
+1. **The panel opened cold rendered findings straight away; the design shows a
+   hero.** Serif "Ask anything of" over the agent name in mono, the description,
+   and the three suggestions as **plain stacked text** rather than pills. Findings
+   arrive with the first exchange — which is exactly what "Show me what you found"
+   asks for — so asking a suggestion moves the panel into the conversation view.
+   The miss is instructive: I built the populated state from a *recent-chat*
+   capture and never opened an agent cold, so I never saw that the empty state is
+   a different **layout**, not the same layout with less in it.
+2. **Company is a scope again, alongside Sector** (founder call): pointing an agent
+   at one issuer and at a whole sector are different jobs. Five kinds now →
+   `Call / Workspace / Company / Sector / Report`. The panel lays them out 3-up;
+   the create modal still fits one row. Measured in both locales: dock 110px each,
+   modal 88px each, Hebrew uniform 31px height, nothing clipped or wrapped.
+3. **Widen / narrow use the design's diagonal double-arrows** (new
+   `ExpandDiagonalIcon` / `CollapseDiagonalIcon`); the corner-bracket `ExpandIcon`
+   stays where it is used elsewhere.
+
+The scope test added earlier **failed** on the new list rather than passing
+silently — the test doing its job — and was updated deliberately.
+
+Note on method: coordinate-driven clicking became unreliable when the browser
+window changed size mid-session (a click landed on Close instead of Widen once).
+The correction round was walked with DOM-driven clicks instead, which is what the
+recorded results above come from.
+
 Known deltas left standing, deliberately:
 
 - The chat pill is 672px wide (Lane M's existing composer width); the design's is
