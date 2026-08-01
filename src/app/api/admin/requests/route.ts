@@ -2,30 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 import { createServerSupabase } from '@/lib/supabase'
+import { resolveUser } from '@/lib/auth/verifyUser'
 
 export const dynamic = 'force-dynamic'
 
+// Returns the verified user when they are an admin, else null. resolveUser()
+// revalidates the token with Supabase — getSession() only re-read the cookie,
+// which an attacker supplies.
 async function requireAdmin() {
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) return null
+  const user = await resolveUser(supabase)
+  if (!user) return null
 
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single()
+  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
 
-  return profile?.role === 'admin' ? session : null
+  return profile?.role === 'admin' ? user : null
 }
 
 // GET — list all pending requests
 export async function GET() {
-  const session = await requireAdmin()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const admin = await requireAdmin()
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data, error } = await supabaseAdmin
     .from('access_requests')
@@ -38,8 +36,8 @@ export async function GET() {
 
 // POST — approve or reject a request
 export async function POST(req: NextRequest) {
-  const session = await requireAdmin()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const admin = await requireAdmin()
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { requestId, action } = (await req.json()) as { requestId: string; action: 'approve' | 'reject' }
 
@@ -69,7 +67,7 @@ export async function POST(req: NextRequest) {
     .update({
       status: action === 'approve' ? 'approved' : 'rejected',
       reviewed_at: new Date().toISOString(),
-      reviewed_by: session.user.id,
+      reviewed_by: admin.id,
     })
     .eq('id', requestId)
 
