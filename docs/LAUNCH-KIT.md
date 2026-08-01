@@ -151,11 +151,14 @@ C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md. Your private memory is
 C:/Users/Sagi/Desktop/Atlas/agent-memory/state-multiview.md — read at start, write before
 walking away.
 
-FIRST, A HOUSEKEEPING BLOCKER: your worktree holds its OWN .mcp.json, last written 2026-07-16,
-carrying a Supabase token that was REVOKED on 2026-08-01. When your Supabase tools say "Please
-provide a valid access token", that is a revoked token, not a missing one. Ask the founder for
-the new value (you may not read or write it yourself), then /mcp reconnect and VERIFY WITH A
-REAL QUERY — `claude mcp list` ✓ only proves the server started.
+NOT A BLOCKER AFTER ALL (corrected 2026-08-02): this prompt used to open by telling you your
+Supabase token was revoked and to go ask the founder for a new one. It is not — Lane M verified
+its own token with a real query, and the supervisor independently verified the supervisor
+checkout's. Do NOT spend the founder's time asking for a token you already have. The general
+rule still stands if a Supabase tool ever DOES error with "Please provide a valid access token":
+that message means a REVOKED or ROTATED token, not a missing one, `.mcp.json` is per-checkout so
+a rotation is not global, you may not read or write the value yourself, and after any change you
+VERIFY WITH A REAL QUERY — `claude mcp list` ✓ only proves the server started.
 
 MISSION: make Workspaces, Projects and Agents REAL — persistence and ownership. Lane F imported
 all three surfaces as full-fidelity UI on 2026-08-01, and they persist NOTHING: session state

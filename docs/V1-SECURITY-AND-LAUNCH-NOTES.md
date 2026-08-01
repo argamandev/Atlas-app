@@ -27,8 +27,12 @@ change — read the dates. Current state:
 ## Must-fix BEFORE launch (security)
 
 0. **🔴 `getSession()` verifies nothing — switch `lib/auth.ts` and `requireAdmin` to `getUser()`.**
-   THE top security item (found 2026-08-01). `getRequestUserId` :23, `getCurrentUser` :40 and
-   `requireAdmin` (`/api/admin/requests`) all resolve the user via `supabase.auth.getSession()`,
+   THE top security item (found 2026-08-01). **FIVE call sites, not the three recorded here until
+   2026-08-02** — counted with `git grep -n "auth\.getSession()" -- src`, after the same wrong
+   number was found copied across four documents: `getRequestUserId` :23, `getCurrentUser` :40,
+   `requireAdmin` (`/api/admin/requests`) :13, **and `api/transcripts/[id]/route.ts` :92 + :136**,
+   the PUT edit-rights check `docs/DATA-MODEL.md` calls load-bearing. All five
+   resolve the user via `supabase.auth.getSession()`,
    which in auth-js 2.105.4 reads the session out of the COOKIE — shape check plus an
    `expires_at` the cookie itself supplies, no signature check, no network call. A forged cookie
    carrying a known user UUID passes, and the routes then query with `supabaseAdmin`, which

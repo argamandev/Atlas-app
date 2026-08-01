@@ -173,8 +173,11 @@ backends. `getRequestUserId`, `getCurrentUser` and `requireAdmin` resolve the us
 `getSession()`, which reads it out of the cookie with no signature check — so a forged cookie
 passes, and the routes then query with the service-role client, bypassing RLS. All three
 features here are per-user data behind RLS, and RLS is worth nothing if the user id is
-attacker-supplied. Switching those three call sites to `getUser()` is the top security item
-(`.claude/rules/app.md`, and item 0 of `docs/V1-SECURITY-AND-LAUNCH-NOTES.md`). Three routes
+attacker-supplied. Switching those call sites to `getUser()` is the top security item
+(`.claude/rules/app.md`, and item 0 of `docs/V1-SECURITY-AND-LAUNCH-NOTES.md`). **There are FIVE
+of them, not the three this brief said until 2026-08-02** — the two missed sites are
+`api/transcripts/[id]/route.ts` :92 + :136, the PUT edit-rights check `docs/DATA-MODEL.md` calls
+load-bearing. Three routes
 still have no auth at all: `PATCH …/speakers`, `PATCH …/diarization`, `POST /api/live/finish`.
 
 ## Open questions for the brainstorm

@@ -16,9 +16,14 @@
   never `getSession()` (trusts an attacker-controlled cookie); and validate `?next=` with
   `safeNextPath()` before redirecting, or the gate becomes an open redirect. Keep
   `config.matcher` in sync with `GATED_PREFIXES`.
-- **🔴 API AUTH IS NOT TRUSTWORTHY YET — `getSession()` does not verify anything.** Every
-  server-side auth helper (`lib/auth.ts` `getRequestUserId` :23 + `getCurrentUser` :40, and
-  `requireAdmin` in `/api/admin/requests`) resolves the user via `supabase.auth.getSession()`.
+- **🔴 API AUTH IS NOT TRUSTWORTHY YET — `getSession()` does not verify anything.** **FIVE call
+  sites, not the three this rule claimed until 2026-08-02** — the count had been carried by hand
+  through this rule, the board, the founder brief and the security notes, and every copy was
+  wrong. From `git grep -n "auth\.getSession()" -- src` on main: `lib/auth.ts` `getRequestUserId`
+  :23 + `getCurrentUser` :40, `requireAdmin` in `/api/admin/requests` :13, **and
+  `api/transcripts/[id]/route.ts` :92 + :136** — the last being the PUT edit-rights check that
+  `docs/DATA-MODEL.md` flags as load-bearing, so a partial fix would have left the most
+  consequential one live. All five resolve the user via `supabase.auth.getSession()`.
   In auth-js 2.105.4 that reads the session **out of the cookie** — a shape check plus an
   `expires_at` the cookie itself supplies — with NO signature check and NO network call
   (`GoTrueClient.__loadSession`). Supabase wraps the returned user in a warning proxy on the
