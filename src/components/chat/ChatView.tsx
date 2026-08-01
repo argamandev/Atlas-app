@@ -196,8 +196,11 @@ export function ChatView({
         }}
         reference={quote}
         onRemoveReference={() => setQuote(null)}
+        variant={empty ? 'tall' : 'pill'}
       />
-      <p className="mt-2 px-1 text-center text-2xs text-ink-faint">{dict.chat.slashHint}</p>
+      {/* The hint teaches / and @ on the opening screen. Once the thread is
+          running the pill drops it, per the founder's 2026-08-01 design. */}
+      {empty && <p className="mt-2 px-1 text-center text-2xs text-ink-faint">{dict.chat.slashHint}</p>}
     </div>
   )
 

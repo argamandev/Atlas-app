@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { PlusIcon, AtIcon, SlashIcon, ArrowUpIcon, CloseIcon } from '@/components/ds/icons'
+import { PlusIcon, AtIcon, SlashIcon, ArrowUpIcon, CloseIcon, MicIcon } from '@/components/ds/icons'
 import { cn, detectDir } from '@/lib/utils'
 
 // Chat composer (brief §5.3.1). When a `reference` (a quoted transcript excerpt) is present it
@@ -20,6 +20,7 @@ export function ChatComposer({
   inputRef,
   reference,
   onRemoveReference,
+  variant = 'tall',
 }: {
   value: string
   onChange: (v: string) => void
@@ -30,19 +31,32 @@ export function ChatComposer({
   /** a referenced transcript quote → shown as the header above the white input card */
   reference?: string | null
   onRemoveReference?: () => void
+  /**
+   * 'tall' (default) is the composer every existing caller renders.
+   * 'pill' is the founder's 2026-08-01 shape for a conversation that has already
+   * started — one fully-rounded bar. A pending `reference` always falls back to
+   * 'tall', because the quote header needs the box to sit on.
+   */
+  variant?: 'tall' | 'pill'
 }) {
   const { dict } = useI18n()
   const localRef = useRef<HTMLTextAreaElement>(null)
   const ref = inputRef ?? localRef
   const hasContent = value.trim().length > 0
+  const pill = variant === 'pill' && !reference
 
-  // auto-grow
+  // auto-grow — the pill is a fixed-height bar, so it must not run there
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    if (pill) {
+      // drop any height the tall layout measured, or it survives the switch
+      el.style.height = ''
+      return
+    }
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`
-  }, [value, ref])
+  }, [value, ref, pill])
 
   // The white input area — shared between the plain (no-reference) and nested (sleeve) layouts.
   const inputArea = (
@@ -101,6 +115,55 @@ export function ChatComposer({
       </div>
     </>
   )
+
+  // Pill: one fully-rounded bar. The @ and / buttons are gone by design — both
+  // characters are still typed straight into the input, and the mention dropdown
+  // still fires from onChange, so nothing about mentions changes here.
+  if (pill) {
+    return (
+      <div className="flex h-[46px] w-full items-center gap-2.5 rounded-full border border-field-line bg-paper ps-[15px] pe-[7px] shadow-soft transition-shadow focus-within:border-[#C9C9C9] focus-within:shadow-[0_0_0_3px_rgba(201,201,201,0.28)]">
+        <button
+          type="button"
+          aria-label="Add"
+          className="flex flex-none text-ghost transition-colors hover:text-ink"
+        >
+          <PlusIcon size={18} strokeWidth={1.7} />
+        </button>
+        <textarea
+          ref={ref}
+          rows={1}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDownCapture={onKeyDownCapture}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              onSend()
+            }
+          }}
+          placeholder={dict.chat.askAnything}
+          className="min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-[14.5px] leading-[22px] text-ink outline-none placeholder:text-ink-faint"
+        />
+        <button
+          type="button"
+          aria-label="Dictate"
+          className="flex flex-none text-ink-faint transition-colors hover:text-ink"
+        >
+          <MicIcon size={17} strokeWidth={1.6} />
+        </button>
+        <button
+          type="button"
+          onClick={onSend}
+          aria-label="Send"
+          // solid at all times in the pill, per the design — unlike the tall
+          // composer above, which greys out until there is something to send
+          className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-ink text-paper transition-colors hover:bg-black"
+        >
+          <ArrowUpIcon size={15} strokeWidth={2} />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div
