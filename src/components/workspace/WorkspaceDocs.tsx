@@ -84,7 +84,7 @@ export function WorkspaceDocs({
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-[0_8px_26px_-18px_rgba(28,24,14,.30),0_1px_3px_rgba(28,24,14,.05)]">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
       {/* tab bar — fixed height so the seam aligns with the side-chat header */}
       <div className="flex h-[46px] flex-none items-center gap-1 border-b border-hairline px-2">
         <div className="atscroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">

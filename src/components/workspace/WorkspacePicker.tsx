@@ -83,7 +83,7 @@ export function WorkspacePicker() {
                   />
                 </button>
                 {sortOpen && (
-                  <div className="absolute top-[calc(100%+8px)] z-20 flex min-w-[152px] flex-col rounded-[10px] border border-hairline bg-canvas p-[5px] shadow-[0_16px_36px_-18px_rgba(28,24,14,.42)] ltr:right-0 rtl:left-0">
+                  <div className="absolute top-[calc(100%+8px)] z-20 flex min-w-[152px] flex-col rounded-[10px] border border-hairline bg-canvas p-[5px] shadow-menu ltr:right-0 rtl:left-0">
                     {(Object.keys(WS_SORTS) as WsSortKey[]).map((k) => {
                       const on = sort === k
                       return (

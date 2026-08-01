@@ -1,0 +1,53 @@
+{
+  "capturedBy": "Lane F (feat/surfaces-import)",
+  "date": "2026-08-01",
+  "method": "getComputedStyle probes on the RENDERED design (design-import/ served on :4321) vs the app on :3001. Bundle CSS was never consulted (rules/app.md).",
+  "designSource": "design-import/Atlas MVP.dc.html, 409413 bytes",
+  "probes": {
+    "workspaceFloatCard": {
+      "note": "The floating workspace panel + main card (design lines 1439, 1714).",
+      "design": {
+        "panelWidthPx": 290,
+        "borderRadius": "16px",
+        "borderColor": "rgba(28, 24, 14, 0.06)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "boxShadow": "rgba(28, 24, 14, 0.3) 0px 8px 26px -18px, rgba(28, 24, 14, 0.05) 0px 1px 3px 0px"
+      },
+      "app": {
+        "panelWidthPx": 290,
+        "borderRadius": "16px",
+        "borderColor": "rgba(28, 24, 14, 0.06)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "boxShadow": "rgba(28, 24, 14, 0.3) 0px 8px 26px -18px, rgba(28, 24, 14, 0.05) 0px 1px 3px 0px"
+      },
+      "verdict": "EXACT. The app string additionally carries Tailwind's two inert ring placeholders (rgba(0,0,0,0) 0 0 0 0), which paint nothing.",
+      "foundDuringProbe": "The float shadow was MISSING entirely before this probe: an arbitrary Tailwind class with multi-layer rgba() silently compiled to nothing. Replaced with the existing shadow.pane token, which is byte-identical to the design recipe. Panel width was 312 -> corrected to the probed 290."
+    },
+    "projectCard": {
+      "note": "Projects list card (design line 1107).",
+      "design": { "backgroundColor": "#F7F7F7", "borderColor": "#DEDEDE", "borderRadius": "10px", "padding": "17px" },
+      "app": { "backgroundColor": "rgb(247, 247, 247)", "borderColor": "rgb(222, 222, 222)", "borderRadius": "10px", "padding": "17px" },
+      "verdict": "EXACT"
+    },
+    "headlineStacks": {
+      "note": "The design mixes TWO headline stacks and this was measured, not assumed.",
+      "headFontVariable": "'Newsreader',Georgia,serif",
+      "projectsH1": { "design": "resolves --head-font -> Newsreader serif", "app": "font-display (Newsreader)", "verdict": "EXACT after correction" },
+      "workspacePickerH1": {
+        "design": "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif @ 34px / 600 (HARDCODED at design line 1269, does NOT use --head-font)",
+        "app": "font-sans @ 34px / 600",
+        "verdict": "MATCH in practice — -apple-system resolves first on macOS and both fall to Segoe UI on Windows.",
+        "flag": "This REVERSES a design-round-2 change that put this H1 on Newsreader for app-wide consistency. The new design source is explicit that this one headline is sans. Founder call."
+      }
+    },
+    "railTextDeviation": {
+      "note": "tokens.harvey.railText stays #85817A (5.109:1) — the deliberate WCAG AA deviation from design round 2. NOT touched by this import.",
+      "verdict": "PRESERVED"
+    },
+    "unmappedWarmHexes": {
+      "note": "Five hexes the new design regions use are UNSET in the design's own [data-scheme=harvey] block (line 157), so the rendered design falls back to WARM literals there.",
+      "hexes": ["--c-F0ECE3", "--c-A19C90", "--c-B0AB9E", "--c-C2BCAF", "--c-EDE8DE"],
+      "decision": "Mapped to the nearest Harvey token by ROLE rather than ported verbatim, which would have put beige onto Harvey cards (the round-2 stray-warm-hex finding). Faintest text tier became the new tokens.harvey.inkGhost #9C9C9C. Filed in agent-memory/cross-cutting.md."
+    }
+  }
+}

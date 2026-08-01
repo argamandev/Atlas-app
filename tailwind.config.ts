@@ -108,6 +108,9 @@ const config: Config = {
         float: tokens.shadow.float,
         window: tokens.shadow.window,
         popover: tokens.shadow.popover,
+        menu: tokens.shadow.menu,
+        modal: tokens.shadow.modal,
+        hairlift: tokens.shadow.hairlift,
         player: tokens.shadow.player,
       },
       fontSize: {

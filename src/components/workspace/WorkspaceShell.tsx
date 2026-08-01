@@ -77,7 +77,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
       <DemoBanner />
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         {panelOpen ? (
-          <div className="flex w-[312px] flex-none flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-[0_8px_26px_-18px_rgba(28,24,14,.30),0_1px_3px_rgba(28,24,14,.05)]">
+          <div className="flex w-[290px] flex-none flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
             {detail ? (
               <WorkspaceDetailColumn
                 workspace={workspace}
@@ -247,7 +247,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
             type="button"
             onClick={() => setPanelOpen(true)}
             title={dict.workspace.expandPanel}
-            className="flex w-9 flex-none items-center justify-center rounded-win border border-float-line bg-canvas text-ink-ghost shadow-[0_8px_26px_-18px_rgba(28,24,14,.30)] hover:text-ink"
+            className="flex w-9 flex-none items-center justify-center rounded-win border border-float-line bg-canvas text-ink-ghost shadow-pane hover:text-ink"
           >
             <ChevronRightIcon size={16} strokeWidth={1.8} className="rtl:rotate-180" />
           </button>

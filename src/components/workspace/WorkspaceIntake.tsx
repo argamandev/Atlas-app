@@ -41,7 +41,7 @@ export function WorkspaceIntake({ workspaceName }: { workspaceName: string }) {
 
   const composer = (
     <div className="px-8 pb-[26px]">
-      <div className="mx-auto flex max-w-[720px] items-center gap-3 rounded-[14px] border border-hairline bg-paper px-3.5 py-3 shadow-[0_1px_3px_rgba(28,27,25,.06),0_8px_24px_rgba(28,27,25,.04)]">
+      <div className="mx-auto flex max-w-[720px] items-center gap-3 rounded-[14px] border border-hairline bg-paper px-3.5 py-3 shadow-soft">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -94,7 +94,7 @@ export function WorkspaceIntake({ workspaceName }: { workspaceName: string }) {
               <p className="mb-[26px] max-w-[460px] text-center text-[15px] leading-[1.55] text-ink-muted">
                 {dict.workspace.intakeSub}
               </p>
-              <div className="w-full rounded-2xl border border-hairline bg-paper px-4 py-3.5 shadow-[0_1px_3px_rgba(28,27,25,.06),0_8px_24px_rgba(28,27,25,.04)]">
+              <div className="w-full rounded-2xl border border-hairline bg-paper px-4 py-3.5 shadow-soft">
                 <input
                   autoFocus
                   value={draft}

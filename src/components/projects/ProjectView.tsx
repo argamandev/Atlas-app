@@ -245,7 +245,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
 
             {/* right rail */}
             <div className="min-w-[290px] max-w-[360px] flex-[1_1_320px]">
-              <div className="overflow-hidden rounded-[14px] border border-hairline bg-canvas shadow-[0_1px_3px_rgba(28,24,14,.04)]">
+              <div className="overflow-hidden rounded-[14px] border border-hairline bg-canvas shadow-hairlift">
                 {/* Instructions */}
                 <div className="border-b border-hairline px-4 py-[15px]">
                   <div className="mb-2 flex items-center justify-between gap-2.5">

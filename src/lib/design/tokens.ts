@@ -97,6 +97,12 @@ export const tokens = {
     float: '0 24px 70px -20px rgba(20,18,15,0.16), 0 2px 8px -2px rgba(20,18,15,0.07)',
     window: '0 24px 64px -16px rgba(0,0,0,0.28), 0 2px 8px -2px rgba(0,0,0,0.10)',
     popover: '0 12px 36px -8px rgba(0,0,0,0.22), 0 2px 6px -2px rgba(0,0,0,0.10)',
+    // Three-surfaces import (2026-08-01): the design's own menu + modal lifts,
+    // ported as tokens rather than arbitrary Tailwind classes — an arbitrary
+    // multi-layer shadow silently compiled to NOTHING and the float lost its lift.
+    menu: '0 16px 36px -18px rgba(28,24,14,0.42), 0 1px 3px rgba(28,24,14,0.06)',
+    modal: '0 30px 70px -30px rgba(28,24,14,0.50), 0 2px 6px rgba(28,24,14,0.06)',
+    hairlift: '0 1px 3px rgba(28,24,14,0.04)',
     player: '0 16px 48px -12px rgba(0,0,0,0.42), 0 2px 8px -2px rgba(0,0,0,0.24)',
   },
 

@@ -71,7 +71,7 @@ export function CreateAgent({
         role="dialog"
         aria-modal="true"
         onMouseDown={(e) => e.stopPropagation()}
-        className="atscroll max-h-full w-full max-w-[520px] overflow-auto rounded-[18px] border border-hairline bg-canvas px-7 pb-[22px] pt-[26px] shadow-[0_30px_70px_-30px_rgba(28,24,14,.5),0_2px_6px_rgba(28,24,14,.06)]"
+        className="atscroll max-h-full w-full max-w-[520px] overflow-auto rounded-[18px] border border-hairline bg-canvas px-7 pb-[22px] pt-[26px] shadow-modal"
       >
         <div className="mb-5 flex items-start justify-between gap-3.5">
           <div className="min-w-0">

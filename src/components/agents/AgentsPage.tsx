@@ -127,7 +127,7 @@ export function AgentsPage({
                       </button>
 
                       {menuFor === a.id && (
-                        <div className="absolute inset-x-2.5 top-[calc(100%-6px)] z-30 rounded-[11px] border border-hairline bg-canvas p-[5px] shadow-[0_16px_36px_-18px_rgba(28,24,14,.42),0_1px_3px_rgba(28,24,14,.06)]">
+                        <div className="absolute inset-x-2.5 top-[calc(100%-6px)] z-30 rounded-[11px] border border-hairline bg-canvas p-[5px] shadow-menu">
                           <button
                             type="button"
                             onClick={() => {

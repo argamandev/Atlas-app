@@ -152,7 +152,7 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
             <ChevronDownIcon size={13} strokeWidth={2} />
           </button>
           {exportOpen && (
-            <div className="absolute top-[calc(100%+6px)] z-30 min-w-[180px] rounded-[10px] border border-hairline bg-canvas p-1.5 shadow-[0_16px_36px_-18px_rgba(28,24,14,.42)] ltr:right-0 rtl:left-0">
+            <div className="absolute top-[calc(100%+6px)] z-30 min-w-[180px] rounded-[10px] border border-hairline bg-canvas p-1.5 shadow-menu ltr:right-0 rtl:left-0">
               <button
                 type="button"
                 onClick={() => {
