@@ -106,7 +106,15 @@ third time. What that class actually is, stated plainly because it recurred:
   in the document used to sequence the next chapter. Round 4: `docs/V1-SECURITY-AND-LAUNCH-NOTES.md`
   still opened with "deliberately public … not in the `src/middleware.ts` matcher" — in the same
   file this branch had already edited six lines lower, and the file `ARCHITECTURE.md` now points
-  deployers at. The sweep is now done by grepping the falsified claim across every tracked doc;
+  deployers at. Round 5 then caught a fourth class the first three had in common: **the birth
+  documents.** `agent-memory/BOARD.md` and the lane state files are GIT-IGNORED, so "grep the
+  tracked docs" is structurally blind to exactly the files a new session is born from — and one
+  of them was rewritten *during* the round-4 fix pass while still carrying the stale claim.
+  Worse, `state-frontend.md` taught Lane F that `/app/*` captures fine unauthenticated, a recipe
+  this branch invalidated: an anonymous capture now silently yields a screenshot OF THE LOGIN
+  PAGE, which would pass as evidence because it is a real screenshot of a real page. Flagged to
+  Lane F by the dated supervisor note the parallel-work law permits.
+  The sweep is now: grep the falsified claim across every tracked doc **AND `agent-memory/`**;
   the surviving hits are `docs/superpowers/plans/2026-07-02-smart-environment.md` (carries the
   SHIPPED banner, and the line sits inside a fenced quote of the then-current CLAUDE.md),
   `PROGRESS.md` (a dated 2026-07-02 log entry) and `agent-memory/cross-cutting.md` (append-only

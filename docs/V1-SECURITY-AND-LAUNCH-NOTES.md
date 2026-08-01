@@ -12,8 +12,10 @@ change — read the dates. Current state:
   (`fix/app-login-gate`, 2026-08-01). `/print/[id]` had been server-rendering whole transcripts
   to anyone holding the URL; `GET /api/live/finished-call/[id]` returned the same payload as
   JSON and was closed with it.
-- 🔴 **But a session is not verified** — see item 0 below. The gate uses `getUser()`; every
-  other auth check in the app uses `getSession()`, which believes the cookie. So the product is
+- 🔴 **But a session is not verified** — see item 0 below. The gate uses `getUser()`, and the
+  `Authorization: Bearer` branch of `getRequestUserId` genuinely verifies too; but every
+  COOKIE-based auth check — which is every browser request — goes through `getSession()`, which
+  believes the cookie. So the product is
   no longer *open*, but it is not yet *secure*. Do not read the gate as launch-ready.
 - Everything below this line still stands unless marked otherwise:
 - `POST /api/chat` is **unauthenticated, unbounded, and uncapped** (expensive Opus calls).
