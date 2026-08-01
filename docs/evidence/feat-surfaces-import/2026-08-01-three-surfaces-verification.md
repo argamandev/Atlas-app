@@ -105,17 +105,69 @@ a filing-shaped citation. It renders with the attribution line explicitly ending
 7. A stray English sentence was rendering inside the Hebrew file preview.
 8. `"1 files"` → `"1 file"` in the agent target list.
 
+## 4b. Founder round 2 — 2026-08-01 afternoon (commits `634fe0a`, `65a6235`, `597e4c2`)
+
+The founder walked the three surfaces, then re-cut the design. `Atlas MVP.dc.html`
+was edited remotely at **11:18Z** (version `1785587677358929`), after the 03:23
+local import. Four changes came out of that:
+
+| Ask | What shipped |
+|---|---|
+| Workspaces headline in serif | `font-display`. This **closes the founder call in §5** — see below. |
+| A new workspace showed two composers | The bottom bar is gated to the *clarify* stage. Intro shows only the centred composer, exactly as the design does. |
+| New agent-chat aesthetic, "copy it one for one" | `AgentDock` rebuilt: segmented tabs with the active half solid ink, sparkle header, snip/tools/mic composer row, helper line, live suggestion chips, "Recent agent chats", and Widen taking the whole main area. Scopes became Call / Workspace / **Sector** / Report. |
+| Pill composer after the first message | Shared `ds/PillComposer` + a `variant` prop on Lane M's `ChatComposer`. Empty chat keeps the tall composer; the thread and the workspace clarify stage get the pill. |
+
+**Verification method — and its one limit.** The design source could NOT be
+re-fetched to disk this round: `DesignSync.get_file` caps at 256 KiB and the file
+is 419 KB, Chrome's Local Network Access permission blocks an HTTPS page from
+POSTing to a localhost receiver, and content returned from the claude.ai origin
+through the browser tool is filtered. Parity was therefore established the way
+rules/app.md actually mandates — against the **rendered** design, driven live in
+the design app's present mode (`?present=1`), state by state. What that costs:
+the design renders in a cross-origin iframe, so computed styles could not be
+probed. Geometry was measured **on the app side** and reconciled against the
+design's own layout behaviour, e.g. the suggestion chips: the design fits two on
+the first row at the docked width, mine fitted one until the chip type dropped to
+12px/11px padding (measured: 159 + 156 on row 1, 193 on row 2, panel 380px).
+
+Known deltas left standing, deliberately:
+
+- The chat pill is 672px wide (Lane M's existing composer width); the design's is
+  ~727px and sits slightly wider than its message column. Changing it would move
+  the empty-state composer too, which the founder did not ask for.
+- The workspace clarify chips still read "Latest investor deck" / "Annual reports"
+  where the design says "Including the Q2 2026 deck" / "Including ועד העובדים
+  report". Pre-existing from the first import, not part of this round's asks.
+- The expand/collapse glyphs are corner-brackets and chevrons; the design uses
+  diagonal arrows.
+
+Battery after this round: **152/152** (149 + 3 new agent-seed tests) · tsc · build
+green. The build first failed with `MODULE_NOT_FOUND` on `_document` — the
+documented "dev server owns `.next`" trap, not a broken branch; killed dev, removed
+`.next`, rebuilt green, restarted dev on :3001.
+
+Checked with my own eyes, both locales: agents page with Recent chats, the docked
+panel, the widened panel, the workspace picker headline, intake intro (one
+composer), intake clarify (pill), chat empty (tall) and chat after send (pill).
+Hebrew RTL mirrors correctly in the new pill — `+` on the start edge, mic and send
+on the end edge — and the agent panel docks to the left with Hebrew tabs and
+`הדגמה` markers intact.
+
 ## 5. Headline stacks — measured, not assumed
 
 `--head-font` resolves to `'Newsreader',Georgia,serif` in the rendered design, so every
 headline that uses `var(--head-font)` is **serif**. Projects' H1, the project title and
 the create-agent modal title were built on the sans stack and were corrected.
 
-**One deliberate divergence needing a founder call:** the Workspaces picker H1 is
-*hardcoded* to the apple sans stack at weight 600 (design line 1269) — it does not use
-`--head-font`. Matching the design therefore moves that H1 off Newsreader, reversing a
-design-round-2 consistency fix. The design is internally inconsistent here; this import
-reproduces it faithfully. Probe: `probe/surfaces-parity.json`.
+**The one divergence that needed a founder call is CLOSED (2026-08-01, same day).**
+It was: the Workspaces picker H1 was *hardcoded* to the apple sans stack at weight 600
+(design line 1269) rather than resolving `--head-font`, so matching the design moved that
+H1 off Newsreader and reversed a design-round-2 consistency fix. This import reproduced it
+faithfully and flagged it rather than "fixing" it silently. The founder's answer was to
+rebuild the headline in the design **as serif**, and the app followed in `65a6235` — so the
+design is no longer internally inconsistent and parity and consistency now agree. Filed as a
+DECISION line in `agent-memory/cross-cutting.md`. Original probe: `probe/surfaces-parity.json`.
 
 `tokens.harvey.railText = #85817A` (the deliberate WCAG AA deviation) was **not** touched.
 
