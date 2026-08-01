@@ -141,44 +141,99 @@ with word timings → karaoke renders in sync, with the invariants unit-tested.
 ### 📑 Lane M — paste into the Atlas-multiview session
 
 ```
-You are Lane M — multiview-backend — of the Atlas fleet. Your worktree is
-C:\Users\Sagi\Desktop\Atlas-multiview, branch feat/multiview-backend, dev port 3003
-(npm run dev -- -p 3003). Before anything: read CLAUDE.md, .claude/rules/parallel-work.md,
-.claude/rules/db.md, and the board at C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md.
-Your private memory is C:/Users/Sagi/Desktop/Atlas/agent-memory/state-multiview.md — read at
-start, write before walking away.
+You are Lane M — workspace-backend — of the Atlas fleet. Your worktree is
+C:\Users\Sagi\Desktop\Atlas-multiview, dev port 3003 (npm run dev -- -p 3003). Your worktree
+currently holds the merged branch fix/review-warnings: START A FRESH BRANCH OFF MAIN
+(git fetch origin && git checkout main && git pull && git checkout -b feat/workspace-backend).
+Before anything: read CLAUDE.md, .claude/rules/parallel-work.md, .claude/rules/db.md,
+.claude/rules/app.md, docs/DATA-MODEL.md, and the board at
+C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md. Your private memory is
+C:/Users/Sagi/Desktop/Atlas/agent-memory/state-multiview.md — read at start, write before
+walking away.
 
-MISSION: build the multi-view backend — the functionality that lets a user open a company's
-quarterly report PDF and slides beside the transcript, scroll them, MARK TEXT INSIDE THE PDF,
-and Ask Atlas about the marked passage (the exact UX the transcript already has via
-TranscriptBody selection → TranscriptChatPanel → /api/chat). THE DESIGN GLUE ALREADY EXISTS
-on main (shipped 2026-07-14): the call view has Single|Multi facet views with drag-resize
-gutters (src/components/live/FacetPanes.tsx) and the Slides/Report panes render STUB cards
-from src/lib/live/call-stubs.ts — your deliverable is real data flowing behind those typed
-stub interfaces, not new UI. You build the engine: (1) document ingest+store (Supabase
-Storage + an additive documents table — append the migration to
-agent-memory/cross-cutting.md before applying, see rules/db.md);
-(2) per-page text extraction persisted server-side; (3) pdf.js (pdfjs-dist is already in
-node_modules) rendering with a selectable text layer inside the existing Report facet pane;
-(4) selection → Ask Atlas wired through the existing /api/chat with the marked passage +
-page context.
+FIRST, A HOUSEKEEPING BLOCKER: your worktree holds its OWN .mcp.json, last written 2026-07-16,
+carrying a Supabase token that was REVOKED on 2026-08-01. When your Supabase tools say "Please
+provide a valid access token", that is a revoked token, not a missing one. Ask the founder for
+the new value (you may not read or write it yourself), then /mcp reconnect and VERIFY WITH A
+REAL QUERY — `claude mcp list` ✓ only proves the server started.
 
-DESIGN HOOK (docs/VISION.md Mission 5): shape the documents table + any chat-context changes
-so a future company_knowledge layer can slot in behind a clean interface — interface now,
-implementation later. DAY-ONE SPIKE (before anything else): your fixture is
-C:/Users/Sagi/Desktop/Atlas/local-assets/demo-report.pdf. Extract its text per page and
-verify known Hebrew strings come out in CORRECT reading order — Hebrew PDF extraction is the
-project's #1 known risk here. Post the spike verdict (clean / quirks / fallback needed) to
-the board BEFORE building the rest. SELF-VERIFICATION: /verify-app — via Chrome MCP actually
-select text inside the rendered PDF, trigger Ask Atlas, confirm the answer references the
-marked passage; verify in the REAL call view's Multi mode (Transcript|Slides|Report),
-both themes, RTL intact. Evidence goes to docs/evidence/<branch>/ in the main checkout
-(durable-evidence law, /ship lane step 6). Finish pieces with /ship; never push main.
-If stuck ~5 attempts on one problem: stop, ALERT, escalate (5-strike rule).
-MILESTONE 1: demo PDF ingested → rendered inside the Report facet pane → text marked →
-Ask Atlas answers about the marked passage, end to end in the call view. AFTER the day-one
-spike: run the brainstorming skill WITH THE FOUNDER → spec + plan in docs/superpowers/ —
-only then build the rest.
+MISSION: make Workspaces, Projects and Agents REAL — persistence and ownership. Lane F imported
+all three surfaces as full-fidelity UI on 2026-08-01, and they persist NOTHING: session state
+only, in src/lib/demo/DemoStateProvider, gone on reload. Your deliverable is that a workspace a
+user creates today is still theirs tomorrow, and is not visible to anyone else.
+
+SCOPE, decided by the founder 2026-08-01 (cross-cutting DECISION) — IN: the tables, the RLS, the
+API routes, the real read/write paths replacing the stub modules, and the getSession() → getUser()
+auth fix. EXPLICITLY OUT, do not build them and do not design yourself into needing them: the
+Maya/TASE integration (the founder connects that API separately), the vector-DB retrieval
+foundation (approved, but its own chapter), and agent EXECUTION (agents "live on the product",
+which makes deployment a hard requirement — Atlas has never been deployed and has no CI).
+An agent this chapter is a SAVED DEFINITION, not a running process.
+
+THE FOUR THINGS THAT WILL BITE YOU, all verified against the live DB, none of them guesses:
+
+1. THE DATABASE IS SHARED WITH DEPLOYED PRODUCTION TIMLUL and is additive-only. Ownership is
+   free at CREATE TABLE and a backfill dance on a live database afterwards. Every new
+   user-facing table gets ALL FOUR at creation (rules/db.md "Ownership law"): user_id uuid NOT
+   NULL REFERENCES auth.users(id) ON DELETE CASCADE — THE REAL FK, not a uuid that merely looks
+   like one · ENABLE ROW LEVEL SECURITY · a policy scoped to the owner on BOTH sides, USING
+   (auth.uid() = user_id) AND WITH CHECK (auth.uid() = user_id), granted to `authenticated` not
+   `public` · CREATE INDEX on (user_id). Half the existing schema is the BAD half — five tables
+   (chat_conversations, quotes, quote_folders, user_quotes, followed_calls) have user_id NOT NULL
+   with NO FOREIGN KEY AT ALL. chat_conversations is exactly the table Projects would naturally
+   build on. Copy transcripts' shape, not its neighbours'.
+
+2. DDL AGAINST THIS DB IS REVIEWED BEFORE IT IS APPLIED, never after. Narrowing or removing a
+   policy needs DROP/ALTER, which the destructive-SQL hook blocks — so a reviewer verdict of
+   "narrow that policy" arrives unactionable if you already ran it. Write the migration file →
+   push the branch → get it reviewed → then apply. Append to cross-cutting.md BEFORE applying.
+
+3. API AUTH IS NOT VERIFICATION-STRENGTH TODAY, and this is YOUR blocker, not a background
+   concern. getRequestUserId (src/lib/auth.ts:23), getCurrentUser (:40) and requireAdmin resolve
+   the user via supabase.auth.getSession(), which in auth-js 2.105.4 reads the session OUT OF THE
+   COOKIE — a shape check plus an expires_at the cookie itself supplies, no signature check, no
+   network call. A forged cookie carrying a known user UUID passes, and the routes then query
+   with supabaseAdmin, which BYPASSES RLS. Everything you are about to build is per-user data
+   behind RLS, and RLS is worth nothing when the user id is attacker-supplied. The fix is
+   getUser() (revalidates the token), exactly as src/middleware.ts already does. It changes the
+   auth path of every authenticated request, so it is its own commit with its own tests, and
+   THE FOUNDER ASKED TO BE AWAKE FOR IT — surface it to him before you land it.
+
+4. THE STUB TYPES ARE DISPLAY SHAPES, NOT DATA SHAPES. src/lib/workspace/data.ts,
+   src/lib/agents/data.ts and src/lib/projects/data.ts store things like updatedLabel: "2h ago",
+   when: "Yesterday", ini: "MB", initial, sub. Persisting those FREEZES a relative label in the
+   database forever. Store facts — timestamps, ids, names — and derive every label at render.
+   The stub modules are the interface to replace, not the schema to mirror.
+
+THE WORKING DOCUMENT — founder decision 2026-08-01: STRUCTURED BLOCKS WITH CITATION ANCHORS, not
+rich-text HTML in one field. Each block knows what it is, and a quote block carries a real pointer
+to its source document + page rather than text shaped like a citation. The SHAPE lands this
+chapter so it is never retrofitted; the things it points AT (Maya documents, retrieval hits)
+arrive later. A citation anchor whose source does not exist yet MUST render as visibly absent —
+never as a plausible-looking link. That is the silent-degradation class in rules/app.md, and the
+current UI already carries a live example of why it matters: the seeded working document contains
+an INVENTED Hebrew quote attributed to a NAMED real TASE executive, which cost three review
+rounds to mark honestly. Read src/lib/demo/seedDocument.ts before you touch that surface.
+
+START WITH THE BRAINSTORM, NOT WITH CODE. Run the brainstorming skill WITH THE FOUNDER → spec →
+plan in docs/superpowers/ → only then build (parallel-work law). The founder is expecting that
+conversation and has already settled scope and the document format above; what still needs
+deciding with him is the schema itself — how a workspace, its files, its threads, an agent
+definition and a project relate, and which of Lane F's stub fields are real data versus pure
+presentation. Bring him a proposed table set, not a blank page.
+
+SELF-VERIFICATION: /verify-app. For this chapter the bar is specifically TWO USERS, not one —
+create a workspace as user A, confirm it survives a reload, then confirm user B cannot see it.
+An ownership feature verified with a single account is not verified. Prove RLS by querying as the
+ANON key too, not only through the app. Evidence goes to docs/evidence/<branch>/ in the main
+checkout (durable-evidence law, /ship lane step 6).
+
+Finish pieces with /ship; append to the ready queue; NEVER push main. If stuck ~5 attempts on one
+problem: stop, ALERT to cross-cutting, escalate (5-strike rule). Counts on the board come from
+pasted git/test output, never hand-typed.
+
+MILESTONE 1: a user signs in, creates a workspace, adds something to it, closes the browser,
+comes back — and it is all still there, still theirs, and provably invisible to another account.
 ```
 
 ## Step 4 — What the supervisor (main chat) does all day
