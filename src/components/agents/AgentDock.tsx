@@ -83,7 +83,7 @@ export function AgentDock({
   }
   const label = 'mb-[7px] text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-ghost'
   const field =
-    'w-full rounded-[10px] border border-hairline bg-canvas px-3 py-2.5 text-[13px] leading-[1.6] text-ink outline-none'
+    'w-full rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[13px] leading-[1.6] text-ink outline-none'
   const iconBtn =
     'flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-faint transition-colors hover:bg-subtle hover:text-ink'
 
@@ -93,7 +93,7 @@ export function AgentDock({
 
   return (
     <aside
-      className={`flex min-w-0 flex-col bg-paper ${
+      className={`flex min-w-0 flex-col bg-canvas ${
         wide ? 'min-h-0 flex-1' : 'w-[380px] flex-none border-s border-hairline'
       }`}
     >
@@ -158,7 +158,7 @@ export function AgentDock({
         <div className="atscroll min-h-0 flex-1 overflow-auto px-[18px] pb-[18px]">
           <div className={column}>
             <div className={label}>{dict.agents.agentName}</div>
-            <div className="mb-4 flex items-center gap-2 rounded-[10px] border border-hairline bg-canvas px-[11px] py-2.5">
+            <div className="mb-4 flex items-center gap-2 rounded-[10px] border border-hairline bg-paper px-[11px] py-2.5">
               <span dir="ltr" className="flex-none font-mono-num text-[13px] text-ink-ghost">
                 &gt;
               </span>
@@ -190,7 +190,7 @@ export function AgentDock({
                     className={`rounded-lg border px-1 py-1.5 text-[11.5px] ${
                       on
                         ? 'border-ink bg-ink font-semibold text-paper'
-                        : 'border-hairline bg-canvas font-medium text-ink-muted hover:bg-subtle'
+                        : 'border-hairline bg-paper font-medium text-ink-muted hover:bg-subtle'
                     }`}
                   >
                     {scopeLabel[k]}
@@ -198,7 +198,7 @@ export function AgentDock({
                 )
               })}
             </div>
-            <div className="mb-[18px] rounded-[10px] border border-hairline bg-canvas p-1.5">
+            <div className="mb-[18px] rounded-[10px] border border-hairline bg-paper p-1.5">
               <div className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2">
                 <span className="flex h-3.5 w-3.5 flex-none items-center justify-center rounded-full border-[1.5px] border-ink">
                   <span className="h-[7px] w-[7px] rounded-full bg-ink" />
@@ -274,7 +274,7 @@ export function AgentDock({
                   {agent.findings.map((f) => (
                     <div
                       key={f.src}
-                      className="rounded-[11px] border border-hairline bg-canvas px-[13px] py-3"
+                      className="rounded-[11px] border border-hairline bg-paper px-[13px] py-3"
                     >
                       <div dir="auto" className="text-[13px] leading-[1.6] text-ink">
                         {f.text}
@@ -300,7 +300,7 @@ export function AgentDock({
                       }
                       // sized so two chips share the first row at the docked
                       // width, as they do in the design
-                      className="rounded-full border border-hairline bg-paper px-[11px] py-1.5 text-[12px] text-ink transition-colors hover:bg-subtle"
+                      className="rounded-full border border-hairline bg-canvas px-[11px] py-1.5 text-[12px] text-ink transition-colors hover:bg-subtle"
                     >
                       {s}
                     </button>
@@ -330,7 +330,7 @@ export function AgentDock({
 
           <div className="flex-none px-[18px] pb-4 pt-2">
             <div className={column}>
-              <div className="rounded-xl border border-hairline bg-canvas px-3 pb-2 pt-2.5">
+              <div className="rounded-xl border border-hairline bg-paper px-3 pb-2 pt-2.5">
                 <input
                   disabled
                   aria-disabled="true"
