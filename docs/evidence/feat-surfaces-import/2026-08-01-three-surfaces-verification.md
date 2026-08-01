@@ -12,7 +12,7 @@ in a screenshot where it was closed.
 
 | Check | Result |
 |---|---|
-| `npm test` | **132/132** (108 before this chapter → 24 new) |
+| `npm test` | **149/149** post-merge (108 before this chapter → 132 with this branch's 24 new → 149 with the gate's 17) |
 | `npx tsc --noEmit` | green |
 | `npm run build` | green (see §6) |
 | Console errors, EN | **0** across 11 captured surfaces |
@@ -38,6 +38,17 @@ design rather than the headline state of each (spec §1).
 
 All captured at 1440×900 via Playwright — real committed files, because Chrome MCP
 screenshots expire with the transcript (the 07-31 lesson).
+
+> **Capture context — read this before citing the PNGs.** The 22 Playwright captures were
+> taken **before `origin/main`'s `/app/*` login gate was merged into this branch**, from an
+> unauthenticated browser. They are accurate as to layout, locale and demo marking, and
+> nothing about the surfaces changed in the merge — but they can no longer be reproduced
+> unauthenticated, because every one of these routes now 307s to the login page.
+>
+> Post-merge verification of the gate is recorded in §9, and
+> `authed-workspace-shell-post-gate.jpg` is the workspace shell captured **after** the
+> merge through a genuinely signed-in session. That single JPG is the only artifact here
+> that proves the post-gate authed path; the PNGs do not.
 
 | File | What IS in the frame | What it does NOT show |
 |---|---|---|
@@ -142,3 +153,32 @@ persistence is this repo's filed fake-data defect class.
 - A mixed Hebrew/Latin citation source (`דוח ועד העובדים.pdf · p. 6`) reorders under RTL.
   Verified as **correct** Unicode bidi for a Hebrew reader, not a defect — recorded here
   so a reviewer does not "fix" it into something wrong.
+
+## 9. Integration with the `/app/*` login gate (merged from main mid-chapter)
+
+`origin/main` moved from `690e6bf` to `f05b659` while this chapter was building, adding
+the login gate (`src/middleware.ts` + `lib/auth/gate.ts`). Every surface in this branch
+lives under `/app/*`, so the gate now sits in front of all of them. Merged in at
+`733b4ac`; the only conflict was `package.json`'s explicit test list, where both sides had
+appended files — resolved as a union.
+
+**Gate verified against the new routes** (dev server, no session):
+
+| Route | Result |
+|---|---|
+| `/app/chat/projects` | 307 → `/?next=%2Fapp%2Fchat%2Fprojects` |
+| `/app/workspace` | 307 → `/?next=%2Fapp%2Fworkspace` |
+| `/app/agents` | 307 → `/?next=%2Fapp%2Fagents` |
+| `/app/workspace/ws-tigbur-privatization` | 307 → `/?next=%2Fapp%2Fworkspace%2Fws-tigbur-privatization` |
+
+All four gate correctly, and the deep link survives in `next` — including the dynamic
+workspace id, which is the case most likely to have been dropped.
+
+**Authed path verified after the merge:** loaded
+`/app/workspace/ws-tigbur-privatization` in a genuinely signed-in browser; the gate passed
+and the full control shell rendered (panel, Your Work, all four section counts, tab bar,
+demo banner). Captured as `authed-workspace-shell-post-gate.jpg`. That image shows the
+workspace shell with one file tab open; it does **not** show the document, legal or split
+states.
+
+Post-merge battery: **149/149** (this branch's 132 + the gate's 17) · tsc · build green.
