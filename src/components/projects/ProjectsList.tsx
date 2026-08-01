@@ -25,7 +25,7 @@ export function ProjectsList() {
       <DemoBanner />
       <div className="atscroll min-h-0 flex-1 overflow-auto px-12 pb-32 pt-11">
         <div className="max-w-[720px]">
-          <h1 className="mb-1.5 font-head text-[30px] font-medium tracking-[-0.02em] text-ink">
+          <h1 className="mb-1.5 font-display text-[30px] font-medium tracking-[-0.02em] text-ink">
             {dict.projects.title}
           </h1>
           <p className="mb-[26px] text-[14px] text-ink-muted">{dict.projects.subtitle}</p>

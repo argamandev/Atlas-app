@@ -75,7 +75,7 @@ export function CreateAgent({
       >
         <div className="mb-5 flex items-start justify-between gap-3.5">
           <div className="min-w-0">
-            <div className="font-head text-[24px] font-medium tracking-[-0.018em] text-ink">
+            <div className="font-display text-[24px] font-medium tracking-[-0.018em] text-ink">
               {dict.agents.createAgent}
             </div>
             <div className="mt-[3px] text-[12.5px] text-ink-ghost">{dict.agents.createSubtitle}</div>

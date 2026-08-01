@@ -144,12 +144,12 @@ export function ProjectView({ projectId }: { projectId: string }) {
                   if (e.key === 'Escape') setRenaming(false)
                 }}
                 placeholder={dict.projects.namePlaceholder}
-                className="min-w-0 flex-1 rounded-[10px] border border-hairline bg-canvas px-3 py-1.5 font-head text-[32px] font-medium tracking-[-0.02em] text-ink outline-none"
+                className="min-w-0 flex-1 rounded-[10px] border border-hairline bg-canvas px-3 py-1.5 font-display text-[32px] font-medium tracking-[-0.02em] text-ink outline-none"
               />
             ) : (
               <h1
                 dir="auto"
-                className="min-w-0 flex-1 font-head text-[34px] font-medium leading-[1.1] tracking-[-0.022em] text-ink"
+                className="min-w-0 flex-1 font-display text-[34px] font-medium leading-[1.1] tracking-[-0.022em] text-ink"
               >
                 {project.name}
               </h1>

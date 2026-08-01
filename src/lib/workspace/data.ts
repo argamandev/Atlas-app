@@ -41,6 +41,8 @@ export type Workspace = {
   files: WsFile[]
   agents: string[]
   actions: string[]
+  /** the working document's title, e.g. "Tigbur — what we know" */
+  docTitle: string
 }
 
 export type WsThreadGroup = 'Today' | 'Yesterday' | 'Earlier'
@@ -98,6 +100,7 @@ const DEMO_WORKSPACES: Workspace[] = [
     ],
     agents: ['Doc reader', 'Tabulator'],
     actions: ['Opened 4 reports', 'Built financials.xlsx'],
+    docTitle: 'Tigbur — what we know',
   }),
   withCounts({
     id: 'ws-qualitau-q2',
@@ -112,6 +115,7 @@ const DEMO_WORKSPACES: Workspace[] = [
     ],
     agents: ['Doc reader'],
     actions: ['Opened 2 reports'],
+    docTitle: 'Qualitau — what we know',
   }),
   withCounts({
     id: 'ws-shipping-scan',
@@ -123,6 +127,7 @@ const DEMO_WORKSPACES: Workspace[] = [
     files: [{ id: 's1', name: 'peer comparison.xlsx', kind: 'xlsx' }],
     agents: ['Tabulator'],
     actions: ['Built comparison.xlsx'],
+    docTitle: 'Shipping sector — what we know',
   }),
 ]
 
@@ -284,6 +289,25 @@ export const LEGAL_SEVERITY_STYLE: Record<LegalSeverity, { color: string; backgr
   clear: { color: '#4F7A52', background: 'rgba(79,122,82,.11)' },
 }
 
+/**
+ * The action timeline the detail column shows. The workspace's OWN actions lead
+ * the current session, then the shared history — this is what makes the design's
+ * "Actions taken" count 10 for Tigbur rather than 8.
+ */
+export function workspaceSessions(w: Workspace): WsSession[] {
+  const live: WsAction[] = [...w.actions]
+    .reverse()
+    .map((text, i) => ({
+      text,
+      when: i === 0 ? 'just now' : i === 1 ? '4m ago' : '12m ago',
+      kind: /legal|agent|deploy/i.test(text) ? 'agent' : /built|index|fetch/i.test(text) ? 'build' : 'open',
+    }))
+  return [
+    { ...WS_SESSIONS[0], items: [...live, ...WS_SESSIONS[0].items] },
+    ...WS_SESSIONS.slice(1),
+  ]
+}
+
 export async function getWorkspaces(): Promise<Workspace[]> {
   return DEMO_WORKSPACES
 }
@@ -306,5 +330,6 @@ export function emptyWorkspace(id: string, name: string): Workspace {
     files: [],
     agents: [],
     actions: [],
+    docTitle: 'Untitled document',
   }
 }

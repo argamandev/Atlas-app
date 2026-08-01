@@ -803,3 +803,49 @@
 .pdftext.selecting .endOfContent {
   inset: 0;
 }
+
+/* ── Working document (workspace) ───────────────────────────────────────────
+   The document body is contentEditable, so Tailwind's preflight strips h2/ul/
+   blockquote styling that the user's own formatting commands then produce.
+   These rules give execCommand output the design's document voice
+   (design lines 1802-1887). Scoped to .atlas-doc so nothing else is affected. */
+.atlas-doc h2 {
+  font-family: Newsreader, Georgia, serif;
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 26px 0 10px;
+  color: #0a0a0a;
+}
+.atlas-doc p {
+  margin: 0 0 14px;
+}
+.atlas-doc ul {
+  list-style: disc;
+  padding-inline-start: 22px;
+  margin: 0 0 14px;
+}
+.atlas-doc li {
+  margin-bottom: 6px;
+}
+.atlas-doc blockquote {
+  margin: 18px 0;
+  padding: 14px 16px;
+  background: #f7f7f7;
+  border-inline-start: 2px solid #0a0a0a;
+  border-radius: 0 6px 6px 0;
+}
+.atlas-doc blockquote p {
+  margin: 0;
+}
+.atlas-doc blockquote cite {
+  display: block;
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-style: normal;
+  color: #9c9c9c;
+}
+.atlas-doc [data-demo] {
+  color: #8a6a2f;
+}
