@@ -168,6 +168,7 @@ export const en = {
     askPlaceholder: 'Ask this agent about its findings…',
     askAgent: 'Ask {name}…',
     answersFrom: '{name} answers from its own findings and the sources behind them.',
+    askAnythingOf: 'Ask anything of',
     findingsAndChat: 'Findings & chat',
     profileTab: 'Profile',
     recentAgentChats: 'Recent agent chats',
@@ -178,6 +179,7 @@ export const en = {
     cannedReply:
       'Working from the findings above and the sources behind them — here is what that means in context.',
     scopeWorkspace: 'Workspace',
+    scopeCompany: 'Company',
     scopeSector: 'Sector',
     scopeCall: 'Call',
     scopeReport: 'Report',

@@ -36,6 +36,7 @@ export function CreateAgent({
   const scopeLabel: Record<AgentScopeKind, string> = {
     Call: dict.agents.scopeCall,
     Workspace: dict.agents.scopeWorkspace,
+    Company: dict.agents.scopeCompany,
     Sector: dict.agents.scopeSector,
     Report: dict.agents.scopeReport,
   }

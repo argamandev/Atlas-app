@@ -10,11 +10,12 @@
 // marker — see components/ds/DemoBanner.tsx and .claude/rules/app.md.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Order and membership both come from the design (2026-08-01 round): the four
-// scopes read Call / Workspace / Sector / Report. "Sector" replaced "Company" —
-// an agent watches a whole sector, and a single company is reached through a
-// call or a report.
-export const AGENT_SCOPE_KINDS = ['Call', 'Workspace', 'Sector', 'Report'] as const
+// Order follows the design's 2026-08-01 round (Call / Workspace / Sector /
+// Report); Company is kept alongside Sector by founder call the same day — an
+// agent can be pointed at ONE issuer or at a whole sector, and those are
+// different jobs. Five kinds, so the picker lays them out 3-up rather than
+// squeezing five labels into one row.
+export const AGENT_SCOPE_KINDS = ['Call', 'Workspace', 'Company', 'Sector', 'Report'] as const
 export type AgentScopeKind = (typeof AGENT_SCOPE_KINDS)[number]
 
 /** One row of "Recent agent chats" — a question already put to an agent. */

@@ -52,10 +52,11 @@ test('emptyAgent is idle, unscoped and has found nothing', () => {
   assert.deepEqual(a.findings, [])
 })
 
-test('the four agent scopes match the design, in the design order', () => {
-  // Design round 2026-08-01 renamed Company -> Sector and fixed the order the
-  // segmented control reads. A stale kind here would render an empty target list.
-  assert.deepEqual([...AGENT_SCOPE_KINDS], ['Call', 'Workspace', 'Sector', 'Report'])
+test('the agent scopes match the design order, with Company alongside Sector', () => {
+  // The 2026-08-01 design round introduced Sector; the founder kept Company too,
+  // the same day — pointing an agent at one issuer and at a whole sector are
+  // different jobs. A stale kind here would render an empty target list.
+  assert.deepEqual([...AGENT_SCOPE_KINDS], ['Call', 'Workspace', 'Company', 'Sector', 'Report'])
 })
 
 test('every recent agent chat resolves to an agent that exists', async () => {

@@ -249,6 +249,19 @@ export const ExpandIcon = (p: IconProps) => (
     <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />
   </Base>
 )
+// The agent panel's widen / narrow pair — diagonal double-arrows, as the design
+// draws them. ExpandIcon above (corner brackets) is a different affordance and
+// stays where it is used.
+export const ExpandDiagonalIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M14 4h6v6M10 20H4v-6M20 4l-7.5 7.5M4 20l7.5-7.5" />
+  </Base>
+)
+export const CollapseDiagonalIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M20 10h-6V4M4 14h6v6M13.5 10.5L20 4M10.5 13.5L4 20" />
+  </Base>
+)
 export const CloseIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M6 6l12 12M18 6L6 18" />

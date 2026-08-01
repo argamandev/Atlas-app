@@ -18,17 +18,20 @@ export default async function AgentsRoute() {
 
   // Assignment targets are DERIVED from the existing stub feeds rather than invented
   // fresh — a new agent can only be pointed at something the app already shows.
-  // The design's four scopes are Call / Workspace / Sector / Report. A sector is
-  // the leading segment of a workspace's subtitle ("Shipping · TASE" → Shipping);
+  // Scopes are Call / Workspace / Company / Sector / Report. A sector is the
+  // leading segment of a workspace's subtitle ("Shipping · TASE" → Shipping);
   // that keeps the list to sectors the app can actually show, rather than a
-  // hardcoded taxonomy nothing else in the product knows about.
+  // hardcoded taxonomy nothing else in the product knows about. Company is the
+  // issuer itself — the two are different jobs, so both are offered.
   const sectors = Array.from(new Set(workspaces.map((w) => w.sub.split('·')[0]!.trim()).filter(Boolean)))
+  const companies = Array.from(new Set(workspaces.map((w) => w.company).filter(Boolean)))
   const fileWord = (n: number) => (n === 1 ? dict.workspace.fileOne : dict.workspace.files)
   const targets: Record<AgentScopeKind, { label: string; meta: string }[]> = {
     Workspace: workspaces.map((w) => ({
       label: w.name,
       meta: `${w.fileCount} ${fileWord(w.fileCount)}`,
     })),
+    Company: companies.map((c) => ({ label: c, meta: 'TASE' })),
     Sector: sectors.map((s) => ({ label: s, meta: 'TASE' })),
     Call: workspaces.map((w) => ({ label: `${w.company} — Q2 2026 call`, meta: w.updatedLabel })),
     Report: workspaces

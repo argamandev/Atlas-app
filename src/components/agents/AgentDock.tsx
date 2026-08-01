@@ -5,8 +5,8 @@ import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { DemoInline } from '@/components/ds/DemoBanner'
 import {
   CloseIcon,
-  ExpandIcon,
-  CollapseIcon,
+  ExpandDiagonalIcon,
+  CollapseDiagonalIcon,
   ArrowUpIcon,
   SparkleIcon,
   ScissorsIcon,
@@ -77,6 +77,7 @@ export function AgentDock({
   const scopeLabel: Record<AgentScopeKind, string> = {
     Call: dict.agents.scopeCall,
     Workspace: dict.agents.scopeWorkspace,
+    Company: dict.agents.scopeCompany,
     Sector: dict.agents.scopeSector,
     Report: dict.agents.scopeReport,
   }
@@ -119,7 +120,11 @@ export function AgentDock({
             aria-label={wide ? dict.agents.collapseDock : dict.agents.expandDock}
             className={iconBtn}
           >
-            {wide ? <CollapseIcon size={17} strokeWidth={1.7} /> : <ExpandIcon size={17} strokeWidth={1.7} />}
+            {wide ? (
+              <CollapseDiagonalIcon size={17} strokeWidth={1.7} />
+            ) : (
+              <ExpandDiagonalIcon size={17} strokeWidth={1.7} />
+            )}
           </button>
           <button type="button" onClick={onClose} title={dict.common.close} className={iconBtn}>
             <CloseIcon size={17} strokeWidth={1.8} />
@@ -173,7 +178,8 @@ export function AgentDock({
             />
 
             <div className={label}>{dict.agents.assignedTo}</div>
-            <div className="mb-2.5 flex gap-1.5">
+            {/* five scopes lay out 3-up; one row of five would clip the labels */}
+            <div className="mb-2.5 grid grid-cols-3 gap-1.5">
               {AGENT_SCOPE_KINDS.map((k) => {
                 const on = scope === k
                 return (
@@ -181,7 +187,7 @@ export function AgentDock({
                     key={k}
                     type="button"
                     onClick={() => setScope(k)}
-                    className={`flex-1 rounded-lg border px-1 py-1.5 text-[11.5px] ${
+                    className={`rounded-lg border px-1 py-1.5 text-[11.5px] ${
                       on
                         ? 'border-ink bg-ink font-semibold text-paper'
                         : 'border-hairline bg-canvas font-medium text-ink-muted hover:bg-subtle'
@@ -221,62 +227,105 @@ export function AgentDock({
         </div>
       ) : (
         <>
-          <div className="atscroll min-h-0 flex-1 overflow-auto px-[18px] pb-2">
-            <div className={`${column} flex flex-col gap-[15px]`}>
-              <div dir="auto" className="text-[13.5px] leading-[1.7] text-ink">
-                {agent.lead}
-              </div>
-
-              <div className="flex flex-col gap-[9px]">
-                {agent.findings.map((f) => (
-                  <div key={f.src} className="rounded-[11px] border border-hairline bg-canvas px-[13px] py-3">
-                    <div dir="auto" className="text-[13px] leading-[1.6] text-ink">
-                      {f.text}
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span dir="ltr" className="font-mono-num text-[11px] text-ink-ghost">
-                        {f.src}
-                      </span>
-                      {/* invented finding wearing a citation — always marked */}
-                      <DemoInline />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {suggestions.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setThread((t) => [...t, { question: s, answer: dict.agents.cannedReply }])}
-                    // sized so two chips share the first row at the docked
-                    // width, as they do in the design
-                    className="rounded-full border border-hairline bg-paper px-[11px] py-1.5 text-[12px] text-ink transition-colors hover:bg-subtle"
+          <div className="atscroll flex min-h-0 flex-1 flex-col overflow-auto px-[18px] pb-2">
+            {thread.length === 0 ? (
+              // Opening an agent cold: the design shows a centred hero rather
+              // than a wall of findings. The findings arrive with the first
+              // exchange — "Show me what you found" is what asks for them.
+              <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
+                <div className={`${column} flex flex-col items-center`}>
+                  <h2 className="font-display text-[26px] font-medium leading-[1.25] tracking-[-0.015em] text-ink">
+                    {dict.agents.askAnythingOf}
+                  </h2>
+                  <p
+                    dir="ltr"
+                    className="mb-3.5 font-mono-num text-[24px] font-bold leading-[1.3] tracking-[-0.01em] text-ink"
                   >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
-              {thread.map((x, i) => (
-                <div key={i} className="flex flex-col gap-[15px]">
-                  <div
-                    dir="auto"
-                    className="max-w-[85%] self-end rounded-[10px] bg-ink px-[13px] py-2.5 text-[13px] leading-[1.55] text-paper"
-                  >
-                    {x.question}
-                  </div>
-                  <div dir="auto" className="text-[13.5px] leading-[1.7] text-ink">
-                    {x.answer}
-                    {/* the agent has no runtime — this reply is scripted */}
-                    <span className="ms-2 inline-flex align-middle">
-                      <DemoInline />
-                    </span>
+                    {agent.name}
+                  </p>
+                  {agent.description && (
+                    <p dir="auto" className="mb-7 max-w-[290px] text-[13.5px] leading-[1.6] text-ink-muted">
+                      {agent.description}
+                    </p>
+                  )}
+                  <div className="flex flex-col items-center gap-[18px]">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() =>
+                          setThread((t) => [...t, { question: s, answer: dict.agents.cannedReply }])
+                        }
+                        className="text-[13.5px] leading-[1.4] text-ink transition-opacity hover:opacity-60"
+                      >
+                        {s}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className={`${column} flex flex-col gap-[15px]`}>
+                <div dir="auto" className="text-[13.5px] leading-[1.7] text-ink">
+                  {agent.lead}
+                </div>
+
+                <div className="flex flex-col gap-[9px]">
+                  {agent.findings.map((f) => (
+                    <div
+                      key={f.src}
+                      className="rounded-[11px] border border-hairline bg-canvas px-[13px] py-3"
+                    >
+                      <div dir="auto" className="text-[13px] leading-[1.6] text-ink">
+                        {f.text}
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span dir="ltr" className="font-mono-num text-[11px] text-ink-ghost">
+                          {f.src}
+                        </span>
+                        {/* invented finding wearing a citation — always marked */}
+                        <DemoInline />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() =>
+                        setThread((t) => [...t, { question: s, answer: dict.agents.cannedReply }])
+                      }
+                      // sized so two chips share the first row at the docked
+                      // width, as they do in the design
+                      className="rounded-full border border-hairline bg-paper px-[11px] py-1.5 text-[12px] text-ink transition-colors hover:bg-subtle"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+
+                {thread.map((x, i) => (
+                  <div key={i} className="flex flex-col gap-[15px]">
+                    <div
+                      dir="auto"
+                      className="max-w-[85%] self-end rounded-[10px] bg-ink px-[13px] py-2.5 text-[13px] leading-[1.55] text-paper"
+                    >
+                      {x.question}
+                    </div>
+                    <div dir="auto" className="text-[13.5px] leading-[1.7] text-ink">
+                      {x.answer}
+                      {/* the agent has no runtime — this reply is scripted */}
+                      <span className="ms-2 inline-flex align-middle">
+                        <DemoInline />
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex-none px-[18px] pb-4 pt-2">
