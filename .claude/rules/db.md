@@ -13,3 +13,43 @@ The old repo (Timlul, Railway) uses THIS SAME database.
   server starts, NOT that the token works (2026-07-16).
 - The destructive-SQL hook pattern-matches ANYWHERE in a Bash command — including commit
   messages ("drop policy") and compound commands. Split commands / reword rather than fight it.
+
+## Ownership law — every new user-facing table (verified against the live DB 2026-08-01)
+
+The identity table is **`auth.users`** (Supabase built-in). `public.profiles` mirrors it
+(`profiles.id REFERENCES auth.users(id) ON DELETE CASCADE`; columns `id, first_name, last_name,
+role, summary_instructions, created_at`) and `profiles.role` is what `requireAdmin` reads.
+**Do not invent a second users table.** Ownership hangs off `auth.users(id)`.
+
+Every new user-facing table (workspaces, projects, agents, embeddings, agent runs …) gets ALL
+FOUR of these at `CREATE TABLE`, never bolted on later — this database is shared with production
+Timlul and additive-only, so retrofitting ownership means a backfill dance on a live DB:
+
+1. `user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE` — **the FK, not just a
+   uuid column.** Without it `user_id` is a uuid that merely looks like a user.
+2. `ALTER TABLE … ENABLE ROW LEVEL SECURITY`.
+3. A policy scoped to the owner on **both** sides: `USING (auth.uid() = user_id)` **and**
+   `WITH CHECK (auth.uid() = user_id)`. A USING-only policy lets a row be written to someone
+   else's id. Grant it to `authenticated`, not `public`.
+4. `CREATE INDEX ON <table>(user_id)` — every query filters on it.
+
+Child rows (a project's messages, an agent's runs) either carry their own `user_id` under the
+same rule or reach the owner through a `NOT NULL` FK to the parent. Never "the app will filter it".
+
+**Why the FK is spelled out: the existing schema is INCONSISTENT and half of it is the bad half.**
+Verified 2026-08-01 — WITH a real FK to `auth.users`: `transcripts`, `watchlist`,
+`notification_prefs`, `sent_alerts`, `profiles`, `access_requests.reviewed_by`. `user_id NOT NULL`
+but **NO foreign key at all**: `chat_conversations`, `quotes`, `quote_folders`, `user_quotes`,
+`followed_calls`. In those five nothing in the database stops a garbage or deleted user id from
+being stored — and since the server queries with `supabaseAdmin` (service role, which BYPASSES
+RLS), the FK was the only remaining guard. Copy the first group's shape, not the second's.
+Also `user_quotes` has RLS enabled with ZERO policies (0 rows — looks abandoned): that denies all
+anon/authenticated access, which is safe but is not a pattern to imitate.
+
+**Never write `USING (true) WITH CHECK (true)` "for the service role".** The service-role key
+bypasses RLS entirely and needs no policy; such a policy is granted to `public`, so it silently
+opens the table to everyone holding the anon key (which ships in the browser bundle). Two live
+examples on this DB — `profiles` and `access_requests` — are flagged by Supabase's own linter
+(`rls_policy_always_true`) and are the reason this paragraph exists. See the 2026-08-01 ALERT in
+`agent-memory/cross-cutting.md`; do not "fix" them without checking Timlul first, since it shares
+this database and may depend on them.
