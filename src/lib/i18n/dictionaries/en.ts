@@ -126,7 +126,8 @@ export const en = {
     docExport: 'Export',
     docExportPdf: 'Export as PDF',
     docExportWord: 'Export as Word',
-    docExportWordUnavailable: 'Not in this build',
+    // Serves BOTH export rows — neither format is implemented this chapter.
+    docExportUnavailable: 'Not in this build',
     docCitations: '{n} citations',
     docContinueInserted: 'Sample continuation — no model wrote this.',
     splitToggle: 'Split view',

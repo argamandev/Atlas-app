@@ -66,6 +66,15 @@ screenshots expire with the transcript (the 07-31 lesson).
 | `workspace-detail-files-{en,he}.png` | The Files detail column: 6 files with kind badges and open/close affordances | Other three detail bodies not shown |
 | `workspace-intake-{en,he}.png` | A newly created workspace at the **intro** stage | Clarify and building stages are not in frame |
 
+> ⚠️ **THESE PNGs PREDATE THE TWO FIX ROUNDS — they picture states that no longer ship.**
+> Filed by the re-gate and true: no screenshot was re-captured after the fixes, so
+> `workspace-document-{en,he}.png` still shows **"✓ Saved just now"** and the old inline English
+> marker, and `workspace-intake-he.png` still shows the mono/reversed build line. The captions
+> above describe what each image *contains*, not what currently ships. The fixes for defects 1, 2
+> and 4 were verified eyes-on and by code inspection (and, for the export regression, by a real
+> `page.pdf()` extraction), **but not re-photographed** — so for those three, treat the code and
+> §4b as the record and these images as historical. Re-capturing them is carried, not claimed.
+
 ## 3. Demo marking audit
 
 The binding rule (spec §2.1): if a screen shows a number, a quote or a finding that no
@@ -79,14 +88,26 @@ backend produced, it carries a visible marker in both locales.
 | Agent dock | ✅ (page) | ✅ every finding row |
 | Workspace picker | ✅ EN + HE | — |
 | Workspace shell | ✅ EN + HE | ✅ file preview |
-| Working document | ✅ EN + HE | ✅ citations line + the citation block's attribution |
+| Working document | ✅ EN + HE | ✅ citations line + a non-deletable notice above the body + a localized marker inside the `<cite>` |
 | Legal findings | ✅ EN + HE | ✅ all 6 findings |
 | Intake (building) | ✅ EN + HE | ✅ "nothing is actually being fetched" |
 
 The most dangerous single element in this design is the working document's quote block:
 a fabricated Hebrew quote attributed to a **named executive of a real TASE issuer**, with
-a filing-shaped citation. It renders with the attribution line explicitly ending
-`— DEMO, invented quote`, plus the page banner.
+a filing-shaped citation.
+
+> **CORRECTED 2026-08-01 (supervisor, round-2 re-gate).** This paragraph previously said the
+> attribution line ends `— DEMO, invented quote`. That English suffix was **deleted** in
+> `1226933` and this section was not updated, so the record contradicted both the code and §4c
+> of this same file. It now carries **two** markers, and it needs both:
+> 1. a non-deletable localized notice rendered **outside** `contentEditable`, above the body;
+> 2. a **localized** marker inside the `<cite>` itself, built from the dictionary.
+>
+> Neither is sufficient alone, and both failure modes were observed, not theorised. Inside-only
+> was English-hardcoded (invisible to a Hebrew reader) and user-deletable. Outside-only sits at
+> the top of a scrolling pane, so anything capturing just the quote leaves it behind — the
+> re-gate reproduced exactly that with a real Chromium `page.pdf()` and got the quote, its cite
+> line, and no marker at all. Export as PDF is now disabled outright (see §8).
 
 ## 4. What verification caught (fixed before review, not after)
 
@@ -195,7 +216,7 @@ evidence corrections above.
 | # | Defect | Fix |
 |---|---|---|
 | 1 | `WorkingDocument` showed "✓ Saved just now", and `WorkspaceShell` a static "Draft · saved just now". **Nothing saves** — edits live in session state and die on reload. | Both removed. The `saved` state and its `onInput` reset went with them; `docDraftMeta` is now just "Draft". `savedJustNow` deleted from both dictionaries. |
-| 2 | The invented Hebrew quote attributed to a **named executive of a real TASE issuer** carried an English-only `— DEMO, invented quote` hardcoded inside `SEED_HTML`. A Hebrew reader saw **no marker** on the most fact-shaped element in the branch, and because it sat inside `contentEditable` the user could delete it — after which it exported into the PDF unmarked. | Marker removed from `SEED_HTML` and replaced by a localized `DemoInline` notice rendered **outside** the editable body, so it cannot be deleted and survives into Export as PDF. New key `docQuoteDemo` in both locales. |
+| 2 | The invented Hebrew quote attributed to a **named executive of a real TASE issuer** carried an English-only `— DEMO, invented quote` hardcoded inside `SEED_HTML`. A Hebrew reader saw **no marker** on the most fact-shaped element in the branch, and because it sat inside `contentEditable` the user could delete it — after which it exported into the PDF unmarked. | **Round 2 (supervisor), superseding the round-1 fix.** Round 1 moved the marker out of `SEED_HTML` into a localized `DemoInline` notice **outside** the editable body — correct for deletability and for Hebrew, but it claimed the marker "survives into Export as PDF", **and that was false**: the notice sits at the top of the `overflow-auto` pane, and `window.print()` on this layout emits one page clipped to the scroll offset, so exporting while scrolled to the quote produced the fabricated quote with **no marker at all**. The re-gate proved it with a real Chromium `page.pdf()` + pdfjs extraction (marker ABSENT, quote PRESENT, 1 page). On the print path the round-1 fix was a **regression**. Now: the outside notice is kept (covers the screen, non-deletable) **plus** a localized marker built from the dictionary is restored inside the `<cite>` (covers copy-paste and a plain browser Ctrl+P), **and Export as PDF is disabled outright** alongside Export as Word. `SEED_HTML` became `seedHtml(dict)` so the in-quote marker can never be English-only again. |
 | 3 | Report targets duplicated ("2025 annual.pdf" appears in several workspaces), and `CreateAgent` keyed rows on `t.label` and selected by label equality → one click filled **both** radios and React logged a duplicate key. | New `AgentTarget` type carrying a stable `id`. Reports deduped by name at the route; the picker keys and selects on `id` and looks the label up only at submit. |
 | 4 | `WorkspaceIntake`'s building line forced `dir="ltr"` + `font-mono-num` on `buildingSteps`, which is a Hebrew **sentence** — so it read in reverse. Iron rule 5 scopes those to numerals and tickers. | `dir="auto"`, mono dropped. The embedded Latin filename stays upright on its own: it is a strong-LTR run and the bidi algorithm handles it. |
 | 5 | `onClick={onSend}` handed React's `MouseEvent` into `send(explicit?: string)`, so `(explicit ?? input).trim()` threw inside the click and the button silently did nothing. | `onClick={() => onSend()}`. **Fixed at both call sites, and this was live on main** — mouse-send was dead for real users in Ask Atlas and the chat page; keyboard Enter masked it. Two further sites of the same shape (`PillComposer`, `WorkspaceIntake`) were latent rather than broken (their callers take no argument) and were hardened in the same commit. |
@@ -250,8 +271,15 @@ persistence is this repo's filed fake-data defect class.
 - **The project composer, the agent chat input and the workspace side-chat are inert.**
   There is no chat backend for these surfaces this chapter. They render disabled with a
   stated reason rather than accepting input that would go nowhere.
-- **Export as Word is not implemented** — it renders disabled with "Not in this build"
-  rather than as a dead button. Export as PDF uses `window.print()` per rules/app.md.
+- **NEITHER export is implemented** — both rows render disabled with "Not in this build"
+  rather than as dead buttons. **Export as PDF was disabled in the round-2 re-gate**: it had
+  called `window.print()`, which on this layout (`h-screen` + `overflow-hidden` frame, document
+  inside an `overflow-auto` pane, no `@media print` rules) emits one page clipped to the current
+  scroll offset — dropping the demo notice and exporting the fabricated quote unmarked. A correct
+  Hebrew PDF needs a server-side render per `.claude/rules/app.md`; that is a feature, not a
+  stopgap, so the honest state is "not in this build". Note a residual the app cannot control: a
+  plain browser Ctrl+P still prints the clipped view, which is why the localized marker was
+  restored **inside** the `<cite>` rather than relying on the notice alone.
 - **CORRECTION (review round, 2026-08-01).** This section previously asserted that "the
   workspace side-chat reuses the existing Ask Atlas component" and that Pinge's
   highlight-to-ask was reused. **Neither is in the branch** — nothing under

@@ -123,7 +123,7 @@ export const he: Dictionary = {
     docExport: 'ייצוא',
     docExportPdf: 'ייצוא כ־PDF',
     docExportWord: 'ייצוא כ־Word',
-    docExportWordUnavailable: 'לא זמין בגרסה זו',
+    docExportUnavailable: 'לא זמין בגרסה זו',
     docCitations: '{n} ציטוטים',
     docContinueInserted: 'המשך לדוגמה — אף מודל לא כתב את זה.',
     splitToggle: 'תצוגה מפוצלת',

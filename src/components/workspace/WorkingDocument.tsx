@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { seedHtml } from '@/lib/demo/seedDocument'
 import { useDemoState } from '@/lib/demo/DemoStateProvider'
 import { DemoInline } from '@/components/ds/DemoBanner'
 import { ChevronDownIcon } from '@/components/ds/icons'
@@ -13,29 +14,10 @@ import { ChevronDownIcon } from '@/components/ds/icons'
 // editor library this chapter, because a real document model would lock in how
 // citations are stored BEFORE the backend chapter decides that.
 //
-// Content is FABRICATED — invented financials for a real TASE issuer, and a
-// quote attributed to a NAMED executive of that issuer. That is the most
-// dangerous element on the branch, so its marker deliberately lives OUTSIDE the
-// editable body: a marker inside `contentEditable` can be deleted by the user
-// (and rides out through Export as PDF once it is), and hardcoding it in
-// SEED_HTML made it English-only, so a Hebrew reader saw no marker at all on the
-// one element most likely to be mistaken for fact.
-
-const SEED_HTML = `
-<p>Tigbur runs the ninth-largest shipping operation in the world and roughly <b>40%</b> of Israeli container throughput. The privatization tender closes in September, and the questions that decide the price are less about the fleet than about who is allowed to own it.</p>
-<h2>What the filings actually say</h2>
-<p>Revenue climbed every year from <b>₪1.21B</b> (2022) to <b>₪1.56B</b> (2025) — an 8.3% CAGR — while operating margin only reached 3.7%. Growth is real; it is not yet profitable growth.</p>
-<blockquote data-citation="1">
-  <p dir="rtl">אנחנו מעלים את תחזית ההכנסות לשנה כולה לטווח של 1.5 עד 1.6 מיליארד שקל.</p>
-  <cite dir="ltr">מוטי בן־ארי · CEO · Q2 2026 call · Q2 2026 deck.pdf</cite>
-</blockquote>
-<h2>Open questions</h2>
-<ul>
-  <li>Does the Haifa concession survive a change of control?</li>
-  <li>How much of the 2023 restatement is recurring?</li>
-  <li>Which sovereign funds sit behind the leading bidder?</li>
-</ul>
-`.trim()
+// The FABRICATED seed content lives in `@/lib/demo/seedDocument` so its markers can
+// be unit-tested without React (seedDocument.test.ts). Read the note there before
+// touching the quote block — it is the most dangerous element in this chapter and
+// its marker has already cost two review rounds.
 
 export function WorkingDocument({ workspaceId, title }: { workspaceId: string; title: string }) {
   const { dict } = useI18n()
@@ -43,7 +25,9 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
   const bodyRef = useRef<HTMLDivElement>(null)
   const [exportOpen, setExportOpen] = useState(false)
 
-  const html = docHtml[workspaceId] ?? SEED_HTML
+  // Locale-dependent, so the in-quote marker is never English-only. `html` is a
+  // string, so the effect below still compares by value and seeds exactly once.
+  const html = docHtml[workspaceId] ?? seedHtml(dict)
 
   // Seed once; afterwards the DOM is the source of truth while editing, so we do
   // NOT rewrite innerHTML on every keystroke (that would reset the caret).
@@ -158,20 +142,25 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
           </button>
           {exportOpen && (
             <div className="absolute top-[calc(100%+6px)] z-30 min-w-[180px] rounded-[10px] border border-hairline bg-canvas p-1.5 shadow-menu ltr:right-0 rtl:left-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setExportOpen(false)
-                  window.print()
-                }}
-                className="w-full rounded-md px-2.5 py-2 text-start text-[12.5px] text-ink hover:bg-subtle"
-              >
+              {/* NEITHER export is implemented this chapter — both say so rather
+                  than render a dead or, worse, a HARMFUL button.
+                  PDF used to call window.print(). On this layout (h-screen +
+                  overflow-hidden frame, document inside an overflow-auto pane, no
+                  @media print rules) that emits ONE page clipped to the current
+                  scroll offset. Scrolled to the quote it dropped the demo notice —
+                  which sits at the top of the pane — and kept the fabricated quote
+                  with its filing-shaped cite line, exporting invented words
+                  attributed to a real named executive with no marker at all.
+                  Reproduced during review with a real Chromium page.pdf(), not
+                  argued. A correct Hebrew PDF needs a server-side render
+                  (.claude/rules/app.md) — that is a feature, not a stopgap. */}
+              <div className="flex w-full cursor-not-allowed items-center justify-between gap-2 rounded-md px-2.5 py-2 text-[12.5px] text-ink-ghost">
                 {dict.workspace.docExportPdf}
-              </button>
-              {/* Word export is NOT implemented — say so rather than render a dead button */}
+                <span className="text-[10.5px]">{dict.workspace.docExportUnavailable}</span>
+              </div>
               <div className="flex w-full cursor-not-allowed items-center justify-between gap-2 rounded-md px-2.5 py-2 text-[12.5px] text-ink-ghost">
                 {dict.workspace.docExportWord}
-                <span className="text-[10.5px]">{dict.workspace.docExportWordUnavailable}</span>
+                <span className="text-[10.5px]">{dict.workspace.docExportUnavailable}</span>
               </div>
             </div>
           )}
@@ -187,8 +176,11 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
             <span dir="ltr">{dict.workspace.docCitations.replace('{n}', '3')}</span>
             <DemoInline />
           </div>
-          {/* OUTSIDE contentEditable on purpose — the user cannot delete this,
-              so it survives into Export as PDF with the quote it describes. */}
+          {/* OUTSIDE contentEditable on purpose, so the user cannot delete it.
+              NOTE what this does NOT do: it sits at the top of the scrolling pane,
+              so it is absent from anything that captures only the quote further
+              down. That is why the <cite> carries its own localized marker — see
+              seedHtml(). This notice covers the screen; that one covers the trip. */}
           <div
             dir="auto"
             className="mb-6 flex items-start gap-2 rounded-lg bg-[rgba(180,140,60,.13)] px-2.5 py-2 text-[12px] leading-[1.5] text-[#8A6A2F]"
