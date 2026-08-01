@@ -34,6 +34,22 @@ change — read the dates. Current state:
    carrying a known user UUID passes, and the routes then query with `supabaseAdmin`, which
    bypasses RLS. Until this lands, every "auth-gated" API route is gated in intent only, and
    nothing below this line can be considered done.
+0b. **🔴 `public.profiles` is effectively world-writable — and this DB is shared with DEPLOYED
+   production Timlul.** Found 2026-08-01 while grounding the new chapter's ownership model; NOT
+   introduced by any Atlas branch. A policy named `Service role full access on profiles` is
+   `cmd=ALL, roles={public}, USING (true), WITH CHECK (true)`. RLS policies combine with **OR**,
+   so it nullifies the three correct owner-scoped policies beside it, and `anon` +
+   `authenticated` both hold SELECT/INSERT/UPDATE/DELETE grants on the table. The anon key is
+   public by design (it ships in Timlul's browser bundle), so in principle anyone holding it can
+   read every profile and UPDATE any row — **including `role='admin'`, the exact column
+   `requireAdmin` trusts**. `access_requests` carries the same always-true policy. Both are
+   flagged by Supabase's own linter (`rls_policy_always_true`). The service-role key bypasses RLS
+   and never needed a policy, so these grant nothing but exposure.
+   **NOT FIXED DELIBERATELY:** removing a policy is destructive, hook-blocked, and Timlul shares
+   this database. **Check before any fix:** does Timlul write `profiles`/`access_requests` with
+   the ANON key rather than the service-role key? If yes, removing the policy breaks production.
+   Lower priority from the same sweep: `public.handle_new_user()` is `SECURITY DEFINER` and
+   callable by `anon` via `/rest/v1/rpc/`; leaked-password protection is disabled in Auth.
 1. ~~**Gate the product.**~~ **PAGES DONE 2026-08-01** — `src/middleware.ts` gates `/app/*` and
    `/print/*` (the latter server-rendered whole transcripts to anyone with the URL), redirect
    origin derived from `x-forwarded-host`/`x-forwarded-proto` per the Railway gotcha, host and

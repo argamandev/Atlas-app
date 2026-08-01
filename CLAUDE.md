@@ -40,6 +40,9 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
 ## Doc map
 
 - `ARCHITECTURE.md` — the codebase, file by file
+- `docs/DATA-MODEL.md` — **the shared corpus vs the personal layer** (founder decision
+  2026-08-01): company data is the same for everyone, everything a user makes is theirs.
+  Read before designing any table, and before any Maya/retrieval/agents work.
 - `docs/VISION.md` — product vision, V1 description, roadmap
 - `docs/product/` — founder briefs for chapters not yet specced (current:
   `2026-08-01-projects-workspace-agents-brief.md` — Projects · Workspace · Agents)
