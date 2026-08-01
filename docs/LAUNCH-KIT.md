@@ -71,8 +71,10 @@ bottom). THE FOUNDER LANDS THE NEW DESIGN SOURCE INSIDE THIS SESSION as the firs
 design-import/ — whatever lands is the source of truth).
 
 SCOPE LOCK — UI ONLY, NO BACKENDS. The backends are other lanes' chapters, deliberately
-sequenced behind you (Maya integration → Lane I; retrieval + Projects data → Lane M; the
-/app/* login gate → supervisor). Do not create tables, migrations, or API routes. Where a
+sequenced behind you (Maya integration → Lane I; retrieval + Projects data → Lane M; auth →
+supervisor, who already shipped the /app/* + /print/* PAGE gate on 2026-08-01 — assume you ARE
+behind a login — and still owes the API-auth half). Do not create tables, migrations, or API
+routes. Where a
 surface needs data it does not have, feed it from a typed stub — and MARK IT VISIBLY as demo
 content in both locales. This is not optional: fabricated demo facts rendered as real is a
 FILED, REPEATED defect class in this repo (rules/app.md — degradation must be VISIBLE).

@@ -1,0 +1,191 @@
+# Login gate — verification (fix/app-login-gate, 2026-08-01)
+
+Closes a pre-launch gap: API routes were auth-gated (in intent — see the caveat at the bottom,
+it matters) but **pages were not**. Anyone who typed `/app/home` walked into the app, and
+`/print/[id]` server-rendered a whole transcript to anyone holding the URL.
+
+> This file was rewritten after review round 1 returned **CHANGES with 3 BLOCKERs**. The first
+> version of it made three claims that were false. They are named explicitly below rather than
+> quietly corrected, because a wrong evidence file is the defect this project has been bitten by
+> twice.
+
+## What shipped
+
+- `src/middleware.ts` — the gate. Runs only on `/app/:path*` and `/print/:path*`.
+- `src/lib/auth/gate.ts` — pure decision logic, unit-tested (17 tests).
+- `src/components/auth/LoginForm.tsx` — honours `?next=` so you return where you were headed.
+- `src/app/api/live/finished-call/[id]/route.ts` — **now requires a session** (see BLOCKER 2).
+
+Load-bearing choices:
+
+1. **`getUser()`, not `getSession()`.** `getSession()` returns the session straight out of the
+   cookie with no signature check; `getUser()` revalidates the token with Supabase. This is what
+   makes the gate a gate.
+2. **`x-forwarded-host` is honoured only when it matches `NEXT_PUBLIC_SITE_HOST`.** Behind
+   Railway, `request.url` is the internal `localhost:8080` so the header is needed — but anyone
+   can send it, so trusting it blindly puts an attacker's host in a `Location:` header.
+3. **`safeNextPath()` resolves against a throwaway origin and demands the origin survive**,
+   rather than pattern-matching for bad prefixes.
+
+## Review round 1 — what was wrong, and what fixed it
+
+**BLOCKER 1 — the open-redirect guard did not work.** `safeNextPath` was
+`startsWith('/') && !startsWith('//')`. WHATWG URL parsing treats a backslash as a slash and
+strips tab/CR/LF, so `/\evil.com`, `/\/evil.com`, `/<TAB>/evil.com` and `/<CR>/evil.com` all
+passed and resolved to `http://evil.com/`. Confirmed against the real URL parser before fixing —
+all four resolved off-site. The guard now round-trips through `new URL()` and requires the origin
+to be unchanged *and* the path to be one the gate actually protects. Nine payload families are
+tested, each asserted twice (equals the fallback, and cannot escape the origin).
+
+**BLOCKER 2 — gating `/print` did not close the transcript leak.**
+`GET /api/live/finished-call/[id]` returned `loadCompletedCall(id)` — byte-for-byte the payload
+`/print/[id]` renders — with no authentication, via the service-role client. The page was shut
+and the JSON was still one URL away. That route now returns **401** without a session. Its only
+caller is the authenticated live viewer.
+
+**BLOCKER 3 — a false certification, and the biggest finding here.** The first version of this
+file certified `/api/admin/requests` as "correctly gated" because it has its own `requireAdmin()`.
+It does — but `requireAdmin()` uses `getSession()`, and so do `getRequestUserId()` and
+`getCurrentUser()` in `src/lib/auth.ts`. In auth-js 2.105.4, `__loadSession` reads the session
+from the cookie, checks its shape and an `expires_at` **that the cookie itself supplies**, and
+returns it. No signature verification, no network call. A forged cookie carrying a known user
+UUID passes, and the routes then query with `supabaseAdmin`, which bypasses RLS.
+
+So this branch shipped a middleware that verifies tokens properly while the rest of the app
+verifies nothing — and the first version of this file declared that rest safe.
+
+**This is NOT fixed here, deliberately.** The fix is switching three call sites to `getUser()`,
+which changes the auth path of every authenticated request in the app and deserves its own
+branch and its own verification, not a 4am amendment to a page-gate branch. It is recorded at
+the top of `.claude/rules/app.md` and is the next security item.
+
+WARNINGs also fixed: the forged-`x-forwarded-host` redirect (allowlist added, verified refused);
+the test suite that exercised none of the payloads that actually escape; matcher↔`GATED_PREFIXES`
+drift, which is now an assertion instead of three comments.
+
+## Review round 2 — the code held, the docs did not
+
+The reviewer threw a **79-payload battery** at the rewritten `safeNextPath` — backslashes,
+tab/CR/LF/NUL/VT/FF, `javascript:`/`data:`/`vbscript:`/`blob:`/`file:`/`about:`, userinfo tricks
+(`//user:pass@evil.com/app/home`, `https://evil.com@next.invalid/app/x`), `///`, `%2F%2F`, `%5C`,
+traversal, fullwidth solidus look-alikes, U+2028 — re-resolving each result to simulate
+`router.push()`. **0 of 79 escaped.** `finished-call` returned 401 anonymously *and* with a junk
+cookie, and both real call sites still work.
+
+The BLOCKER was documentation: `ARCHITECTURE.md` still said, in two places, *"there is no
+`src/middleware.ts`"* and that a login gate *"is a flagged pre-launch task"* — the document of
+record denying the existence of this branch's central artifact. Third instance of
+doc-contradicts-code in two days. Fixed.
+
+Two production-shaped WARNINGs, both real and both verified before fixing:
+
+- **`x-forwarded-proto` was unvalidated** once the host matched. `javascript` produced
+  `Location: javascript://atlas.example.com/…`, and a chained-proxy `https,http` made `new URL()`
+  **throw inside middleware — a 500 on every gated route**, i.e. a denial of service on the whole
+  app. Validating the host but not the scheme was validating one half of an attacker-controlled
+  pair. Now: first hop, allowlisted to `http`/`https`, with a `doesNotThrow` assertion.
+- **`NEXT_PUBLIC_SITE_HOST` is production-required and was documented nowhere.** Unset behind a
+  proxy, the gate falls back to the server's bound origin and sends anonymous users to
+  `http://localhost:8080/?next=…` — login unreachable in production. Now in
+  `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` (item 1) and `ARCHITECTURE.md`. **`.env.example` still
+  needs the line added by hand** — shell access to `.env*` is hook-blocked, correctly.
+
+Also fixed: the new 401 was swallowed by `LiveSession.tsx`, leaving the "View organized" CTA
+silently dead on an expired session — a security fix quietly introducing the repo's own
+recurring "degradation must be VISIBLE" defect. It now sends you to sign in and back.
+
+## Rounds 3 and 4 — the doc sweep failed twice more
+
+Round 3 confirmed the security substance closed (765 host×scheme combinations against
+`resolveOrigin`: 0 throws, 0 non-http schemes, 0 host escapes, 0 CRLF) and found only
+documentation and arithmetic left. Round 4 confirmed the code again and found the same class a
+third time. What that class actually is, stated plainly because it recurred:
+
+- **"Docs updated" was declared three times without a repo-wide grep.** Round 2: `ARCHITECTURE.md`
+  said the middleware does not exist. Round 3: `docs/product/…brief.md` said `/app/*` has no gate,
+  in the document used to sequence the next chapter. Round 4: `docs/V1-SECURITY-AND-LAUNCH-NOTES.md`
+  still opened with "deliberately public … not in the `src/middleware.ts` matcher" — in the same
+  file this branch had already edited six lines lower, and the file `ARCHITECTURE.md` now points
+  deployers at. Round 5 then caught a fourth class the first three had in common: **the birth
+  documents.** `agent-memory/BOARD.md` and the lane state files are GIT-IGNORED, so "grep the
+  tracked docs" is structurally blind to exactly the files a new session is born from — and one
+  of them was rewritten *during* the round-4 fix pass while still carrying the stale claim.
+  Worse, `state-frontend.md` taught Lane F that `/app/*` captures fine unauthenticated, a recipe
+  this branch invalidated: an anonymous capture now silently yields a screenshot OF THE LOGIN
+  PAGE, which would pass as evidence because it is a real screenshot of a real page. Flagged to
+  Lane F by the dated supervisor note the parallel-work law permits.
+  The sweep is now: grep the falsified claim across every tracked doc **AND `agent-memory/`**;
+  the surviving hits are `docs/superpowers/plans/2026-07-02-smart-environment.md` (carries the
+  SHIPPED banner, and the line sits inside a fenced quote of the then-current CLAUDE.md),
+  `PROGRESS.md` (a dated 2026-07-02 log entry) and `agent-memory/cross-cutting.md` (append-only
+  by law) — all correctly untouched, because rewriting a dated record falsifies it.
+- **A false FIXED marker.** The ready queue stamped the test-count finding FIXED while citing
+  the right number and the file still carried the wrong one. Worse than the original error: it
+  tells the next reader not to check.
+- **A raw NUL byte in `gate.test.ts`** made git classify the security test as BINARY —
+  `0 insertions, 0 deletions` — so the round-3 change to it was unreviewable by diff, and every
+  future change would have been too. Replaced with a visible `'\x00'` escape; behaviour unchanged.
+- **Hardened against malice, not against mistakes:** `new URL(target, origin)` was uncaught, so a
+  typo in `NEXT_PUBLIC_SITE_HOST` reproduced the round-2 500-on-every-gated-route DoS. Now
+  caught, falling back to the request origin.
+
+All four rounds' findings (33 in total) are appended to `agent-memory/ready-queue.md` so
+`/fleet-lint` can see the classes — round 1's were initially not filed at all, which was the
+supervisor enforcing the findings-must-not-evaporate law on lanes but not on itself.
+
+## Verified — production build, both directions
+
+The first version of this table was collected against a **dev** server, where the matcher
+compiles to `^/.*$` and middleware runs on everything. It therefore proved `requiresAuth()` and
+never exercised the real `config.matcher` — and the claim that `/apple` "proven at runtime"
+demonstrated segment-boundary matching was simply wrong, because in dev the middleware ran on
+`/apple` too. Re-done against `next start`.
+
+Compiled production matcher (`.next/server/middleware-manifest.json`), scoped as intended, with
+Next auto-extending it to the `/_next/data/<id>/….json` variants:
+
+```
+/app/:path*    ^(?:\/(_next\/data\/[^/]{1,}))?\/app(?:\/(…))?(.json)?[\/#\?]?$
+/print/:path*  ^(?:\/(_next\/data\/[^/]{1,}))?\/print(?:\/(…))?(.json)?[\/#\?]?$
+```
+
+**Anonymous, production:**
+
+| Request | Result |
+|---|---|
+| `/app` | `307` → `/?next=%2Fapp` |
+| `/app/home` | `307` → `/?next=%2Fapp%2Fhome` |
+| `/app/home/` | `308` → `/app/home`, then the gate — 2 hops, ends on the login page with the destination intact |
+| `/app/company/abc` | `307` → `/?next=%2Fapp%2Fcompany%2Fabc` |
+| `/print/demo` | `307` → `/?next=%2Fprint%2Fdemo` |
+| `/api/live/finished-call/demo` | **`401`** — the leak BLOCKER 2 found |
+| `/app/home` + `X-Forwarded-Host: evil.example.com` | `Location: http://localhost:3000/…` — forged host refused |
+| `/` (login page) | `200` |
+| `/auth/callback` | `307` → `/` — the route's OWN behaviour, not the gate (the gate always adds `?next=`) |
+| `/apple` | `404`, middleware genuinely not run |
+
+**Authenticated** (the founder's real signed-in Chrome profile) — the one way this change could
+have bricked the app:
+
+- `/app/home` rendered fully: "Good morning, Sagi", nav rail, search, an (empty) upcoming-calls
+  section → `app-home-authed-passes-gate.jpg`. **Caveat: that capture has no address bar**, so it
+  evidences "the authenticated app rendered", not the URL. The URL claim rests on the fetch probe
+  below, which reports its own final URL.
+- In-page `fetch(…, {credentials:'include'})`: `/print/demo`, `/app/chat`, `/app/settings` all
+  `200`, `redirected: false`, final URL unchanged. `/print` was checked by fetch **on purpose** —
+  navigating there auto-fires the browser print dialog, which blocks all further automation.
+
+Battery: **125/125 tests** (17 new) · `tsc --noEmit` clean · production build green with
+`ƒ Middleware 81.8 kB` in the route table.
+
+## Still open — filed, not fixed here
+
+- **`getSession()` across `lib/auth.ts` + `requireAdmin`** (BLOCKER 3 above). Highest-value
+  security item in the repo right now.
+- `PATCH /api/transcripts/[id]/speakers`, `PATCH /api/transcripts/[id]/diarization`,
+  `POST /api/live/finish` — mutate data with no auth at all; the last spends money per call.
+- `/api/companies`, `/api/companies/[id]`, `/api/calls` serve reference data anonymously.
+  Probably fine — TASE companies are public — but it should be a decision on the record.
+- `LoginForm`'s `useSearchParams()` has no Suspense boundary; it builds only because the root
+  layout reads a cookie and forces every route dynamic. Remove that cookie read and `/` fails to
+  build. Worth a boundary when the login page is redesigned.

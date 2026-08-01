@@ -63,6 +63,22 @@ main is always working. Only the supervisor pushes it. There are two roles:
    - Stamp any plan/spec in `docs/superpowers/` whose scope this merge completes with the
      historical banner (`> STATUS: SHIPPED — historical record, do not execute; current truth
      lives in ARCHITECTURE.md + PROGRESS.md`) — stamped in place, never moved.
+   - **SWEEP, don't remember.** Editing the docs you recall is not a doc update: on
+     `fix/app-login-gate` that failed FOUR consecutive review rounds (2026-08-01). Close this
+     item only by grepping the **falsified claim** — not the feature name — across every tracked
+     doc **AND `agent-memory/`**, then reading each hit. `agent-memory/` is git-ignored, so a
+     tracked-file sweep is structurally blind to `BOARD.md` and the lane state files: **the
+     documents a new session is BORN from**, where a stale claim does the most damage because a
+     lane born on a false premise produces confident wrong work instead of an error. Legitimate
+     survivors are dated log entries and SHIPPED-stamped plans — never rewrite those; rewriting
+     a dated record falsifies it. Any COUNT you write (tests, routes, findings) comes from a
+     command, never from memory — three hand-typed counts were wrong on that one branch.
+   - **If the merge invalidates how another lane VERIFIES** (a screenshot recipe, a probe, a
+     fixture — not just what it builds), push it to that lane the same session via the dated
+     `[supervisor note YYYY-MM-DD]` line the parallel-work law permits in its board section. The
+     lane cannot know its recipe expired, and the dangerous failures are the ones that still
+     produce plausible output: after the login gate, an anonymous screenshot silently became a
+     picture of the login page — a real screenshot of a real page, which passes review.
    - Commit + push the above.
 6. **Lint counter:** append `[ts] MERGE supervisor — <branch> → main (<sha>)` to
    cross-cutting.md. Then count MERGE lines since the last `LINT` line: **≥3 → run
