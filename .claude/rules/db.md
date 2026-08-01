@@ -53,3 +53,23 @@ examples on this DB — `profiles` and `access_requests` — are flagged by Supa
 (`rls_policy_always_true`) and are the reason this paragraph exists. See the 2026-08-01 ALERT in
 `agent-memory/cross-cutting.md`; do not "fix" them without checking Timlul first, since it shares
 this database and may depend on them.
+**Not to be confused with a legitimate shared-corpus read:** `FOR SELECT TO authenticated USING
+(true)` on data that is deliberately public-to-members is correct and already shipped — migration
+`20260611_006` (`companies`, `scheduled_calls`) and `20260801_014` (`transcripts`, see
+`docs/DATA-MODEL.md`). The banned shape is `FOR ALL` + `WITH CHECK (true)` + role `public`. The
+three differences that matter: command scope, the write check, and the role.
+
+## DDL against the shared DB is reviewed BEFORE it is applied (2026-08-01)
+
+Every other change in this repo can be reviewed after the fact because it can be reverted. A
+policy cannot: narrowing or removing one needs `DROP POLICY`/`ALTER POLICY`, both matched by the
+destructive-SQL hook. Migration `20260801_014` was applied first and reviewed second, which made
+the reviewer's "narrow the scope" verdict **unactionable by design** — the gate was inverted for
+the one irreversible class of change here. So: write the migration file, push the branch, run the
+reviewer on the FILE, then apply. Applying first is only acceptable when the founder has asked for
+it explicitly and the statement is provably reversible without hook-blocked SQL.
+
+**Measure blast radius on `auth.users`, never on `public.profiles`.** `profiles` is a mirror
+maintained by the `handle_new_user()` trigger, so any auth user whose row is missing is invisible
+to a `profiles` count while still holding whatever `TO authenticated` grants. Same migration: the
+first blast-radius measurement used `profiles` and only happened to be right.

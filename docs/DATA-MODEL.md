@@ -13,7 +13,7 @@
 | What | investor call transcripts · company profiles · company reports & PDFs (Maya) · upcoming calls / calendar | chat conversations · projects · workspaces · agents |
 | Written by | the ingestion pipelines (Maya API, Recall, IVRIT/RunPod) — server-side only | the user, through the app |
 | Read by | any signed-in user | **only its owner** |
-| Key | `company_id`, no `user_id` | `user_id NOT NULL REFERENCES auth.users(id)` |
+| Key | `company_id`; **new** shared tables get no `user_id` at all | `user_id NOT NULL REFERENCES auth.users(id)` |
 | If it leaks | that's the product working | that's a breach |
 
 Founder's words: *"investor transcripts need to be accessible to anyone… this is not a user
@@ -99,8 +99,22 @@ shared transcripts were invisible to every user under RLS.** Atlas displayed the
 every server route queries with `supabaseAdmin` (service role), which bypasses RLS entirely — i.e.
 for the shared corpus RLS was contributing nothing and the application was the only gate.
 
-The database now encodes Atlas's model rather than Timlul's. Note the split is no longer
-meaningful going forward: **the whole table is the shared corpus**, owner or not.
+The database now encodes Atlas's model rather than Timlul's: **for READS the whole table is the
+shared corpus**, owner or not.
+
+> ⚠️ **`transcripts.user_id` is still load-bearing for WRITES — do not remove or stop setting it.**
+> `transcripts` is the one shared-corpus table that carries a `user_id` (history, not design), so
+> it is the exception to the "no `user_id`" shape above; **new** shared tables must not copy it.
+> `src/app/api/transcripts/route.ts:82` and `:149` stamp `user_id` on insert, and
+> `src/app/api/transcripts/[id]/route.ts:104` grants edit rights via
+> `session.user.id === row.user_id` (admin fallback beneath it). A lane that reads "the split is
+> no longer meaningful" and drops the stamp would silently revoke every non-admin's ability to
+> edit their own transcript — `null === uuid` is false, so the route falls straight through to
+> its 403. Reads ignore ownership; writes do not.
+
+Caveat on the label above: the 30 null-owner rows are called "Atlas's shared company calls", but
+only **2** of them carry a `company_id`, so only 2 are reachable through `listCompanyTranscripts()`.
+They are more accurately just un-owned rows.
 
 **Also inconsistent** — `user_id NOT NULL` but NO foreign key to `auth.users`:
 `chat_conversations` · `quotes` · `quote_folders` · `user_quotes` · `followed_calls`.
@@ -128,10 +142,30 @@ RLS policies combine with **OR**, that lands exactly on the target model:
 **Shared read, owner-restricted write.** Verified after applying: both policies present,
 `transcripts_shared_read` = `SELECT / {authenticated} / USING (true)`.
 
-Blast radius, measured rather than assumed: `profiles` holds 3 rows (1 admin), the transcripts'
-3 distinct owners are exactly those 3 profiles, and 0 rows are owned by anyone outside them — the
-entire user base is the founder plus two of his own accounts, so no third party's data changed
-visibility.
+Blast radius — and the first measurement of it was **methodologically wrong**, so both the fix and
+the mistake are recorded. `TO authenticated` grants read to everyone in **`auth.users`**, not to
+everyone in `public.profiles`; `profiles` is only a trigger-maintained mirror
+(`handle_new_user()`), so an auth user missing a profile row would gain full read while being
+invisible to a `profiles`-based count. Caught by the reviewer as a BLOCKER. The query that closes
+it: `auth.users` = **3**, `profiles` = **3**, **0** auth users without a profile, newest signup
+2026-06-02. The exposed population is exactly the 3 known accounts, all the founder's own — so the
+conclusion held, but only by luck of the numbers. Full output:
+`docs/evidence/fix-transcripts-shared-corpus/2026-08-01-policy-verification.md`.
+
+Verified after applying (same evidence file, pasted output — not asserted): both policies present,
+**both `PERMISSIVE`**, which is what makes the OR combination above true. Had the older policy been
+`RESTRICTIVE` the two would be AND-ed and this migration would have granted nothing.
+
+**Not the same thing as the `USING (true)` anti-pattern in `.claude/rules/db.md`.** That rule bans
+`USING (true) WITH CHECK (true)` on `FOR ALL` policies granted to `public`, which silently opens a
+table to anyone holding the anon key. This policy is `SELECT`-only, granted to `authenticated`, on
+data that is *deliberately* shared — the same shape migration `20260611_006` already uses for
+`companies` and `scheduled_calls`. Read the two together before "fixing" either.
+
+**Process note, recorded because it must not repeat:** this migration was applied to the live
+shared database **before** the review gate ran. Since narrowing a policy needs `DROP`/`ALTER`
+(both hook-blocked), a reviewer verdict of "narrow the scope" would have been unactionable. For
+DDL against the shared database the gate must run on the migration file **first**.
 
 What this does **not** do, stated plainly: it does not address the service-role bypass (that key
 is *meant* to bypass RLS) and does not touch `getSession()`. What it buys is that the day the read
