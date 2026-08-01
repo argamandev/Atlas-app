@@ -2,11 +2,15 @@
 // ⚠️ GATEWAY (legacy-styled) — keep until Atlas has its own login/landing, then delete. See LEGACY.md
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '@/lib/supabase-browser'
+import { safeNextPath } from '@/lib/auth/gate'
 
 export function LoginForm() {
   const router = useRouter()
+  // The gate (src/middleware.ts) bounces anonymous visitors here with ?next=<where they wanted
+  // to go>. safeNextPath refuses anything that could redirect off-site.
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,7 +30,7 @@ export function LoginForm() {
       return
     }
 
-    router.push('/app/home')
+    router.push(safeNextPath(searchParams.get('next')))
     router.refresh()
   }
 

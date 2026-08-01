@@ -11,8 +11,19 @@
   self-updater (`bin/yt-dlp.exe -U`), per checkout (git-ignored). Railway installs fresh at build.
 - **PUT /api/transcripts/[id] validation is intentionally lenient** (`.passthrough()`,
   `role: z.string()`) — legacy rows have `role: "unknown"`. Don't tighten to an enum.
-- **`/app/*` pages have no hard login gate** (API routes ARE auth-gated) — known gap, flagged
-  for a dedicated auth pass before launch. Don't assume pages are protected.
+- **`/app/*` and `/print/*` ARE gated** since 2026-08-01 — `src/middleware.ts` + the unit-tested
+  `src/lib/auth/gate.ts`. Two rules if you touch it: use `getUser()` (revalidates the token),
+  never `getSession()` (trusts an attacker-controlled cookie); and validate `?next=` with
+  `safeNextPath()` before redirecting, or the gate becomes an open redirect. Keep
+  `config.matcher` in sync with `GATED_PREFIXES`.
+- **API auth is PER-ROUTE and incomplete — never assume a route is protected, check it.** The
+  old blanket claim "API routes ARE auth-gated" was false. 12 of 24 call `getRequestUserId`/
+  `getCurrentUser`; `/api/admin/requests` gates itself inline; `/api/access-request` +
+  `/api/auth/signout` + the two `/api/live` feeds are public by design; `/api/companies*` and
+  `/api/calls` serve reference data anonymously (undecided, not obviously wrong). STILL OPEN
+  (filed 2026-08-01, page gate does NOT cover them — they are direct API calls): `PATCH
+  /api/transcripts/[id]/speakers`, `PATCH /api/transcripts/[id]/diarization` and `POST
+  /api/live/finish` mutate data with NO auth at all; the last one spends money per call.
 - **Design parity is verified against the RENDERED design, never bundle CSS** (7-round lesson,
   2026-07-14): probe computed styles / canvas `measureText` on the live design page. The design
   uses TWO system stacks — body = SF Pro Text stack (→ Segoe UI on Windows), headlines
