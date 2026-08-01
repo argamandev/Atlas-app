@@ -1,0 +1,66 @@
+{
+  "capturedBy": "Lane F (feat/surfaces-import)",
+  "date": "2026-08-01",
+  "method": "getComputedStyle probes on the RENDERED design (design-import/ served on :4321) vs the app on :3001. Bundle CSS was never consulted (rules/app.md).",
+  "designSource": "design-import/Atlas MVP.dc.html, 409413 bytes",
+  "probes": {
+    "workspaceFloatCard": {
+      "note": "The floating workspace panel + main card (design lines 1439, 1714).",
+      "design": {
+        "panelWidthPx": 290,
+        "borderRadius": "16px",
+        "borderColor": "rgba(28, 24, 14, 0.06)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "boxShadow": "rgba(28, 24, 14, 0.3) 0px 8px 26px -18px, rgba(28, 24, 14, 0.05) 0px 1px 3px 0px"
+      },
+      "app": {
+        "panelWidthPx": 290,
+        "borderRadius": "16px",
+        "borderColor": "rgba(28, 24, 14, 0.06)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "boxShadow": "rgba(28, 24, 14, 0.3) 0px 8px 26px -18px, rgba(28, 24, 14, 0.05) 0px 1px 3px 0px"
+      },
+      "verdict": "EXACT. The app string additionally carries Tailwind's two inert ring placeholders (rgba(0,0,0,0) 0 0 0 0), which paint nothing.",
+      "foundDuringProbe": "The float shadow was MISSING entirely before this probe: an arbitrary Tailwind class with multi-layer rgba() silently compiled to nothing. Replaced with the existing shadow.pane token, which is byte-identical to the design recipe. Panel width was 312 -> corrected to the probed 290."
+    },
+    "projectCard": {
+      "note": "Projects list card (design line 1107).",
+      "design": { "backgroundColor": "#F7F7F7", "borderColor": "#DEDEDE", "borderRadius": "10px", "padding": "17px" },
+      "app": { "backgroundColor": "rgb(247, 247, 247)", "borderColor": "rgb(222, 222, 222)", "borderRadius": "10px", "padding": "17px" },
+      "verdict": "EXACT"
+    },
+    "headlineStacks": {
+      "note": "The design mixes TWO headline stacks and this was measured, not assumed.",
+      "headFontVariable": "'Newsreader',Georgia,serif",
+      "projectsH1": { "design": "resolves --head-font -> Newsreader serif", "app": "font-display (Newsreader)", "verdict": "EXACT after correction" },
+      "workspacePickerH1": {
+        "supersededRecord": {
+          "measuredAt": "2026-08-01, first import",
+          "design": "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif @ 34px / 600 (HARDCODED at design line 1269, did NOT use --head-font)",
+          "app": "font-sans @ 34px / 600",
+          "flag": "Reversed a design-round-2 change that put this H1 on Newsreader for app-wide consistency. Raised as a founder call rather than 'fixed' silently."
+        },
+        "resolution": "The founder answered the call by rebuilding that headline in the DESIGN as serif (2026-08-01). The design is no longer internally inconsistent, so parity and app-wide consistency now agree.",
+        "app": {
+          "remeasuredAt": "2026-08-01, after the serif call, on the shipped branch",
+          "assertedUrl": "http://localhost:3001/app/workspace (authenticated — NOT the login page)",
+          "fontFamily": "Newsreader, Georgia, serif",
+          "fontWeight": "500",
+          "fontSize": "34px",
+          "letterSpacing": "-0.68px"
+        },
+        "verdict": "SERIF — matches the re-cut design and the rest of the app's headlines.",
+        "designSideCaveat": "The DESIGN side of this row was not re-probed: the 419KB source could not be re-fetched to disk this round, and present mode renders it in a cross-origin iframe, so computed styles are unreadable there. The design's serif headline was confirmed VISUALLY in present mode, not by probe."
+      }
+    },
+    "railTextDeviation": {
+      "note": "tokens.harvey.railText stays #85817A (5.109:1) — the deliberate WCAG AA deviation from design round 2. NOT touched by this import.",
+      "verdict": "PRESERVED"
+    },
+    "unmappedWarmHexes": {
+      "note": "Five hexes the new design regions use are UNSET in the design's own [data-scheme=harvey] block (line 157), so the rendered design falls back to WARM literals there.",
+      "hexes": ["--c-F0ECE3", "--c-A19C90", "--c-B0AB9E", "--c-C2BCAF", "--c-EDE8DE"],
+      "decision": "Mapped to the nearest Harvey token by ROLE rather than ported verbatim, which would have put beige onto Harvey cards (the round-2 stray-warm-hex finding). Faintest text tier became the new tokens.harvey.inkGhost #9C9C9C. Filed in agent-memory/cross-cutting.md."
+    }
+  }
+}

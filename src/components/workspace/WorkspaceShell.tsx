@@ -1,0 +1,306 @@
+'use client'
+
+import { useCallback, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { DemoBanner } from '@/components/ds/DemoBanner'
+import {
+  ChevronLeftIcon,
+  PencilIcon,
+  PlusIcon,
+  CloseIcon,
+  SparkleIcon,
+  CollapseIcon,
+  ChevronRightIcon,
+} from '@/components/ds/icons'
+import { WorkspaceDetailColumn, type DetailKey } from './WorkspaceDetailColumn'
+import { WorkingDocument } from './WorkingDocument'
+import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
+import { WorkspaceDocs } from './WorkspaceDocs'
+import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
+
+// The populated control layout (design lines 1433-2084): a floating workspace
+// panel beside a floating main card with a tab bar. Special tabs __doc / __legal
+// / __chat sit alongside file tabs, exactly as the design's tab model does.
+
+const DOC_TAB = '__doc'
+const LEGAL_TAB = '__legal'
+const CHAT_TAB = '__chat'
+
+export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
+  const { dict } = useI18n()
+  const router = useRouter()
+
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [detail, setDetail] = useState<DetailKey | null>(null)
+  const [openTabs, setOpenTabs] = useState<string[]>([workspace.files[0]?.id ?? DOC_TAB])
+  const [activeTab, setActiveTab] = useState<string>(workspace.files[0]?.id ?? DOC_TAB)
+  const [split, setSplit] = useState(false)
+  const [multi, setMulti] = useState<string[]>([])
+  const [renaming, setRenaming] = useState(false)
+  const [name, setName] = useState(workspace.name)
+
+  const [legalStage, setLegalStage] = useState<LegalStage>('idle')
+  const [legalStep, setLegalStep] = useState(0)
+  const [legalAreas, setLegalAreas] = useState<string[]>([])
+
+  const openTab = useCallback((id: string) => {
+    setOpenTabs((t) => (t.includes(id) ? t : [...t, id]))
+    setActiveTab(id)
+  }, [])
+
+  const closeTab = useCallback((id: string) => {
+    setOpenTabs((t) => {
+      const next = t.filter((x) => x !== id)
+      setActiveTab((a) => (a === id ? (next[next.length - 1] ?? '') : a))
+      return next
+    })
+    setMulti((m) => m.filter((x) => x !== id))
+  }, [])
+
+  const sections: { key: DetailKey; label: string; count: number }[] = [
+    { key: 'files', label: dict.workspace.sectionFiles, count: workspace.files.length },
+    { key: 'agents', label: dict.workspace.sectionAgents, count: workspace.agents.length },
+    {
+      key: 'actions',
+      label: dict.workspace.sectionActions,
+      count: workspaceSessions(workspace).reduce((n, s) => n + s.items.length, 0),
+    },
+    { key: 'chats', label: dict.workspace.sectionChats, count: WS_THREADS.length },
+  ]
+
+  const iconBtn =
+    'flex h-6 w-6 flex-none items-center justify-center rounded-md text-ink-ghost transition-colors hover:bg-subtle hover:text-ink'
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <DemoBanner />
+      <div className="flex min-h-0 flex-1 gap-3 p-3">
+        {panelOpen ? (
+          <div className="flex w-[290px] flex-none flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
+            {detail ? (
+              <WorkspaceDetailColumn
+                workspace={workspace}
+                which={detail}
+                openTabs={openTabs}
+                onBack={() => setDetail(null)}
+                onOpenFile={openTab}
+                onCloseFile={closeTab}
+              />
+            ) : (
+              <>
+                <div className="flex-none px-4 pb-[15px] pt-3.5">
+                  <div className="mb-[15px] flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => router.push('/app/workspace')}
+                      className="flex items-center gap-1.5 text-[11.5px] text-ink-ghost hover:text-ink"
+                    >
+                      <ChevronLeftIcon size={13} strokeWidth={1.8} className="rtl:rotate-180" />
+                      {dict.workspace.allWorkspaces}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPanelOpen(false)}
+                      title={dict.workspace.collapsePanel}
+                      className={iconBtn}
+                    >
+                      <CollapseIcon size={16} strokeWidth={1.6} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-[11px]">
+                    <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-panel text-[16px] text-ink">
+                      {workspace.initial}
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      {renaming ? (
+                        <input
+                          autoFocus
+                          defaultValue={name}
+                          onBlur={(e) => {
+                            const v = e.currentTarget.value.trim()
+                            if (v) setName(v)
+                            setRenaming(false)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur()
+                            if (e.key === 'Escape') setRenaming(false)
+                          }}
+                          className="w-full rounded-[7px] border border-hairline bg-canvas px-2 py-1 text-[14px] font-semibold text-ink outline-none"
+                        />
+                      ) : (
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span
+                            dir="auto"
+                            className="min-w-0 flex-1 truncate font-display text-[16.5px] font-medium leading-[1.2] tracking-[-0.01em] text-ink"
+                          >
+                            {name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setRenaming(true)}
+                            title={dict.workspace.renameWorkspace}
+                            className="flex flex-none text-ink-ghost hover:text-ink"
+                          >
+                            <PencilIcon size={13} strokeWidth={1.7} />
+                          </button>
+                        </div>
+                      )}
+                      <span dir="auto" className="truncate text-[11.5px] text-ink-ghost">
+                        {workspace.company} · {workspace.sub}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="atscroll min-h-0 flex-1 overflow-auto px-3.5 pb-4">
+                  <button
+                    type="button"
+                    onClick={() => openTab(CHAT_TAB)}
+                    className="flex w-full items-center gap-2.5 rounded-[11px] bg-ink px-3 py-[11px] text-start text-paper"
+                  >
+                    <SparkleIcon size={21} className="flex-none" />
+                    <span className="flex-1 text-[13px] font-semibold">
+                      {dict.workspace.newWorkspaceChat}
+                    </span>
+                    <PlusIcon size={14} strokeWidth={2} className="flex-none opacity-50" />
+                  </button>
+
+                  <div className="mb-2 ms-0.5 mt-5 text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-ghost">
+                    {dict.workspace.yourWork}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => openTab(DOC_TAB)}
+                    className={`flex w-full items-center gap-[11px] rounded-xl border px-3 py-[11px] text-start transition-colors ${
+                      activeTab === DOC_TAB
+                        ? 'border-hairline bg-subtle'
+                        : 'border-hairline bg-paper hover:bg-subtle/60'
+                    }`}
+                  >
+                    <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-lg border border-hairline bg-canvas text-ink-muted">
+                      <DocGlyph />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span dir="auto" className="truncate text-[13px] font-semibold text-ink">
+                        {docTitle(workspace)}
+                      </span>
+                      {/* "Draft", not "saved just now" — nothing saves, and the
+                          timestamp was static anyway. */}
+                      <span className="text-[11px] text-ink-ghost">{dict.workspace.docDraftMeta}</span>
+                    </span>
+                  </button>
+
+                  <LegalPanelRow
+                    stage={legalStage}
+                    step={legalStep}
+                    areas={legalAreas}
+                    onToggleArea={(a) =>
+                      setLegalAreas((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))
+                    }
+                    onOpenScoping={() => setLegalStage('scoping')}
+                    onCancel={() => setLegalStage('idle')}
+                    onRun={() => {
+                      setLegalStage('running')
+                      setLegalStep(0)
+                    }}
+                    onAdvance={() => {
+                      if (legalStep < LEGAL_STEPS.length - 1) setLegalStep((s) => s + 1)
+                      else {
+                        setLegalStage('done')
+                        openTab(LEGAL_TAB)
+                      }
+                    }}
+                    onOpenFindings={() => openTab(LEGAL_TAB)}
+                  />
+
+                  <div className="mb-2 ms-0.5 mt-[22px] text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-ghost">
+                    {dict.workspace.workspaceSection}
+                  </div>
+                  <div className="flex flex-col gap-[3px]">
+                    {sections.map((s) => (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => setDetail(s.key)}
+                        className="flex w-full items-center gap-[11px] rounded-[10px] px-2.5 py-2 text-start hover:bg-subtle/60"
+                      >
+                        <span className="flex-1 text-[13px] font-medium text-ink">{s.label}</span>
+                        <span dir="ltr" className="flex-none font-mono-num text-[11px] text-ink-ghost">
+                          {s.count}
+                        </span>
+                        <ChevronRightIcon
+                          size={13}
+                          strokeWidth={1.8}
+                          className="flex-none text-ink-ghost rtl:rotate-180"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPanelOpen(true)}
+            title={dict.workspace.expandPanel}
+            className="flex w-9 flex-none items-center justify-center rounded-win border border-float-line bg-canvas text-ink-ghost shadow-pane hover:text-ink"
+          >
+            <ChevronRightIcon size={16} strokeWidth={1.8} className="rtl:rotate-180" />
+          </button>
+        )}
+
+        <WorkspaceDocs
+          workspace={workspace}
+          openTabs={openTabs}
+          activeTab={activeTab}
+          split={split}
+          multi={multi}
+          onSelect={setActiveTab}
+          onClose={closeTab}
+          onToggleSplit={() => setSplit((s) => !s)}
+          onToggleMulti={(id) => setMulti((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]))}
+          renderSpecial={(id) =>
+            id === DOC_TAB ? (
+              <WorkingDocument workspaceId={workspace.id} title={docTitle(workspace)} />
+            ) : id === LEGAL_TAB ? (
+              <LegalAgentChat areas={legalAreas} />
+            ) : null
+          }
+          specialLabel={(id) =>
+            id === DOC_TAB
+              ? docTitle(workspace)
+              : id === LEGAL_TAB
+                ? dict.workspace.legalReviewTab
+                : dict.workspace.workspaceChat
+          }
+        />
+      </div>
+    </div>
+  )
+}
+
+function docTitle(w: Workspace) {
+  return w.docTitle
+}
+
+function DocGlyph() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      aria-hidden
+    >
+      <path d="M6 3h8l4 4v14H6z" />
+      <path d="M14 3v4h4" />
+      <path d="M9 12h6M9 16h4" />
+    </svg>
+  )
+}

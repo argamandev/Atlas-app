@@ -1,0 +1,101 @@
+'use client'
+
+import { PlusIcon, MicIcon, ArrowUpIcon } from '@/components/ds/icons'
+
+// The pill composer — the founder's 2026-08-01 design round.
+//
+// A conversation opens on the TALL composer (big, centred, with the + / @ / /
+// affordances spelled out). The moment the first message is sent, the composer
+// becomes this: a single fully-rounded bar pinned to the bottom. The founder's
+// words in the design thread: "the first chat pannel will be the same as before,
+// but after you sent a message it will look like this! the same in workspace
+// chat and in wide agent chats."
+//
+// The @ and / buttons are deliberately absent here — the design dropped them
+// once the bar became a pill; both characters are still typed directly, and the
+// tall composer still teaches them.
+//
+// Shared by the chat thread and the workspace intake so the two cannot drift.
+export function PillComposer({
+  value,
+  onChange,
+  onSend,
+  placeholder,
+  sendLabel,
+  addLabel,
+  micLabel,
+  disabled = false,
+  disabledReason,
+  autoFocus = false,
+}: {
+  value: string
+  onChange: (v: string) => void
+  onSend: () => void
+  placeholder: string
+  sendLabel: string
+  addLabel: string
+  micLabel: string
+  /** inert surfaces say so out loud rather than accepting input that goes nowhere */
+  disabled?: boolean
+  disabledReason?: string
+  autoFocus?: boolean
+}) {
+  return (
+    <div
+      className="flex h-[46px] w-full items-center gap-2.5 rounded-full border border-hairline bg-paper ps-[15px] pe-[7px] shadow-soft"
+      title={disabled ? disabledReason : undefined}
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={addLabel}
+        className="flex flex-none text-ink-ghost transition-colors hover:text-ink disabled:cursor-not-allowed disabled:hover:text-ink-ghost"
+      >
+        <PlusIcon size={18} strokeWidth={1.7} />
+      </button>
+
+      <input
+        autoFocus={autoFocus}
+        value={value}
+        disabled={disabled}
+        aria-disabled={disabled || undefined}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            onSend()
+          }
+        }}
+        placeholder={placeholder}
+        dir="auto"
+        className="min-w-0 flex-1 bg-transparent text-[14.5px] text-ink outline-none placeholder:text-ink-ghost disabled:cursor-not-allowed"
+      />
+
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={micLabel}
+        className="flex flex-none text-ink-faint transition-colors hover:text-ink disabled:cursor-not-allowed disabled:hover:text-ink-faint"
+      >
+        <MicIcon size={17} strokeWidth={1.6} />
+      </button>
+
+      <button
+        type="button"
+        // wrapper, not a bare `onSend`: today's callers take no argument, but a
+        // bare handler feeds React's MouseEvent to whatever this becomes later —
+        // the exact defect that killed mouse-send in the chat composer
+        onClick={() => onSend()}
+        disabled={disabled}
+        aria-label={sendLabel}
+        // The design draws the send affordance solid at all times — it does not
+        // grey out on an empty input the way the tall composer does.
+        className={`flex h-8 w-8 flex-none items-center justify-center rounded-full transition-colors ${
+          disabled ? 'bg-send-idle text-canvas' : 'bg-ink text-paper'
+        }`}
+      >
+        <ArrowUpIcon size={15} strokeWidth={2} />
+      </button>
+    </div>
+  )
+}

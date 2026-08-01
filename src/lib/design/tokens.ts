@@ -22,6 +22,12 @@ export const tokens = {
     ink: '#0A0A0A', // primary: names, headers, key values (Harvey near-black, neutral)
     inkMuted: '#575757', // secondary: roles, labels, body copy
     inkFaint: '#767676', // metadata: timestamps, section labels, captions
+    // Fourth (faintest) text tier — added 2026-08-01 for the Projects/Workspace/Agents
+    // import, which distinguishes section labels from timestamps from mono counts.
+    // The design's own warm→Harvey table (Atlas MVP.dc.html:157) leaves --c-A19C90 /
+    // --c-B0AB9E / --c-C2BCAF UNSET, so they fall back to WARM literals in the rendered
+    // design; this neutral stands in for all three. Deliberate — do not "fix" to beige.
+    inkGhost: '#9C9C9C',
 
     // the single high-contrast element: the docked media player
     player: '#0A0A0A', // matches the black nav rail (founder round-3: one continuous chrome)
@@ -91,6 +97,12 @@ export const tokens = {
     float: '0 24px 70px -20px rgba(20,18,15,0.16), 0 2px 8px -2px rgba(20,18,15,0.07)',
     window: '0 24px 64px -16px rgba(0,0,0,0.28), 0 2px 8px -2px rgba(0,0,0,0.10)',
     popover: '0 12px 36px -8px rgba(0,0,0,0.22), 0 2px 6px -2px rgba(0,0,0,0.10)',
+    // Three-surfaces import (2026-08-01): the design's own menu + modal lifts,
+    // ported as tokens rather than arbitrary Tailwind classes — an arbitrary
+    // multi-layer shadow silently compiled to NOTHING and the float lost its lift.
+    menu: '0 16px 36px -18px rgba(28,24,14,0.42), 0 1px 3px rgba(28,24,14,0.06)',
+    modal: '0 30px 70px -30px rgba(28,24,14,0.50), 0 2px 6px rgba(28,24,14,0.06)',
+    hairlift: '0 1px 3px rgba(28,24,14,0.04)',
     player: '0 16px 48px -12px rgba(0,0,0,0.42), 0 2px 8px -2px rgba(0,0,0,0.24)',
   },
 

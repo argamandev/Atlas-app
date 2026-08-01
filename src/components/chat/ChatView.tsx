@@ -29,10 +29,17 @@ export function ChatView({
   initialCompany,
   initialQuote,
   initialTranscript,
+  mainView,
 }: {
   initialCompany: { id: string; name: string; logoUrl: string | null } | null
   initialQuote?: string | null
   initialTranscript?: { id: string; label: string } | null
+  /**
+   * Renders in place of the chat transcript, keeping the secondary panel intact.
+   * Used by the Projects routes (/app/chat/projects…), which the design draws
+   * inside this same surface. Conversation state below is untouched by it.
+   */
+  mainView?: React.ReactNode
 }) {
   const { dict, locale } = useI18n()
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -189,8 +196,11 @@ export function ChatView({
         }}
         reference={quote}
         onRemoveReference={() => setQuote(null)}
+        variant={empty ? 'tall' : 'pill'}
       />
-      <p className="mt-2 px-1 text-center text-2xs text-ink-faint">{dict.chat.slashHint}</p>
+      {/* The hint teaches / and @ on the opening screen. Once the thread is
+          running the pill drops it, per the founder's 2026-08-01 design. */}
+      {empty && <p className="mt-2 px-1 text-center text-2xs text-ink-faint">{dict.chat.slashHint}</p>}
     </div>
   )
 
@@ -280,10 +290,13 @@ export function ChatView({
               <PencilIcon size={16} strokeWidth={1.6} className="flex-none" />
               {dict.chat.newChat}
             </button>
-            <button type="button" className={`${navRow} text-ink-muted hover:bg-subtle/70 hover:text-ink`}>
+            <Link
+              href="/app/chat/projects"
+              className={`${navRow} text-ink-muted hover:bg-subtle/70 hover:text-ink`}
+            >
               <ProjectsIcon size={16} strokeWidth={1.6} className="flex-none" />
               {dict.chat.projects}
-            </button>
+            </Link>
             <Link
               href="/app/workspace"
               className={`${navRow} text-ink-muted hover:bg-subtle/70 hover:text-ink`}
@@ -312,7 +325,7 @@ export function ChatView({
         </div>
       }
     >
-      {content}
+      {mainView ?? content}
     </CollapsiblePanel>
   )
 }
