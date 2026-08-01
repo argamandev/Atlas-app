@@ -34,9 +34,9 @@ export function CreateAgent({
   }, [onCancel])
 
   const scopeLabel: Record<AgentScopeKind, string> = {
-    Workspace: dict.agents.scopeWorkspace,
-    Company: dict.agents.scopeCompany,
     Call: dict.agents.scopeCall,
+    Workspace: dict.agents.scopeWorkspace,
+    Sector: dict.agents.scopeSector,
     Report: dict.agents.scopeReport,
   }
   const canSubmit = name.trim().length > 0 && task.trim().length > 0

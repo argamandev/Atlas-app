@@ -10,8 +10,21 @@
 // marker — see components/ds/DemoBanner.tsx and .claude/rules/app.md.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const AGENT_SCOPE_KINDS = ['Workspace', 'Company', 'Call', 'Report'] as const
+// Order and membership both come from the design (2026-08-01 round): the four
+// scopes read Call / Workspace / Sector / Report. "Sector" replaced "Company" —
+// an agent watches a whole sector, and a single company is reached through a
+// call or a report.
+export const AGENT_SCOPE_KINDS = ['Call', 'Workspace', 'Sector', 'Report'] as const
 export type AgentScopeKind = (typeof AGENT_SCOPE_KINDS)[number]
+
+/** One row of "Recent agent chats" — a question already put to an agent. */
+export type RecentAgentChat = {
+  id: string
+  question: string
+  agentId: string
+  agentName: string
+  when: string
+}
 
 /** One thing an agent claims it found, with the source it claims to have found it in. */
 export type AgentFinding = { text: string; src: string }
@@ -58,7 +71,12 @@ export type FinishedTask = {
   agentId: string
 }
 
-const DEMO: { agents: AgentCard[]; scheduled: ScheduledAgent[]; finished: FinishedTask[] } = {
+const DEMO: {
+  agents: AgentCard[]
+  scheduled: ScheduledAgent[]
+  finished: FinishedTask[]
+  recent: RecentAgentChat[]
+} = {
   agents: [
     {
       id: 'agent-analyst',
@@ -137,6 +155,36 @@ const DEMO: { agents: AgentCard[]; scheduled: ScheduledAgent[]; finished: Finish
       title: 'Peer comparison: 3 shipping cos',
       meta: '1 table · yesterday · doc_reader',
       agentId: 'agent-doc-reader',
+    },
+  ],
+  recent: [
+    {
+      id: 'recent-analyst-mind',
+      question: 'What would change your mind here?',
+      agentId: 'agent-analyst',
+      agentName: 'analyst',
+      when: '2h ago',
+    },
+    {
+      id: 'recent-analyst-source',
+      question: 'Show me the source behind 3 findings',
+      agentId: 'agent-analyst',
+      agentName: 'analyst',
+      when: 'yesterday',
+    },
+    {
+      id: 'recent-doc-mind',
+      question: 'What would change your mind here?',
+      agentId: 'agent-doc-reader',
+      agentName: 'doc_reader',
+      when: 'Jun 14',
+    },
+    {
+      id: 'recent-doc-table',
+      question: 'Show me the source behind 1 table',
+      agentId: 'agent-doc-reader',
+      agentName: 'doc_reader',
+      when: 'Jun 11',
     },
   ],
 }

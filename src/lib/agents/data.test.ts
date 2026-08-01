@@ -51,3 +51,30 @@ test('emptyAgent is idle, unscoped and has found nothing', () => {
   assert.equal(a.done, false)
   assert.deepEqual(a.findings, [])
 })
+
+test('the four agent scopes match the design, in the design order', () => {
+  // Design round 2026-08-01 renamed Company -> Sector and fixed the order the
+  // segmented control reads. A stale kind here would render an empty target list.
+  assert.deepEqual([...AGENT_SCOPE_KINDS], ['Call', 'Workspace', 'Sector', 'Report'])
+})
+
+test('every recent agent chat resolves to an agent that exists', async () => {
+  const d = await getAgentsPageData()
+  const byId = new Map(d.agents.map((a) => [a.id, a]))
+  assert.ok(d.recent.length > 0, 'no recent chats to open')
+  for (const r of d.recent) {
+    const agent = byId.get(r.agentId)
+    // A row pointing at a missing agent opens nothing at all — silently.
+    assert.ok(agent, `recent chat ${r.id} points at unknown agent ${r.agentId}`)
+    assert.equal(r.agentName, agent.name, `recent chat ${r.id} shows a stale agent name`)
+    assert.ok(r.question.length > 0 && r.when.length > 0)
+  }
+})
+
+test('a finished task also resolves to a real agent', async () => {
+  const d = await getAgentsPageData()
+  const ids = new Set(d.agents.map((a) => a.id))
+  for (const f of d.finished) {
+    assert.ok(ids.has(f.agentId), `finished task ${f.id} points at unknown agent ${f.agentId}`)
+  }
+})
