@@ -12,14 +12,16 @@ in a screenshot where it was closed.
 
 | Check | Result |
 |---|---|
-| `npm test` | **149/149** post-merge (108 before this chapter → 132 with this branch's 24 new → 149 with the gate's 17) |
+| `npm test` | **152/152** on the current tip (108 before this chapter → 132 with this branch's 24 → 149 with the gate's 17 → 152 with 3 agent-seed tests added in the founder rounds) |
 | `npx tsc --noEmit` | green |
 | `npm run build` | green (see §6) |
-| Console errors, EN | **0** across 11 captured surfaces |
-| Console errors, HE | **0** across 11 captured surfaces |
+| Console errors, EN | **0** across 11 surfaces, measured at the 149-test tip |
+| Console errors, HE | **0** across 11 surfaces, measured at the 149-test tip |
 
 Console counts come from Playwright listeners on `console[type=error]` and `pageerror`
-across every captured route, not from a spot check.
+across every captured route, not from a spot check. They were taken at the original capture
+run and have **not** been re-measured across all 11 surfaces since; the screens touched in the
+founder and review rounds were re-checked individually.
 
 ## 1. What was built
 
@@ -182,6 +184,24 @@ Hebrew RTL mirrors correctly in the new pill — `+` on the start edge, mic and 
 on the end edge — and the agent panel docks to the left with Hebrew tabs and
 `הדגמה` markers intact.
 
+## 4c. Review round — the five fixes (2026-08-01)
+
+`atlas-reviewer` (cold context) + the supervisor returned **CHANGES, 24 findings**. The founder
+then made a scope call that closed most of them: *"everything the reviewer said we don't have
+code to is completely fine since this is only a frontend import, once you merge Lane M will
+build the actual backend on all of them."* Five survived — none needing a backend — plus the
+evidence corrections above.
+
+| # | Defect | Fix |
+|---|---|---|
+| 1 | `WorkingDocument` showed "✓ Saved just now", and `WorkspaceShell` a static "Draft · saved just now". **Nothing saves** — edits live in session state and die on reload. | Both removed. The `saved` state and its `onInput` reset went with them; `docDraftMeta` is now just "Draft". `savedJustNow` deleted from both dictionaries. |
+| 2 | The invented Hebrew quote attributed to a **named executive of a real TASE issuer** carried an English-only `— DEMO, invented quote` hardcoded inside `SEED_HTML`. A Hebrew reader saw **no marker** on the most fact-shaped element in the branch, and because it sat inside `contentEditable` the user could delete it — after which it exported into the PDF unmarked. | Marker removed from `SEED_HTML` and replaced by a localized `DemoInline` notice rendered **outside** the editable body, so it cannot be deleted and survives into Export as PDF. New key `docQuoteDemo` in both locales. |
+| 3 | Report targets duplicated ("2025 annual.pdf" appears in several workspaces), and `CreateAgent` keyed rows on `t.label` and selected by label equality → one click filled **both** radios and React logged a duplicate key. | New `AgentTarget` type carrying a stable `id`. Reports deduped by name at the route; the picker keys and selects on `id` and looks the label up only at submit. |
+| 4 | `WorkspaceIntake`'s building line forced `dir="ltr"` + `font-mono-num` on `buildingSteps`, which is a Hebrew **sentence** — so it read in reverse. Iron rule 5 scopes those to numerals and tickers. | `dir="auto"`, mono dropped. The embedded Latin filename stays upright on its own: it is a strong-LTR run and the bidi algorithm handles it. |
+| 5 | `onClick={onSend}` handed React's `MouseEvent` into `send(explicit?: string)`, so `(explicit ?? input).trim()` threw inside the click and the button silently did nothing. | `onClick={() => onSend()}`. **Fixed at both call sites, and this was live on main** — mouse-send was dead for real users in Ask Atlas and the chat page; keyboard Enter masked it. Two further sites of the same shape (`PillComposer`, `WorkspaceIntake`) were latent rather than broken (their callers take no argument) and were hardened in the same commit. |
+
+The other 15 NITs stay filed in the ready queue and are carried, not silently dropped.
+
 ## 5. Headline stacks — measured, not assumed
 
 `--head-font` resolves to `'Newsreader',Georgia,serif` in the rendered design, so every
@@ -195,7 +215,14 @@ H1 off Newsreader and reversed a design-round-2 consistency fix. This import rep
 faithfully and flagged it rather than "fixing" it silently. The founder's answer was to
 rebuild the headline in the design **as serif**, and the app followed in `65a6235` — so the
 design is no longer internally inconsistent and parity and consistency now agree. Filed as a
-DECISION line in `agent-memory/cross-cutting.md`. Original probe: `probe/surfaces-parity.json`.
+DECISION line in `agent-memory/cross-cutting.md`.
+
+`probe/surfaces-parity.json` now carries BOTH records: the original measurement (kept, marked
+superseded — a dated measurement is a record and is not rewritten) and a re-measurement of the
+shipped H1 taken through an authenticated session with the final URL asserted:
+`Newsreader, Georgia, serif` / 500 / 34px / -0.68px at `http://localhost:3001/app/workspace`.
+The **design** side of that row was not re-probed and the probe says so — present mode renders
+the design in a cross-origin iframe, so its serif headline was confirmed by eye, not measured.
 
 `tokens.harvey.railText = #85817A` (the deliberate WCAG AA deviation) was **not** touched.
 
@@ -225,11 +252,18 @@ persistence is this repo's filed fake-data defect class.
   stated reason rather than accepting input that would go nowhere.
 - **Export as Word is not implemented** — it renders disabled with "Not in this build"
   rather than as a dead button. Export as PDF uses `window.print()` per rules/app.md.
-- **The workspace side-chat reuses the existing Ask Atlas component** rather than a second
-  copy, per the design's own label ("the standard side-chat"). Lane M was given a
-  heads-up in cross-cutting before the change.
-- **The `__chat` tab currently renders the tab shell only**; wiring it to the existing Ask
-  Atlas panel is the one piece of design 2039 not finished.
+- **CORRECTION (review round, 2026-08-01).** This section previously asserted that "the
+  workspace side-chat reuses the existing Ask Atlas component" and that Pinge's
+  highlight-to-ask was reused. **Neither is in the branch** — nothing under
+  `src/components/workspace/` imports `TranscriptChatPanel`, the Ask Atlas panel or the snip
+  bridge; the single "Pinge" mention there is a comment describing a pointer-handling
+  technique, not a reuse. The claims were written from intent rather than from the code. Not
+  having built them is fine and the founder has closed it; the evidence asserting them was
+  the same written-from-memory defect that cost the login-gate branch four review rounds, so
+  it is corrected here rather than quietly deleted.
+- **The `__chat` tab renders the tab shell only.** Wiring it to a side-chat is the one piece
+  of design 2039 not finished, and is now closed by the founder's scope call — Lane M builds
+  the backends for these surfaces after the merge.
 - A mixed Hebrew/Latin citation source (`דוח ועד העובדים.pdf · p. 6`) reorders under RTL.
   Verified as **correct** Unicode bidi for a Hebrew reader, not a defect — recorded here
   so a reviewer does not "fix" it into something wrong.
