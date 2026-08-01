@@ -103,7 +103,12 @@ export function ChatComposer({
         </div>
         <button
           type="button"
-          onClick={onSend}
+          // MUST stay a wrapper, never `onClick={onSend}`: callers here are
+          // `send(explicit?: string)`, so passing the handler directly hands
+          // React's MouseEvent in as `explicit` and `(explicit ?? input).trim()`
+          // throws inside the click — swallowed, so the button silently does
+          // nothing. That was live on main; keyboard Enter masked it.
+          onClick={() => onSend()}
           disabled={!hasContent}
           aria-label="Send"
           className={`grid h-[34px] w-[34px] place-items-center rounded-[10px] transition-colors ${
@@ -153,7 +158,8 @@ export function ChatComposer({
         </button>
         <button
           type="button"
-          onClick={onSend}
+          // wrapper, not a bare `onSend` — see the tall composer's send button
+          onClick={() => onSend()}
           aria-label="Send"
           // solid at all times in the pill, per the design — unlike the tall
           // composer above, which greys out until there is something to send

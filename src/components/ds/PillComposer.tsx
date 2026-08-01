@@ -82,7 +82,10 @@ export function PillComposer({
 
       <button
         type="button"
-        onClick={onSend}
+        // wrapper, not a bare `onSend`: today's callers take no argument, but a
+        // bare handler feeds React's MouseEvent to whatever this becomes later —
+        // the exact defect that killed mouse-send in the chat composer
+        onClick={() => onSend()}
         disabled={disabled}
         aria-label={sendLabel}
         // The design draws the send affordance solid at all times — it does not

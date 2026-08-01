@@ -104,7 +104,7 @@ export function WorkspaceIntake({ workspaceName }: { workspaceName: string }) {
                   </span>
                   <button
                     type="button"
-                    onClick={send}
+                    onClick={() => send()}
                     aria-label={dict.workspace.intakePlaceholder}
                     className="ms-auto flex h-[30px] w-[30px] items-center justify-center rounded-full bg-ink text-paper"
                   >
@@ -182,7 +182,12 @@ export function WorkspaceIntake({ workspaceName }: { workspaceName: string }) {
             <div className="w-[min(560px,94%)] text-center">
               <div className="font-display text-[17px] text-ink-muted">{dict.workspace.buildingTitle}</div>
             </div>
-            <div dir="ltr" className="mt-2 font-mono-num text-[12.5px] tracking-[0.04em] text-ink-ghost">
+            {/* A SENTENCE, not data: iron rule 5 scopes dir="ltr" + font-mono-num
+                to numerals and tickers. Forcing LTR here reversed the Hebrew.
+                dir="auto" lets each locale resolve itself, and the embedded
+                Latin filename stays upright inside the Hebrew line on its own —
+                it is a strong-LTR run, which the bidi algorithm handles. */}
+            <div dir="auto" className="mt-2 text-[12.5px] tracking-[0.02em] text-ink-ghost">
               {dict.workspace.buildingSteps}
             </div>
             <div className="mt-4 flex items-center gap-2 text-[12.5px] text-ink-muted">
