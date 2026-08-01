@@ -283,6 +283,17 @@ export const en = {
     notifications: 'Notifications',
     appearance: 'Appearance',
   },
+  // Demo marking. Projects/Workspace/Agents are stub-fed this chapter: the figures,
+  // quotes and findings on those surfaces are INVENTED, about real TASE issuers.
+  // rules/app.md: degradation must be VISIBLE — never render success UI for content
+  // no backend produced.
+  demo: {
+    bannerTitle: 'Demo content',
+    bannerBody:
+      'Sample data — not real analysis. The figures, quotes and findings on this page are invented.',
+    inlineLabel: 'DEMO',
+    inlineHint: 'Invented sample content — not a real source.',
+  },
   language: {
     label: 'Language',
     english: 'English',

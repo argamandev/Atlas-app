@@ -31,8 +31,12 @@ export type DemoAction =
   | { type: 'addWorkspace'; name: string }
   | { type: 'setDocHtml'; workspaceId: string; html: string }
 
-/** Deterministic, collision-free against the demo seeds (which use p1/p2/p3, ag_*, slugs). */
-function nextId(prefix: string, taken: readonly { id: string }[]): string {
+/**
+ * Deterministic, collision-free against the demo seeds (which use p1/p2/p3, ag_*, slugs).
+ * Exported because the provider must return the new id to its caller (so a "New project"
+ * click can route to it) — one source of truth, not two implementations that can drift.
+ */
+export function nextId(prefix: string, taken: readonly { id: string }[]): string {
   let n = taken.length + 1
   const has = (id: string) => taken.some((t) => t.id === id)
   while (has(`${prefix}${n}`)) n += 1

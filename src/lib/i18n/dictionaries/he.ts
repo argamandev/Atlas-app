@@ -282,6 +282,13 @@ export const he: Dictionary = {
     notifications: 'התראות',
     appearance: 'מראה',
   },
+  // סימון תוכן הדגמה — ראה ההערה המקבילה ב-en.ts (rules/app.md).
+  demo: {
+    bannerTitle: 'תוכן הדגמה',
+    bannerBody: 'נתוני דוגמה — לא ניתוח אמיתי. הנתונים, הציטוטים והממצאים בעמוד זה מומצאים.',
+    inlineLabel: 'הדגמה',
+    inlineHint: 'תוכן דוגמה מומצא — לא מקור אמיתי.',
+  },
   language: {
     label: 'שפה',
     english: 'English',
