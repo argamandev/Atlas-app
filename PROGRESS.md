@@ -5,6 +5,38 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-01 — The login gate SHIPPED (supervisor; 5 reviewer rounds, 38 findings)
+
+**Status:** merged to `main` (`f05b659`) + pushed. `/app/*` and `/print/*` now require a session.
+Until today the pages were open: typing `/app/home` walked you in, and `/print/[id]`
+server-rendered a whole transcript to anyone holding the URL.
+
+- **What shipped:** `src/middleware.ts` (matcher-scoped, `getUser()` so the token is revalidated
+  rather than the cookie believed) + pure unit-tested `src/lib/auth/gate.ts` + `?next=` return-to
+  in `LoginForm`. `GET /api/live/finished-call/[id]` gained auth in the same branch — it returned
+  the identical transcript payload, so gating the page alone had closed nothing.
+- **The reviewer found 3 BLOCKERs in the supervisor's own code**, all reproduced before fixing:
+  the open-redirect guard was defeated by backslash/tab/CR smuggling (`/\evil.com` → off-site);
+  the `/print` leak was still reachable via API; and the evidence file certified as safe a route
+  whose auth doesn't verify. Later rounds found a `javascript:`-scheme redirect and a
+  chained-proxy `https,http` value that made `new URL()` **throw inside middleware — a 500 on
+  every gated route**. Final state: 79 redirect payloads and 765 host×scheme combinations, zero
+  escapes.
+- **🔴 The real finding, deliberately NOT fixed here:** `getSession()` reads the user out of the
+  cookie — shape check plus a cookie-supplied `expires_at`, no signature check, no network call
+  — and it backs `getRequestUserId`, `getCurrentUser` and `requireAdmin`. A forged cookie passes,
+  and the routes then query with the service-role client, bypassing RLS. Switching those three to
+  `getUser()` is now item 0 of `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` and the 🔴 entry at the top
+  of `.claude/rules/app.md`. It changes the auth path of every request and wanted its own branch.
+- **Process lesson, earned the hard way:** zero code defects survived, but the DOC SWEEP FAILED
+  FOUR TIMES — each round I corrected the files I remembered rather than grepping the falsified
+  claim. The sharpest miss was last: `agent-memory/` is git-ignored, so a tracked-file sweep is
+  blind to the documents a new session is *born* from — and `state-frontend.md` was still teaching
+  Lane F a screenshot recipe this branch invalidated, where an anonymous capture silently yields
+  a picture of the login page and passes review as evidence. Both rules graduated into `/ship`.
+
+---
+
 ## 2026-08-01 — Design round 2 "Harvey" SHIPPED (Lane F; reviewer-APPROVED after one fix round)
 
 **Status:** merged to `main` (`e977823`) + pushed. 16 commits, 52 files. The founder's second
