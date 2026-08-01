@@ -5,7 +5,6 @@ import { PlayerProvider } from '@/lib/player/PlayerProvider'
 import { LiveAudioProvider } from '@/lib/live/LiveAudioProvider'
 import { ShellChrome } from '@/components/app/ShellChrome'
 import { DemoStateProvider } from '@/lib/demo/DemoStateProvider'
-import { getProjects } from '@/lib/projects/data'
 import { getAgentsPageData } from '@/lib/agents/data'
 import { getWorkspaces } from '@/lib/workspace/data'
 
@@ -15,15 +14,14 @@ import { getWorkspaces } from '@/lib/workspace/data'
 // and LiveAudioProvider (live audio) live here (not in a page) so both global players
 // survive navigation between /app/* routes — recorded = Feature 4, live = Global Live Call.
 export default async function AppShellLayout({ children }: { children: React.ReactNode }) {
-  // Seed for the session-only demo state (Projects / Workspace / Agents). Read here
-  // so the three stub modules stay the single data door; DemoStateProvider lives at
-  // this level — not in a page — so a created project or a typed document survives
-  // navigation between /app/* routes and resets only on reload.
-  const [projects, agentsData, workspaces] = await Promise.all([
-    getProjects(),
-    getAgentsPageData(),
-    getWorkspaces(),
-  ])
+  // Seed for the session-only demo state (Workspace / Agents). Read here so the
+  // stub modules stay the single data door; DemoStateProvider lives at this level
+  // — not in a page — so a created agent or a typed document survives navigation
+  // between /app/* routes and resets only on reload.
+  //
+  // Projects are NOT seeded here any more (2026-08-02): they are real rows behind
+  // RLS, fetched per-account through /api/projects by the components themselves.
+  const [agentsData, workspaces] = await Promise.all([getAgentsPageData(), getWorkspaces()])
 
   return (
     <MacWindowFrame nav={<NavRail />}>
@@ -31,7 +29,7 @@ export default async function AppShellLayout({ children }: { children: React.Rea
       <Script src="/atlas-anim.js" strategy="lazyOnload" />
       <PlayerProvider>
         <LiveAudioProvider>
-          <DemoStateProvider seed={{ projects, agents: agentsData.agents, workspaces, docHtml: {} }}>
+          <DemoStateProvider seed={{ agents: agentsData.agents, workspaces, docHtml: {} }}>
             <ShellChrome>{children}</ShellChrome>
           </DemoStateProvider>
         </LiveAudioProvider>

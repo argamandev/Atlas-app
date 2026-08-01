@@ -2,27 +2,26 @@
 
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react'
 import { demoReducer, nextId, type DemoState } from './reducer'
-import type { Project } from '@/lib/projects/data'
 import type { AgentCard } from '@/lib/agents/data'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Session-only demo state for the three imported surfaces.
+// Session-only demo state for the workspace and agent surfaces.
 //
 // Mounted in the /app shell layout (beside PlayerProvider / LiveAudioProvider)
-// so that creating a project, editing its context, creating an agent or typing
-// the working document SURVIVES navigation between /app/* routes — otherwise a
-// created project would vanish the moment you opened it, because the list and
-// the detail are different URLs.
+// so that creating an agent or typing the working document SURVIVES navigation
+// between /app/* routes — otherwise a created agent would vanish the moment you
+// opened it, because the list and the detail are different URLs.
 //
-// It deliberately does NOT survive a reload: there is no backend this chapter,
-// and imitating persistence is the repo's filed fake-data defect class. The
-// visible demo marker (components/ds/DemoBanner.tsx) is what tells the user.
+// PROJECTS ARE NO LONGER HERE (2026-08-02). They are real rows behind RLS and go
+// through /api/projects, so they survive a reload and belong to one account.
+//
+// What is left deliberately does NOT survive a reload: workspaces and agents
+// have no backend yet, and imitating persistence is the repo's filed fake-data
+// defect class. The visible demo marker (components/ds/DemoBanner.tsx) is what
+// tells the user.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type DemoContextValue = DemoState & {
-  /** Creates an empty project and returns its id (route to it after calling). */
-  addProject: (name: string) => string
-  patchProject: (id: string, patch: Partial<Project>) => void
   addAgent: (agent: Omit<AgentCard, 'id'>) => string
   addWorkspace: (name: string) => string
   setDocHtml: (workspaceId: string, html: string) => void
@@ -35,15 +34,6 @@ export function DemoStateProvider({ seed, children }: { seed: DemoState; childre
 
   // The reducer owns id generation; nextId is imported from it (not reimplemented)
   // so the id returned here is by construction the id the reducer just assigned.
-  const addProject = useCallback(
-    (name: string) => {
-      const id = nextId('new-project-', state.projects)
-      dispatch({ type: 'addProject', name })
-      return id
-    },
-    [state.projects]
-  )
-
   const addAgent = useCallback(
     (agent: Omit<AgentCard, 'id'>) => {
       const id = nextId('new-agent-', state.agents)
@@ -62,19 +52,14 @@ export function DemoStateProvider({ seed, children }: { seed: DemoState; childre
     [state.workspaces]
   )
 
-  const patchProject = useCallback(
-    (id: string, patch: Partial<Project>) => dispatch({ type: 'patchProject', id, patch }),
-    []
-  )
-
   const setDocHtml = useCallback(
     (workspaceId: string, html: string) => dispatch({ type: 'setDocHtml', workspaceId, html }),
     []
   )
 
   const value = useMemo<DemoContextValue>(
-    () => ({ ...state, addProject, patchProject, addAgent, addWorkspace, setDocHtml }),
-    [state, addProject, patchProject, addAgent, addWorkspace, setDocHtml]
+    () => ({ ...state, addAgent, addWorkspace, setDocHtml }),
+    [state, addAgent, addWorkspace, setDocHtml]
   )
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>
@@ -87,4 +72,3 @@ export function useDemoState(): DemoContextValue {
   }
   return ctx
 }
-

@@ -1,10 +1,8 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { useDemoState } from '@/lib/demo/DemoStateProvider'
-import { DemoBanner } from '@/components/ds/DemoBanner'
 import {
   PlusIcon,
   PencilIcon,
@@ -14,36 +12,81 @@ import {
   ArrowUpIcon,
   AtIcon,
 } from '@/components/ds/icons'
-import type { ContextItem } from '@/lib/projects/data'
+import type { Project } from '@/lib/projects/data'
+import { presentProject, presentChats } from '@/lib/projects/present'
+import { fetchProject, patchProjectReq, addSourceReq, patchSourceReq } from '@/lib/projects/client'
 
 // A project (design lines 1123-1258): breadcrumb + title row, main column
 // (composer → RECENTS list) and the right rail (Instructions / Memory / Context).
-// Editing is session-only and resets on reload — see DemoStateProvider.
+//
+// Real rows since 2026-08-02. Every label on this screen — memWhen, the source
+// line counts, the chat timestamps, the capacity meter — is DERIVED from
+// columns by present.ts. Nothing here stores a label.
 
-const KIND_STYLE: Record<ContextItem['kind'], string> = {
-  XLSX: 'text-[#4F7A52] bg-[rgba(79,122,82,.11)]',
-  PDF: 'text-[#9C6B4E] bg-[rgba(156,107,78,.12)]',
-  TEXT: 'text-ink-faint bg-panel',
-}
+// Everything is a typed note this chapter; the badge is the only kind there is.
+const KIND_STYLE = 'text-ink-faint bg-panel'
+
+type Editing = { kind: 'instructions' | 'memory' } | { kind: 'source'; id: string } | null
 
 export function ProjectView({ projectId }: { projectId: string }) {
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
   const router = useRouter()
-  const { projects, patchProject } = useDemoState()
-  const project = projects.find((p) => p.id === projectId)
 
-  const [editing, setEditing] = useState<'instructions' | 'memory' | null>(null)
+  const [project, setProject] = useState<Project | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<Editing>(null)
   const [renaming, setRenaming] = useState(false)
+  // A failed write must be SEEN. Nothing on this screen claims success.
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const instrRef = useRef<HTMLTextAreaElement>(null)
   const memRef = useRef<HTMLTextAreaElement>(null)
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
 
-  // Never render a silent blank: an unknown id means a stale link, or a project
-  // created in a previous session that reload cleared (rules/app.md — degradation
-  // must be VISIBLE).
+  const load = useCallback(async () => {
+    try {
+      const { project: row, sources, chats } = await fetchProject(projectId)
+      const now = new Date()
+      setProject(presentProject(row, sources, presentChats(chats, now, locale), now, locale, dict))
+      setSaveError(null)
+    } catch {
+      setProject(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [projectId, locale, dict])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  /** Runs a write, reloads on success, and SHOWS the failure on error. */
+  const write = async (fn: () => Promise<unknown>) => {
+    try {
+      await fn()
+      setSaveError(null)
+      setEditing(null)
+      setRenaming(false)
+      await load()
+    } catch (e) {
+      setSaveError((e as Error).message)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <p className="text-[13px] text-ink-ghost">{dict.common.loading}</p>
+      </div>
+    )
+  }
+
+  // Never render a silent blank. An unknown id means a stale link, a removed
+  // project, or one belonging to another account — RLS returns no row, which is
+  // the correct answer (rules/app.md — degradation must be VISIBLE).
   if (!project) {
     return (
       <div className="flex h-full min-h-0 flex-col">
-        <DemoBanner />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-10 text-center">
           <p className="text-[15px] text-ink">{dict.projects.notFound}</p>
           <p className="max-w-[420px] text-[13px] leading-[1.6] text-ink-muted">
@@ -61,31 +104,16 @@ export function ProjectView({ projectId }: { projectId: string }) {
     )
   }
 
-  const saveInstructions = () => {
-    patchProject(project.id, { instructions: (instrRef.current?.value ?? '').trim() })
-    setEditing(null)
-  }
-  const saveMemory = () => {
-    patchProject(project.id, {
-      memory: (memRef.current?.value ?? '').trim(),
-      memWhen: dict.projects.memoryJustUpdated,
-    })
-    setEditing(null)
-  }
-  const addContext = () => {
-    const n = project.context.length + 1
-    patchProject(project.id, {
-      context: [
-        ...project.context,
-        {
-          name: dict.projects.newSource.replace('{n}', String(n)),
-          meta: dict.projects.newSourceMeta,
-          kind: 'TEXT',
-        },
-      ],
-      capacity: Math.min(100, project.capacity + 6),
-    })
-  }
+  const saveInstructions = () =>
+    write(() => patchProjectReq(project.id, { instructions: (instrRef.current?.value ?? '').trim() }))
+  const saveMemory = () =>
+    write(() => patchProjectReq(project.id, { memory: (memRef.current?.value ?? '').trim() }))
+  const saveSourceBody = (sourceId: string) =>
+    write(() => patchSourceReq(project.id, sourceId, { body: bodyRef.current?.value ?? '' }))
+  const addContext = () =>
+    write(() =>
+      addSourceReq(project.id, dict.projects.newSource.replace('{n}', String(project.context.length + 1)))
+    )
 
   const cardBtn =
     'flex h-[26px] w-[26px] flex-none items-center justify-center rounded-md text-ink-faint transition-colors hover:bg-subtle hover:text-ink'
@@ -110,7 +138,6 @@ export function ProjectView({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <DemoBanner />
       <div className="atscroll min-h-0 flex-1 overflow-auto px-10 pb-32 pt-[26px]">
         <div className="mx-auto max-w-[1080px]">
           {/* breadcrumb */}
@@ -128,6 +155,16 @@ export function ProjectView({ projectId }: { projectId: string }) {
             </span>
           </div>
 
+          {saveError && (
+            <div
+              dir="auto"
+              role="alert"
+              className="mb-4 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
+            >
+              {dict.projects.saveFailed.replace('{error}', saveError)}
+            </div>
+          )}
+
           {/* title row */}
           <div className="mb-[22px] flex items-start justify-between gap-5">
             {renaming ? (
@@ -136,8 +173,9 @@ export function ProjectView({ projectId }: { projectId: string }) {
                 defaultValue={project.name}
                 onBlur={(e) => {
                   const next = e.currentTarget.value.trim()
-                  if (next) patchProject(project.id, { name: next })
-                  setRenaming(false)
+                  if (next && next !== project.name)
+                    void write(() => patchProjectReq(project.id, { name: next }))
+                  else setRenaming(false)
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') e.currentTarget.blur()
@@ -166,7 +204,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
               <button
                 type="button"
                 title={dict.projects.pin}
-                onClick={() => patchProject(project.id, { pinned: !project.pinned })}
+                onClick={() => void write(() => patchProjectReq(project.id, { pinned: !project.pinned }))}
                 className={`${cardBtn} ${project.pinned ? 'text-ink' : ''}`}
               >
                 <StarIcon size={16} strokeWidth={1.7} />
@@ -178,15 +216,20 @@ export function ProjectView({ projectId }: { projectId: string }) {
             {/* main column */}
             <div className="min-w-[340px] flex-[1_1_520px]">
               <div className="rounded-2xl border border-hairline bg-paper px-4 pb-[11px] pt-[15px]">
-                <textarea
-                  rows={1}
-                  dir="auto"
-                  disabled
-                  aria-disabled="true"
-                  title={dict.projects.composerDisabled}
-                  placeholder={dict.projects.composerPlaceholder.replace('{name}', project.name)}
-                  className="min-h-[44px] w-full resize-none bg-transparent text-[15px] leading-[1.5] text-ink outline-none placeholder:text-ink-faint disabled:cursor-not-allowed"
-                />
+                {/* The composer stays inert: project chat is not wired up yet, and
+                    the title says exactly that on the WRAPPER — Chrome never fires
+                    hover on a disabled control, so a title= on the textarea itself
+                    would be an unreachable explanation. */}
+                <span title={dict.projects.composerDisabled}>
+                  <textarea
+                    rows={1}
+                    dir="auto"
+                    disabled
+                    aria-disabled="true"
+                    placeholder={dict.projects.composerPlaceholder.replace('{name}', project.name)}
+                    className="min-h-[44px] w-full resize-none bg-transparent text-[15px] leading-[1.5] text-ink outline-none placeholder:text-ink-faint disabled:cursor-not-allowed"
+                  />
+                </span>
                 <div className="mt-1.5 flex items-center gap-0.5">
                   <span className={cardBtn} aria-hidden>
                     <PlusIcon size={15} strokeWidth={1.5} />
@@ -219,7 +262,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
               <div className="flex flex-col">
                 {project.chats.map((c) => (
                   <div
-                    key={c.title}
+                    key={c.id}
                     className="flex w-full items-center gap-[13px] border-b border-hairline px-2 py-3.5 text-start"
                   >
                     <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full bg-subtle text-ink-faint">
@@ -228,8 +271,8 @@ export function ProjectView({ projectId }: { projectId: string }) {
                     <span dir="auto" className="min-w-0 flex-1 truncate text-[14px] text-ink" title={c.title}>
                       {c.title}
                     </span>
-                    <span className="flex-none font-mono-num text-[11.5px] text-ink-ghost" dir="ltr">
-                      {c.when}
+                    <span className="flex-none text-[11.5px] text-ink-ghost">
+                      <bdi dir="auto">{c.when}</bdi>
                     </span>
                   </div>
                 ))}
@@ -253,13 +296,13 @@ export function ProjectView({ projectId }: { projectId: string }) {
                     <button
                       type="button"
                       title={dict.projects.editInstructions}
-                      onClick={() => setEditing('instructions')}
+                      onClick={() => setEditing({ kind: 'instructions' })}
                       className={cardBtn}
                     >
-                      <PlusIcon size={15} strokeWidth={1.9} />
+                      <PencilIcon size={14} strokeWidth={1.7} />
                     </button>
                   </div>
-                  {editing === 'instructions' ? (
+                  {editing?.kind === 'instructions' ? (
                     <>
                       <textarea
                         ref={instrRef}
@@ -273,7 +316,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
                   ) : (
                     <div
                       dir="auto"
-                      className={`text-[12.5px] leading-[1.6] ${project.instructions ? 'text-ink-muted' : 'text-ink-ghost'}`}
+                      className={`whitespace-pre-wrap text-[12.5px] leading-[1.6] ${project.instructions ? 'text-ink-muted' : 'text-ink-ghost'}`}
                     >
                       {project.instructions || dict.projects.instructionsEmpty}
                     </div>
@@ -292,14 +335,14 @@ export function ProjectView({ projectId }: { projectId: string }) {
                       <button
                         type="button"
                         title={dict.projects.editMemory}
-                        onClick={() => setEditing('memory')}
+                        onClick={() => setEditing({ kind: 'memory' })}
                         className={cardBtn}
                       >
                         <PencilIcon size={14} strokeWidth={1.7} />
                       </button>
                     </span>
                   </div>
-                  {editing === 'memory' ? (
+                  {editing?.kind === 'memory' ? (
                     <>
                       <textarea
                         ref={memRef}
@@ -314,11 +357,14 @@ export function ProjectView({ projectId }: { projectId: string }) {
                     <>
                       <div
                         dir="auto"
-                        className={`line-clamp-3 text-[12.5px] leading-[1.6] ${project.memory ? 'text-ink-muted' : 'text-ink-ghost'}`}
+                        className={`line-clamp-3 whitespace-pre-wrap text-[12.5px] leading-[1.6] ${project.memory ? 'text-ink-muted' : 'text-ink-ghost'}`}
                       >
                         {project.memory || dict.projects.memoryEmpty}
                       </div>
-                      <div className="mt-[7px] text-[11px] text-ink-ghost">{project.memWhen}</div>
+                      {/* memWhen is a localized sentence, not a numeral — no dir="ltr". */}
+                      <div dir="auto" className="mt-[7px] text-[11px] text-ink-ghost">
+                        {project.memWhen}
+                      </div>
                     </>
                   )}
                 </div>
@@ -344,36 +390,80 @@ export function ProjectView({ projectId }: { projectId: string }) {
 
                   <div className="h-1 overflow-hidden rounded bg-subtle">
                     <div
-                      className="h-full rounded bg-ink"
+                      className={`h-full rounded ${project.overBudget ? 'bg-[#B0533E]' : 'bg-ink'}`}
                       style={{ width: `${Math.max(2, project.capacity)}%` }}
                     />
                   </div>
                   <div className="mb-3 mt-2 text-[11.5px] text-ink-ghost">
                     {dict.projects.capacityUsed.replace('{pct}', String(project.capacity))}
                   </div>
+                  {/* A full bar looks the same at the limit and ten times past it.
+                      Only one of those is losing the user's context — say which. */}
+                  {project.overBudget && (
+                    <div
+                      dir="auto"
+                      role="alert"
+                      className="mb-3 rounded-[8px] bg-[rgba(203,75,46,.10)] px-2.5 py-2 text-[11.5px] leading-[1.5] text-[#B0533E]"
+                    >
+                      {dict.projects.overBudget}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-[9px]">
                     {project.context.map((cx) => (
                       <div
-                        key={cx.name}
-                        className="flex min-h-[96px] flex-col gap-[5px] rounded-[10px] border border-hairline bg-paper px-[11px] pb-[9px] pt-[11px]"
+                        key={cx.id}
+                        className="col-span-2 flex flex-col gap-[5px] rounded-[10px] border border-hairline bg-paper px-[11px] pb-[9px] pt-[11px]"
                       >
-                        <span dir="auto" className="text-[12.5px] font-semibold leading-[1.35] text-ink">
-                          {cx.name}
-                        </span>
-                        {/* meta is Latin with a leading digit ("4 sheets"); under dir=rtl the
-                            number jumps to the end. <bdi dir="ltr"> isolates the run so it reads
-                            correctly while the card's own alignment stays with the locale. */}
-                        <span className="text-[11px] text-ink-ghost">
-                          <bdi dir="ltr">{cx.meta}</bdi>
-                        </span>
-                        <span className="flex-1" />
-                        <span
-                          dir="ltr"
-                          className={`self-start rounded-[5px] px-1.5 py-[3px] font-mono-num text-[9.5px] tracking-[0.06em] ${KIND_STYLE[cx.kind]}`}
-                        >
-                          {cx.kind}
-                        </span>
+                        <div className="flex items-start justify-between gap-2">
+                          <span dir="auto" className="text-[12.5px] font-semibold leading-[1.35] text-ink">
+                            {cx.name}
+                          </span>
+                          <button
+                            type="button"
+                            title={dict.projects.editSource}
+                            onClick={() => setEditing({ kind: 'source', id: cx.id })}
+                            className={cardBtn}
+                          >
+                            <PencilIcon size={13} strokeWidth={1.7} />
+                          </button>
+                        </div>
+
+                        {editing?.kind === 'source' && editing.id === cx.id ? (
+                          <>
+                            <textarea
+                              ref={bodyRef}
+                              autoFocus
+                              dir="auto"
+                              defaultValue={cx.body}
+                              placeholder={dict.projects.sourceBodyPlaceholder}
+                              className="min-h-[90px] w-full resize-y rounded-[9px] border border-hairline bg-canvas px-2.5 py-[9px] text-[12px] leading-[1.6] text-ink outline-none"
+                            />
+                            {editActions(() => saveSourceBody(cx.id))}
+                          </>
+                        ) : (
+                          <>
+                            {cx.body && (
+                              <span
+                                dir="auto"
+                                className="line-clamp-3 whitespace-pre-wrap text-[11.5px] leading-[1.55] text-ink-muted"
+                              >
+                                {cx.body}
+                              </span>
+                            )}
+                            {/* meta may lead with a digit ("6 lines"); isolate the run
+                                so RTL does not throw the number to the end. */}
+                            <span className="text-[11px] text-ink-ghost">
+                              <bdi dir="auto">{cx.meta}</bdi>
+                            </span>
+                            <span
+                              dir="ltr"
+                              className={`self-start rounded-[5px] px-1.5 py-[3px] font-mono-num text-[9.5px] tracking-[0.06em] ${KIND_STYLE}`}
+                            >
+                              {cx.kind}
+                            </span>
+                          </>
+                        )}
                       </div>
                     ))}
                     {project.context.length === 0 && (
