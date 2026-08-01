@@ -5,6 +5,7 @@ import { LiveBroadcastView } from './LiveBroadcastView'
 import { LiveTranscriptView } from './LiveTranscriptView'
 import { ChevronRightIcon, CloseIcon } from '@/components/ds/icons'
 import type { LiveCall } from '@/lib/live/loadCall'
+import { loginRedirectTarget } from '@/lib/auth/gate'
 
 // Wraps the live broadcast. While airing it's held delaySec behind real-time. When the SOURCE stops we fire
 // the finish pipeline, but the view STAYS LIVE and drains the buffer (handled in LiveBroadcastView). Once the
@@ -139,6 +140,14 @@ export function LiveSession(props: {
     if (!id) return
     try {
       const r = await fetch(`/api/live/finished-call/${id}`, { cache: 'no-store' })
+      if (r.status === 401) {
+        // Session expired mid-call. A page load would be bounced by the gate, but this is a
+        // fetch — returning silently leaves the CTA dead on click, which is exactly the
+        // "degradation must be VISIBLE" class in .claude/rules/app.md. Send them to sign in
+        // and bring them back here.
+        window.location.href = loginRedirectTarget(window.location.pathname, window.location.search)
+        return
+      }
       if (!r.ok) return
       setFinishedCall((await r.json()) as LiveCall)
       setPhase('finished')

@@ -63,6 +63,41 @@ WARNINGs also fixed: the forged-`x-forwarded-host` redirect (allowlist added, ve
 the test suite that exercised none of the payloads that actually escape; matcher↔`GATED_PREFIXES`
 drift, which is now an assertion instead of three comments.
 
+## Review round 2 — the code held, the docs did not
+
+The reviewer threw a **79-payload battery** at the rewritten `safeNextPath` — backslashes,
+tab/CR/LF/NUL/VT/FF, `javascript:`/`data:`/`vbscript:`/`blob:`/`file:`/`about:`, userinfo tricks
+(`//user:pass@evil.com/app/home`, `https://evil.com@next.invalid/app/x`), `///`, `%2F%2F`, `%5C`,
+traversal, fullwidth solidus look-alikes, U+2028 — re-resolving each result to simulate
+`router.push()`. **0 of 79 escaped.** `finished-call` returned 401 anonymously *and* with a junk
+cookie, and both real call sites still work.
+
+The BLOCKER was documentation: `ARCHITECTURE.md` still said, in two places, *"there is no
+`src/middleware.ts`"* and that a login gate *"is a flagged pre-launch task"* — the document of
+record denying the existence of this branch's central artifact. Third instance of
+doc-contradicts-code in two days. Fixed.
+
+Two production-shaped WARNINGs, both real and both verified before fixing:
+
+- **`x-forwarded-proto` was unvalidated** once the host matched. `javascript` produced
+  `Location: javascript://atlas.example.com/…`, and a chained-proxy `https,http` made `new URL()`
+  **throw inside middleware — a 500 on every gated route**, i.e. a denial of service on the whole
+  app. Validating the host but not the scheme was validating one half of an attacker-controlled
+  pair. Now: first hop, allowlisted to `http`/`https`, with a `doesNotThrow` assertion.
+- **`NEXT_PUBLIC_SITE_HOST` is production-required and was documented nowhere.** Unset behind a
+  proxy, the gate falls back to the server's bound origin and sends anonymous users to
+  `http://localhost:8080/?next=…` — login unreachable in production. Now in
+  `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` (item 1) and `ARCHITECTURE.md`. **`.env.example` still
+  needs the line added by hand** — shell access to `.env*` is hook-blocked, correctly.
+
+Also fixed: the new 401 was swallowed by `LiveSession.tsx`, leaving the "View organized" CTA
+silently dead on an expired session — a security fix quietly introducing the repo's own
+recurring "degradation must be VISIBLE" defect. It now sends you to sign in and back.
+
+Both rounds' findings (19 in total) are appended to `agent-memory/ready-queue.md` so `/fleet-lint`
+can see the classes — round 1's were initially not filed, which is the supervisor enforcing the
+findings-must-not-evaporate law on lanes but not on itself.
+
 ## Verified — production build, both directions
 
 The first version of this table was collected against a **dev** server, where the matcher
@@ -105,7 +140,7 @@ have bricked the app:
   `200`, `redirected: false`, final URL unchanged. `/print` was checked by fetch **on purpose** —
   navigating there auto-fires the browser print dialog, which blocks all further automation.
 
-Battery: **124/124 tests** (16 new) · `tsc --noEmit` clean · production build green with
+Battery: **125/125 tests** (17 new) · `tsc --noEmit` clean · production build green with
 `ƒ Middleware 81.8 kB` in the route table.
 
 ## Still open — filed, not fixed here

@@ -17,10 +17,24 @@ institutional launch. Specifically:
 
 ## Must-fix BEFORE launch (security)
 
-1. **Gate the product.** Add `/app/:path*` and the user-scoped API routes
-   (`/api/quotes`, `/api/calls/follow`, `/api/chat`) to the `middleware.ts` matcher and require
-   a session. (Also: the middleware redirect derives origin from `request.url` — switch to
-   `x-forwarded-host`/`x-forwarded-proto` per the Railway gotcha in CLAUDE.md.)
+0. **🔴 `getSession()` verifies nothing — switch `lib/auth.ts` and `requireAdmin` to `getUser()`.**
+   THE top security item (found 2026-08-01). `getRequestUserId` :23, `getCurrentUser` :40 and
+   `requireAdmin` (`/api/admin/requests`) all resolve the user via `supabase.auth.getSession()`,
+   which in auth-js 2.105.4 reads the session out of the COOKIE — shape check plus an
+   `expires_at` the cookie itself supplies, no signature check, no network call. A forged cookie
+   carrying a known user UUID passes, and the routes then query with `supabaseAdmin`, which
+   bypasses RLS. Until this lands, every "auth-gated" API route is gated in intent only, and
+   nothing below this line can be considered done.
+1. ~~**Gate the product.**~~ **PAGES DONE 2026-08-01** — `src/middleware.ts` gates `/app/*` and
+   `/print/*` (the latter server-rendered whole transcripts to anyone with the URL), redirect
+   origin derived from `x-forwarded-host`/`x-forwarded-proto` per the Railway gotcha, host and
+   scheme both allowlisted. **DEPLOY REQUIREMENT: set `NEXT_PUBLIC_SITE_HOST` to the public
+   hostname** (e.g. `atlas.example.com`) — it is not in `.env.example` yet. Unset behind a proxy,
+   the gate falls back to the server's bound origin and redirects anonymous users to
+   `http://localhost:8080/…`, making login unreachable in production.
+   STILL OPEN from this item: the user-scoped API routes (`/api/quotes`, `/api/calls/follow`,
+   `/api/chat`) plus `PATCH …/speakers`, `PATCH …/diarization` and `POST /api/live/finish`
+   (the last spends money per call). A page gate does not cover direct API calls.
 2. **Lock down `/api/chat`.** Require auth, add a per-user rate limit, cap `message`/`history`
    size, and restrict transcript context to the user's permitted companies — today
    `getChatContext` falls back to "the most recent completed transcript across ALL companies,"

@@ -28,7 +28,7 @@
   "auth-gated" API route as gated in intent only. Filed 2026-08-01 at review of the login-gate
   branch; NOT introduced by it, and deliberately not smuggled into it.
 - **API auth is PER-ROUTE and incomplete — never assume a route is protected, check it.** The
-  old blanket claim "API routes ARE auth-gated" was false. 12 of 24 call the helpers above;
+  old blanket claim "API routes ARE auth-gated" was false. 13 of 24 call the helpers above;
   `/api/access-request` + `/api/auth/signout` + the two `/api/live` feeds are public by design;
   `/api/companies*` and `/api/calls` serve reference data anonymously (undecided, not obviously
   wrong). STILL OPEN (page gate does NOT cover them — they are direct API calls): `PATCH

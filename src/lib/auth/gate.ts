@@ -35,7 +35,12 @@ export function resolveOrigin(
   const host = headers.get('x-forwarded-host')
   if (!host || !expectedHost) return fallbackOrigin
   if (host.toLowerCase() !== expectedHost.toLowerCase()) return fallbackOrigin
-  const proto = headers.get('x-forwarded-proto') ?? 'https'
+  // The scheme is attacker-controlled too, and validating the host is not enough:
+  // `X-Forwarded-Proto: javascript` produced `Location: javascript://…`, and a chained-proxy
+  // value like `https,http` made new URL() throw INSIDE middleware — a 500 on every gated
+  // route, i.e. a denial of service on the whole app. Take the first hop, allowlist it.
+  const first = (headers.get('x-forwarded-proto') ?? '').split(',')[0].trim().toLowerCase()
+  const proto = first === 'http' || first === 'https' ? first : 'https'
   return `${proto}://${host}`
 }
 
