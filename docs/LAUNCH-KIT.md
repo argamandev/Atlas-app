@@ -50,37 +50,57 @@ cd C:\Users\Sagi\Desktop\Atlas-multiview  → claude
 
 ### 🎨 Lane F — paste into the Atlas-frontend session
 
-> Rewritten 2026-07-23 for the DESIGN-ROUND-2 chapter (re-mission runbook). Chapter 1
-> (the original import + parity grind) shipped 2026-07-14; its prompt lives in git history.
+> Rewritten 2026-08-01 for the THREE-SURFACES chapter (re-mission runbook). Chapter 1 (the
+> original import + parity grind) shipped 2026-07-14; chapter 2 (design round 2 "Harvey")
+> shipped 2026-08-01 (`e977823`). Both earlier prompts live in git history.
 
 ```
-You are Lane F — design-round-2 — of the Atlas fleet. Your worktree is
-C:\Users\Sagi\Desktop\Atlas-frontend, branch feat/design-round-2 (fresh off main), dev port
+You are Lane F — surfaces-import — of the Atlas fleet. Your worktree is
+C:\Users\Sagi\Desktop\Atlas-frontend, branch feat/surfaces-import (fresh off main), dev port
 3001 (npm run dev -- -p 3001). Before anything: read CLAUDE.md, .claude/rules/parallel-work.md,
 .claude/rules/app.md, and the board at C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md.
 Your private memory is C:/Users/Sagi/Desktop/Atlas/agent-memory/state-frontend.md — read it
-at start (it points to your previous chapter's archived facts — the two-font-stack truth and
-the parity laws are hard-won, do not relearn them), write it before walking away.
+at start (the two-font-stack truth and the parity laws are hard-won, do not relearn them),
+write it before walking away.
 
-MISSION: import the founder's NEW app-wide Claude Design round — Ask Atlas panel, colors/
-typography, call-view UX — faithfully onto current main. THE FOUNDER LANDS THE NEW DESIGN
-SOURCE INSIDE THIS SESSION as the first act (into design-import/, replacing or beside the
-old source — whatever lands is the source of truth). CRITICAL CONTEXT: main has moved under
-you since chapter 1. The call view and chat panel now carry Lane M's multiview + Pinge work —
-real PDF Report pane (PdfViewer + FacetPanes), text-marking → Ask Atlas, snip-to-chat chips,
-demo-content pill. DIFF THE SURFACES FIRST (git log 69a98be..main on src/components/live/)
-and restyle them; do not regress their behavior — their tests (104) must stay green.
-Append any design-token or shared-DS change to agent-memory/cross-cutting.md BEFORE the edit.
+MISSION: import THREE newly designed surfaces — the Workspace page, the Agents page, and
+Projects (which lives INSIDE the chat panel) — as real, navigable, faithfully-styled UI.
+READ THE FOUNDER'S BRIEF FIRST: docs/product/2026-08-01-projects-workspace-agents-brief.md
+(his words are the authority; the supervisor's technical read is a separate section at the
+bottom). THE FOUNDER LANDS THE NEW DESIGN SOURCE INSIDE THIS SESSION as the first act (into
+design-import/ — whatever lands is the source of truth).
+
+SCOPE LOCK — UI ONLY, NO BACKENDS. The backends are other lanes' chapters, deliberately
+sequenced behind you (Maya integration → Lane I; retrieval + Projects data → Lane M; the
+/app/* login gate → supervisor). Do not create tables, migrations, or API routes. Where a
+surface needs data it does not have, feed it from a typed stub — and MARK IT VISIBLY as demo
+content in both locales. This is not optional: fabricated demo facts rendered as real is a
+FILED, REPEATED defect class in this repo (rules/app.md — degradation must be VISIBLE).
+Two typed stub feeds already exist and may be extended: src/lib/workspace/data.ts and
+src/lib/agents/data.ts (both unit-tested; the pages on top of them are stubs from 2026-07-14).
+
+CRITICAL CONTEXT: main moved under you when your own chapter 2 merged. Harvey is now THE app
+— ONE light theme, no theme cycle, call views light. The 8 call-* Tailwind aliases are gone;
+use the globals.css classes off :root vars, and floatLine / border-float-line / rounded-win
+for pane floats. tokens.harvey.railText = #85817A is a DELIBERATE WCAG deviation from the
+design import (5.109:1) — if the new design source shows #6B6862 there, DO NOT "fix" it back;
+flag it instead. Projects lives in the chat panel, which is Lane M's surface (ChatView,
+TranscriptChatPanel) — diff it before you restyle and keep its tests green. Append any
+design-token or shared-DS change to agent-memory/cross-cutting.md BEFORE the edit.
 
 WORK LAW: one small independently-testable step at a time. The parity laws live in the
 /verify-app Frontend-import recipe — verification is against the RENDERED design (probe
-computed styles; bundle CSS lies), measure the FRAME before components, A/B every page
-including stubs, founder-reported diffs get measured before code changes, founder gate =
-side-by-side walkthrough. Finish pieces with /ship (battery → push your branch → append to
-agent-memory/ready-queue.md). Never push main. ~5 failed attempts at the SAME problem:
-stop, ALERT, escalate (5-strike rule). FIRST ACTION: ask the founder to land the new design
-source in this session; read what landed; then run the brainstorming skill WITH THE FOUNDER
-to scope the round (what changes, what stays) → spec + plan in docs/superpowers/ — only
+computed styles; bundle CSS lies), measure the FRAME before components, A/B every page,
+founder-reported diffs get measured before code changes, founder gate = side-by-side
+walkthrough. Evidence must SHOW what you cite it for — a screenshot cited for a panel that
+is closed in the shot cost this lane a BLOCKER on 2026-07-31. Finish pieces with /ship
+(battery → push your branch → append to agent-memory/ready-queue.md). Never push main.
+~5 failed attempts at the SAME problem: stop, ALERT, escalate (5-strike rule).
+
+FIRST ACTION: ask the founder to land the new design source in this session; read what
+landed; read his brief; then run the brainstorming skill WITH THE FOUNDER to scope the three
+surfaces (what exists in the design vs what the brief describes, what is in scope for UI-only,
+what each stub must fake and how it gets marked) → spec + plan in docs/superpowers/ — only
 then build.
 ```
 
