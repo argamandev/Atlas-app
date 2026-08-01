@@ -17,7 +17,13 @@ import {
   ProfileIcon,
   SparkleIcon,
 } from '@/components/ds/icons'
-import type { AgentScopeKind, FinishedTask, RecentAgentChat, ScheduledAgent } from '@/lib/agents/data'
+import type {
+  AgentScopeKind,
+  AgentTarget,
+  FinishedTask,
+  RecentAgentChat,
+  ScheduledAgent,
+} from '@/lib/agents/data'
 
 // Agents page (design lines 2085-2210): command deck, My Agents grid with a
 // per-card menu, Finished tasks, Scheduled agents — plus the create modal
@@ -32,7 +38,7 @@ export function AgentsPage({
   scheduled: ScheduledAgent[]
   finished: FinishedTask[]
   recent: RecentAgentChat[]
-  targets: Record<AgentScopeKind, { label: string; meta: string }[]>
+  targets: Record<AgentScopeKind, AgentTarget[]>
 }) {
   const { dict } = useI18n()
   const { agents, addAgent } = useDemoState()

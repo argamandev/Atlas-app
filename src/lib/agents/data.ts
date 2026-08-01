@@ -18,6 +18,13 @@
 export const AGENT_SCOPE_KINDS = ['Call', 'Workspace', 'Company', 'Sector', 'Report'] as const
 export type AgentScopeKind = (typeof AGENT_SCOPE_KINDS)[number]
 
+/**
+ * One selectable assignment target. `id` is what the UI keys and selects on —
+ * `label` is NOT unique (the same report name exists in several workspaces), and
+ * keying on it made one click select two rows and React log a duplicate key.
+ */
+export type AgentTarget = { id: string; label: string; meta: string }
+
 /** One row of "Recent agent chats" — a question already put to an agent. */
 export type RecentAgentChat = {
   id: string

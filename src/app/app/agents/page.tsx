@@ -4,7 +4,7 @@ import { getAgentsPageData } from '@/lib/agents/data'
 import { getWorkspaces } from '@/lib/workspace/data'
 import { AppPage } from '@/components/app/AppPage'
 import { AgentsPage as AgentsSurface } from '@/components/agents/AgentsPage'
-import type { AgentScopeKind } from '@/lib/agents/data'
+import type { AgentScopeKind, AgentTarget } from '@/lib/agents/data'
 
 // Agents — FRONTEND-ONLY. Full design anatomy lives in components/agents/*
 // (deck 2085 · grid 2102 · finished 2175 · scheduled 2191 · create 2211 · dock 2263).
@@ -26,18 +26,31 @@ export default async function AgentsRoute() {
   const sectors = Array.from(new Set(workspaces.map((w) => w.sub.split('·')[0]!.trim()).filter(Boolean)))
   const companies = Array.from(new Set(workspaces.map((w) => w.company).filter(Boolean)))
   const fileWord = (n: number) => (n === 1 ? dict.workspace.fileOne : dict.workspace.files)
-  const targets: Record<AgentScopeKind, { label: string; meta: string }[]> = {
+
+  // The same report name lives in several workspaces ("2025 annual.pdf"), so the
+  // Report list is DEDUPED by name — otherwise the picker offered the same
+  // document twice. Every target also carries a stable `id`; the picker keys and
+  // selects on that, never on the label.
+  const reports = new Map<string, AgentTarget>()
+  for (const f of workspaces.flatMap((w) => w.files)) {
+    if (f.kind !== 'pdf' || reports.has(f.name)) continue
+    reports.set(f.name, { id: `report:${f.name}`, label: f.name, meta: f.year ?? '' })
+  }
+
+  const targets: Record<AgentScopeKind, AgentTarget[]> = {
     Workspace: workspaces.map((w) => ({
+      id: `workspace:${w.id}`,
       label: w.name,
       meta: `${w.fileCount} ${fileWord(w.fileCount)}`,
     })),
-    Company: companies.map((c) => ({ label: c, meta: 'TASE' })),
-    Sector: sectors.map((s) => ({ label: s, meta: 'TASE' })),
-    Call: workspaces.map((w) => ({ label: `${w.company} — Q2 2026 call`, meta: w.updatedLabel })),
-    Report: workspaces
-      .flatMap((w) => w.files)
-      .filter((f) => f.kind === 'pdf')
-      .map((f) => ({ label: f.name, meta: f.year ?? '' })),
+    Company: companies.map((c) => ({ id: `company:${c}`, label: c, meta: 'TASE' })),
+    Sector: sectors.map((s) => ({ id: `sector:${s}`, label: s, meta: 'TASE' })),
+    Call: workspaces.map((w) => ({
+      id: `call:${w.id}`,
+      label: `${w.company} — Q2 2026 call`,
+      meta: w.updatedLabel,
+    })),
+    Report: Array.from(reports.values()),
   }
 
   return (

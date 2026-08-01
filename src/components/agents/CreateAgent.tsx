@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { CloseIcon, PlusIcon } from '@/components/ds/icons'
-import { AGENT_SCOPE_KINDS, type AgentCard, type AgentScopeKind } from '@/lib/agents/data'
+import { AGENT_SCOPE_KINDS, type AgentCard, type AgentScopeKind, type AgentTarget } from '@/lib/agents/data'
 
 // Create agent (design lines 2211-2261). Name · what it should do · assignment.
 // The brief asks the UI to encourage detail, so the task field carries a hint.
@@ -15,7 +15,7 @@ export function CreateAgent({
   onCreate,
 }: {
   /** selectable assignment targets per scope kind, from the stub feeds */
-  targets: Record<AgentScopeKind, { label: string; meta: string }[]>
+  targets: Record<AgentScopeKind, AgentTarget[]>
   onCancel: () => void
   onCreate: (agent: Omit<AgentCard, 'id'>) => void
 }) {
@@ -23,7 +23,8 @@ export function CreateAgent({
   const [name, setName] = useState('')
   const [task, setTask] = useState('')
   const [scope, setScope] = useState<AgentScopeKind>('Workspace')
-  const [target, setTarget] = useState<string>('')
+  // the SELECTED id; the label is looked up from it at submit time
+  const [targetId, setTargetId] = useState<string>('')
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -53,7 +54,8 @@ export function CreateAgent({
       description: task.trim(),
       status: 'idle',
       scopeKind: scope,
-      scopeTarget: target,
+      // the agent stores the human label; the id only ever drove selection
+      scopeTarget: (targets[scope] ?? []).find((t) => t.id === targetId)?.label ?? '',
       done: false,
       task: '',
       out: '',
@@ -130,7 +132,7 @@ export function CreateAgent({
                 type="button"
                 onClick={() => {
                   setScope(k)
-                  setTarget('')
+                  setTargetId('')
                 }}
                 className={`flex-1 rounded-[9px] border px-1.5 py-2 text-[12.5px] ${
                   on
@@ -146,12 +148,14 @@ export function CreateAgent({
 
         <div className="atscroll mb-[22px] flex max-h-[168px] flex-col gap-0.5 overflow-auto rounded-[10px] border border-hairline bg-paper p-1.5">
           {(targets[scope] ?? []).map((t) => {
-            const on = target === t.label
+            // keyed and selected by id, never by label — two workspaces can hold
+            // a report of the same name, and label-keying selected both at once
+            const on = targetId === t.id
             return (
               <button
-                key={t.label}
+                key={t.id}
                 type="button"
-                onClick={() => setTarget(on ? '' : t.label)}
+                onClick={() => setTargetId(on ? '' : t.id)}
                 className={`flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-start ${on ? 'bg-subtle' : 'hover:bg-subtle/60'}`}
               >
                 <span
