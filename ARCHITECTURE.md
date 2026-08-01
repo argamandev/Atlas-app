@@ -85,14 +85,22 @@ Proxy routes the browser talks to: /api/live/state, /api/live/finish, /api/live/
 ### Gateway + shared
 | File | Route | What it does |
 |---|---|---|
-| `app/page.tsx` | `/` | ⚠️ GATEWAY — login/landing (legacy-styled; Wave 2, see `LEGACY.md`). Login → `/app/home`. |
+| `app/page.tsx` | `/` | ⚠️ GATEWAY — login/landing (legacy-styled; Wave 2, see `LEGACY.md`). Login → `?next=` if the gate sent them, else `/app/home`. |
 | `app/print/[id]/page.tsx` (+ `PrintTrigger.tsx`) | `/print/[id]` | Print-friendly transcript (Hebrew PDF stopgap via `window.print()`). |
 | `app/layout.tsx` | root | Root HTML layout — fonts, `LocaleProvider`, global styles. |
 | `app/auth/callback/route.ts` | — | Supabase auth callback → redirects to `/app/home`. |
 
-**Note: there is no `src/middleware.ts`.** The old one only guarded deleted legacy routes.
-API routes are auth-gated individually; a hard login gate for `/app/*` pages is a flagged
-pre-launch task.
+**`src/middleware.ts` — THE LOGIN GATE** (added 2026-08-01). Redirects anonymous visitors away
+from `/app/*` and `/print/*` to the login page at `/`, carrying `?next=<destination>`. Decision
+logic is pure and unit-tested in `src/lib/auth/gate.ts` (`requiresAuth`, `resolveOrigin`,
+`loginRedirectTarget`, `safeNextPath`); `config.matcher` must stay in sync with `GATED_PREFIXES`
+— a test asserts it, because drift is a silent full bypass. Uses `getUser()` (revalidates the
+token), never `getSession()`. Must NOT import `@/lib/supabase` — that instantiates the
+service-role client at module scope. **Needs `NEXT_PUBLIC_SITE_HOST` = the public hostname once
+deployed behind a proxy** — unset, anonymous users are redirected to the server's internal origin
+and login is unreachable (`docs/V1-SECURITY-AND-LAUNCH-NOTES.md` item 1; not in `.env.example`
+yet). API routes are gated per-route and inconsistently — read the
+🔴 entry at the top of `.claude/rules/app.md` before assuming any route is protected.
 
 ### API routes — `src/app/api/`
 | File | What it does |
@@ -236,7 +244,7 @@ pre-launch task.
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — 108 tests as of 2026-08-01; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — 125 tests as of 2026-08-01; the list in `package.json` is explicit — add new test files there)
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
 · `live/liveTiming.test.ts` · `live/syncEngine.test.ts` · `live/search.test.ts`
 · `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts` · `live/wavEncode.test.ts`
@@ -244,7 +252,7 @@ pre-launch task.
 · `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
 · `documents/extract.test.ts` · `documents/snip.test.ts` · `chat/documentContext.test.ts`
 · `chat/attachments.test.ts` · `chat/history.test.ts` · `live/snipBridge.test.ts`
-· `scripts/lib/measure-core.test.ts`.
+· `auth/gate.test.ts` · `scripts/lib/measure-core.test.ts`.
 
 ---
 
@@ -348,8 +356,12 @@ inputs: `design-import/` (Claude Design export), `local-assets/` (demo PDF). Fle
 The 2026-07 cleanup resolved the old "two products in one tree" clutter. What remains is a short,
 honest list:
 
-1. **No login gate on `/app/*` pages** — API routes are auth-gated, pages aren't. Needs a dedicated
-   auth pass before launch (tracked in `CLAUDE.md`).
+1. **API auth is not verification-strength** — `getRequestUserId`/`getCurrentUser`/`requireAdmin`
+   resolve the user with `getSession()`, which reads it out of the cookie with no signature check.
+   Switching those three to `getUser()` is the top security item (filed 2026-08-01, top of
+   `.claude/rules/app.md`). Three routes have no auth at all: `PATCH …/speakers`,
+   `PATCH …/diarization`, `POST /api/live/finish`. The PAGE gate (item resolved 2026-08-01,
+   `src/middleware.ts`) does not cover direct API calls.
 2. **Wave 2 gateway** — 4 legacy-styled files serve login until Atlas has its own (see `LEGACY.md`).
 3. **`LiveAudioProvider` re-render pattern** — 10fps values in context; port `PlayerProvider`'s
    `useSyncExternalStore` pattern before adding more consumers (reviewer flag, 2026-06-27).

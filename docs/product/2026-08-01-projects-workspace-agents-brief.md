@@ -162,11 +162,20 @@ so Workspace must exist first). Projects is independent of both and can ship at 
   memory (~230MB per 2h). Async document agents need a job queue, retries, cost control, and a
   visible failure surface. "One agent that works end to end" is the honest first target.
 
-## Prerequisite that has not moved
+## Prerequisite — half moved, 2026-08-01
 
-`/app/*` pages still have no hard login gate (API routes are gated). All three features are
-per-user data requiring RLS, which requires a real authenticated user. This is a filed
-pre-launch gap and it now blocks the backends.
+**Pages ARE gated now** (`src/middleware.ts`, same day this brief was filed): `/app/*` and
+`/print/*` redirect anonymous visitors to the login page. `/print/[id]` had been serving whole
+transcripts to anyone with the URL.
+
+**But API auth is not verification-strength**, which is the part that actually blocks these
+backends. `getRequestUserId`, `getCurrentUser` and `requireAdmin` resolve the user with
+`getSession()`, which reads it out of the cookie with no signature check — so a forged cookie
+passes, and the routes then query with the service-role client, bypassing RLS. All three
+features here are per-user data behind RLS, and RLS is worth nothing if the user id is
+attacker-supplied. Switching those three call sites to `getUser()` is the top security item
+(`.claude/rules/app.md`, and item 0 of `docs/V1-SECURITY-AND-LAUNCH-NOTES.md`). Three routes
+still have no auth at all: `PATCH …/speakers`, `PATCH …/diarization`, `POST /api/live/finish`.
 
 ## Open questions for the brainstorm
 

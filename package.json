@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "node scripts/install-yt-dlp.js && next build",
     "start": "next start",
-    "test": "node --import tsx --test src/lib/correction.test.ts src/lib/transcription.test.ts scripts/lib/measure-core.test.ts src/lib/live/finishLiveCall.test.ts src/lib/live/liveTiming.test.ts src/lib/legacyBoundary.test.ts src/lib/live/wavEncode.test.ts src/lib/live/pcmChunker.test.ts src/lib/live/ivritStitcher.test.ts src/lib/design/anim.test.ts src/lib/workspace/data.test.ts src/lib/agents/data.test.ts src/lib/calendar/event-meta.test.ts src/lib/company/overview-stub.test.ts src/lib/live/call-stubs.test.ts src/lib/documents/extract.test.ts src/lib/chat/documentContext.test.ts src/lib/documents/snip.test.ts src/lib/chat/attachments.test.ts src/lib/chat/history.test.ts src/lib/live/snipBridge.test.ts"
+    "test": "node --import tsx --test src/lib/correction.test.ts src/lib/transcription.test.ts scripts/lib/measure-core.test.ts src/lib/live/finishLiveCall.test.ts src/lib/live/liveTiming.test.ts src/lib/legacyBoundary.test.ts src/lib/live/wavEncode.test.ts src/lib/live/pcmChunker.test.ts src/lib/live/ivritStitcher.test.ts src/lib/design/anim.test.ts src/lib/workspace/data.test.ts src/lib/agents/data.test.ts src/lib/calendar/event-meta.test.ts src/lib/company/overview-stub.test.ts src/lib/live/call-stubs.test.ts src/lib/documents/extract.test.ts src/lib/chat/documentContext.test.ts src/lib/documents/snip.test.ts src/lib/chat/attachments.test.ts src/lib/chat/history.test.ts src/lib/live/snipBridge.test.ts src/lib/auth/gate.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",

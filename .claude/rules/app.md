@@ -11,8 +11,31 @@
   self-updater (`bin/yt-dlp.exe -U`), per checkout (git-ignored). Railway installs fresh at build.
 - **PUT /api/transcripts/[id] validation is intentionally lenient** (`.passthrough()`,
   `role: z.string()`) — legacy rows have `role: "unknown"`. Don't tighten to an enum.
-- **`/app/*` pages have no hard login gate** (API routes ARE auth-gated) — known gap, flagged
-  for a dedicated auth pass before launch. Don't assume pages are protected.
+- **`/app/*` and `/print/*` ARE gated** since 2026-08-01 — `src/middleware.ts` + the unit-tested
+  `src/lib/auth/gate.ts`. Two rules if you touch it: use `getUser()` (revalidates the token),
+  never `getSession()` (trusts an attacker-controlled cookie); and validate `?next=` with
+  `safeNextPath()` before redirecting, or the gate becomes an open redirect. Keep
+  `config.matcher` in sync with `GATED_PREFIXES`.
+- **🔴 API AUTH IS NOT TRUSTWORTHY YET — `getSession()` does not verify anything.** Every
+  server-side auth helper (`lib/auth.ts` `getRequestUserId` :23 + `getCurrentUser` :40, and
+  `requireAdmin` in `/api/admin/requests`) resolves the user via `supabase.auth.getSession()`.
+  In auth-js 2.105.4 that reads the session **out of the cookie** — a shape check plus an
+  `expires_at` the cookie itself supplies — with NO signature check and NO network call
+  (`GoTrueClient.__loadSession`). Supabase wraps the returned user in a warning proxy on the
+  server precisely because of this. A forged cookie carrying a known user UUID therefore passes,
+  and the routes then query with `supabaseAdmin`, which bypasses RLS. **The fix is `getUser()`**
+  (revalidates the token), as `src/middleware.ts` already does. Until that lands, treat every
+  "auth-gated" API route as gated in intent only. Filed 2026-08-01 at review of the login-gate
+  branch; NOT introduced by it, and deliberately not smuggled into it.
+- **API auth is PER-ROUTE and incomplete — never assume a route is protected, check it.** The
+  old blanket claim "API routes ARE auth-gated" was false. 14 of 24 call the helpers above;
+  `/api/access-request` + `/api/auth/signout` + the two `/api/live` feeds are public by design;
+  `/api/companies*` and `/api/calls` serve reference data anonymously (undecided, not obviously
+  wrong). STILL OPEN (page gate does NOT cover them — they are direct API calls): `PATCH
+  /api/transcripts/[id]/speakers`, `PATCH /api/transcripts/[id]/diarization` and `POST
+  /api/live/finish` mutate data with NO auth at all; the last one spends money per call.
+  `GET /api/live/finished-call/[id]` was the same class — it returned the whole transcript that
+  `/print/[id]` renders — and was closed 2026-08-01 when gating the page alone proved not to.
 - **Design parity is verified against the RENDERED design, never bundle CSS** (7-round lesson,
   2026-07-14): probe computed styles / canvas `measureText` on the live design page. The design
   uses TWO system stacks — body = SF Pro Text stack (→ Segoe UI on Windows), headlines
