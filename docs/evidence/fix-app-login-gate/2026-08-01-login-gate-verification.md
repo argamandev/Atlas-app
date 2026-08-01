@@ -12,7 +12,7 @@ it matters) but **pages were not**. Anyone who typed `/app/home` walked into the
 ## What shipped
 
 - `src/middleware.ts` — the gate. Runs only on `/app/:path*` and `/print/:path*`.
-- `src/lib/auth/gate.ts` — pure decision logic, unit-tested (16 tests).
+- `src/lib/auth/gate.ts` — pure decision logic, unit-tested (17 tests).
 - `src/components/auth/LoginForm.tsx` — honours `?next=` so you return where you were headed.
 - `src/app/api/live/finished-call/[id]/route.ts` — **now requires a session** (see BLOCKER 2).
 

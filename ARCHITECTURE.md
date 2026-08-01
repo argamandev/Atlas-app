@@ -85,7 +85,7 @@ Proxy routes the browser talks to: /api/live/state, /api/live/finish, /api/live/
 ### Gateway + shared
 | File | Route | What it does |
 |---|---|---|
-| `app/page.tsx` | `/` | ⚠️ GATEWAY — login/landing (legacy-styled; Wave 2, see `LEGACY.md`). Login → `/app/home`. |
+| `app/page.tsx` | `/` | ⚠️ GATEWAY — login/landing (legacy-styled; Wave 2, see `LEGACY.md`). Login → `?next=` if the gate sent them, else `/app/home`. |
 | `app/print/[id]/page.tsx` (+ `PrintTrigger.tsx`) | `/print/[id]` | Print-friendly transcript (Hebrew PDF stopgap via `window.print()`). |
 | `app/layout.tsx` | root | Root HTML layout — fonts, `LocaleProvider`, global styles. |
 | `app/auth/callback/route.ts` | — | Supabase auth callback → redirects to `/app/home`. |
@@ -96,8 +96,10 @@ logic is pure and unit-tested in `src/lib/auth/gate.ts` (`requiresAuth`, `resolv
 `loginRedirectTarget`, `safeNextPath`); `config.matcher` must stay in sync with `GATED_PREFIXES`
 — a test asserts it, because drift is a silent full bypass. Uses `getUser()` (revalidates the
 token), never `getSession()`. Must NOT import `@/lib/supabase` — that instantiates the
-service-role client at module scope. Needs `NEXT_PUBLIC_SITE_HOST` once deployed behind a proxy
-(see `docs/ENVIRONMENT.md`). API routes are gated per-route and inconsistently — read the
+service-role client at module scope. **Needs `NEXT_PUBLIC_SITE_HOST` = the public hostname once
+deployed behind a proxy** — unset, anonymous users are redirected to the server's internal origin
+and login is unreachable (`docs/V1-SECURITY-AND-LAUNCH-NOTES.md` item 1; not in `.env.example`
+yet). API routes are gated per-route and inconsistently — read the
 🔴 entry at the top of `.claude/rules/app.md` before assuming any route is protected.
 
 ### API routes — `src/app/api/`
@@ -242,7 +244,7 @@ service-role client at module scope. Needs `NEXT_PUBLIC_SITE_HOST` once deployed
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — 124 tests as of 2026-08-01; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — 125 tests as of 2026-08-01; the list in `package.json` is explicit — add new test files there)
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
 · `live/liveTiming.test.ts` · `live/syncEngine.test.ts` · `live/search.test.ts`
 · `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts` · `live/wavEncode.test.ts`

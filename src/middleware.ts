@@ -42,7 +42,17 @@ export async function middleware(request: NextRequest) {
   if (!user && requiresAuth(request.nextUrl.pathname)) {
     const origin = resolveOrigin(request.headers, request.nextUrl.origin, process.env.NEXT_PUBLIC_SITE_HOST)
     const target = loginRedirectTarget(request.nextUrl.pathname, request.nextUrl.search)
-    return NextResponse.redirect(new URL(target, origin))
+    // resolveOrigin guarantees a parseable origin for attacker input, but not for a MISCONFIGURED
+    // NEXT_PUBLIC_SITE_HOST (stray space, bad port, unclosed bracket). An uncaught throw here is a
+    // 500 on every gated route — the whole app down on an operator typo. Fall back to the request
+    // origin: still a working redirect, just possibly the internal one behind a proxy.
+    let location: URL
+    try {
+      location = new URL(target, origin)
+    } catch {
+      location = new URL(target, request.nextUrl.origin)
+    }
+    return NextResponse.redirect(location)
   }
 
   return response
