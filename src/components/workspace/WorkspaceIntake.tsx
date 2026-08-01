@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { DemoBanner, DemoInline } from '@/components/ds/DemoBanner'
+import { PillComposer } from '@/components/ds/PillComposer'
 import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon, CheckIcon } from '@/components/ds/icons'
 
 // Workspace intake (design lines 1339-1429) — what an EMPTY workspace shows:
@@ -39,30 +40,22 @@ export function WorkspaceIntake({ workspaceName }: { workspaceName: string }) {
       on ? 'border-ink bg-ink text-paper' : 'border-hairline bg-transparent text-ink-muted hover:bg-subtle'
     }`
 
+  // The bottom bar exists ONLY once the conversation has started. At the intro
+  // stage the big centred composer is the whole point of the screen, and a
+  // second bar underneath it was the founder's "two text panels" complaint
+  // (2026-08-01) — the design shows one composer at a time, never both.
   const composer = (
     <div className="px-8 pb-[26px]">
-      <div className="mx-auto flex max-w-[720px] items-center gap-3 rounded-[14px] border border-hairline bg-paper px-3.5 py-3 shadow-soft">
-        <input
+      <div className="mx-auto w-full max-w-[720px]">
+        <PillComposer
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()}
+          onChange={setDraft}
+          onSend={send}
           placeholder={dict.workspace.intakePlaceholder}
-          className="min-w-0 flex-1 bg-transparent text-[14.5px] text-ink outline-none placeholder:text-ink-ghost"
+          sendLabel={dict.workspace.intakeSend}
+          addLabel={dict.workspace.intakeAdd}
+          micLabel={dict.workspace.intakeMic}
         />
-        <span className="text-ink-ghost" aria-hidden>
-          @
-        </span>
-        <span className="text-ink-ghost" aria-hidden>
-          /
-        </span>
-        <button
-          type="button"
-          onClick={send}
-          aria-label={dict.workspace.intakePlaceholder}
-          className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full bg-ink text-paper"
-        >
-          <ArrowUpIcon size={15} strokeWidth={2} />
-        </button>
       </div>
     </div>
   )
@@ -200,7 +193,7 @@ export function WorkspaceIntake({ workspaceName }: { workspaceName: string }) {
         )}
       </div>
 
-      {stage !== 'building' && composer}
+      {stage === 'clarify' && composer}
     </div>
   )
 }

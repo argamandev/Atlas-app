@@ -13,12 +13,12 @@ import { WS_SORTS, type WsSortKey } from '@/lib/workspace/data'
 // "New workspace", explainer, 44px search, 3-column grid, and the two empty
 // states (searching vs genuinely empty).
 //
-// HEADLINE NOTE: the design hardcodes the APPLE SANS stack at weight 600 for
-// this h1 (line 1269) — unlike Projects/Home, which resolve --head-font to
-// Newsreader. Probed on the rendered design: 34px / 600 / SF Pro Display stack
-// WITH system-ui. The design is internally inconsistent here and this import
-// reproduces it faithfully. See the evidence file — this changes a surface that
-// shipped serif in design round 2.
+// HEADLINE: serif, like Projects and Home. The first import of this surface
+// reproduced a hardcoded sans stack the design carried at the time, and this
+// lane flagged it as a founder call rather than silently "fixing" it. The
+// founder answered on 2026-08-01 by rebuilding the headline in the design as
+// serif — so parity and app-wide consistency now agree. Verified against the
+// re-rendered design, not against bundle CSS (rules/app.md).
 export function WorkspacePicker() {
   const { dict } = useI18n()
   const router = useRouter()
@@ -65,7 +65,7 @@ export function WorkspacePicker() {
       <div className="atscroll min-h-0 flex-1 overflow-y-auto px-12 pb-[120px] pt-11">
         <div className="mx-auto w-full max-w-[960px]">
           <div className="flex items-start justify-between gap-5">
-            <h1 className="font-sans text-[34px] font-semibold tracking-[-0.02em] text-ink">
+            <h1 className="font-display text-[34px] font-medium tracking-[-0.02em] text-ink">
               {dict.workspace.title}
             </h1>
             <div className="flex flex-none items-center gap-4 pt-[5px]">
