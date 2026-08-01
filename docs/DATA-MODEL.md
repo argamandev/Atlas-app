@@ -83,7 +83,7 @@ Maya ingest should EXTEND these, not invent a parallel set.
 **Already correct** — owner-scoped with a real FK and an `auth.uid() = user_id` policy:
 `watchlist` · `notification_prefs` · `sent_alerts` · `profiles`.
 
-**The conflict — `transcripts` is two products in one table:**
+**RESOLVED 2026-08-01 (migration 014, below) — `transcripts` had been two products in one table:**
 
 | | rows |
 |---|---|
@@ -93,42 +93,68 @@ Maya ingest should EXTEND these, not invent a parallel set.
 | linked to a company | 5 |
 | owned AND not linked to any company (clearly Timlul-era) | 27 |
 
-Its only policy is `users see own transcripts` — `USING (auth.uid() = user_id)`. Against a NULL
-`user_id` that expression is NULL, therefore not true, **so the 30 shared transcripts are
-invisible to every user under RLS.** Atlas displays them only because every server route queries
-with `supabaseAdmin` (service role), which bypasses RLS entirely.
+Until migration 014 its only policy was `users see own transcripts` — `USING (auth.uid() =
+user_id)`. Against a NULL `user_id` that expression is NULL, therefore not true, **so the 30
+shared transcripts were invisible to every user under RLS.** Atlas displayed them only because
+every server route queries with `supabaseAdmin` (service role), which bypasses RLS entirely — i.e.
+for the shared corpus RLS was contributing nothing and the application was the only gate.
 
-**Consequence to be honest about: for the shared corpus, RLS is currently doing nothing. The
-application is the only gate.** That is survivable today (nothing is deployed, RLS is a second
-line of defence and the app is the first) but it means the database does not yet encode the
-architecture above — it encodes Timlul's.
+The database now encodes Atlas's model rather than Timlul's. Note the split is no longer
+meaningful going forward: **the whole table is the shared corpus**, owner or not.
 
 **Also inconsistent** — `user_id NOT NULL` but NO foreign key to `auth.users`:
 `chat_conversations` · `quotes` · `quote_folders` · `user_quotes` · `followed_calls`.
 `chat_conversations` is the table Projects builds on, so Projects must not inherit that shape.
 The four-point rule for new tables lives in `.claude/rules/db.md` → "Ownership law".
 
-## Proposed, NOT applied — needs founder sign-off and a cross-cutting append first
+## APPLIED 2026-08-01 — migration `20260801_014_transcripts_shared_corpus.sql`
 
-Make the database enforce the shared-corpus half **additively**, without touching Timlul's rows:
+Founder ruling that settled it: *"change the transcript to fit perfectly in what i described.
+timlul is the old product — it is not relevant now!! transcripts need to not be user specific at
+all!"* So the scope is **all** transcripts, not just the null-owner ones an earlier draft proposed.
 
 ```sql
--- Shared company transcripts become readable by any signed-in user.
--- Scoped to user_id IS NULL, so Timlul's 30 personal rows keep "own only" untouched.
-CREATE POLICY transcripts_shared_read ON public.transcripts
-  FOR SELECT TO authenticated
-  USING (user_id IS NULL);
+create policy transcripts_shared_read
+  on public.transcripts for select to authenticated using (true);
 ```
 
-This is `CREATE POLICY` — additive, allowed under `rules/db.md`, and it cannot widen access to
-Timlul's personal transcripts because they all have a non-null `user_id`. It does **not** fix the
-service-role bypass (nothing can; that key is meant to bypass RLS) — it means that the day a route
-is rewritten to use the user's own session, the shared corpus keeps working and the private rows
-stay private.
+Additive (`CREATE POLICY`), no data touched. The older `users see own transcripts` policy is
+deliberately **left in place** — removing a policy is destructive and hook-blocked — and because
+RLS policies combine with **OR**, that lands exactly on the target model:
+
+- **SELECT** — every signed-in user reads the whole corpus.
+- **INSERT / UPDATE / DELETE** — still owner-scoped for any non-service-role client.
+
+**Shared read, owner-restricted write.** Verified after applying: both policies present,
+`transcripts_shared_read` = `SELECT / {authenticated} / USING (true)`.
+
+Blast radius, measured rather than assumed: `profiles` holds 3 rows (1 admin), the transcripts'
+3 distinct owners are exactly those 3 profiles, and 0 rows are owned by anyone outside them — the
+entire user base is the founder plus two of his own accounts, so no third party's data changed
+visibility.
+
+What this does **not** do, stated plainly: it does not address the service-role bypass (that key
+is *meant* to bypass RLS) and does not touch `getSession()`. What it buys is that the day the read
+routes move onto the user's own session, the shared corpus keeps working while per-user tables stay
+private — instead of the archive going dark.
+
+**App-side half, same change:** `getUserTranscripts()` in `src/lib/transcripts.ts` — the "admins
+see all, others see their own" reader — was **deleted**. It was dead code (the only consumer of
+that module is the company page, which calls the already platform-wide `listCompanyTranscripts`),
+and leaving it would have left the wrong model sitting there to be copied.
+
+**DECIDED 2026-08-01 (founder): Maya reports ARE `company_documents`.** Founder's words: *"maya
+reports is company documents."* The Maya/TASE ingest extends `company_documents` +
+`document_pages` — both already company-scoped with no `user_id` — rather than creating a parallel
+set of tables. Lane I's integration spec starts from that table, not a blank page.
+
+**Deferred by the founder to a dedicated session** — *"we will touch on how the product actually
+connects one to each other in a detailed better session about atlas's intelligence and once we
+connect to the maya api."* So the retrieval/agent wiring (how a question reaches the corpus, what
+the agent reads and writes, how citations thread back to source PDFs) is explicitly NOT designed
+here. This document fixes only the ownership shape underneath it.
 
 **Open, and genuinely undecided:**
-- Do Maya reports land in `company_documents` (already company-scoped, already the right shape) or
-  in new Maya-specific tables? Prefer extending unless the shape genuinely differs.
 - Where do embeddings live — one `document_embeddings` table keyed by source, or per-source-type
   tables? Whichever wins, it is SHARED corpus, no `user_id`.
 - Should the shared corpus be readable by `anon` (public marketing/SEO surface) or only by
