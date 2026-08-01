@@ -2,13 +2,20 @@
 
 _From the multi-agent review of `feat/v1-frontend` (2026-06-13)._
 
-## Current posture: intentionally OPEN for the demo
+## Current posture: PAGES GATED (2026-08-01), API AUTH STILL NOT TRUSTWORTHY
 
-The V1 product under `/app/*` is **deliberately public** in this build so it can be viewed
-and tested without an auth wall. This is fine for a private demo, **not** for the
-institutional launch. Specifically:
+Until 2026-08-01 the V1 product under `/app/*` was **deliberately public** so it could be
+viewed without an auth wall. That is no longer true, and the rest of this file predates the
+change — read the dates. Current state:
 
-- `/app/*` routes are **not** in the `src/middleware.ts` matcher → reachable with no session.
+- ✅ **`/app/*` and `/print/*` ARE in the `src/middleware.ts` matcher** and require a session
+  (`fix/app-login-gate`, 2026-08-01). `/print/[id]` had been server-rendering whole transcripts
+  to anyone holding the URL; `GET /api/live/finished-call/[id]` returned the same payload as
+  JSON and was closed with it.
+- 🔴 **But a session is not verified** — see item 0 below. The gate uses `getUser()`; every
+  other auth check in the app uses `getSession()`, which believes the cookie. So the product is
+  no longer *open*, but it is not yet *secure*. Do not read the gate as launch-ready.
+- Everything below this line still stands unless marked otherwise:
 - `POST /api/chat` is **unauthenticated, unbounded, and uncapped** (expensive Opus calls).
 - `/api/quotes` and `/api/calls/follow` fall back to a shared `DEMO_USER_ID` via the
   service-role client (`supabaseAdmin`), so anonymous reads/writes share one bucket.

@@ -94,9 +94,36 @@ Also fixed: the new 401 was swallowed by `LiveSession.tsx`, leaving the "View or
 silently dead on an expired session — a security fix quietly introducing the repo's own
 recurring "degradation must be VISIBLE" defect. It now sends you to sign in and back.
 
-Both rounds' findings (19 in total) are appended to `agent-memory/ready-queue.md` so `/fleet-lint`
-can see the classes — round 1's were initially not filed, which is the supervisor enforcing the
-findings-must-not-evaporate law on lanes but not on itself.
+## Rounds 3 and 4 — the doc sweep failed twice more
+
+Round 3 confirmed the security substance closed (765 host×scheme combinations against
+`resolveOrigin`: 0 throws, 0 non-http schemes, 0 host escapes, 0 CRLF) and found only
+documentation and arithmetic left. Round 4 confirmed the code again and found the same class a
+third time. What that class actually is, stated plainly because it recurred:
+
+- **"Docs updated" was declared three times without a repo-wide grep.** Round 2: `ARCHITECTURE.md`
+  said the middleware does not exist. Round 3: `docs/product/…brief.md` said `/app/*` has no gate,
+  in the document used to sequence the next chapter. Round 4: `docs/V1-SECURITY-AND-LAUNCH-NOTES.md`
+  still opened with "deliberately public … not in the `src/middleware.ts` matcher" — in the same
+  file this branch had already edited six lines lower, and the file `ARCHITECTURE.md` now points
+  deployers at. The sweep is now done by grepping the falsified claim across every tracked doc;
+  the surviving hits are `docs/superpowers/plans/2026-07-02-smart-environment.md` (carries the
+  SHIPPED banner, and the line sits inside a fenced quote of the then-current CLAUDE.md),
+  `PROGRESS.md` (a dated 2026-07-02 log entry) and `agent-memory/cross-cutting.md` (append-only
+  by law) — all correctly untouched, because rewriting a dated record falsifies it.
+- **A false FIXED marker.** The ready queue stamped the test-count finding FIXED while citing
+  the right number and the file still carried the wrong one. Worse than the original error: it
+  tells the next reader not to check.
+- **A raw NUL byte in `gate.test.ts`** made git classify the security test as BINARY —
+  `0 insertions, 0 deletions` — so the round-3 change to it was unreviewable by diff, and every
+  future change would have been too. Replaced with a visible `'\x00'` escape; behaviour unchanged.
+- **Hardened against malice, not against mistakes:** `new URL(target, origin)` was uncaught, so a
+  typo in `NEXT_PUBLIC_SITE_HOST` reproduced the round-2 500-on-every-gated-route DoS. Now
+  caught, falling back to the request origin.
+
+All four rounds' findings (33 in total) are appended to `agent-memory/ready-queue.md` so
+`/fleet-lint` can see the classes — round 1's were initially not filed at all, which was the
+supervisor enforcing the findings-must-not-evaporate law on lanes but not on itself.
 
 ## Verified — production build, both directions
 
