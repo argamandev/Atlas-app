@@ -78,9 +78,18 @@ Proxy routes the browser talks to: /api/live/state, /api/live/finish, /api/live/
 | `app/app/chat/page.tsx` | `/app/chat` | **Chat** — LLM chat over the transcript DB. |
 | `app/app/company/[id]/page.tsx` | `/app/company/[id]` | **Company page** — header, Overview + Investor-Calls tabs, My Quotes. |
 | `app/app/live/[id]/page.tsx` | `/app/live/[id]` | **Live transcript page** — live karaoke AND finished replay (one view, two modes). |
-| `app/app/workspace/page.tsx` | `/app/workspace` | **Workspace** — design-demo workspace view. |
-| `app/app/agents/page.tsx` | `/app/agents` | **Agents** — design-demo agents view. |
+| `app/app/chat/projects/page.tsx` | `/app/chat/projects` | **Projects list** — the project surface inside the chat shell. UI only. |
+| `app/app/chat/projects/[id]/page.tsx` | `/app/chat/projects/[id]` | **Project view** — files, context, composer. UI only. |
+| `app/app/workspace/page.tsx` | `/app/workspace` | **Workspace picker** — the workspace selector. |
+| `app/app/workspace/[id]/page.tsx` | `/app/workspace/[id]` | **Workspace shell** — tabs, working document, detail column. UI only. |
+| `app/app/agents/page.tsx` | `/app/agents` | **Agents** — agent list, dock, create-agent. UI only. |
 | `app/app/settings/page.tsx` | `/app/settings` | Profile & settings. |
+
+> **"UI only" is literal on the four rows above** (merged 2026-08-01, `feat/surfaces-import`).
+> These surfaces have **no backend**: nothing persists, no route writes a row, and every
+> control that would need one renders disabled with a stated reason. Session-only state lives
+> in `lib/demo/DemoStateProvider`. Backends are the next chapter — see `docs/DATA-MODEL.md`
+> for the ownership rules any new table must satisfy before it can back these screens.
 
 ### Gateway + shared
 | File | Route | What it does |
@@ -181,10 +190,25 @@ yet). API routes are gated per-route and inconsistently — read the
 | File | What it does |
 |---|---|
 | `calendar/CalendarView.tsx` | Month calendar (All calls vs My Calendar). |
-| `ds/` | The design-system primitives: `Avatar` · `EntityRow` · `IconButton` · `Logo` · `BrandWordmark` · `LanguageToggle` · `SectionHeader` · `SelectableRow` · `Surface` · `Tabs` · `icons.tsx` · `AnimCanvas` · `LiveBeamAvatar` · `Monogram` · `index.ts`. |
-| `workspace/WorkspacePicker.tsx` | Workspace selector panel (design-demo). |
+| `ds/` | The design-system primitives: `Avatar` · `EntityRow` · `IconButton` · `Logo` · `BrandWordmark` · `LanguageToggle` · `SectionHeader` · `SelectableRow` · `Surface` · `Tabs` · `icons.tsx` · `AnimCanvas` · `LiveBeamAvatar` · `Monogram` · `DemoBanner` · `PillComposer` · `index.ts`. |
 | `auth/LoginForm.tsx`, `auth/JoinForm.tsx` | ⚠️ GATEWAY (Wave 2). |
 | `ui/dotted-surface.tsx` | ⚠️ GATEWAY (Wave 2) — the only file left in `ui/`. |
+
+### The three surfaces — `components/workspace/`, `components/projects/`, `components/agents/`
+Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behind any of them.**
+
+| File | What it does |
+|---|---|
+| `workspace/WorkspacePicker.tsx` | Workspace selector panel — search + sort. |
+| `workspace/WorkspaceRoute.tsx` | Routes an id to the shell, or to intake when the workspace is empty. |
+| `workspace/WorkspaceShell.tsx` | The workspace frame — tab bar, panes, detail column. |
+| `workspace/WorkspaceIntake.tsx` | "What are we working on today?" — the new-workspace screen. |
+| `workspace/WorkingDocument.tsx` | The deliverable. `contentEditable` + `execCommand` (deliberately no editor library — a real document model would lock in citation storage before the backend chapter decides it). Both exports disabled. |
+| `workspace/WorkspaceDocs.tsx` | The document/file pane. |
+| `workspace/WorkspaceDetailColumn.tsx` | Right-hand detail column (threads, agents, sessions). |
+| `workspace/LegalDueDiligence.tsx` | The legal-DD demo pane (severity-tagged findings). |
+| `projects/ProjectsList.tsx`, `projects/ProjectView.tsx` | Project list + detail (files, context, composer). |
+| `agents/AgentsPage.tsx`, `agents/AgentDock.tsx`, `agents/CommandDeck.tsx`, `agents/CreateAgent.tsx` | The agents surface: list, dock, deck, and the create-agent flow. |
 
 ---
 
@@ -237,6 +261,9 @@ yet). API routes are gated per-route and inconsistently — read the
 | `design/anim.ts` | Animation helpers (keyframe curves, spring config) for `AnimCanvas`. Unit-tested. |
 | `workspace/data.ts` | Design-demo workspace feed (typed stub, to be replaced by real feed). Unit-tested. |
 | `agents/data.ts` | Design-demo agents feed (typed stub, to be replaced by real feed). Unit-tested. |
+| `projects/data.ts` | Design-demo projects feed (typed stub, to be replaced by real feed). Unit-tested. |
+| `demo/DemoStateProvider.tsx` + `demo/reducer.ts` | **Session-only** state for the three surfaces — the reason nothing on them persists. Deliberate: a real store would have locked in shapes before the data model was decided. Unit-tested (`demoState.test.ts`). |
+| `demo/seedDocument.ts` | The working document's fabricated seed content, kept out of React so its DEMO markers are unit-testable. **Read the header before touching the quote block** — it invents financials and a quote from a NAMED executive of a real TASE issuer, and its marker cost three review rounds. Unit-tested. |
 | `company/overview-stub.ts` | Design-demo company extras (typed stub, to be replaced). Unit-tested. |
 | `calendar/event-meta.ts` | Design-demo event metadata (typed stub, to be replaced). Unit-tested. |
 | `types.ts` | The `Transcript` shape (= the shape of `formatted_data`). |
@@ -244,15 +271,19 @@ yet). API routes are gated per-route and inconsistently — read the
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — 125 tests as of 2026-08-01; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **160 tests across 25 files** as of 2026-08-01; the list in `package.json` is explicit — add new test files there)
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
-· `live/liveTiming.test.ts` · `live/syncEngine.test.ts` · `live/search.test.ts`
-· `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts` · `live/wavEncode.test.ts`
-· `live/call-stubs.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`
+· `live/liveTiming.test.ts` · `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts`
+· `live/wavEncode.test.ts` · `live/call-stubs.test.ts` · `live/snipBridge.test.ts`
+· `workspace/data.test.ts` · `agents/data.test.ts` · `projects/data.test.ts`
+· `demo/demoState.test.ts` · `demo/seedDocument.test.ts`
 · `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
 · `documents/extract.test.ts` · `documents/snip.test.ts` · `chat/documentContext.test.ts`
-· `chat/attachments.test.ts` · `chat/history.test.ts` · `live/snipBridge.test.ts`
+· `chat/attachments.test.ts` · `chat/history.test.ts`
 · `auth/gate.test.ts` · `scripts/lib/measure-core.test.ts`.
+
+> This list is generated from `package.json`, not from memory — it previously named
+> `live/syncEngine.test.ts` and `live/search.test.ts`, neither of which is in the runner.
 
 ---
 

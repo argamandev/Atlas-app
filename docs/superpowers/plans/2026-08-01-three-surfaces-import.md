@@ -1,5 +1,9 @@
 # Three-Surfaces Import (Projects · Workspace · Agents) Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+> (merged to main 2026-08-01 as part of fix/surfaces-export-marker, which carried feat/surfaces-import.)
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this
 > plan task-by-task (the founder asked for inline execution in this session; no subagents).
 > Steps use checkbox (`- [ ]`) syntax for tracking.

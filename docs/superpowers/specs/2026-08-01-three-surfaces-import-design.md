@@ -1,5 +1,9 @@
 # Spec — Three-surfaces import: Projects · Workspace · Agents (2026-08-01)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+> (merged to main 2026-08-01 as part of fix/surfaces-export-marker, which carried feat/surfaces-import.)
+
+
 > STATUS: APPROVED by the founder (2026-08-01, in-session, pre-approved sight-unseen with the
 > instruction to proceed straight to plan + execution). Lane F · branch `feat/surfaces-import`
 > off `main` @ `690e6bf` · port 3001.

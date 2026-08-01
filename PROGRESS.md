@@ -5,6 +5,51 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-01 — Projects · Workspace · Agents SHIPPED as FRONTEND (Lane F; 3 review rounds), and transcripts became the shared corpus
+
+- **The three surfaces are in, and they are deliberately backend-less.** Projects (inside the
+  chat shell), Workspace (picker → shell → working document → detail column) and Agents (list,
+  dock, create-agent) are real navigable Next.js routes in both locales, fed by typed stub
+  modules so a backend chapter swaps the module instead of rebuilding the page. Nothing
+  persists. The founder's scope call is what made this shippable: *"everything the reviewer
+  said we don't have code to is completely fine since this is only a frontend import."*
+- **The distinction that decided 24 findings, and is worth keeping:** "we haven't built the
+  backend yet" is fine in a UI-import chapter; "the UI tells the user something untrue" is
+  not, and needs no backend to fix — it is a label, a locale string, or an attribute. Five
+  findings were of the second kind and were fixed before merge: a document claiming "Saved
+  just now" while saving nothing, a fabricated Hebrew quote from a NAMED real TASE executive
+  carrying an English-only deletable marker, two radios selecting at once, a `dir="ltr"`
+  reversing a Hebrew sentence, and a send button that threw a swallowed TypeError.
+- **Three rounds went to ONE element** — that fabricated quote. Round 1: the marker was
+  hardcoded English, invisible to a Hebrew reader. Round 2: the fix moved it outside
+  `contentEditable`, which put it at the top of a scrolling pane, and `window.print()` clipped
+  to scroll offset and exported the quote unmarked — a regression, proven with a real Chromium
+  `page.pdf()`, not argued. Round 3: bidi isolation on the mixed-direction `<cite>`, plus three
+  false claims in the evidence file corrected. Export as PDF is now disabled outright; a correct
+  Hebrew PDF needs a server-side render, which is a feature, not a stopgap.
+- **transcripts stopped being a per-user table.** It held two products at once: 30 rows with
+  `user_id NULL` (Atlas's shared company calls) and 30 owned by three users (Timlul's personal
+  transcriptions). Its only policy was `auth.uid() = user_id`, which against NULL is not true —
+  so the shared corpus was invisible to every user under RLS and reached the app *only* through
+  the service-role bypass. Migration `20260801_014` adds a shared-read policy (additive; no
+  policy touched or dropped). `getUserTranscripts()` deleted so the wrong model stops being
+  available to copy. **`transcripts.user_id` is still load-bearing for WRITES** — it is the one
+  shared-corpus table carrying a user_id, history rather than design, and new shared tables
+  must not copy it.
+- **The data model is now written down** (`docs/DATA-MODEL.md`, founder decision): shared corpus
+  (one copy, any signed-in user reads, no `user_id`) vs personal layer (`user_id NOT NULL`
+  REFERENCES `auth.users`, RLS on both USING and WITH CHECK). The smart layer reads shared and
+  writes personal. `.claude/rules/db.md` gains the four things every new user-facing table needs
+  at CREATE TABLE — because half the existing schema is the bad half: five tables have
+  `user_id NOT NULL` with **no foreign key at all**.
+- **Process lesson graduated:** DDL against the shared DB must be reviewed BEFORE it is applied.
+  Migration 014 was applied first and reviewed second, and since narrowing a policy needs
+  hook-blocked `DROP`/`ALTER`, a "narrow the scope" verdict would have been unactionable by
+  design. It is the one change class that cannot be reverted, and it had the weakest gate.
+- Battery on merged main: **160/160 tests** (108 before this chapter) · `tsc` clean · build green.
+
+---
+
 ## 2026-08-01 — The login gate SHIPPED (supervisor; 5 reviewer rounds, 38 findings)
 
 **Status:** merged to `main` (`f05b659`) + pushed. `/app/*` and `/print/*` now require a session.

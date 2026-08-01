@@ -44,8 +44,10 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
   2026-08-01): company data is the same for everyone, everything a user makes is theirs.
   Read before designing any table, and before any Maya/retrieval/agents work.
 - `docs/VISION.md` — product vision, V1 description, roadmap
-- `docs/product/` — founder briefs for chapters not yet specced (current:
-  `2026-08-01-projects-workspace-agents-brief.md` — Projects · Workspace · Agents)
+- `docs/product/` — founder briefs for chapters not yet specced. The Projects · Workspace ·
+  Agents brief (`2026-08-01-projects-workspace-agents-brief.md`) is now HALF spent: its
+  **frontend** shipped 2026-08-01 (spec + plan stamped SHIPPED in `docs/superpowers/`); the
+  **backends** are the open half and the brief is still the founder's word on what they must do.
 - `docs/ENVIRONMENT.md` — how this smart environment works + the dev↔product mapping
 - `docs/LAUNCH-KIT.md` — fleet setup: worktrees + the 3 lane opening prompts
 - `PROGRESS.md` — decision log (append at ship time; compacted-era raw entries → `docs/archive/`)
