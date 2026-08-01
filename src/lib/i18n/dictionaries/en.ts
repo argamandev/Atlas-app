@@ -442,6 +442,8 @@ export const en = {
     editSource: 'Edit source',
     overBudget: 'Over capacity — trim this project so Atlas is not sent a truncated context.',
     saveFailed: 'Not saved — {error}',
+    loadFailed: 'Could not load your projects — {error}',
+    loadOneFailed: 'Could not load this project — {error}',
     context: 'Context',
     searchContext: 'Search context',
     addContext: 'Add to context',

@@ -34,6 +34,10 @@ export function ProjectView({ projectId }: { projectId: string }) {
 
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+  // A 404 and a 500 are different truths. "This project belongs to another
+  // account" is a LIE when the real cause is the server failing, so the two
+  // are kept apart rather than both collapsing into the not-found screen.
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [editing, setEditing] = useState<Editing>(null)
   const [renaming, setRenaming] = useState(false)
   // A failed write must be SEEN. Nothing on this screen claims success.
@@ -49,8 +53,13 @@ export function ProjectView({ projectId }: { projectId: string }) {
       const now = new Date()
       setProject(presentProject(row, sources, presentChats(chats, now, locale), now, locale, dict))
       setSaveError(null)
-    } catch {
+      setLoadError(null)
+    } catch (e) {
       setProject(null)
+      const msg = (e as Error).message
+      // Only a genuine "not found" earns the not-found screen; anything else
+      // is reported as what it is.
+      setLoadError(/not found/i.test(msg) ? null : msg)
     } finally {
       setLoading(false)
     }
@@ -88,9 +97,14 @@ export function ProjectView({ projectId }: { projectId: string }) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-10 text-center">
-          <p className="text-[15px] text-ink">{dict.projects.notFound}</p>
-          <p className="max-w-[420px] text-[13px] leading-[1.6] text-ink-muted">
-            {dict.projects.notFoundHint}
+          <p className="text-[15px] text-ink">{loadError ? dict.common.error : dict.projects.notFound}</p>
+          <p
+            dir="auto"
+            className={`max-w-[420px] text-[13px] leading-[1.6] ${loadError ? 'text-[#B0533E]' : 'text-ink-muted'}`}
+          >
+            {loadError
+              ? dict.projects.loadOneFailed.replace('{error}', loadError)
+              : dict.projects.notFoundHint}
           </p>
           <button
             type="button"

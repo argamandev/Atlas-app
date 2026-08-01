@@ -432,6 +432,8 @@ export const he: Dictionary = {
     editSource: 'עריכת מקור',
     overBudget: 'חריגה מהקיבולת — קצרו את הפרויקט כדי שאטלס לא יקבל הקשר חתוך.',
     saveFailed: 'לא נשמר — {error}',
+    loadFailed: 'לא ניתן לטעון את הפרויקטים — {error}',
+    loadOneFailed: 'לא ניתן לטעון את הפרויקט הזה — {error}',
     context: 'הקשר',
     searchContext: 'חיפוש בהקשר',
     addContext: 'הוספה להקשר',

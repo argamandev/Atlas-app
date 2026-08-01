@@ -20,6 +20,10 @@ export function ProjectsList() {
 
   const [projects, setProjects] = useState<(ProjectRow & { chats: number; sources: number })[]>([])
   const [loading, setLoading] = useState(true)
+  // A failed LOAD and a failed WRITE are different sentences. Rendering
+  // "Not saved — relation does not exist" for a load error tells the user
+  // something untrue about what just happened.
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -29,9 +33,9 @@ export function ProjectsList() {
       // detail view. Showing 0 here would be a claim, so the card renders the
       // project's name and nothing it cannot back up.
       setProjects(rows.map((r) => ({ ...r, chats: 0, sources: 0 })))
-      setError(null)
+      setLoadError(null)
     } catch (e) {
-      setError((e as Error).message)
+      setLoadError((e as Error).message)
     } finally {
       setLoading(false)
     }
@@ -59,13 +63,15 @@ export function ProjectsList() {
           </h1>
           <p className="mb-[26px] text-[14px] text-ink-muted">{dict.projects.subtitle}</p>
 
-          {error && (
+          {(loadError || error) && (
             <div
               dir="auto"
               role="alert"
-              className="mb-4 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] text-[#B0533E]"
+              className="mb-4 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
             >
-              {dict.projects.saveFailed.replace('{error}', error)}
+              {loadError
+                ? dict.projects.loadFailed.replace('{error}', loadError)
+                : dict.projects.saveFailed.replace('{error}', error as string)}
             </div>
           )}
 
