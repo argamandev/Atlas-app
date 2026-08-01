@@ -36,6 +36,16 @@
   /api/live/finish` mutate data with NO auth at all; the last one spends money per call.
   `GET /api/live/finished-call/[id]` was the same class — it returned the whole transcript that
   `/print/[id]` renders — and was closed 2026-08-01 when gating the page alone proved not to.
+- **A line that mixes Hebrew and Latin needs `<bdi>`, not `dir` — 3rd occurrence, so it is now
+  a rule.** `dir="auto"` resolves from the line's FIRST strong character, so one Hebrew name at
+  the start flips the whole line and throws every trailing Latin run's punctuation to the far
+  side; `dir="ltr"` on a wrapper does the mirror-image damage to Hebrew. Occurrences: the
+  "sheets 4" metadata line (feat/pinge), a `dir="ltr"` reversing a Hebrew sentence
+  (feat/surfaces-import), and a `<cite>` orphaning an English marker's period
+  (fix/surfaces-export-marker). **The remedy is always the same: wrap each mixed run in its own
+  `<bdi>`** (it defaults to `dir="auto"`, so each run resolves independently) and set direction
+  on the container, never on the mixed line. Iron rule 5's "test bidi visually" means *look at
+  BOTH locales* — every one of these passed typecheck, tests, and an EN-only screenshot pass.
 - **Design parity is verified against the RENDERED design, never bundle CSS** (7-round lesson,
   2026-07-14): probe computed styles / canvas `measureText` on the live design page. The design
   uses TWO system stacks — body = SF Pro Text stack (→ Segoe UI on Windows), headlines

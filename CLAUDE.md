@@ -24,10 +24,10 @@ Live calls on-platform (Recall bot → buffered audio + karaoke captions), polis
 
 ## Parallel work
 
-You may be one of several sessions. Your lane, port, branch and duties come from your opening
-prompt + `.claude/rules/parallel-work.md`. Shared brain (absolute paths, any worktree):
-`C:/Users/Sagi/Desktop/Atlas/agent-memory/` → `BOARD.md` (mission + lanes) ·
-`cross-cutting.md` + `ready-queue.md` (append-only logs).
+You may be one of several sessions. Lane, port, branch and duties come from your opening prompt
++ `.claude/rules/parallel-work.md`. Shared brain (any worktree):
+`C:/Users/Sagi/Desktop/Atlas/agent-memory/` → `BOARD.md` · `cross-cutting.md` +
+`ready-queue.md` (append-only).
 
 ## Stack & commands
 
@@ -40,19 +40,17 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
 ## Doc map
 
 - `ARCHITECTURE.md` — the codebase, file by file
-- `docs/DATA-MODEL.md` — **the shared corpus vs the personal layer** (founder decision
-  2026-08-01): company data is the same for everyone, everything a user makes is theirs.
-  Read before designing any table, and before any Maya/retrieval/agents work.
+- `docs/DATA-MODEL.md` — **shared corpus vs personal layer** (founder decision 2026-08-01):
+  company data is the same for everyone; everything a user makes is theirs. Read before
+  designing any table or touching Maya/retrieval/agents.
 - `docs/VISION.md` — product vision, V1 description, roadmap
-- `docs/product/` — founder briefs for chapters not yet specced. The Projects · Workspace ·
-  Agents brief (`2026-08-01-projects-workspace-agents-brief.md`) is now HALF spent: its
-  **frontend** shipped 2026-08-01 (spec + plan stamped SHIPPED in `docs/superpowers/`); the
-  **backends** are the open half and the brief is still the founder's word on what they must do.
+- `docs/product/` — founder briefs. The Projects · Workspace · Agents brief is HALF spent:
+  frontend shipped 2026-08-01, **backends are the open half**.
 - `docs/ENVIRONMENT.md` — how this smart environment works + the dev↔product mapping
 - `docs/LAUNCH-KIT.md` — fleet setup: worktrees + the 3 lane opening prompts
-- `PROGRESS.md` — decision log (append at ship time; compacted-era raw entries → `docs/archive/`)
-- `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` — pre-launch security pass checklist
-- `docs/audits/` — environment audits · `docs/evidence/<branch>/` — durable ship evidence
+- `PROGRESS.md` — decision log (append at ship time; old eras → `docs/archive/`)
+- `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` — pre-launch security checklist
+- `docs/audits/` — environment audits · `docs/evidence/<branch>/` — ship evidence
 - `.claude/rules/` — parallel-work · db · live · app (read before touching those areas)
 - `LEGACY.md` — the 4-file Wave-2 login gateway (only legacy left)
 - Skills: `/verify-app` · `/ship` · `/fleet-lint` · `/live-test` · `/transcript-review` ·
