@@ -1,5 +1,8 @@
 # Spec — Projects backend: persistence + ownership (2026-08-02)
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in
+> ARCHITECTURE.md + PROGRESS.md
+
 > **Status:** design APPROVED by the founder 2026-08-02 in the Lane M brainstorm. Chapter:
 > "make Workspaces, Projects and Agents real". This spec covers **Projects only** — the first
 > of the three, by founder decision the same day.
@@ -121,12 +124,26 @@ personal-layer data per `docs/DATA-MODEL.md`.
 
 ### The link on `chat_conversations`
 
+> **⚠️ SUPERSEDED AT THE DDL GATE, 2026-08-02.** The single-column key below was **rejected**
+> before it was ever applied: `project_id → projects(id)` does not constrain *whose* project it
+> is, so a row could point at another account's project and the "ownership chain" this section
+> claimed would be unenforced. The applied migration (`20260802_015_projects.sql:130-143`) uses
+> a **composite** key instead. This block is kept as the record of what was designed and why it
+> changed — read the migration, not this snippet.
+
+**What was designed (rejected):**
+
 ```sql
 alter table public.chat_conversations
   add column project_id uuid references public.projects (id) on delete cascade;
-create index chat_conversations_project_id_idx
-  on public.chat_conversations (project_id);
 ```
+
+**What was applied:** a bare nullable `project_id` column plus a two-column foreign key
+`(project_id, user_id) → projects (id, user_id)`, which is why `projects` carries the otherwise
+redundant `projects_id_user_id_key unique (id, user_id)` (a foreign key must reference a uniquely
+constrained column set). `MATCH SIMPLE` — the default — lets a NULL `project_id` satisfy the
+constraint, so the 19 pre-existing rows are unaffected. The pair makes it impossible to file a
+conversation under a project belonging to someone else: the database checks both halves.
 
 `ADD COLUMN` is additive and allowed. The column is nullable: all 19 existing rows predate
 Projects and stay unaffected, which also keeps Timlul (which shares this table) working — it
@@ -134,9 +151,15 @@ simply ignores a column it does not select.
 
 **Ownership of a project chat runs through the project, not through `chat_conversations.user_id`.**
 That table's `user_id` has no foreign key and cannot be given one (§10), so the design does not
-lean on it: `project_id → projects(id) → user_id → auth.users(id)`, cascading the whole way. If an
-account is ever removed, its projects and their chats go with it — the exact failure that left 7
-orphan rows behind.
+lean on it: the composite key ties the pair to `projects (id, user_id)`, and `projects.user_id`
+is a real FK to `auth.users(id)`. If an account is ever removed, its projects and their chats go
+with it — the exact failure that left 7 orphan rows behind.
+
+**Founder decision, 2026-08-02:** `ON DELETE CASCADE` was countersigned, i.e. **deleting a project
+permanently deletes every conversation inside it.** It was signed against a description in which
+no such conversation could exist yet; commit `9f5da70` made them real and `1b3ac49` made them
+reachable, so the consent was re-confirmed at merge. See the CORRECTION block in
+`docs/evidence/feat-workspace-backend/2026-08-02-projects-m1-verification.md`.
 
 `chat_conversations` already has RLS enabled with `chat_conversations_owner` (`ALL`,
 `auth.uid() = user_id` on **both** `USING` and `WITH CHECK`), verified 2026-08-02. Project chats

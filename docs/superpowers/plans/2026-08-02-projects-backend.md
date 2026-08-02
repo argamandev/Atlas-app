@@ -1,5 +1,8 @@
 # Projects Backend Implementation Plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in
+> ARCHITECTURE.md + PROGRESS.md
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A project a user creates today is still theirs tomorrow, and is provably invisible to any other account.

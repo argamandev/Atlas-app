@@ -18,10 +18,33 @@
   dashboard by founder decision 2026-08-02, so the access-request +
   admin-approval flow is untested by this round. Recorded rather than glossed.
 - **No screenshots.** Nothing visual is claimed.
-- **`chat_conversations.project_id` is written by nothing yet.** The link column
+- ~~**`chat_conversations.project_id` is written by nothing yet.** The link column
   and its key exist and are enforced; no application code populates them, so
   `listProjectChats()` returns `[]` for every project today. The UI is honest
-  about that (it renders the empty state).
+  about that (it renders the empty state).~~
+
+> **CORRECTION — supervisor, 2026-08-02, at merge.** The struck bullet was true when
+> this file was written and **false three commits later**, which is why it is struck
+> here rather than quietly reworded: an evidence file that has been wrong must show
+> that it was.
+>
+> Commit `9f5da70` wires the write. `ChatView` → `POST /api/conversations` →
+> `createConversation()` stamps `project_id` on every conversation started inside a
+> project, and `listProjectChats()` returns real rows. Commit `1b3ac49` then made
+> those rows openable. So the column is populated, the chats are reachable, and the
+> founder-countersigned `ON DELETE CASCADE` is **live on user-visible content**.
+>
+> **What that means in plain language, because the cascade was countersigned against
+> the description above rather than against this one:** deleting a project now
+> permanently deletes every conversation held inside it. At the time of signing,
+> the stated model was that no such conversation could exist. It can. The database
+> constraint is already applied and is not reversible without hook-blocked SQL, so
+> this correction exists to make the consent informed after the fact — the founder
+> was asked to re-confirm at merge (`agent-memory/cross-cutting.md`, 2026-08-02).
+>
+> **Still not exercised:** no artifact in this file deletes a project that owns a
+> chat and shows the result. That remains owed, and it is the one claim about the
+> cascade that is asserted from the schema rather than demonstrated.
 
 ## 1. The gate ran before the migration was applied
 

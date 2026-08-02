@@ -207,7 +207,8 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `workspace/WorkspaceDocs.tsx` | The document/file pane. |
 | `workspace/WorkspaceDetailColumn.tsx` | Right-hand detail column (threads, agents, sessions). |
 | `workspace/LegalDueDiligence.tsx` | The legal-DD demo pane (severity-tagged findings). |
-| `projects/ProjectsList.tsx`, `projects/ProjectView.tsx` | Project list + detail (files, context, composer). |
+| `projects/ProjectsList.tsx`, `projects/ProjectView.tsx` | Project list + detail (files, context, composer). Backed by the real API since 2026-08-02 — no longer demo state. |
+| `projects/ProjectChat.tsx` | Mounts `ChatView` with `projectId` set and hands it `renderMain`, so a project's composer drives the ONE chat engine (streaming, persistence, citations) instead of a second implementation. `renderMain` also receives `open(id)`, which is the only route back into a project's past conversations — they are deliberately excluded from global Recent Chats. |
 | `agents/AgentsPage.tsx`, `agents/AgentDock.tsx`, `agents/CommandDeck.tsx`, `agents/CreateAgent.tsx` | The agents surface: list, dock, deck, and the create-agent flow. |
 
 ---
@@ -224,8 +225,11 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 ### Data layer — the clean two-sided pattern
 | Folder | What it does |
 |---|---|
-| `lib/db/` | **Server-only** direct Supabase queries (`import 'server-only'`, uses `supabaseAdmin`): `companies`, `calls`, `conversations`, `quotes`, `quoteFolders`, `transcripts`. Server components/route handlers call these. |
+| `lib/db/` | **Server-only** direct Supabase queries (`import 'server-only'`): `companies`, `calls`, `conversations`, `quotes`, `quoteFolders`, `transcripts` use `supabaseAdmin`, which **bypasses RLS** — those modules are responsible for their own ownership filtering. **`projects.ts` deliberately does not**: it takes the caller's user client so RLS is load-bearing rather than decorative, and the file carries comments at each site saying why. Copy `projects.ts`, not its neighbours. |
 | `lib/api/` | **Client-side** fetch wrappers calling the API routes: `client.ts` (`apiGet/apiPost/apiPatch/apiDelete`) + per-domain modules. Client components call these. |
+| `lib/projects/` | The projects domain, split so each half is testable alone: `client.ts` (browser fetch wrappers), `validate.ts` (input rules), `derive.ts` (capacity/count maths shown in the UI), `present.ts` (row → view model). |
+| `lib/chat/projectContext.ts` | Builds the project's instructions + memory + context sources into the system block injected server-side on every message sent inside a project, and reports whether it had to truncate. |
+| `lib/auth/verifyUser.ts` | The verifying user lookup (`getUser()`, which revalidates the token) that replaced every `auth.getSession()` call site on 2026-08-02. Unit-tested. |
 | `lib/transcripts.ts` | Shared transcript fetch/shape helpers. |
 
 ### Live engine — `lib/live/`

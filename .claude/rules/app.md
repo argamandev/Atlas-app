@@ -16,22 +16,29 @@
   never `getSession()` (trusts an attacker-controlled cookie); and validate `?next=` with
   `safeNextPath()` before redirecting, or the gate becomes an open redirect. Keep
   `config.matcher` in sync with `GATED_PREFIXES`.
-- **🔴 API AUTH IS NOT TRUSTWORTHY YET — `getSession()` does not verify anything.** **FIVE call
-  sites, not the three this rule claimed until 2026-08-02** — the count had been carried by hand
-  through this rule, the board, the founder brief and the security notes, and every copy was
-  wrong. From `git grep -n "auth\.getSession()" -- src` on main: `lib/auth.ts` `getRequestUserId`
-  :23 + `getCurrentUser` :40, `requireAdmin` in `/api/admin/requests` :13, **and
-  `api/transcripts/[id]/route.ts` :92 + :136** — the last being the PUT edit-rights check that
-  `docs/DATA-MODEL.md` flags as load-bearing, so a partial fix would have left the most
-  consequential one live. All five resolve the user via `supabase.auth.getSession()`.
-  In auth-js 2.105.4 that reads the session **out of the cookie** — a shape check plus an
-  `expires_at` the cookie itself supplies — with NO signature check and NO network call
-  (`GoTrueClient.__loadSession`). Supabase wraps the returned user in a warning proxy on the
-  server precisely because of this. A forged cookie carrying a known user UUID therefore passes,
-  and the routes then query with `supabaseAdmin`, which bypasses RLS. **The fix is `getUser()`**
-  (revalidates the token), as `src/middleware.ts` already does. Until that lands, treat every
-  "auth-gated" API route as gated in intent only. Filed 2026-08-01 at review of the login-gate
-  branch; NOT introduced by it, and deliberately not smuggled into it.
+- **✅ CLOSED 2026-08-02 — `getSession()` is gone; use `lib/auth/verifyUser.ts`, never reintroduce
+  it.** `git grep -n "auth\.getSession()" -- src` returns nothing on main, and it must keep
+  returning nothing. **The trap it was, so nobody re-adds it:** in auth-js 2.105.4 `getSession()`
+  reads the session **out of the cookie** — a shape check plus an `expires_at` the cookie itself
+  supplies — with NO signature check and NO network call (`GoTrueClient.__loadSession`). Supabase
+  wraps the returned user in a warning proxy on the server precisely because of this. A forged
+  cookie carrying a known user UUID passed, and the routes then queried with `supabaseAdmin`,
+  which bypasses RLS. `getUser()` revalidates the token; that is the only acceptable primitive
+  for a cookie-based check. **The lesson that outlived the bug: it was FIVE call sites, not the
+  three this rule claimed for a day** — the count had been hand-carried through this rule, the
+  board, the founder brief and the security notes, and every copy was wrong. The two missed ones
+  were the PUT edit-rights check in `api/transcripts/[id]` that `docs/DATA-MODEL.md` flags as
+  load-bearing, i.e. a "fixed all three" lane would have shipped believing the path was closed.
+  **A count in a document comes from a command, never from another document.** Filed 2026-08-01
+  at review of the login-gate branch (not introduced by it, deliberately not smuggled into it);
+  fixed on `feat/workspace-backend`, merged 2026-08-02.
+- **Still true after that fix: `supabaseAdmin` bypasses RLS, so RLS protects only what queries
+  through the USER's client.** Verifying who the caller is was the prerequisite, not the whole
+  job. `lib/db/projects.ts` is the pattern to copy — user client, RLS load-bearing, with a
+  comment at each site saying so. The older `lib/db/` modules (`conversations`, `quotes`,
+  `quoteFolders`, `transcripts`, …) still use `supabaseAdmin` and remain responsible for their
+  own ownership filtering in application code. Do not read "the auth fix landed" as "the data
+  layer is safe".
 - **API auth is PER-ROUTE and incomplete — never assume a route is protected, check it.** The
   old blanket claim "API routes ARE auth-gated" was false. 14 of 24 call the helpers above;
   `/api/access-request` + `/api/auth/signout` + the two `/api/live` feeds are public by design;
