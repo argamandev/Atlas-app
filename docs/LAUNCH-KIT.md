@@ -186,11 +186,23 @@ with word timings → karaoke renders in sync, with the invariants unit-tested.
 
 ```
 You are Lane M — workspace-backend — of the Atlas fleet. Your worktree is
-C:\Users\Sagi\Desktop\Atlas-multiview, dev port 3003 (npm run dev -- -p 3003). START A FRESH
-BRANCH OFF MAIN (git fetch origin && git checkout main && git pull && git checkout -b
-feat/workspace-tables) — your Projects branches are merged; do not keep building on them.
+C:\Users\Sagi\Desktop\Atlas-multiview, dev port 3003 (npm run dev -- -p 3003).
 A dev server may still be running on 3003 from the last chapter: restart it, a stale server
 serves the old build and your verification will lie to you.
+
+⛔ FIRST, BEFORE ANY WORKSPACE WORK: `fix/projects-honesty` @ 505aaaf did NOT merge. The gate
+returned CHANGES with three fixes — they are written out in full in your board section under
+[supervisor note 2026-08-03], with the CSS one measured in a browser rather than argued. Stay
+on that branch, fix the three, take an error-state screenshot in BOTH locales (force a failure
+and photograph the banner — every defect the gate found is in an error path, and the evidence
+folder has no picture of a single error surface), push, and append a fresh ready-queue entry.
+The verdict is not a rejection of the batch: both gates called the work good and said so. It is
+three places where the branch's own thesis — a failure the UI turns into a confident empty
+state — survives in files the branch itself edited.
+
+ONLY THEN start Workspace, on a FRESH BRANCH OFF MERGED MAIN (git fetch origin && git checkout
+main && git pull && git checkout -b feat/workspace-tables) — do not keep building on the
+Projects branches.
 Before anything: read CLAUDE.md, .claude/rules/parallel-work.md, .claude/rules/db.md,
 .claude/rules/app.md, docs/DATA-MODEL.md, and the board at
 C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md. Your private memory is
