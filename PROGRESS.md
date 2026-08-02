@@ -500,3 +500,40 @@ single-use — the fix is auto-register → fresh tk → launch bot, see VISION 
   (`products` has RLS disabled — founder cleanup advisory).
 - Deliberate Feature-1 leftovers: per-company entity DB · IVRIT per-word confidence scores ·
   per-line `startSec`.
+
+## 2026-08-03 — API auth closed and made structural (`fix/api-security`, supervisor)
+
+- **Every API handler now requires a signed-in user.** Three methods had no auth at all — both
+  `PATCH /api/transcripts/[id]/{speakers,diarization}` (they write via `supabaseAdmin`, which
+  bypasses RLS; diarization rebuilds a transcript's whole speaker attribution from one call) and
+  `GET`+`POST /api/live/finish` (POST fires the paid finish pipeline). `POST /api/chat` resolved a
+  user only when a document or snip was attached, so a plain question — the common case — ran
+  anonymously against the founder's model key.
+- **The shared-identity fallback is gone, and the documented count was wrong.** Our own notes said
+  `DEMO_USER_ID` was in "two routes"; `grep` said 16 sites across 8 route files, plus two SERVER
+  COMPONENTS an API-only sweep could never have found (`app/company/[id]`, `app/calendar`) that
+  rendered another identity's quotes and followed calls as the visitor's own. The constant is now
+  DELETED, so nothing can re-import it.
+- **The durable part is a test, not the patches.** `src/lib/apiAuthBoundary.test.ts` brace-matches
+  every exported handler under `src/app/api` and fails the battery for any that resolves no user —
+  or resolves one and never acts on the result — with a `PUBLIC` allowlist where each entry must
+  state its reason. These holes were months of drift, not one mistake, so a per-route fix would
+  have rotted the same way.
+- **Two review rounds, and both earned their keep.** Round 1 returned CHANGES on a BLOCKER *in the
+  guard*: it matched the mere presence of an auth call, so a route that asked who you were and
+  ignored the answer passed. Round 2 APPROVED but proved four more ways to fool it — a comment
+  quoting the auth call, a re-exported handler, an unbound `401` token, and a regex literal that
+  blanked the rest of the file. All fixed and re-proved by adversarial fixture. Twice the branch
+  filed the "a claim comes from a command, not another document" lesson and then violated it in
+  its own commit message.
+- **Verified in both directions in a real browser** — anonymous 401 on every gated route including
+  `POST /api/conversations` and `POST /api/chat`, signed-in 200 with a real Hebrew answer, and a
+  follow/unfollow round trip that left no rows behind. `POST /api/live/finish` was deliberately NOT
+  fired anonymously: a failed guard would have spent money and written to the database shared with
+  deployed Timlul. Evidence: `docs/evidence/fix-api-security/`.
+- **NOT claimed closed** — `/api/chat` still has no rate limit or size cap and `getChatContext`
+  still spans all companies (now any-member rather than anonymous); `GET /api/live/{state,pcm}`
+  stay anonymous and must be gated **before `LIVE_ENGINE_URL` is ever set on a deploy**, since the
+  "localhost-only engine" mitigation was false; and every `lib/db` module except `projects.ts`
+  still queries through `supabaseAdmin`, so authentication is not yet authorisation.
+- Battery on merged main: **194/194 · tsc exit 0 · build green**. Merge `164c892`.
