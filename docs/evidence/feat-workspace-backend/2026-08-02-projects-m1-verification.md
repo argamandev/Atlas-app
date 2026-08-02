@@ -301,3 +301,42 @@ Screenshots (durable, in this folder): `shots/2026-08-02-project-page-he.jpg` ·
 - This pass appended one real exchange ("שלום") to one of the founder's own
   project conversations. It is his account and his project; recorded rather than
   glossed.
+
+## 13. Second fix round — the two WARNINGs from the merge verdict (@1b3ac49)
+
+The merge went in with known debt. Two items on its NEXT list were the founder's
+stated red line — the UI must not say something untrue — and both are closed
+here, verified in the browser rather than reasoned about.
+
+**`ChatView.tsx:381` — a dead click on an empty conversation.**
+`{embedded && messages.length === 0 ? embedded : content}` keyed the whole
+decision on message count, so opening a conversation that resolves with ZERO
+messages re-rendered the project page unchanged: no navigation, no error,
+nothing. Such rows are genuinely creatable — `db/conversations.ts` inserts the
+row before the first exchange is saved, so a failure in between leaves a real,
+permanently dead row in a project's list, and that row is the only route to it.
+Now gated on a separate `conversationOpen` flag set only after a SUCCESSFUL
+fetch, so opening one always lands you in the conversation with a composer.
+
+Seen: `shots/2026-08-02-empty-conversation-opens-he.jpg` — the click that
+previously did nothing now shows the chat surface (greeting, composer,
+suggestions). Produced by patching the conversation fetch to resolve with
+`messages: []` against an otherwise real request, so **no empty row was created
+in the founder's project** to stage it.
+
+**`ProjectView.tsx:210-218` — the banner showed the wrong failure.** It picked
+`saveError` first and neither path cleared the other's state, so an open failure
+arriving after a save failure rendered the SAVE sentence carrying the OPEN
+error's text — wrong in both halves — and the open failure was invisible. Both
+are now rendered, each with its own line; there is no precedence left to get
+wrong, and the `||`/`??` mismatch that made an empty-string error render a
+dangling em dash went with it.
+
+Also in this round, from the same verdict's NITs: `ChatHistory` typed `onOpen` as
+returning `void` and called it uncaught, so a failure in the global sidebar was
+an unhandled rejection with a row that appeared to do nothing — the same
+silent-failure class as the project rows, one panel over. It now catches and
+shows the same `ErrorLine`. And `ErrorLine` itself no longer drops the tail of a
+two-placeholder template or jams the error onto a template with none.
+
+Battery after this round: **201/201 · tsc exit 0**.

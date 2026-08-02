@@ -81,6 +81,10 @@ export function ChatView({
   const [quote, setQuote] = useState<string | null>(initialQuote ?? null)
   const [transcript] = useState(initialTranscript ?? null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  // Set when a PAST conversation was deliberately opened. Distinct from
+  // `conversationId`, which is also set the moment a brand-new thread is
+  // persisted — that one must not take over an embedded surface.
+  const [conversationOpen, setConversationOpen] = useState(false)
   const [historyKey, setHistoryKey] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -182,10 +186,14 @@ export function ChatView({
     const conv = await fetchConversation(id)
     setConversationId(conv.id)
     setMessages(conv.messages.map((m) => ({ role: m.role, content: m.content })))
+    // Last, and only on success: a rejected fetch must leave the surface where
+    // it was so the caller's error banner is what the user sees.
+    setConversationOpen(true)
   }
 
   function newChat() {
     setConversationId(null)
+    setConversationOpen(false)
     setMessages([])
     setInput('')
     setQuote(null)
@@ -395,7 +403,15 @@ export function ChatView({
         </div>
       }
     >
-      {embedded && messages.length === 0 ? embedded : content}
+      {/* `conversationOpen`, not just `messages.length`: a conversation row CAN
+          resolve with zero messages (db/conversations.ts inserts the row before
+          the first exchange is saved, so a failure in between leaves a real but
+          empty row in the project's list). Keyed on the length alone, clicking
+          that row re-rendered the project page unchanged — no navigation, no
+          error, nothing. A dead click is a silent failure, and the row is the
+          only route into that conversation. Opening one now always lands you IN
+          it, empty or not, with a composer to continue from. */}
+      {embedded && messages.length === 0 && !conversationOpen ? embedded : content}
     </CollapsiblePanel>
   )
 }

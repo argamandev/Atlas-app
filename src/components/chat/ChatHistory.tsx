@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { PlusIcon, SparkleIcon } from '@/components/ds/icons'
 import { fetchConversations } from '@/lib/api/conversations'
+import { ErrorLine } from '@/components/projects/ErrorLine'
 import type { ConversationSummary } from '@/lib/api/types'
 
 // Lists past conversations and exposes new/open. ChatView bumps `refreshKey` after a chat is
@@ -17,13 +18,24 @@ export function ChatHistory({
 }: {
   activeId: string | null
   onNew: () => void
-  onOpen: (id: string) => void
+  /**
+   * May reject — `ChatView.openConversation` throws when the fetch fails. Typed
+   * as returning something awaitable so a failure here is SHOWN rather than
+   * becoming an unhandled rejection with a row that just does nothing.
+   */
+  onOpen: (id: string) => void | Promise<void>
   refreshKey: number
   /** the design's chat sidebar renders its own New-chat row above this list */
   hideNewButton?: boolean
 }) {
   const { dict } = useI18n()
   const [items, setItems] = useState<ConversationSummary[]>([])
+  const [openError, setOpenError] = useState<string | null>(null)
+
+  const open = (id: string) => {
+    setOpenError(null)
+    void Promise.resolve(onOpen(id)).catch((e) => setOpenError((e as Error).message))
+  }
 
   useEffect(() => {
     fetchConversations()
@@ -43,6 +55,20 @@ export function ChatHistory({
         </button>
       )}
 
+      {/* A row that will not open must say so. Without this the rejection from
+          openConversation was unhandled and the click looked like nothing
+          happened at all — the same silent-failure class as the project's own
+          recents rows, on the surface one panel over. */}
+      {openError !== null && (
+        <div
+          role="alert"
+          dir="auto"
+          className="rounded-[7px] px-[9px] py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
+        >
+          <ErrorLine template={dict.projects.openChatFailed} error={openError} />
+        </div>
+      )}
+
       {items.length === 0 ? (
         <div className="flex items-center gap-2 rounded-md px-2.5 py-4 text-sm text-ink-faint">
           <SparkleIcon size={15} />
@@ -54,7 +80,7 @@ export function ChatHistory({
             // per-item direction: Hebrew titles read RTL, English LTR (design's rc.dir/rc.align)
             <button
               key={c.id}
-              onClick={() => onOpen(c.id)}
+              onClick={() => open(c.id)}
               dir="auto"
               className={`truncate rounded-[7px] px-[9px] py-2 text-start text-[13px] transition-colors hover:bg-subtle ${
                 c.id === activeId ? 'bg-subtle text-ink' : 'text-ink-muted'

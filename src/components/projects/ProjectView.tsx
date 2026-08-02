@@ -216,15 +216,19 @@ export function ProjectView({
             </span>
           </div>
 
-          {(saveError || openError) && (
+          {/* Both are rendered, never one instead of the other. This used to
+              pick saveError first while neither path cleared the other's state,
+              so an open failure arriving after a save failure showed the SAVE
+              sentence with the OPEN error's text — a message that was wrong in
+              both halves — and the open failure itself was invisible. Two
+              independent failures deserve two lines. */}
+          {(saveError !== null || openError !== null) && (
             <div
               role="alert"
-              className="mb-4 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
+              className="mb-4 flex flex-col gap-1 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
             >
-              <ErrorLine
-                template={saveError ? dict.projects.saveFailed : dict.projects.openChatFailed}
-                error={(saveError ?? openError) as string}
-              />
+              {saveError !== null && <ErrorLine template={dict.projects.saveFailed} error={saveError} />}
+              {openError !== null && <ErrorLine template={dict.projects.openChatFailed} error={openError} />}
             </div>
           )}
 

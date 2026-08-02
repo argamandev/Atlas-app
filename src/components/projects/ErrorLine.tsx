@@ -1,3 +1,5 @@
+import { Fragment } from 'react'
+
 /**
  * Renders "…{error}" copy with the raw error isolated in its own <bdi>.
  *
@@ -13,12 +15,29 @@
  * something has already gone wrong.
  */
 export function ErrorLine({ template, error }: { template: string; error: string }) {
-  const [before, after = ''] = template.split('{error}')
+  // Interleave every segment rather than taking the first two: a template with
+  // two placeholders used to lose its tail, and one with NONE used to have the
+  // raw error jammed onto the end with no separator. Neither shape exists in the
+  // dictionaries today, and this component's whole job is what is rendered when
+  // something has already gone wrong — so it must not be the second failure.
+  const parts = template.split('{error}')
+  if (parts.length === 1) {
+    return (
+      <>
+        {template} — <bdi>{error}</bdi>
+      </>
+    )
+  }
   return (
     <>
-      {before}
-      <bdi>{error}</bdi>
-      {after}
+      {parts.map((part, i) => (
+        // Fragment, not a wrapper element: an extra inline box here would be a
+        // new bidi container, which is the exact thing <bdi> is placed to control.
+        <Fragment key={i}>
+          {part}
+          {i < parts.length - 1 && <bdi>{error}</bdi>}
+        </Fragment>
+      ))}
     </>
   )
 }
