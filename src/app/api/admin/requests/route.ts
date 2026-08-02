@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 import { createServerSupabase } from '@/lib/supabase'
+import { unauthorized } from '@/lib/auth'
 import { resolveUser } from '@/lib/auth/verifyUser'
 
 export const dynamic = 'force-dynamic'
@@ -23,7 +24,7 @@ async function requireAdmin() {
 // GET — list all pending requests
 export async function GET() {
   const admin = await requireAdmin()
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin) return unauthorized()
 
   const { data, error } = await supabaseAdmin
     .from('access_requests')
@@ -37,7 +38,7 @@ export async function GET() {
 // POST — approve or reject a request
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin()
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin) return unauthorized()
 
   const { requestId, action } = (await req.json()) as { requestId: string; action: 'approve' | 'reject' }
 

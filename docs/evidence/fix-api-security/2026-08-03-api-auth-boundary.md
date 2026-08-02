@@ -80,6 +80,10 @@ Restored → 3/3 pass. The guard splits every `route.ts` under `src/app/api` int
 HTTP handlers and checks each one independently, so a file whose `GET` authenticates and whose
 `PATCH` does not is caught — that per-method blindness is exactly how the drift happened.
 
+> This section records the FIRST version of the guard, including its assertion text, which has
+> since changed. It proved the guard could fail; it did not prove the guard was strong enough.
+> §5 is where that was tested properly, and the answer was no.
+
 ## 3. Battery
 
 - `npm test` → **194/194** (191 before this branch; +3 from `apiAuthBoundary.test.ts`)
@@ -91,18 +95,25 @@ HTTP handlers and checks each one independently, so a file whose `GET` authentic
 
 ## 4. What this does NOT close, stated so nobody reads it as finished
 
-1. **`GET /api/live/{state,pcm}` remain anonymous.** They proxy the live engine on `:8788` and
-   serve real captions and audio. They are listed in the guard's allowlist as an **OPEN ITEM**,
-   not as "by design". Bounded for now: both proxy a localhost-only engine, so a deployed Atlas
-   cannot reach it and they return nothing regardless of caller. Must be revisited **before LIVE
-   is deployed**, which is a later gate than Atlas being deployed. Closing them safely needs a
-   live run with the engine up (`.claude/rules/live.md`) and a latency measurement on `/pcm`,
-   which is polled continuously.
-2. **`POST /api/conversations` keeps its `DEMO_USER_ID` fallback**, listed as a dated exception
-   in the guard. Lane M's in-flight `fix/projects-honesty` rewrites those exact lines into
-   `src/lib/db/conversationScope.ts`; editing them here would be a merge conflict for no gain.
-   Closes when that branch merges — the exception entry is deleted then and the guard reports
-   whether the fallback is genuinely gone.
+1. **`GET /api/live/{state,pcm}` remain anonymous.** They proxy the live engine and serve real
+   captions and audio. Listed in the guard's allowlist as an **OPEN ITEM**, not as "by design".
+   ~~Bounded for now: both proxy a localhost-only engine, so a deployed Atlas cannot reach it and
+   they return nothing regardless of caller.~~
+
+   > **CORRECTION — 2026-08-03, at review.** That mitigation was false and the reviewer refuted it
+   > from the routes themselves. Both read `process.env.LIVE_ENGINE_URL || 'http://localhost:8788'`,
+   > and `live/state/route.ts`'s own comment says that variable exists to "point the deploy at a
+   > tunnelled local engine". So the bound holds ONLY while `LIVE_ENGINE_URL` is unset — a
+   > deploy-time configuration, not a property of the code. Setting it on Railway would open both
+   > routes to the world in the same action. **⇒ Gate them BEFORE `LIVE_ENGINE_URL` is ever set in
+   > a deployed environment.** Struck rather than reworded, because an evidence file that was
+   > wrong must show that it was.
+
+   Closing them safely still needs a live run with the engine up (`.claude/rules/live.md`) and a
+   latency measurement on `/pcm`, which is polled continuously.
+2. ~~**`POST /api/conversations` keeps its `DEMO_USER_ID` fallback**, listed as a dated exception
+   in the guard.~~ **CLOSED at review, 2026-08-03** — see §5. Deferring it was the wrong call and
+   the exception was itself untrue; the route now requires a real user like every other.
 3. **Authentication is not authorisation.** Every route now proves *who* is calling. Whether
    that caller may touch the specific row it goes on to read is a separate obligation living in
    the `lib/db` modules, most of which still query through `supabaseAdmin` and therefore bypass
@@ -111,3 +122,64 @@ HTTP handlers and checks each one independently, so a file whose `GET` authentic
 4. **`NEXT_PUBLIC_SITE_HOST` is still missing from `.env.example`** — founder-only (shell access
    to `.env*` is hook-blocked for the assistant). Needed at Railway or the login redirect sends
    users to the internal `localhost:8080`. Carried into the Railway chapter, not this one.
+
+## 5. Review round — the guard was too weak, and the reviewer proved it
+
+The cold `atlas-reviewer` returned **CHANGES** on the first version of this branch. It was right,
+and the headline finding was a BLOCKER *in the guard itself*, which matters more than any single
+route: a test whose promise is "PUBLIC enumerates the entire anonymous surface of the API" was
+making that promise falsely on the very branch that introduced it.
+
+**The BLOCKER.** `AUTH_CALL` matched the mere *presence* of an auth call. `POST /api/conversations`
+called `getRequestUserId`, discarded the null, and wrote the row as `DEMO_USER_ID` — so it counted
+as authenticated. A route that asks who you are and then ignores the answer is not gated.
+
+Fixed by closing the route properly rather than documenting the exception. Deferring it to avoid a
+merge conflict with Lane M's in-flight branch was the wrong trade: it left an untrue claim standing
+in three documents to save a ten-line conflict resolution. The guard now requires a handler to
+contain **both** an auth call and a refusal.
+
+**Three more holes in the guard, each proved by an adversarial fixture** (written under
+`src/app/api/zzprobe/`, run, then removed — every one produced a failure naming the exact handler):
+
+| shape | before | now |
+|---|---|---|
+| resolves a user, never refuses | passed | `/zzprobe GET — resolves a user but never refuses` |
+| auth call only inside a **comment** | passed | `/zzprobe GET — resolves no user` |
+| `export const GET = async …` | invisible | `/zzprobe GET — resolves no user` |
+| helper declared *between* two handlers | counted toward the earlier one | bodies are brace-matched |
+
+The comment case was not hypothetical: this branch's own `api/chat/route.ts` comment quoted the old
+code including `getRequestUserId(req)`, so deleting the real guard would have left the route green.
+The guard now blanks comments and string literals before scanning.
+
+Two further behaviours, both deliberate and fixture-verified: a handler produced by a call
+expression (`export const GET = withAuth(handler)`) **fails loudly** rather than being skipped, and
+a handler delegating to an *unregistered* helper is flagged — the guard cannot know an arbitrary
+function authenticates, so it fails closed and adding a new auth helper costs one deliberate line.
+
+**Placement, not just presence.** The auth check in `/api/chat` sat *below* `getChatContext`, so an
+anonymous POST still ran a service-role query and built up to a 40k-character transcript string
+before being refused — free unauthenticated database load on exactly the all-companies fallback the
+guard exists to protect. It is now the first statement in the handler, ahead of body parsing and
+the API-key check (which also closed an anonymous probe for whether `GEMINI_API_KEY` is set).
+
+**Two server components the API-only sweep was blind to.** `app/company/[id]/page.tsx` and
+`app/calendar/page.tsx` still did `user.userId ?? DEMO_USER_ID`, rendering the shared identity's
+quotes, folders and followed calls as the visitor's own whenever `getCurrentUser()` came back
+empty — and it returns null on *any* failure, since `resolveUser` swallows exceptions. Both now
+render nothing instead. The guard's second test was widened from `src/app/api` to all of `src/app`,
+because the narrow scope is what made these invisible.
+
+**A verification recipe I broke and had to fix twice.** Gating `/api/live/finish` turned
+`LiveSession.tsx`'s poll loop into an infinite spinner: a 401 body carries no `status`, so the loop
+treated it as "still processing" and re-polled every 3s forever, showing "processing" for a call
+that would never report. Now it stops and reports failure. The `/live-test` skill had the same
+problem in prose and was corrected in the first pass.
+
+**Doc claims that overstated the code**, all corrected: "across all 16 sites" (one remained), "the
+five items above are CLOSED" (item 5 named the one route left open), and "Every API handler now
+requires a signed-in user" (`POST /api/conversations` did not). Each is now true because the code
+changed, not because the sentence was softened.
+
+Battery after the round: **194/194 · tsc exit 0 · build green**.

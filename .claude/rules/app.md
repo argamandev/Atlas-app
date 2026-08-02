@@ -57,12 +57,14 @@
   fallback was in two routes. `grep -rn "?? DEMO_USER_ID" src/app/api | wc -l` said **16 sites across
   8 files**. Every restatement had been hand-carried between documents. A count in a document comes
   from a command.
-  **Two exceptions survive on purpose, and both are in the guard's allowlist with reasons, not
-  waved through:** `GET /api/live/{state,pcm}` proxy the localhost-only live engine (gating needs a
-  live run with the engine up per `rules/live.md`, and `/pcm` is polled continuously so the added
-  round trip must be measured — revisit before LIVE deploys, a later gate than Atlas deploying);
-  and `POST /api/conversations` keeps its fallback until Lane M's `fix/projects-honesty` lands,
-  since that branch rewrites the same lines into `lib/db/conversationScope.ts`.
+  **One exception survives on purpose, in the guard's allowlist with its reason:**
+  `GET /api/live/{state,pcm}`. **Do not repeat the mitigation that was written for it and refuted
+  the same day** — "they proxy a localhost-only engine so a deployed Atlas cannot reach them" is
+  FALSE: both read `process.env.LIVE_ENGINE_URL || 'http://localhost:8788'`, and that variable
+  exists precisely to point a deploy at a tunnelled engine. The bound holds only while it is
+  unset, which is deploy-time configuration, not a property of the code. **⇒ gate them BEFORE
+  `LIVE_ENGINE_URL` is ever set in a deployed environment.** Doing it safely needs a live run with
+  the engine up (`rules/live.md`) and a latency measurement on `/pcm`, which is polled continuously.
 - **Authentication is not authorisation — the guard above proves WHO is calling, nothing more.**
   Whether that caller may touch the row it goes on to read is the `lib/db` modules' job, and most
   of them still query through `supabaseAdmin`, which bypasses RLS. See the `supabaseAdmin`

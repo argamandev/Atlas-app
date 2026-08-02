@@ -18,7 +18,7 @@ import * as fs from 'fs'
 
 export async function GET(req: NextRequest) {
   const userId = await getRequestUserId(req)
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { data, error } = await supabaseAdmin
     .from('transcripts')

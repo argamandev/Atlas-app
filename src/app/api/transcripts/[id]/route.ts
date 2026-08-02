@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
-import { getRequestUserId } from '@/lib/auth'
+import { getRequestUserId, unauthorized } from '@/lib/auth'
 import { resolveUser } from '@/lib/auth/verifyUser'
 
 export const dynamic = 'force-dynamic'
@@ -60,7 +60,7 @@ const transcriptSchema = z
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const userId = await getRequestUserId(req)
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!userId) return unauthorized()
   console.log(`[GET /api/transcripts/${params.id}] querying supabase...`)
   const { data: rows, error } = await supabaseAdmin
     .from('transcripts')
@@ -89,7 +89,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
   const user = await resolveUser(supabase)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return unauthorized()
 
   // Fetch the row owner — authorization gate (we use supabaseAdmin which bypasses RLS)
   const { data: row, error: fetchErr } = await supabaseAdmin
@@ -127,7 +127,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 async function requireAdmin(): Promise<NextResponse | null> {
   const supabase = createServerSupabase(cookies())
   const user = await resolveUser(supabase)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return unauthorized()
   const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   return null

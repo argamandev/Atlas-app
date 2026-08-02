@@ -6,29 +6,71 @@ import { join } from 'node:path'
 // ─────────────────────────────────────────────────────────────────────────────
 // THE API AUTH BOUNDARY.
 //
-// Every HTTP method of every route under src/app/api must resolve a signed-in user, unless it
-// is listed as PUBLIC below with a reason.
+// Every HTTP method of every route under src/app/api must BOTH resolve a signed-in user AND
+// refuse when there is none, unless it is listed as PUBLIC below with a reason.
 //
 // WHY A STRUCTURAL TEST RATHER THAN "we fixed the routes": the holes this closes were not one
 // mistake, they were a DRIFT. Routes were added over months, each one reasonable on its own,
 // and the fleet's own notes described the damage as "two routes" when a command found 16 call
 // sites across 8 files. A per-route fix rots the same way; a guard that runs in the battery
-// does not. Add a route with an unauthenticated method and this test fails before review.
+// does not.
 //
-// WHAT IT CANNOT SEE, stated so nobody trusts it further than it goes: this is a TEXT scan, not
-// a type or flow analysis. It proves each method calls an auth helper — not that the result is
-// checked, and not that the caller may touch the specific row it goes on to read. Ownership
-// filtering is a separate obligation that lives in the lib/db modules (see .claude/rules/app.md:
-// supabaseAdmin bypasses RLS, so RLS protects only what queries through the USER's client).
+// THE FIRST VERSION OF THIS FILE WAS ITSELF TOO WEAK, and a cold reviewer caught it the same
+// day (2026-08-03). Every rule below with a "was" attached exists because the guard passed
+// something it should have failed. Read them before loosening anything:
+//
+//  1. It matched the mere PRESENCE of an auth call, so `POST /api/conversations` — which called
+//     `getRequestUserId`, discarded the null and wrote the row as `DEMO_USER_ID` — counted as
+//     authenticated. A route that asks who you are and then ignores the answer is not gated.
+//     Now: the handler must contain a refusal too.
+//  2. It scanned raw source, so a COMMENT quoting `getRequestUserId(req)` satisfied it. The
+//     guard could not tell code from prose, and this file's own author had written exactly such
+//     a comment in `api/chat/route.ts`. Now: comments and string literals are stripped first.
+//  3. It sliced each handler from its declaration to the NEXT declaration, so a helper defined
+//     BETWEEN two handlers counted toward the earlier one. `transcripts/[id]/route.ts` already
+//     has that shape (`requireAdmin` sits between two handlers). Now: bodies are brace-matched.
+//  4. It only recognised `export async function GET(`, so a file mixing that with
+//     `export const GET = async …` yielded a silently unchecked handler. Now: both shapes, all
+//     seven methods, and an UNPARSEABLE shape fails loudly instead of passing.
+//
+// WHAT IT STILL CANNOT SEE, stated so nobody trusts it further than it goes. This is a TEXT
+// scan, not a type or flow analysis. It proves each handler resolves a caller and has a refusal
+// path — not that the refusal is reachable, and not that the caller may touch the specific row
+// it goes on to read. Ownership filtering is a separate obligation living in the lib/db modules
+// (see .claude/rules/app.md: supabaseAdmin bypasses RLS, so RLS protects only what queries
+// through the USER's client). It also only scans routes: a PAGE that falls back to a shared
+// identity is invisible to the first test, which is why the second one scans all of src/app.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const API_ROOT = 'src/app/api'
+const APP_ROOT = 'src/app'
 
-/** Any of these, called anywhere inside a handler, counts as resolving the caller. */
-const AUTH_CALL = /\b(getRequestUserId|resolveUser|requireAdmin|getCurrentUser)\s*\(/
+const METHODS = 'GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS'
 
 /**
- * Methods that are deliberately reachable without a session. Keyed `<route> <METHOD>`.
+ * Resolving who the caller is. A CLOSED list on purpose: a handler that delegates to some other
+ * helper is flagged rather than trusted, because the guard cannot know that an arbitrary
+ * function authenticates. Adding a new auth helper therefore means adding it here — one
+ * deliberate line — and that is the intended cost. Verified by fixture: a handler calling an
+ * unregistered `guard(req)` helper fails, which is the safe direction.
+ */
+const AUTH_CALL = /\b(getRequestUserId|resolveUser|requireAdmin|getCurrentUser)\s*\(/
+/**
+ * ...and actually refusing when there is nobody. Presence of the first without this is the
+ * `POST /api/conversations` shape: asks the question, ignores the answer.
+ *
+ * Three accepted forms. The first two are literal (`unauthorized()`, a bare `401`). The third is
+ * the DELEGATION idiom — `const denied = await requireAdmin(); if (denied) return denied` — where
+ * the helper returns a ready response and the handler forwards it. It is matched structurally
+ * (`if (x) return x`, via a backreference) rather than by whitelisting `requireAdmin` by name,
+ * so any future helper of that shape is recognised and a handler that CALLS such a helper but
+ * forgets to return its refusal is still flagged. `transcripts/[id]` PATCH and DELETE are the
+ * live examples.
+ */
+const REFUSAL = /\bunauthorized\s*\(|\b401\b|if\s*\(\s*(\w+)\s*\)\s*return\s+\1\b/
+
+/**
+ * Methods deliberately reachable without a session. Keyed `<route> <METHOD>`.
  * Every entry carries the reason it is safe — an allowlist without reasons is just a mute button.
  */
 const PUBLIC: Record<string, string> = {
@@ -40,39 +82,134 @@ const PUBLIC: Record<string, string> = {
   '/companies GET': 'reference data: the company directory, shared corpus',
   '/companies/[id] GET': 'reference data: one company, shared corpus',
 
-  // ── NOT "by design" — these two are an OPEN ITEM, dated 2026-08-03. ──────────────────────
-  // They proxy the live engine on :8788 and serve real call captions and audio, so anonymous
-  // access to them IS content exposure. They are listed here rather than fixed because closing
-  // them safely needs a live run with the engine up (.claude/rules/live.md), the live chapter is
-  // parked, and /pcm is polled continuously — an auth round trip per poll is a latency change
-  // that must be measured on a real call, not assumed.
-  // The exposure is bounded until then: both proxy a localhost-only engine, so on a deployed
-  // Atlas they cannot reach it and return nothing regardless of who asks.
-  // MUST BE REVISITED BEFORE LIVE IS DEPLOYED — not before Atlas is deployed. Tracked in
-  // docs/V1-SECURITY-AND-LAUNCH-NOTES.md.
-  '/live/pcm GET': 'OPEN ITEM — proxies the localhost live engine; gating needs a live test',
-  '/live/state GET': 'OPEN ITEM — proxies the localhost live engine; gating needs a live test',
+  // ── NOT "by design" — an OPEN ITEM, dated 2026-08-03. ────────────────────────────────────
+  // These proxy the live engine and serve real call captions and audio, so anonymous access to
+  // them IS content exposure.
+  // A FIRST VERSION OF THIS COMMENT CLAIMED the exposure was bounded because "they proxy a
+  // localhost-only engine, so a deployed Atlas cannot reach it". The reviewer refuted it from
+  // the routes themselves: both read `process.env.LIVE_ENGINE_URL || 'http://localhost:8788'`,
+  // and `live/state/route.ts` says that variable exists precisely to "point the deploy at a
+  // tunnelled local engine". So the bound holds ONLY while LIVE_ENGINE_URL is unset — which is
+  // a deploy-time configuration, not a property of the code. Setting it on Railway opens these
+  // two routes to the world in the same breath.
+  // Closing them safely needs a live run with the engine up (.claude/rules/live.md) and a
+  // latency measurement on /pcm, which is polled continuously.
+  // ⇒ MUST BE CLOSED BEFORE `LIVE_ENGINE_URL` IS EVER SET IN A DEPLOYED ENVIRONMENT.
+  //   Tracked in docs/V1-SECURITY-AND-LAUNCH-NOTES.md.
+  '/live/pcm GET':
+    'OPEN ITEM — proxies the live engine; MUST be gated before LIVE_ENGINE_URL is set on a deploy',
+  '/live/state GET':
+    'OPEN ITEM — proxies the live engine; MUST be gated before LIVE_ENGINE_URL is set on a deploy',
 }
 
-/**
- * Files still permitted to mention DEMO_USER_ID, with an expiry condition.
- * The constant pools every anonymous caller into one identity that owns real rows; the point of
- * this chapter was to delete its use, so what remains must be visible and finite.
- */
-const DEMO_USER_EXCEPTIONS: Record<string, string> = {
-  '/conversations/route.ts':
-    "POST's fallback is being rewritten by Lane M's in-flight fix/projects-honesty (it moves into " +
-    'lib/db/conversationScope.ts). Editing the same lines here would be a merge conflict for no ' +
-    'gain. CLOSES when that branch merges — delete this entry then and the test will tell you if ' +
-    'the fallback is really gone.',
-}
-
-function walk(dir: string): string[] {
+function walk(dir: string, match: (name: string) => boolean): string[] {
   const out: string[] = []
   for (const name of readdirSync(dir)) {
     const p = join(dir, name)
-    if (statSync(p).isDirectory()) out.push(...walk(p))
-    else if (name === 'route.ts') out.push(p)
+    if (statSync(p).isDirectory()) out.push(...walk(p, match))
+    else if (match(name)) out.push(p)
+  }
+  return out
+}
+
+/**
+ * Blank out comments and string/template literals, preserving length and newlines so offsets
+ * and any reported line numbers stay meaningful. Without this the guard cannot tell a real call
+ * from one quoted in a comment — see note 2 in the header.
+ *
+ * Known limit: a regex literal containing a quote character would confuse the scanner. No route
+ * file has one today; if that changes, this needs a regex-literal state as well.
+ */
+function blankNonCode(src: string): string {
+  let out = ''
+  let i = 0
+  const keep = (ch: string) => (ch === '\n' ? '\n' : ' ')
+  while (i < src.length) {
+    const c = src[i]
+    const d = src[i + 1]
+    if (c === '/' && d === '/') {
+      while (i < src.length && src[i] !== '\n') out += keep(src[i++])
+      continue
+    }
+    if (c === '/' && d === '*') {
+      out += '  '
+      i += 2
+      while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) out += keep(src[i++])
+      out += '  '
+      i += 2
+      continue
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      out += ' '
+      i++
+      while (i < src.length) {
+        if (src[i] === '\\') {
+          out += '  '
+          i += 2
+          continue
+        }
+        if (src[i] === c) {
+          out += ' '
+          i++
+          break
+        }
+        out += keep(src[i++])
+      }
+      continue
+    }
+    out += c
+    i++
+  }
+  return out
+}
+
+/** Index of the character after the parenthesis group opening at `open`. */
+function matchDelim(src: string, open: number, o: string, c: string): number {
+  let depth = 0
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === o) depth++
+    else if (src[i] === c) {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
+/**
+ * Split a route file into one segment per exported HTTP handler, each segment being exactly that
+ * handler's own body — brace-matched, so a helper declared between two handlers belongs to
+ * neither (note 3 in the header).
+ */
+function handlers(code: string, route: string): { method: string; body: string }[] {
+  const re = new RegExp(`export\\s+(?:async\\s+)?(?:function\\s+|const\\s+)(${METHODS})\\b`, 'g')
+  const out: { method: string; body: string }[] = []
+  for (let m = re.exec(code); m; m = re.exec(code)) {
+    const method = m[1]
+    const paren = code.indexOf('(', m.index + m[0].length)
+    const brace = code.indexOf('{', m.index + m[0].length)
+    assert.ok(
+      paren !== -1,
+      `${route} ${method}: no parameter list found — the guard cannot parse this handler shape ` +
+        'and must be taught it rather than silently skipping it.'
+    )
+    const closeParen = matchDelim(code, paren, '(', ')')
+    assert.ok(closeParen !== -1, `${route} ${method}: unbalanced parameter list`)
+    const bodyOpen = code.indexOf('{', closeParen)
+    assert.ok(
+      bodyOpen !== -1 && (brace === -1 || brace > paren),
+      `${route} ${method}: no body block found — the guard cannot parse this handler shape.`
+    )
+    // Anything other than a return type / `=>` between the params and the body means this is a
+    // call expression (`export const GET = withAuth(handler)`), not a function we can read.
+    assert.ok(
+      !code.slice(closeParen + 1, bodyOpen).includes('('),
+      `${route} ${method}: handler is produced by a call expression, so the guard cannot see ` +
+        'whether it authenticates. Teach the guard this shape or inline the handler.'
+    )
+    const bodyClose = matchDelim(code, bodyOpen, '{', '}')
+    assert.ok(bodyClose !== -1, `${route} ${method}: unbalanced body`)
+    out.push({ method, body: code.slice(bodyOpen, bodyClose + 1) })
   }
   return out
 }
@@ -81,23 +218,12 @@ function walk(dir: string): string[] {
 function routeOf(file: string): string {
   return file
     .replace(/\\/g, '/')
-    .replace(`${API_ROOT}`, '')
+    .replace(API_ROOT, '')
     .replace(/\/route\.ts$/, '')
 }
 
-/** Split a route file into one segment per exported HTTP handler. */
-function handlers(src: string): { method: string; body: string }[] {
-  const re = /export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\s*\(/g
-  const found: { method: string; at: number }[] = []
-  for (let m = re.exec(src); m; m = re.exec(src)) found.push({ method: m[1], at: m.index })
-  return found.map((h, i) => ({
-    method: h.method,
-    body: src.slice(h.at, i + 1 < found.length ? found[i + 1].at : src.length),
-  }))
-}
-
-test('every API route method resolves a user, or is an explicit public exception', () => {
-  const files = walk(API_ROOT)
+test('every API route handler resolves a user AND refuses without one', () => {
+  const files = walk(API_ROOT, (n) => n === 'route.ts')
   // Guard the guard: a broken walk() would make this test pass by scanning nothing.
   assert.ok(files.length >= 25, `scanned too few route files (${files.length}) — is API_ROOT wrong?`)
 
@@ -106,15 +232,16 @@ test('every API route method resolves a user, or is an explicit public exception
 
   for (const file of files) {
     const route = routeOf(file)
-    const src = readFileSync(file, 'utf8')
-    const hs = handlers(src)
+    const code = blankNonCode(readFileSync(file, 'utf8'))
+    const hs = handlers(code, route)
     assert.ok(hs.length > 0, `${route}: no exported HTTP handler found — did the export shape change?`)
 
     for (const h of hs) {
       const key = `${route} ${h.method}`
       if (key in PUBLIC) continue
       checked++
-      if (!AUTH_CALL.test(h.body)) open.push(key)
+      if (!AUTH_CALL.test(h.body)) open.push(`${key} — resolves no user`)
+      else if (!REFUSAL.test(h.body)) open.push(`${key} — resolves a user but never refuses`)
     }
   }
 
@@ -122,26 +249,30 @@ test('every API route method resolves a user, or is an explicit public exception
   assert.deepEqual(
     open,
     [],
-    `these API handlers are reachable with no signed-in user:\n  ${open.join('\n  ')}\n\n` +
-      'Add `const userId = await getRequestUserId(req); if (!userId) return unauthorized()` — or, ' +
-      'if the endpoint is genuinely public, add it to PUBLIC in this file WITH THE REASON.'
+    `these API handlers are not gated:\n  ${open.join('\n  ')}\n\n` +
+      'The pattern is two lines: `const userId = await getRequestUserId(req)` then ' +
+      '`if (!userId) return unauthorized()`. If the endpoint is genuinely public, add it to ' +
+      'PUBLIC in this file WITH THE REASON.'
   )
 })
 
-test('no API route pools anonymous callers into DEMO_USER_ID', () => {
-  const offenders: string[] = []
-  for (const file of walk(API_ROOT)) {
-    const route = routeOf(file)
-    const key = `${route}/route.ts`.replace(/^\/+/, '/')
-    if (key in DEMO_USER_EXCEPTIONS) continue
-    if (/DEMO_USER_ID/.test(readFileSync(file, 'utf8'))) offenders.push(route)
-  }
+test('nothing under src/app falls back to the shared DEMO_USER_ID identity', () => {
+  // Deliberately the WHOLE app tree, not just the API. The fallback also lived in two server
+  // components (`app/company/[id]/page.tsx`, `app/calendar/page.tsx`), which rendered another
+  // identity's quotes, folders and followed calls as the visitor's own whenever getCurrentUser()
+  // came back empty — invisible to a routes-only scan.
+  // blankNonCode first: NAMING the constant in a comment is how these fixes explain themselves,
+  // and several of them do. Only a real reference counts.
+  const offenders = walk(APP_ROOT, (n) => n.endsWith('.ts') || n.endsWith('.tsx'))
+    .filter((f) => /DEMO_USER_ID/.test(blankNonCode(readFileSync(f, 'utf8'))))
+    .map((f) => f.replace(/\\/g, '/'))
+
   assert.deepEqual(
     offenders,
     [],
-    `these routes still fall back to the shared demo identity:\n  ${offenders.join('\n  ')}\n\n` +
-      'DEMO_USER_ID owns real rows. Falling back to it means an anonymous request reads and ' +
-      "writes that identity's data. Return unauthorized() instead."
+    `these files still reference the shared demo identity:\n  ${offenders.join('\n  ')}\n\n` +
+      'DEMO_USER_ID owns real rows. Falling back to it means an unidentified caller reads and ' +
+      "writes that identity's data. Refuse, or render nothing — never someone else's data."
   )
 })
 
@@ -149,8 +280,9 @@ test('the public allowlist stays small and every entry states its reason', () =>
   for (const [key, reason] of Object.entries(PUBLIC)) {
     assert.ok(reason.trim().length > 20, `PUBLIC["${key}"] needs a real reason, not a placeholder`)
   }
-  // Not a style rule: this list is the entire anonymous attack surface of the API. It should be
-  // read in full by a human whenever it grows, and a hard ceiling forces that to happen.
+  // Not a style rule: this list is the entire anonymous attack surface of the API — a claim that
+  // is only true because the first test now checks refusal, not just presence of an auth call.
+  // It should be read in full by a human whenever it grows, and a hard ceiling forces that.
   assert.ok(
     Object.keys(PUBLIC).length <= 8,
     `${Object.keys(PUBLIC).length} public API handlers — that is the whole anonymous surface. ` +

@@ -17,13 +17,16 @@ change — read the dates. Current state:
   That closes the forged-cookie hole, but it does not make the product launch-ready on its own:
   the items below this line are untouched by it, and `supabaseAdmin` still bypasses RLS
   everywhere except the projects data layer.
-- ✅ **Every API handler now requires a signed-in user, and a TEST enforces it** (2026-08-03,
-  `fix/api-security`). `src/lib/apiAuthBoundary.test.ts` splits every `route.ts` under
-  `src/app/api` into its exported methods and fails the battery for any that resolves no user.
-  Verified in both directions in a real browser — anonymous 401, signed-in 200 — see
-  `docs/evidence/fix-api-security/2026-08-03-api-auth-boundary.md`. Two allowlisted exceptions
-  with stated reasons: `GET /api/live/{state,pcm}` (proxy the localhost-only live engine; revisit
-  before LIVE deploys) and `POST /api/conversations` (until Lane M's `fix/projects-honesty` lands).
+- ✅ **Every API handler now requires a signed-in user AND refuses without one, and a TEST
+  enforces both** (2026-08-03, `fix/api-security`). `src/lib/apiAuthBoundary.test.ts`
+  brace-matches every exported handler under `src/app/api` and fails the battery for any that
+  resolves no user — or that resolves one and never refuses, which is how `POST
+  /api/conversations` slipped through the first version of the guard. Verified in both directions
+  in a real browser — anonymous 401, signed-in 200 — see
+  `docs/evidence/fix-api-security/2026-08-03-api-auth-boundary.md`. **One allowlisted exception:**
+  `GET /api/live/{state,pcm}`. Its first stated mitigation was wrong and is corrected here: they
+  read `LIVE_ENGINE_URL || 'http://localhost:8788'`, so they are localhost-bound only while that
+  variable is UNSET. **Gate them before it is ever set on a deploy.**
 - Everything below this line still stands unless marked otherwise:
 - ~~`POST /api/chat` is **unauthenticated**~~ — auth ✅ 2026-08-03. **Still unbounded and uncapped:**
   no rate limit, no size cap on `message`/`history`, and `getChatContext` still falls back to the
@@ -82,11 +85,16 @@ change — read the dates. Current state:
    narrows it from anonymous to any-member but does not fix it. Company-scoping that fallback is
    the remaining work.
 3. ~~**Remove the `DEMO_USER_ID` fallback** in `/api/quotes` + `/api/calls/follow`~~ — ✅ DONE
-   2026-08-03, across all 16 sites in 8 files (the two named here were an undercount). Routes now
-   hard-require a real `userId`, which is the second option this item offered. **The first option
-   is still owed:** they continue to use `supabaseAdmin`, so RLS is bypassed and ownership is
-   enforced in application code. Moving them to the cookie client is separate, unstarted work —
-   `lib/db/projects.ts` is the pattern.
+   2026-08-03. All 16 API sites across 8 route files (the two named here were an undercount), plus
+   two SERVER COMPONENTS the first pass missed entirely — `app/company/[id]/page.tsx` and
+   `app/calendar/page.tsx` rendered the shared identity's quotes, folders and followed calls as
+   the visitor's own whenever `getCurrentUser()` came back empty. `grep -rn "DEMO_USER_ID" src/app`
+   now returns comments only, and the guard's second test scans the WHOLE app tree, not just the
+   API, because a routes-only scan was structurally blind to those two. Routes hard-require a real
+   `userId`, which is the second option this item offered. **The first option is still owed:** they
+   continue to use `supabaseAdmin`, so RLS is bypassed and ownership is enforced in application
+   code. Moving them to the cookie client is separate, unstarted work — `lib/db/projects.ts` is
+   the pattern.
 4. **Apply migration `20260613_007`** (quotes + followed_calls) and delete the in-process
    fallback in `src/lib/db/quotes.ts` (it's per-process; quotes vanish on redeploy).
 5. ~~**`/api/chat` POST is unauthenticated**~~ — ✅ CLOSED 2026-08-03. The decision this item

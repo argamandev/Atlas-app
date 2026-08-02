@@ -107,6 +107,15 @@ async function openAiFallback(
 }
 
 export async function POST(req: NextRequest) {
+  // AUTH FIRST — before the body is parsed, before getChatContext runs, before the key check.
+  // Placement is the whole point: the guard originally sat below getChatContext, so an anonymous
+  // POST still made a service-role query and built up to a 40k-character transcript string before
+  // being refused. That is free unauthenticated database load on precisely the all-companies
+  // fallback this guard exists to protect. A refusal that happens after the expensive part is not
+  // a refusal.
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
+
   const body = await req.json().catch(() => null)
   const message: string = body?.message
   const companyId: string | undefined = body?.companyId || undefined
@@ -142,17 +151,6 @@ export async function POST(req: NextRequest) {
     ? { text: liveContext.slice(0, 40_000), source: null }
     : await getChatContext(companyId, transcriptId)
 
-  // CHAT IS AUTH-GATED, unconditionally. Until 2026-08-03 this line read
-  //   documentRef || attachments.length > 0 ? await getRequestUserId(req) : null
-  // so a user was resolved only when a document or a snip rode along, and a PLAIN QUESTION —
-  // the overwhelmingly common case — ran anonymously. Two consequences, both real: every such
-  // call spends Gemini tokens on the founder's key, which on a public URL is an open bill with
-  // no owner; and `getChatContext` below falls back to the most recent transcript across ALL
-  // companies, so an anonymous caller could read private corpus content through the model's
-  // answer. The page gate (2026-08-01) does not cover this — /api/chat is a direct API call.
-  const userId = await getRequestUserId(req)
-  if (!userId) return unauthorized()
-
   // Snipped pages ride the documentRef page-text grounding: image = authority on the
   // numbers, page prose = surrounding context (spec 2026-07-17).
   let groundingRef = documentRef
@@ -171,9 +169,8 @@ export async function POST(req: NextRequest) {
   const snipMeta =
     attachments.length > 0 ? await getDocumentMeta(attachments[0].documentId).catch(() => null) : null
   const captions = attachments.map((a) => snipCaption(snipMeta ? { title: snipMeta.title } : null, a.page))
-  // `&& userId` used to be the real guard here; it is now redundant (the route 401s above) and
-  // dropping it keeps the condition honest — a reader must not think this line is what gates
-  // document access.
+  // No `&& userId` here: the route 401s at the top, so that clause was provably dead. Leaving it
+  // in would tell a reader this line is what gates document access, which it no longer is.
   const docBlock = groundingRef ? await getDocumentContext(groundingRef).catch(() => '') : ''
 
   // Project context: the user's own instructions, memory and typed notes.

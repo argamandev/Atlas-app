@@ -117,11 +117,13 @@ CHAPTER 1 — THE FIVE HOLES. Verified by command on main 2026-08-03, not copied
     `(await getRequestUserId(req)) ?? DEMO_USER_ID` means every anonymous visitor shares ONE
     identity's data. Resolve a real user or 401.
 
-⚠️ CHAPTER 1 WAS EXECUTED BY THE SUPERVISOR ON 2026-08-03 (branch fix/api-security @438ee97) —
-the five items above are CLOSED and a battery test now enforces them
-(src/lib/apiAuthBoundary.test.ts). Item 2's warning turned out to be wrong in a useful way:
-POST /api/live/finish is called only by browser components on gated /app pages, so a plain
-cookie check sufficed and no shared secret was needed. If this seat is ever opened, it opens on
+⚠️ CHAPTER 1 WAS EXECUTED BY THE SUPERVISOR ON 2026-08-03 (branch fix/api-security) — all five
+items above are CLOSED and a battery test now enforces them (src/lib/apiAuthBoundary.test.ts).
+Two corrections this list earned: item 2's warning was wrong in a useful way (POST
+/api/live/finish is called only by browser components on gated /app pages, so a plain cookie
+check sufficed and no shared secret was needed), and item 5's undercount hid two SERVER
+COMPONENTS — app/company/[id]/page.tsx and app/calendar/page.tsx — that had the same fallback
+and that an API-only sweep could never have found. If this seat is ever opened, it opens on
 CHAPTER 2 below, not chapter 1.
 DELIBERATELY OUT OF SCOPE, do not touch: public.profiles / access_requests always-true RLS
 policies. Removing a policy is destructive, hook-blocked, and this database is SHARED with

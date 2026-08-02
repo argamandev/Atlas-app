@@ -37,8 +37,17 @@ export function LiveSession(props: {
     pollingRef.current = true
     const tick = async () => {
       try {
-        // non-auth status endpoint (GET /api/transcripts/[id] is auth-gated → 401s a stale session)
         const r = await fetch('/api/live/finish', { cache: 'no-store' })
+        // /api/live/finish gained auth on 2026-08-03 (POST fires the paid finish pipeline), so a
+        // stale or signed-out session 401s here. A 401 body is `{error}` with no `status`, which
+        // this loop used to treat as "still processing" and re-poll every 3s FOREVER — the UI sat
+        // on "processing" for a call that was never going to report, which is the silent-failure
+        // class. Stop and say so; `viewOrganized` below already had this branch.
+        if (r.status === 401) {
+          setFinishStatus('failed')
+          pollingRef.current = false
+          return
+        }
         const row = (await r.json()) as { status?: string }
         if (row.status === 'completed') {
           setFinishStatus('ready')
