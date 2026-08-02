@@ -9,6 +9,7 @@ import {
   capacityPercent,
   isOverBudget,
 } from './derive'
+import { buildProjectContext } from '@/lib/chat/projectContext'
 import { en } from '@/lib/i18n/dictionaries/en'
 import { he } from '@/lib/i18n/dictionaries/he'
 
@@ -65,13 +66,21 @@ test('an empty or whitespace body is labelled empty, not given a fake count', ()
   assert.equal(lineMeta('', he), he.projects.sourceEmpty)
 })
 
-test('capacity is measured against a real budget', () => {
-  const used = contextChars({
+test('capacity measures what the injector actually builds, not the raw fields', () => {
+  const input = {
+    name: 'Shipping sector',
     instructions: 'a'.repeat(100),
     memory: 'b'.repeat(100),
-    bodies: ['c'.repeat(300)],
-  })
-  assert.equal(used, 500)
+    sources: [{ name: 'Bidder brief', body: 'c'.repeat(300) }],
+  }
+  const used = contextChars(input)
+  // The meter and the server must be the same number. This used to sum only the
+  // raw fields — 500 here — and miss the framing header, the label line per
+  // section and the source NAME, so a project could read under 100% while the
+  // server was already cutting it.
+  assert.equal(used, buildProjectContext(input).fullLength)
+  assert.equal(used, buildProjectContext(input).text.length, 'untruncated: both lengths agree')
+  assert.ok(used > 500, `the framing the server sends must be counted, got ${used}`)
   assert.equal(capacityPercent(0), 0)
   assert.equal(capacityPercent(PROJECT_CONTEXT_BUDGET), 100)
   assert.equal(isOverBudget(PROJECT_CONTEXT_BUDGET), false)
@@ -86,6 +95,25 @@ test('capacity stays in the meter range even when the project does not', () => {
   assert.equal(isOverBudget(PROJECT_CONTEXT_BUDGET * 10), true)
 })
 
-test('contextChars counts every source body, not just the first', () => {
-  assert.equal(contextChars({ instructions: '', memory: '', bodies: ['aa', 'bbb', 'cccc'] }), 9)
+test('contextChars counts every source, not just the first', () => {
+  const base = { name: 'P', instructions: '', memory: '' }
+  const one = contextChars({ ...base, sources: [{ name: 'a', body: 'aa' }] })
+  const three = contextChars({
+    ...base,
+    sources: [
+      { name: 'a', body: 'aa' },
+      { name: 'b', body: 'bbb' },
+      { name: 'c', body: 'cccc' },
+    ],
+  })
+  assert.ok(three > one, `three sources must measure more than one: ${three} vs ${one}`)
+})
+
+test('a blank note costs nothing, because the injector skips it', () => {
+  const base = { name: 'P', instructions: 'keep it short', memory: '', sources: [] }
+  assert.equal(
+    contextChars({ ...base, sources: [{ name: 'Empty note', body: '   \n ' }] }),
+    contextChars(base),
+    'a note with no body is not sent, so it must not be charged for'
+  )
 })

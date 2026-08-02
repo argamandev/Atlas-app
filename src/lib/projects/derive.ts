@@ -1,4 +1,9 @@
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
+import {
+  buildProjectContext,
+  PROJECT_CONTEXT_BUDGET,
+  type ProjectContextInput,
+} from '@/lib/chat/projectContext'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Label derivation for Projects — PURE, DOM-free, no I/O, so it is testable
@@ -11,11 +16,13 @@ import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * The character ceiling actually injected into a chat inside a project.
- * `capacity` in the UI is this ratio — which is the only thing that makes
- * "14% of project capacity used" an honest sentence rather than decoration.
+ * The character ceiling actually injected into a chat inside a project — owned
+ * by the injector (`@/lib/chat/projectContext`) and re-exported here so the
+ * projects modules keep one import. `capacity` in the UI is this ratio, which is
+ * the only thing that makes "14% of project capacity used" an honest sentence
+ * rather than decoration.
  */
-export const PROJECT_CONTEXT_BUDGET = 8_000
+export { PROJECT_CONTEXT_BUDGET }
 
 export type Locale = 'en' | 'he'
 
@@ -61,8 +68,15 @@ export function lineMeta(body: string, dict: Dictionary): string {
   return dict.projects.sourceLines.replace('{n}', String(n))
 }
 
-export function contextChars(input: { instructions: string; memory: string; bodies: string[] }): number {
-  return input.instructions.length + input.memory.length + input.bodies.reduce((n, b) => n + b.length, 0)
+/**
+ * What the meter measures is EXACTLY what the injector builds — same function,
+ * so the two cannot disagree. Summing the raw fields instead (the old shape) was
+ * an undercount: it missed the framing header, the label line per section and
+ * every source NAME, so a project could show 97% while the server truncated it,
+ * and the "Over capacity" warning never fired for the people who needed it.
+ */
+export function contextChars(input: ProjectContextInput): number {
+  return buildProjectContext(input).fullLength
 }
 
 /**
