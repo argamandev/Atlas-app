@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRequestUserId } from '@/lib/auth'
+import { getRequestUserId, unauthorized } from '@/lib/auth'
 import { DEMO_USER_ID } from '@/lib/api/types'
 import { listConversations, createConversation } from '@/lib/db/conversations'
 
+// NOTE — POST below still carries the `?? DEMO_USER_ID` fallback, deliberately and
+// temporarily. Lane M's in-flight branch `fix/projects-honesty` rewrites exactly those lines
+// (it moves the decision into `src/lib/db/conversationScope.ts`), so changing them here would
+// be a merge conflict for no gain. It is listed as a KNOWN EXCEPTION in
+// `src/lib/apiAuthBoundary.test.ts` and closes the moment that branch lands.
+
 export async function GET(req: NextRequest) {
-  const userId = (await getRequestUserId(req)) ?? DEMO_USER_ID
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
   try {
     return NextResponse.json(await listConversations(userId))
   } catch (err) {

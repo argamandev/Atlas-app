@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getRequestUserId, unauthorized } from '@/lib/auth'
 import { loadCompletedCall } from '@/lib/live/loadCall'
 import { saveSpeakerEdits } from '@/lib/db/transcripts'
 import { flattenWords, type SpeakerEdits } from '@/lib/live/syncEngine'
@@ -6,7 +7,15 @@ import { flattenWords, type SpeakerEdits } from '@/lib/live/syncEngine'
 // PATCH /api/transcripts/:id/diarization — reassign a run of words [fromWord..toWord] to a
 // speaker (Feature 1). Recomputes the FULL boundary overlay from the current segmentation
 // (which already reflects any prior edits), so the result is idempotent and self-consistent.
+//
+// Had NO auth of any kind until 2026-08-03: `saveSpeakerEdits` writes through supabaseAdmin
+// (bypasses RLS), so an anonymous request could re-diarize any transcript by id — and because
+// this handler REBUILDS the complete boundary list from the current segmentation, one bad call
+// rewrites the speaker attribution of the whole transcript, not just the requested range.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
+
   const body = await req.json().catch(() => null)
   const fromWord = Number(body?.fromWord)
   const toWord = Number(body?.toWord)

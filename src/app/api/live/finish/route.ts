@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { getRequestUserId, unauthorized } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { runLiveBroadcastFinish, DEMO_CALL_ID } from '@/lib/live/finishLiveCall'
 
@@ -8,8 +9,19 @@ import { runLiveBroadcastFinish, DEMO_CALL_ID } from '@/lib/live/finishLiveCall'
 // PRIOR airing (the id is reused), so we re-finish unless one is already in flight.
 export const dynamic = 'force-dynamic'
 
+// AUTH, added 2026-08-03. Both handlers had none. POST fires the Gemini finish pipeline, so an
+// anonymous caller could spend money on the founder's key once, per request, from a public URL —
+// the single most expensive open door in the API. A plain cookie check is enough and needs no
+// secret: the ONLY callers are browser components (LiveSession.tsx, CompanyOverview.tsx) and
+// both render on /app/* pages that the login gate already protects, so a signed-in user's
+// request carries the cookie exactly as before. `scripts/finish-live-call.ts` does NOT go
+// through here — it calls runDemoFinish() in-process — so the runner path is unaffected.
+
 // Status-only (no trigger) — lets the client re-derive finish state after a refresh.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
+
   const { data } = await supabaseAdmin
     .from('transcripts')
     .select('status')
@@ -18,7 +30,10 @@ export async function GET() {
   return NextResponse.json({ id: DEMO_CALL_ID, status: data?.status ?? 'none' })
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
+
   const { data } = await supabaseAdmin
     .from('transcripts')
     .select('status')

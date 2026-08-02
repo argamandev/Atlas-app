@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import OpenAI from 'openai'
 import { getChatContext, getDocumentContext } from '@/lib/chat/context'
-import { getRequestUserId } from '@/lib/auth'
+import { getRequestUserId, unauthorized } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase'
 import { getProjectWithSources } from '@/lib/db/projects'
 import { buildProjectContext } from '@/lib/chat/projectContext'
@@ -142,11 +142,16 @@ export async function POST(req: NextRequest) {
     ? { text: liveContext.slice(0, 40_000), source: null }
     : await getChatContext(companyId, transcriptId)
 
-  // Document grounding is auth-gated even though chat itself is not — documentRef reads company
-  // documents via supabaseAdmin (bypasses RLS), so only a signed-in user may trigger that lookup.
-  const userId = documentRef || attachments.length > 0 ? await getRequestUserId(req) : null
-  // No signed-in user → no document access of any kind (same policy + launch-notes flag as docRef).
-  if (!userId) attachments = []
+  // CHAT IS AUTH-GATED, unconditionally. Until 2026-08-03 this line read
+  //   documentRef || attachments.length > 0 ? await getRequestUserId(req) : null
+  // so a user was resolved only when a document or a snip rode along, and a PLAIN QUESTION —
+  // the overwhelmingly common case — ran anonymously. Two consequences, both real: every such
+  // call spends Gemini tokens on the founder's key, which on a public URL is an open bill with
+  // no owner; and `getChatContext` below falls back to the most recent transcript across ALL
+  // companies, so an anonymous caller could read private corpus content through the model's
+  // answer. The page gate (2026-08-01) does not cover this — /api/chat is a direct API call.
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
 
   // Snipped pages ride the documentRef page-text grounding: image = authority on the
   // numbers, page prose = surrounding context (spec 2026-07-17).
@@ -166,7 +171,10 @@ export async function POST(req: NextRequest) {
   const snipMeta =
     attachments.length > 0 ? await getDocumentMeta(attachments[0].documentId).catch(() => null) : null
   const captions = attachments.map((a) => snipCaption(snipMeta ? { title: snipMeta.title } : null, a.page))
-  const docBlock = groundingRef && userId ? await getDocumentContext(groundingRef).catch(() => '') : ''
+  // `&& userId` used to be the real guard here; it is now redundant (the route 401s above) and
+  // dropping it keeps the condition honest — a reader must not think this line is what gates
+  // document access.
+  const docBlock = groundingRef ? await getDocumentContext(groundingRef).catch(() => '') : ''
 
   // Project context: the user's own instructions, memory and typed notes.
   // Direct injection, NOT retrieval — nothing here touches the shared corpus.
