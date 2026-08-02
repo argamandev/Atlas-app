@@ -12,11 +12,11 @@ change — read the dates. Current state:
   (`fix/app-login-gate`, 2026-08-01). `/print/[id]` had been server-rendering whole transcripts
   to anyone holding the URL; `GET /api/live/finished-call/[id]` returned the same payload as
   JSON and was closed with it.
-- 🔴 **But a session is not verified** — see item 0 below. The gate uses `getUser()`, and the
-  `Authorization: Bearer` branch of `getRequestUserId` genuinely verifies too; but every
-  COOKIE-based auth check — which is every browser request — goes through `getSession()`, which
-  believes the cookie. So the product is
-  no longer *open*, but it is not yet *secure*. Do not read the gate as launch-ready.
+- ✅ **Sessions are now verified** (2026-08-02, merged with `feat/workspace-backend`) — every
+  cookie-based check goes through `getUser()`, which revalidates the token. See item 0 below.
+  That closes the forged-cookie hole, but it does not make the product launch-ready on its own:
+  the items below this line are untouched by it, and `supabaseAdmin` still bypasses RLS
+  everywhere except the projects data layer.
 - Everything below this line still stands unless marked otherwise:
 - `POST /api/chat` is **unauthenticated, unbounded, and uncapped** (expensive Opus calls).
 - `/api/quotes` and `/api/calls/follow` fall back to a shared `DEMO_USER_ID` via the
@@ -26,14 +26,17 @@ change — read the dates. Current state:
 
 ## Must-fix BEFORE launch (security)
 
-0. **🔴 `getSession()` verifies nothing — switch `lib/auth.ts` and `requireAdmin` to `getUser()`.**
-   THE top security item (found 2026-08-01). `getRequestUserId` :23, `getCurrentUser` :40 and
-   `requireAdmin` (`/api/admin/requests`) all resolve the user via `supabase.auth.getSession()`,
-   which in auth-js 2.105.4 reads the session out of the COOKIE — shape check plus an
-   `expires_at` the cookie itself supplies, no signature check, no network call. A forged cookie
-   carrying a known user UUID passes, and the routes then query with `supabaseAdmin`, which
-   bypasses RLS. Until this lands, every "auth-gated" API route is gated in intent only, and
-   nothing below this line can be considered done.
+0. ✅ **DONE 2026-08-02 — `getSession()` replaced by `getUser()` everywhere.** Was THE top
+   security item (found 2026-08-01). All FIVE call sites converted on `feat/workspace-backend`
+   and verified at merge: `git grep -n "auth\.getSession()" -- src` returns nothing. The shared
+   helper is now `src/lib/auth/verifyUser.ts` (unit-tested). Kept here rather than deleted for
+   two reasons. The bug: in auth-js 2.105.4 `getSession()` read the session out of the COOKIE —
+   shape check plus a cookie-supplied `expires_at`, no signature check, no network call — so a
+   forged cookie carrying a known user UUID passed, and the routes then queried with
+   `supabaseAdmin`, which bypasses RLS. The process failure: this was recorded as THREE call
+   sites in four separate documents until someone finally ran the grep, and the two missed ones
+   were the load-bearing PUT edit-rights check in `api/transcripts/[id]`. **A count in a document
+   comes from a command, never from another document.**
 0b. **🔴 `public.profiles` is effectively world-writable — and this DB is shared with DEPLOYED
    production Timlul.** Found 2026-08-01 while grounding the new chapter's ownership model; NOT
    introduced by any Atlas branch. A policy named `Service role full access on profiles` is

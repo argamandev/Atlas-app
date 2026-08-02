@@ -23,22 +23,39 @@
   `listProjectChats()` returns `[]` for every project today. The UI is honest
   about that (it renders the empty state).~~
 
-  🔴 **CORRECTION 2026-08-02 (review BLOCKER, `@904030a`).** The struck-through
-  sentence above was true when written and FALSE three commits later: `9f5da70`
-  stamps `project_id` through `ChatView` → `/api/conversations` →
-  `createConversation`. Left standing, it denied the existence of the exact write
-  path that makes the founder-countersigned `ON DELETE CASCADE` destructive — so
-  the cascade was countersigned against a model in which no conversation could
-  ever hang off a project. Measured on the live database now, not argued:
-
-  ```
-  conversations_with_project        4      -- written by real app traffic
-  project_chats_owner_matched       4      -- every one owned by its project's owner
-  project_chats_with_real_messages  4      -- max 2 messages, i.e. real exchanges
-  global_recents_rows              22      -- project_id IS NULL, untouched
-  ```
-
-  The path is live and the cascade is therefore live. It is exercised in §11.
+> **CORRECTION — supervisor, 2026-08-02, at merge.** The struck bullet was true when
+> this file was written and **false three commits later**, which is why it is struck
+> here rather than quietly reworded: an evidence file that has been wrong must show
+> that it was.
+>
+> Commit `9f5da70` wires the write. `ChatView` → `POST /api/conversations` →
+> `createConversation()` stamps `project_id` on every conversation started inside a
+> project, and `listProjectChats()` returns real rows. Commit `1b3ac49` then made
+> those rows openable. So the column is populated, the chats are reachable, and the
+> founder-countersigned `ON DELETE CASCADE` is **live on user-visible content**.
+>
+> **What that means in plain language, because the cascade was countersigned against
+> the description above rather than against this one:** deleting a project now
+> permanently deletes every conversation held inside it. At the time of signing,
+> the stated model was that no such conversation could exist. It can. The database
+> constraint is already applied and is not reversible without hook-blocked SQL, so
+> this correction exists to make the consent informed after the fact — the founder
+> was asked to re-confirm at merge (`agent-memory/cross-cutting.md`, 2026-08-02).
+>
+> ~~**Still not exercised:** no artifact in this file deletes a project that owns a
+> chat and shows the result. That remains owed, and it is the one claim about the
+> cascade that is asserted from the schema rather than demonstrated.~~
+>
+> ✅ **CLOSED — Lane M, 2026-08-02, after the merge.** It is exercised in §11: a
+> project holding a real note and a real conversation, deleted, in a transaction
+> that rolls back. And the write path is now measured rather than reasoned about:
+>
+> ```
+> conversations_with_project        4      -- written by real app traffic
+> project_chats_owner_matched       4      -- every one owned by its project's owner
+> project_chats_with_real_messages  4      -- max 2 messages, i.e. real exchanges
+> global_recents_rows              22      -- project_id IS NULL, untouched
+> ```
 
 ## 1. The gate ran before the migration was applied
 

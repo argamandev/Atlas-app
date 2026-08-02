@@ -217,10 +217,18 @@ export function TranscriptChatPanel({
         )}
         {messages.map((m, i) =>
           m.role === 'user' ? (
-            <div key={i} className="flex animate-fade-up flex-col items-end gap-1">
+            // Every part of the user's turn hugs the PHYSICAL right in both locales — founder
+            // decision 2026-08-02, matching the main chat surface. The stack deliberately carries
+            // NO `items-end`: that is logical, so in Hebrew it pushed the whole turn to the left.
+            // Each child instead takes `ml-auto`, which absorbs the free space on the physical left
+            // in any direction AND (being a cross-axis auto margin) stops the child stretching, so
+            // the boxes still shrink to their content. Text direction is untouched — the bubble
+            // keeps dir="auto" and the reference keeps detectDir(), so each reads per its own
+            // language inside a box that no longer moves.
+            <div key={i} className="flex animate-fade-up flex-col gap-1">
               {m.snips && m.snips.length > 0 && (
                 // Pinge: what Atlas saw stays visible in the history (trust moment)
-                <div className="flex max-w-[92%] flex-wrap justify-end gap-1.5" dir="ltr">
+                <div className="ml-auto flex max-w-[92%] flex-wrap justify-end gap-1.5" dir="ltr">
                   {m.snips.map((s, j) => (
                     <img
                       key={j}
@@ -235,7 +243,7 @@ export function TranscriptChatPanel({
                 // Flat reference attachment, call-themed (flips with Dark/Light).
                 <div
                   dir={detectDir(m.reference)}
-                  className="call-hair call-panel-bg max-w-[92%] rounded-[8px] border px-3 py-2"
+                  className="call-hair call-panel-bg ml-auto max-w-[92%] rounded-[8px] border px-3 py-2"
                 >
                   <div className="call-faint mb-1 flex items-center gap-1.5 text-2xs font-medium">
                     <QuoteIcon size={11} />
@@ -249,7 +257,7 @@ export function TranscriptChatPanel({
               {m.content && (
                 <div
                   dir="auto"
-                  className="call-raised-bg call-ink max-w-[92%] rounded-[14px] rounded-ee-[4px] px-3.5 py-2 text-sm leading-relaxed"
+                  className="call-raised-bg call-ink ml-auto max-w-[92%] rounded-[14px] rounded-br-[4px] px-3.5 py-2 text-sm leading-relaxed"
                 >
                   {m.content}
                 </div>

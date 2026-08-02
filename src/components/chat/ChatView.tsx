@@ -275,19 +275,29 @@ export function ChatView({
         <div className="mx-auto w-full max-w-[720px] space-y-[22px]">
           {messages.map((m, i) =>
             m.role === 'user' ? (
-              // Charcoal pill on the trailing edge (design bubble: 14/14/4/14).
+              // Charcoal pill (design bubble: 14/14/4/14) anchored to the PHYSICAL right in
+              // BOTH locales — founder decision 2026-08-02, the ChatGPT model: your own message
+              // is always the one on the right. This is a deliberate deviation from the design
+              // reference, which puts the bubble on the *trailing* edge; in English those agree,
+              // in Hebrew they do not, and the founder chose right. Do not "restore" the mirror.
               //
-              // The side is decided by the CONTAINER, never by the message. This
-              // used to be `ms-auto` on an element carrying dir="auto", and
-              // logical margins resolve against the element's OWN direction — so
-              // a Hebrew message computed to RTL, `ms-auto` became margin-RIGHT,
-              // and that message jumped to the opposite side of the thread from
-              // an English one. Same defect class as rules/app.md's bidi rule:
-              // direction belongs on the container, and each authored run is
-              // isolated in its own <bdi> (which is dir="auto" by default) so the
-              // TEXT still reads RTL without moving the bubble.
-              <div key={i} className="flex animate-fade-up justify-end">
-                <div className="max-w-[75%] rounded-[14px] rounded-ee-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper">
+              // The bug both fixes came from: `ms-auto` on an element carrying dir="auto".
+              // Logical margins resolve against the element's OWN direction, so a Hebrew message
+              // computed to RTL, `ms-auto` became margin-RIGHT, and that one message jumped to
+              // the opposite side of the thread from its English neighbours.
+              //
+              // EVERY property that decides the SIDE must therefore be physical: `ml-auto` and
+              // `rounded-br`. The logical spellings are all traps here — `ms-auto`, `rounded-ee`
+              // and `justify-end` alike follow writing direction, and <html dir="rtl"> in Hebrew
+              // flips all three to the left. An auto margin on the physical left absorbs the free
+              // space on that side in any direction, which is exactly the invariant we want.
+              //
+              // ALIGNMENT is physical; DIRECTION is not. The text stays in its own <bdi> (which
+              // is dir="auto" by default), so Hebrew reads RTL and English reads LTR inside a box
+              // that does not move — moving the box is the whole point of not forcing `dir` on
+              // the content, which is the bidi defect class rules/app.md has filed four times.
+              <div key={i} className="flex animate-fade-up">
+                <div className="ml-auto max-w-[75%] rounded-[14px] rounded-br-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper">
                   <bdi className="block">{m.content}</bdi>
                 </div>
               </div>

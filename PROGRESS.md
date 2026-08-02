@@ -5,6 +5,49 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-02 — Projects backend SHIPPED (Lane M): a project is real, its chats persist, and `getSession()` is gone
+
+- **Projects stopped being demo state.** `projects` + `project_sources` are real tables under
+  the ownership law in `.claude/rules/db.md` (FK to `auth.users`, RLS with both `USING` and
+  `WITH CHECK`, owner index), served by four `/api/projects*` routes and a split domain layer
+  (`lib/projects/` validate · derive · present · client). A project you create, name, give
+  instructions and memory to, and hang context sources off, is still yours on reload.
+- **Project-scoped chat works end to end**, driven by the ONE chat engine rather than a second
+  implementation: `ProjectChat` mounts `ChatView` with a `projectId` and receives `{send,
+  sending, open}` back through `renderMain`. The project's instructions/memory/sources are
+  injected server-side (`lib/chat/projectContext.ts`) and the conversation row is stamped with
+  `project_id`. Verified signed-in in the founder's browser: sent a Hebrew message inside a
+  project, got a Hebrew answer, left the page, and reopened the conversation from the project's
+  own list. Console clean.
+- **`getSession()` is gone from `src` and must stay gone** — all five call sites now use the
+  verifying `getUser()` via `src/lib/auth/verifyUser.ts`. This was THE top item in
+  `docs/V1-SECURITY-AND-LAUNCH-NOTES.md`; the forged-cookie hole is closed. It does **not** make
+  the data layer safe: `supabaseAdmin` still bypasses RLS in every `lib/db/` module except
+  `projects.ts`, which is the pattern to copy.
+- **The database link is a COMPOSITE key, and that was the DDL gate paying for itself.** The
+  spec's `project_id → projects(id)` was rejected as a file, before application, because it
+  constrains *which* project but not *whose*; the applied shape is `(project_id, user_id) →
+  projects (id, user_id)`. `rules/db.md`'s "review DDL before applying" rule caught this on the
+  one class of change that cannot be reverted afterwards.
+- **⚠️ Deleting a project permanently deletes every chat inside it** (`ON DELETE CASCADE`,
+  founder-countersigned). The signature was given against an evidence file stating that no
+  project chat could exist yet — true when written, false three commits later. Corrected in
+  place at merge rather than reworded, and re-confirmed with the founder. Nothing yet
+  demonstrates the cascade; it is asserted from the schema.
+- **The bubble-alignment collision, resolved to the founder's decision.** Two branches
+  independently fixed the same bug (a logical `ms-auto` on a `dir="auto"` element resolves
+  against the element's *own* direction, so one Hebrew message jumped sides). Lane M moved the
+  choice to the container with `justify-end`; that is *also* logical, so under `<html dir="rtl">`
+  it lands left. Merged as physical (`ml-auto`, `rounded-br`) keeping Lane M's `<bdi>` isolation.
+  Measured in both locales: `gapToRowRight: 0`, 4px corner bottom-right, inner `<bdi>` still RTL.
+- **Merged with known follow-ups, deliberately.** The reviewer filed 19 findings; the evidence
+  BLOCKER and the two worst user-facing defects are fixed, the rest (a truncation header nobody
+  reads, a `contextChars()` undercount, a blank-source count, a swallowed project-context
+  failure, and a missing test for the chat wiring) are filed in `ready-queue.md` as Lane M's next
+  task. Battery at merge: 191/191 · tsc clean · build green.
+
+---
+
 ## 2026-08-01 — Projects · Workspace · Agents SHIPPED as FRONTEND (Lane F; 3 review rounds), and transcripts became the shared corpus
 
 - **The three surfaces are in, and they are deliberately backend-less.** Projects (inside the
