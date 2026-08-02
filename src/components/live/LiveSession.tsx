@@ -41,11 +41,15 @@ export function LiveSession(props: {
         // /api/live/finish gained auth on 2026-08-03 (POST fires the paid finish pipeline), so a
         // stale or signed-out session 401s here. A 401 body is `{error}` with no `status`, which
         // this loop used to treat as "still processing" and re-poll every 3s FOREVER — the UI sat
-        // on "processing" for a call that was never going to report, which is the silent-failure
-        // class. Stop and say so; `viewOrganized` below already had this branch.
+        // on "processing" for a call that was never going to report.
+        //
+        // Sending them to sign in, NOT setFinishStatus('failed'): 'failed' renders "the AI model
+        // was momentarily unavailable", which is a FALSE CAUSE for an expired session, and its
+        // "Try again" button re-POSTs into the same 401 forever. `viewOrganized` below already
+        // answers a 401 this way — one file must not hold two answers to the same status.
         if (r.status === 401) {
-          setFinishStatus('failed')
           pollingRef.current = false
+          window.location.href = loginRedirectTarget(window.location.pathname, window.location.search)
           return
         }
         const row = (await r.json()) as { status?: string }

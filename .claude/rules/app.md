@@ -65,6 +65,23 @@
   unset, which is deploy-time configuration, not a property of the code. **⇒ gate them BEFORE
   `LIVE_ENGINE_URL` is ever set in a deployed environment.** Doing it safely needs a live run with
   the engine up (`rules/live.md`) and a latency measurement on `/pcm`, which is polled continuously.
+- **Gating an endpoint changes every caller's ERROR path, not just its happy path — enumerate the
+  callers before you merge the guard.** Filed after `fix/api-security` hit it FOUR times in one
+  branch. Removing an anonymous fallback makes a 401 reachable where it never was, and the callers
+  were all written when the request could not fail: `LiveSession`'s poll read a 401 as "still
+  processing" and span forever; the `/live-test` skill's recipe had the same bug in prose;
+  `CalendarView.follow()` and two `MyQuotes` mutations kept their optimistic state on refusal,
+  showing a call followed or a folder deleted that the server rejected. **The remedy is mechanical:
+  `git grep` the endpoint, open every caller, and answer "what does this do with a 401?" — revert
+  the optimistic state, or send the user to sign in (`loginRedirectTarget`). Never invent a cause:
+  a "the model was unavailable" banner for an expired session is worse than a generic one, and its
+  retry button loops forever.**
+- **`DEMO_USER_ID` is DELETED (2026-08-03) and must never come back.** It was a fixed uuid used
+  "when there is no auth session", and 16 API sites plus two server components fell back to it, so
+  unidentified callers read and wrote ONE shared identity's real rows. If something fails to
+  compile looking for it, the answer is `unauthorized()` on a route or rendering nothing on a page
+  — never a shared identity. It was removed rather than left unused precisely so nothing can
+  re-import it.
 - **Authentication is not authorisation — the guard above proves WHO is calling, nothing more.**
   Whether that caller may touch the row it goes on to read is the `lib/db` modules' job, and most
   of them still query through `supabaseAdmin`, which bypasses RLS. See the `supabaseAdmin`

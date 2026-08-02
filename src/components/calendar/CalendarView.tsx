@@ -73,7 +73,16 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
     try {
       await setFollowCall(id, val)
     } catch {
-      /* keep optimistic state */
+      // REVERT, do not keep the optimistic star. Swallowing this was survivable while
+      // /api/calls/follow fell back to a shared identity and always succeeded; that fallback was
+      // removed on 2026-08-03, so a 401 is now reachable and a kept star would claim the call is
+      // followed when the server recorded nothing.
+      setFollowed((prev) => {
+        const next = new Set(prev)
+        if (val) next.delete(id)
+        else next.add(id)
+        return next
+      })
     }
   }
 

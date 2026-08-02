@@ -54,20 +54,42 @@ const METHODS = 'GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS'
  * deliberate line — and that is the intended cost. Verified by fixture: a handler calling an
  * unregistered `guard(req)` helper fails, which is the safe direction.
  */
-const AUTH_CALL = /\b(getRequestUserId|resolveUser|requireAdmin|getCurrentUser)\s*\(/
+const AUTH_FNS = 'getRequestUserId|resolveUser|requireAdmin|getCurrentUser'
+const AUTH_CALL = new RegExp(`\\b(?:${AUTH_FNS})\\s*\\(`)
+
 /**
- * ...and actually refusing when there is nobody. Presence of the first without this is the
- * `POST /api/conversations` shape: asks the question, ignores the answer.
+ * Is this handler's auth RESULT actually acted on?
  *
- * Three accepted forms. The first two are literal (`unauthorized()`, a bare `401`). The third is
- * the DELEGATION idiom — `const denied = await requireAdmin(); if (denied) return denied` — where
- * the helper returns a ready response and the handler forwards it. It is matched structurally
- * (`if (x) return x`, via a backreference) rather than by whitelisting `requireAdmin` by name,
- * so any future helper of that shape is recognised and a handler that CALLS such a helper but
- * forgets to return its refusal is still flagged. `transcripts/[id]` PATCH and DELETE are the
- * live examples.
+ * The check is BOUND to the variable the auth call was assigned to. A second reviewer round
+ * (2026-08-03) showed that an unbound "does the body contain a refusal" test is worthless: the
+ * original BLOCKER shape — resolve a user, discard it — still passed four different ways, because
+ * an unrelated `if (cached) return cached`, an upstream `if (up.status === 401)`, or even a
+ * never-called arrow returning 401 all satisfied a loose token search. Binding kills all four.
+ *
+ * Accepted shapes, which are the ones the codebase actually uses:
+ *   const userId = await getRequestUserId(req);  if (!userId) return unauthorized()
+ *   const user   = await resolveUser(supabase);  if (!user)   return … 401 …
+ *   const denied = await requireAdmin();         if (denied)  return denied     ← delegation
+ *
+ * STATED LIMIT: this proves the result is CHECKED, not that the check happens before anything
+ * expensive or side-effecting. Ordering is a real property and this cannot see it — `/api/chat`
+ * had its refusal below `getChatContext` and only a human reading caught that.
  */
-const REFUSAL = /\bunauthorized\s*\(|\b401\b|if\s*\(\s*(\w+)\s*\)\s*return\s+\1\b/
+function authVerdict(body: string): 'ok' | 'no-auth' | 'unchecked' {
+  const assign = new RegExp(
+    `(?:const|let|var)\\s+(\\w+)\\s*(?::[^=;]+)?=\\s*await\\s+(?:${AUTH_FNS})\\s*\\(`,
+    'g'
+  )
+  const bound: string[] = []
+  for (let m = assign.exec(body); m; m = assign.exec(body)) bound.push(m[1])
+  if (bound.length === 0) return AUTH_CALL.test(body) ? 'unchecked' : 'no-auth'
+  for (const id of bound) {
+    const negated = new RegExp(`if\\s*\\(\\s*!\\s*${id}\\b[^)]*\\)\\s*(?:return|\\{)`)
+    const delegated = new RegExp(`if\\s*\\(\\s*${id}\\s*\\)\\s*return\\s+${id}\\b`)
+    if (negated.test(body) || delegated.test(body)) return 'ok'
+  }
+  return 'unchecked'
+}
 
 /**
  * Methods deliberately reachable without a session. Keyed `<route> <METHOD>`.
@@ -163,6 +185,37 @@ function blankNonCode(src: string): string {
   return out
 }
 
+/**
+ * `blankNonCode` with a CANARY, because its one failure mode is silent and dangerous.
+ *
+ * The scanner has no regex-literal state, so a regex containing an unmatched quote — `/[']/` —
+ * flips its string parity and blanks the REST OF THE FILE. Everything after it then looks like
+ * empty space: a handler with no auth, or a live `?? DEMO_USER_ID`, becomes invisible, and the
+ * test passes. The second review round demonstrated exactly that. Teaching the scanner regex
+ * literals properly means implementing JavaScript's regex/division ambiguity, which is a bad
+ * trade inside a guard.
+ *
+ * So instead: verify the blanking did not eat code. Every line that STARTS with `import ` or
+ * `export ` in the raw file must still start with it after blanking — a parity flip wipes them,
+ * and no such line can legitimately vanish. Cheap, and it converts the silent failure into a
+ * loud one, which is the only property that matters here.
+ */
+function blanked(raw: string, file: string): string {
+  const out = blankNonCode(raw)
+  const count = (s: string) => (s.match(/^[ \t]*(?:import|export)\s/gm) ?? []).length
+  const before = count(raw)
+  const after = count(out)
+  assert.equal(
+    after,
+    before,
+    `${file}: comment/string blanking lost ${before - after} import/export line(s). That means a ` +
+      'construct this scanner cannot parse — almost certainly a regex literal containing a quote ' +
+      '— flipped its parity and blanked the rest of the file, which would hide real code from ' +
+      'this guard. Fix the scanner or rewrite the construct; do NOT relax this check.'
+  )
+  return out
+}
+
 /** Index of the character after the parenthesis group opening at `open`. */
 function matchDelim(src: string, open: number, o: string, c: string): number {
   let depth = 0
@@ -214,6 +267,35 @@ function handlers(code: string, route: string): { method: string; body: string }
   return out
 }
 
+/**
+ * Fail loudly on a handler exported by RE-EXPORT — `export { doWrite as POST, doWrite as DELETE }`
+ * — which is a normal Next.js shape and which `handlers()` cannot see, because there is no
+ * declaration to brace-match. Left undetected it is the worst possible failure: the file still
+ * contains one recognised `export async function GET`, so `hs.length > 0` is satisfied and the
+ * MUTATING methods are silently unchecked. The second review round proved exactly that against
+ * the previous version, which had claimed unparseable shapes "fail loudly". They did not.
+ */
+function assertNoReExportedHandlers(code: string, route: string, found: string[]): void {
+  for (const m of code.matchAll(/export\s*\{([^}]*)\}/g)) {
+    for (const part of m[1].split(',')) {
+      const name = part
+        .trim()
+        .split(/\s+as\s+/)
+        .pop()
+        ?.trim()
+      if (!name || !new RegExp(`^(?:${METHODS})$`).test(name)) continue
+      assert.ok(
+        found.includes(name),
+        `${route}: \`${name}\` is exported by re-export (\`${m[0].trim()}\`). The guard cannot ` +
+          'see whether it authenticates, so it must not pass silently. Declare the handler ' +
+          'directly (`export async function ' +
+          name +
+          '(…)`) or teach the guard this shape.'
+      )
+    }
+  }
+}
+
 /** `src/app/api/quotes/[id]/route.ts` → `/quotes/[id]` */
 function routeOf(file: string): string {
   return file
@@ -232,16 +314,23 @@ test('every API route handler resolves a user AND refuses without one', () => {
 
   for (const file of files) {
     const route = routeOf(file)
-    const code = blankNonCode(readFileSync(file, 'utf8'))
+    const raw = readFileSync(file, 'utf8')
+    const code = blanked(raw, file)
     const hs = handlers(code, route)
     assert.ok(hs.length > 0, `${route}: no exported HTTP handler found — did the export shape change?`)
+    assertNoReExportedHandlers(
+      code,
+      route,
+      hs.map((h) => h.method)
+    )
 
     for (const h of hs) {
       const key = `${route} ${h.method}`
       if (key in PUBLIC) continue
       checked++
-      if (!AUTH_CALL.test(h.body)) open.push(`${key} — resolves no user`)
-      else if (!REFUSAL.test(h.body)) open.push(`${key} — resolves a user but never refuses`)
+      const verdict = authVerdict(h.body)
+      if (verdict === 'no-auth') open.push(`${key} — resolves no user`)
+      else if (verdict === 'unchecked') open.push(`${key} — resolves a user but never acts on the result`)
     }
   }
 
@@ -264,7 +353,7 @@ test('nothing under src/app falls back to the shared DEMO_USER_ID identity', () 
   // blankNonCode first: NAMING the constant in a comment is how these fixes explain themselves,
   // and several of them do. Only a real reference counts.
   const offenders = walk(APP_ROOT, (n) => n.endsWith('.ts') || n.endsWith('.tsx'))
-    .filter((f) => /DEMO_USER_ID/.test(blankNonCode(readFileSync(f, 'utf8'))))
+    .filter((f) => /DEMO_USER_ID/.test(blanked(readFileSync(f, 'utf8'), f)))
     .map((f) => f.replace(/\\/g, '/'))
 
   assert.deepEqual(

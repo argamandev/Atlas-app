@@ -65,8 +65,9 @@ Then poll `http://localhost:<YOUR LANE PORT — rules/parallel-work.md>/api/live
 `status: completed`, and sanity-check `/api/live/finished-call/<the id returned by the finish
 flow>` is THIS call (company, ~duration, opening line) — never a hardcoded id from an old test.
 
-> **⚠️ THESE TWO ENDPOINTS NEED A SESSION SINCE 2026-08-03** (`fix/api-security` — `POST`
-> `/api/live/finish` fires the paid finish pipeline, so it could no longer be anonymous).
+> **⚠️ BOTH ENDPOINTS NAMED ABOVE NEED A SESSION** — `/api/live/finish` since 2026-08-03
+> (`fix/api-security`, because it fires the paid finish pipeline and could no longer be
+> anonymous) and `/api/live/finished-call/<id>` since 2026-08-01 (`fix/app-login-gate`).
 > A bare `curl` or `fetch` from a terminal now gets **401**, and — this is the trap — a 401 body
 > is not `status: completed`, so a poll loop written against the old recipe will simply spin
 > until it times out and look like a pipeline that never finished. **Poll from the founder's

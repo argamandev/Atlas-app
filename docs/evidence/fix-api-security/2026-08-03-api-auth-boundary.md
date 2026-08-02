@@ -183,3 +183,94 @@ requires a signed-in user" (`POST /api/conversations` did not). Each is now true
 changed, not because the sentence was softened.
 
 Battery after the round: **194/194 · tsc exit 0 · build green**.
+
+## 6. Second review round — APPROVED, and the guard got harder anyway
+
+The re-review of `3ba4225` returned **APPROVED**. It also verified the branch's central claim
+independently rather than trusting the guard: it re-implemented the parser outside the repo and
+enumerated **28 route files, 44 exported handlers, 37 gated, 7 public** — the 7 `PUBLIC` keys match
+exactly the 7 handlers that call no auth helper. `src/middleware.ts` matches only `/app/*` and
+`/print/*`, so route-level auth really is the only gate on the API, and there is no `src/pages/api`.
+The claim is load-bearing, and it is now true.
+
+Its remaining findings were about **durability of the guard** and about **callers I had not
+enumerated**. None were merge-blocking; all are fixed here anyway, because two of them were
+defects this branch itself created and one was a false claim in my own commit message.
+
+### The claim I made that was false
+
+The previous commit said an unparseable handler shape "FAILS LOUDLY rather than being skipped".
+It did not. `export { doWrite as POST, doWrite as DELETE }` — a normal Next.js shape — was invisible,
+and because the file also had one recognised `export async function GET`, the "no handler found"
+assert never fired. **The mutating methods were silently unchecked.** Now detected and refused by
+name, and re-proved by fixture. Recorded rather than quietly fixed: this branch has now filed the
+"a count/claim in a document must come from a command" lesson three times and violated it twice.
+
+### The guard's own attacks, re-run against the new version
+
+The reviewer resurrected the original BLOCKER shape (resolve a user, discard it) **four ways** that
+all passed, because `REFUSAL` was an unbound token search — any `401` anywhere, or any
+`if (x) return x` about anything. The check is now **bound to the identifier the auth call was
+assigned to**, so an unrelated `if (cached) return cached` or an upstream `if (up.status === 401)`
+no longer counts. Verified by fixture:
+
+| attack | before | now |
+|---|---|---|
+| resolve, discard, unrelated `if (cached) return cached` | passed | `resolves a user but never acts on the result` |
+| resolve, discard, upstream `401` token in body | passed | `resolves a user but never acts on the result` |
+| `export { doWrite as POST }` beside a real `GET` | silently unchecked | fails, naming the method |
+| regex containing a quote blanking the rest of the file | hid real code | fails on the import/export canary |
+
+That last one deserves its own note. The comment/string blanker has no regex-literal state, so
+`raw.replace(/[']/g, '')` flips its parity and blanks everything after it — a live unguarded
+handler below that line became invisible and the test passed. Implementing JavaScript's
+regex/division ambiguity inside a guard is a bad trade, so instead the blanker is now checked by a
+**canary**: every line starting with `import` or `export` in the raw file must survive blanking.
+A parity flip wipes them. Silent failure converted into a loud one, which is the only property
+that matters in a security guard.
+
+**A stated limit, added to the guard's header rather than papered over:** binding proves the auth
+result is *checked*, not that the check happens before anything expensive. Ordering is a real
+property this cannot see — `/api/chat` had its refusal below `getChatContext` and only a human
+reading caught it.
+
+### Callers I had not enumerated — the same lesson, twice more
+
+The branch recorded "gating an endpoint changes every caller's ERROR path, not just its happy
+path." The reviewer pointed out I had applied that to `/api/live/finish` and nowhere else:
+
+- **`CalendarView.follow()`** set the star optimistically and swallowed the failure. That was
+  survivable while `/api/calls/follow` always succeeded via the shared-identity fallback. Removing
+  the fallback made a 401 reachable, so the star would claim a call was followed that the server
+  never recorded. Now reverts.
+- **`MyQuotes` folder delete and folder assignment** did the same. Both now revert.
+- **`LiveSession`'s new 401 branch** set `finishStatus='failed'`, which renders *"the AI model was
+  momentarily unavailable"* — a **false cause** for an expired session — and its "Try again" button
+  re-POSTs into the same 401 forever. It now redirects to sign-in, matching `viewOrganized` in the
+  same file. One file must not hold two answers to the same status.
+
+### `DEMO_USER_ID` is deleted, not merely unused
+
+The constant had zero runtime references left but still existed in `src/lib/api/types.ts`, which the
+guard does not scan — so a `src/components` or `src/lib` file could have re-imported it invisibly.
+Removing it makes the promise structural instead of scoped: nothing can import what does not exist.
+
+### Merge-order consequence, stated deliberately
+
+`fix/projects-honesty` (Lane M, also pending) changes `api/conversations/route.ts`, `api/chat/route.ts`
+and `package.json`, and its `lib/db/conversationScope.ts` **imports `DEMO_USER_ID` and reproduces the
+fallback**. With the constant deleted, that merge now fails to compile instead of silently
+reinstating a shared identity, and `apiAuthBoundary.test.ts` will additionally fail because
+`resolveConversationScope` is not in the guard's closed list of auth helpers. **Both failures are
+intended.** Whoever merges second re-runs the battery on the merge result and resolves toward
+refusing the request. The earlier instinct — defer to avoid a conflict — is what produced this
+branch's only BLOCKER.
+
+### Filed, not fixed
+
+With `user.userId` null the company and calendar pages render their empty states, so a transient
+identity failure behind the login gate says "you have no saved quotes" rather than "we could not
+establish who you are". Strictly better than serving another identity's rows, and it needs new
+copy in both dictionaries to fix properly. Filed in the ready queue.
+
+Battery: **194/194 · tsc exit 0 · build green.**
