@@ -2,7 +2,7 @@
 
 _From the multi-agent review of `feat/v1-frontend` (2026-06-13)._
 
-## Current posture: PAGES GATED (2026-08-01), API AUTH STILL NOT TRUSTWORTHY
+## Current posture: PAGES GATED (2026-08-01) · SESSIONS VERIFIED (2026-08-02) · API AUTH ENFORCED BY TEST (2026-08-03)
 
 Until 2026-08-01 the V1 product under `/app/*` was **deliberately public** so it could be
 viewed without an auth wall. That is no longer true, and the rest of this file predates the
@@ -17,10 +17,21 @@ change — read the dates. Current state:
   That closes the forged-cookie hole, but it does not make the product launch-ready on its own:
   the items below this line are untouched by it, and `supabaseAdmin` still bypasses RLS
   everywhere except the projects data layer.
+- ✅ **Every API handler now requires a signed-in user, and a TEST enforces it** (2026-08-03,
+  `fix/api-security`). `src/lib/apiAuthBoundary.test.ts` splits every `route.ts` under
+  `src/app/api` into its exported methods and fails the battery for any that resolves no user.
+  Verified in both directions in a real browser — anonymous 401, signed-in 200 — see
+  `docs/evidence/fix-api-security/2026-08-03-api-auth-boundary.md`. Two allowlisted exceptions
+  with stated reasons: `GET /api/live/{state,pcm}` (proxy the localhost-only live engine; revisit
+  before LIVE deploys) and `POST /api/conversations` (until Lane M's `fix/projects-honesty` lands).
 - Everything below this line still stands unless marked otherwise:
-- `POST /api/chat` is **unauthenticated, unbounded, and uncapped** (expensive Opus calls).
-- `/api/quotes` and `/api/calls/follow` fall back to a shared `DEMO_USER_ID` via the
-  service-role client (`supabaseAdmin`), so anonymous reads/writes share one bucket.
+- ~~`POST /api/chat` is **unauthenticated**~~ — auth ✅ 2026-08-03. **Still unbounded and uncapped:**
+  no rate limit, no size cap on `message`/`history`, and `getChatContext` still falls back to the
+  most recent transcript across ALL companies. See item 2 — only its first clause is done.
+- ~~`/api/quotes` and `/api/calls/follow` fall back to a shared `DEMO_USER_ID`~~ — ✅ 2026-08-03,
+  and the count in that sentence was wrong: it was **16 call sites across 8 route files**
+  (`grep -rn "?? DEMO_USER_ID" src/app/api | wc -l`), not two routes. They still query through
+  `supabaseAdmin`, so RLS remains bypassed — auth was the prerequisite, not the whole job.
 - The new RLS policies (migration `20260613_007`) are correct but **bypassed** because the
   routes use `supabaseAdmin`.
 
@@ -60,21 +71,27 @@ change — read the dates. Current state:
    hostname** (e.g. `atlas.example.com`) — it is not in `.env.example` yet. Unset behind a proxy,
    the gate falls back to the server's bound origin and redirects anonymous users to
    `http://localhost:8080/…`, making login unreachable in production.
-   STILL OPEN from this item: the user-scoped API routes (`/api/quotes`, `/api/calls/follow`,
-   `/api/chat`) plus `PATCH …/speakers`, `PATCH …/diarization` and `POST /api/live/finish`
-   (the last spends money per call). A page gate does not cover direct API calls.
-2. **Lock down `/api/chat`.** Require auth, add a per-user rate limit, cap `message`/`history`
-   size, and restrict transcript context to the user's permitted companies — today
-   `getChatContext` falls back to "the most recent completed transcript across ALL companies,"
-   which would let an unauthorized user read any transcript through the LLM.
-3. **Drop the `DEMO_USER_ID` fallback** in `/api/quotes` + `/api/calls/follow`; resolve the real
-   user and use the cookie (anon) Supabase client so RLS actually enforces per-user isolation —
-   or keep `supabaseAdmin` but hard-require a real `userId`.
+   ~~STILL OPEN from this item: the user-scoped API routes…~~ **✅ API HALF DONE 2026-08-03**
+   (`fix/api-security`) — all of them, plus the ones this line failed to list. A page gate does
+   not cover direct API calls; a per-method test now does.
+2. **Lock down `/api/chat`.** ✅ **Auth done 2026-08-03** — the route 401s without a session
+   (it previously resolved a user only when a document or snip was attached, so a plain question
+   ran anonymously). **STILL OPEN, and this item is NOT closed:** no per-user rate limit, no cap
+   on `message`/`history` size, and `getChatContext` still falls back to "the most recent
+   completed transcript across ALL companies" — now reachable only by a signed-in user, which
+   narrows it from anonymous to any-member but does not fix it. Company-scoping that fallback is
+   the remaining work.
+3. ~~**Remove the `DEMO_USER_ID` fallback** in `/api/quotes` + `/api/calls/follow`~~ — ✅ DONE
+   2026-08-03, across all 16 sites in 8 files (the two named here were an undercount). Routes now
+   hard-require a real `userId`, which is the second option this item offered. **The first option
+   is still owed:** they continue to use `supabaseAdmin`, so RLS is bypassed and ownership is
+   enforced in application code. Moving them to the cookie client is separate, unstarted work —
+   `lib/db/projects.ts` is the pattern.
 4. **Apply migration `20260613_007`** (quotes + followed_calls) and delete the in-process
    fallback in `src/lib/db/quotes.ts` (it's per-process; quotes vanish on redeploy).
-5. **`/api/chat` POST is unauthenticated** (pre-existing; transcript context exposed to anon
-   callers) — documentRef grounding is now auth-gated in-route (2026-07-14, Lane M); decide at
-   the security pass whether the whole route should be gated.
+5. ~~**`/api/chat` POST is unauthenticated**~~ — ✅ CLOSED 2026-08-03. The decision this item
+   deferred to "the security pass" was taken there: the WHOLE route is gated, not just the
+   documentRef grounding. Duplicate of item 2's first clause; kept so the trail is readable.
 
 ## Fixed in this review pass (committed)
 

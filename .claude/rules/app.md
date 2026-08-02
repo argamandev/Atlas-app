@@ -39,15 +39,34 @@
   `quoteFolders`, `transcripts`, …) still use `supabaseAdmin` and remain responsible for their
   own ownership filtering in application code. Do not read "the auth fix landed" as "the data
   layer is safe".
-- **API auth is PER-ROUTE and incomplete — never assume a route is protected, check it.** The
-  old blanket claim "API routes ARE auth-gated" was false. 14 of 24 call the helpers above;
-  `/api/access-request` + `/api/auth/signout` + the two `/api/live` feeds are public by design;
-  `/api/companies*` and `/api/calls` serve reference data anonymously (undecided, not obviously
-  wrong). STILL OPEN (page gate does NOT cover them — they are direct API calls): `PATCH
-  /api/transcripts/[id]/speakers`, `PATCH /api/transcripts/[id]/diarization` and `POST
-  /api/live/finish` mutate data with NO auth at all; the last one spends money per call.
-  `GET /api/live/finished-call/[id]` was the same class — it returned the whole transcript that
-  `/print/[id]` renders — and was closed 2026-08-01 when gating the page alone proved not to.
+- **✅ CLOSED 2026-08-03 — API auth is now a TEST, not a habit: `src/lib/apiAuthBoundary.test.ts`.**
+  It splits every `route.ts` under `src/app/api` into its exported handlers and fails the battery
+  for any method that resolves no user, with a `PUBLIC` allowlist where every entry must state
+  its reason. **Do not close a hole here by editing a route alone — if the guard did not fail
+  first, the hole was not in its scope and you should ask why.** The pattern in a route is two
+  lines: `const userId = await getRequestUserId(req)` then `if (!userId) return unauthorized()`
+  (`unauthorized()` lives beside `getRequestUserId` in `src/lib/auth.ts`).
+  **What it replaced, kept because the shape recurs:** three methods had NO auth at all — the two
+  `PATCH /api/transcripts/[id]/{speakers,diarization}` mutations (both write via `supabaseAdmin`,
+  which bypasses RLS, and diarization rebuilds the WHOLE boundary list from one call) and
+  `GET`+`POST /api/live/finish` (POST fires the finish pipeline, i.e. it spends money per call).
+  `POST /api/chat` resolved a user ONLY when a document or snip was attached, so a plain question
+  — the common case — ran anonymously against the founder's model key. `GET /api/live/finished-call/[id]`
+  was the same class, closed 2026-08-01 when gating the page alone proved not to.
+  **The counting lesson, again, and this is its third filing:** this rule itself said the shared-identity
+  fallback was in two routes. `grep -rn "?? DEMO_USER_ID" src/app/api | wc -l` said **16 sites across
+  8 files**. Every restatement had been hand-carried between documents. A count in a document comes
+  from a command.
+  **Two exceptions survive on purpose, and both are in the guard's allowlist with reasons, not
+  waved through:** `GET /api/live/{state,pcm}` proxy the localhost-only live engine (gating needs a
+  live run with the engine up per `rules/live.md`, and `/pcm` is polled continuously so the added
+  round trip must be measured — revisit before LIVE deploys, a later gate than Atlas deploying);
+  and `POST /api/conversations` keeps its fallback until Lane M's `fix/projects-honesty` lands,
+  since that branch rewrites the same lines into `lib/db/conversationScope.ts`.
+- **Authentication is not authorisation — the guard above proves WHO is calling, nothing more.**
+  Whether that caller may touch the row it goes on to read is the `lib/db` modules' job, and most
+  of them still query through `supabaseAdmin`, which bypasses RLS. See the `supabaseAdmin`
+  paragraph above; `lib/db/projects.ts` is the pattern to copy.
 - **A line that mixes Hebrew and Latin needs `<bdi>`, not `dir` — 3rd occurrence, so it is now
   a rule.** `dir="auto"` resolves from the line's FIRST strong character, so one Hebrew name at
   the start flips the whole line and throws every trailing Latin run's punctuation to the far

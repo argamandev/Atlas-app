@@ -65,6 +65,16 @@ Then poll `http://localhost:<YOUR LANE PORT — rules/parallel-work.md>/api/live
 `status: completed`, and sanity-check `/api/live/finished-call/<the id returned by the finish
 flow>` is THIS call (company, ~duration, opening line) — never a hardcoded id from an old test.
 
+> **⚠️ THESE TWO ENDPOINTS NEED A SESSION SINCE 2026-08-03** (`fix/api-security` — `POST`
+> `/api/live/finish` fires the paid finish pipeline, so it could no longer be anonymous).
+> A bare `curl` or `fetch` from a terminal now gets **401**, and — this is the trap — a 401 body
+> is not `status: completed`, so a poll loop written against the old recipe will simply spin
+> until it times out and look like a pipeline that never finished. **Poll from the founder's
+> signed-in browser** (Chrome MCP `javascript_tool` with `credentials:'include'`, which is how
+> `/verify-app` already reaches gated routes), or pass
+> `Authorization: Bearer <access_token>` — `getRequestUserId` accepts that path for exactly this
+> kind of automation. `/api/live/state` and `/api/live/pcm` are unaffected and still open.
+
 ## Gotchas (do not re-learn)
 - Claude can't start cloudflared — the founder must.
 - The `start` process is a zombie — always kill it after the bot is created.
