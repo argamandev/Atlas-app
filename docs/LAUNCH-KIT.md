@@ -111,9 +111,20 @@ CHAPTER 1 — THE FIVE HOLES. Verified by command on main 2026-08-03, not copied
     secret is likely the right answer, not a cookie.
  3. PATCH /api/transcripts/[id]/speakers — no auth, mutates data.
  4. PATCH /api/transcripts/[id]/diarization — no auth, mutates data.
- 5. DEMO_USER_ID fallbacks in /api/calls/follow and /api/conversations (+ conversations/[id]):
+ 5. DEMO_USER_ID fallbacks — this entry said "/api/calls/follow and /api/conversations
+    (+ conversations/[id])". The command said 16 sites across 8 files. Left as written because
+    the undercount is the lesson: a count in a document comes from a command.
     `(await getRequestUserId(req)) ?? DEMO_USER_ID` means every anonymous visitor shares ONE
     identity's data. Resolve a real user or 401.
+
+⚠️ CHAPTER 1 WAS EXECUTED BY THE SUPERVISOR ON 2026-08-03 (branch fix/api-security) — all five
+items above are CLOSED and a battery test now enforces them (src/lib/apiAuthBoundary.test.ts).
+Two corrections this list earned: item 2's warning was wrong in a useful way (POST
+/api/live/finish is called only by browser components on gated /app pages, so a plain cookie
+check sufficed and no shared secret was needed), and item 5's undercount hid two SERVER
+COMPONENTS — app/company/[id]/page.tsx and app/calendar/page.tsx — that had the same fallback
+and that an API-only sweep could never have found. If this seat is ever opened, it opens on
+CHAPTER 2 below, not chapter 1.
 DELIBERATELY OUT OF SCOPE, do not touch: public.profiles / access_requests always-true RLS
 policies. Removing a policy is destructive, hook-blocked, and this database is SHARED with
 DEPLOYED production Timlul — see the 2026-08-01 ALERT in cross-cutting.md. Flag, never fix.

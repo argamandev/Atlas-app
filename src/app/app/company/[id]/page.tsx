@@ -5,7 +5,6 @@ import { listQuotes } from '@/lib/db/quotes'
 import { listFolders } from '@/lib/db/quoteFolders'
 import { listCompanyTranscripts } from '@/lib/transcripts'
 import { getCurrentUser } from '@/lib/auth'
-import { DEMO_USER_ID } from '@/lib/api/types'
 import { AppPage } from '@/components/app/AppPage'
 import { CompanyView } from '@/components/company/CompanyView'
 
@@ -24,8 +23,14 @@ export default async function CompanyPage({
     listCompanyTranscripts(params.id),
     getCurrentUser(),
   ])
-  const userId = user.userId ?? DEMO_USER_ID
-  const [quotes, folders] = await Promise.all([listQuotes(userId, params.id), listFolders(userId, params.id)])
+  // No `?? DEMO_USER_ID`. This page is behind the login gate so `userId` should always be
+  // present — but `getCurrentUser()` returns null on ANY failure (`resolveUser` swallows every
+  // exception), and the fallback then rendered ANOTHER identity's saved quotes and folders as
+  // if they were yours. "We could not establish who you are" must show nothing, never someone
+  // else's data. The API guard test does not reach here: it scans `src/app/api` only.
+  const [quotes, folders] = user.userId
+    ? await Promise.all([listQuotes(user.userId, params.id), listFolders(user.userId, params.id)])
+    : [[], []]
 
   const initialTab =
     searchParams.tab === 'quotes' || searchParams.tab === 'calls' ? searchParams.tab : 'overview'

@@ -62,7 +62,16 @@ export function MyQuotes({
       return null
     }
   }
+  // OPTIMISTIC UPDATES MUST REVERT ON REFUSAL. These used to swallow the failure and keep the
+  // optimistic state, which was survivable while `/api/quote-folders` fell back to a shared
+  // identity and therefore always succeeded. That fallback was removed on 2026-08-03, so a 401
+  // is now reachable — and keeping the optimistic state would show the folder deleted, or the
+  // quote filed, when the server refused. That is success UI for a write that did not happen,
+  // the exact class .claude/rules/app.md bans.
   async function deleteFolder(id: string) {
+    const prevFolders = folders
+    const prevAssign = assign
+    const prevActive = active
     setFolders((f) => f.filter((x) => x.id !== id))
     if (active === id) setActive('all')
     // reflect the ON DELETE SET NULL: any quote pointing here is now unfiled
@@ -74,13 +83,22 @@ export function MyQuotes({
     try {
       await apiDeleteFolder(id)
     } catch {
-      /* keep optimistic state */
+      setFolders(prevFolders)
+      setAssign(prevAssign)
+      setActive(prevActive)
     }
   }
   function assignFolder(quoteId: string, folderId: string | null) {
+    const had = quoteId in assign
+    const prev = assign[quoteId]
     setAssign((a) => ({ ...a, [quoteId]: folderId }))
     void apiAssignFolder(quoteId, folderId).catch(() => {
-      /* keep optimistic state */
+      setAssign((a) => {
+        const next = { ...a }
+        if (had) next[quoteId] = prev
+        else delete next[quoteId]
+        return next
+      })
     })
   }
   function handleRemoved(id: string) {

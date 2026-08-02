@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { getRequestUserId } from '@/lib/auth'
+import { getRequestUserId, unauthorized } from '@/lib/auth'
 import { isValidVideoUrl, extractVideoId } from '@/lib/utils'
-import { DEMO_USER_ID } from '@/lib/api/types'
 
 async function isAdminUser(userId: string): Promise<boolean> {
   const { data } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).single()
@@ -19,7 +18,7 @@ import * as fs from 'fs'
 
 export async function GET(req: NextRequest) {
   const userId = await getRequestUserId(req)
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!userId) return unauthorized()
 
   const { data, error } = await supabaseAdmin
     .from('transcripts')
@@ -32,8 +31,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // The V1 product runs anonymously; fall back to the demo user (matches /api/quotes etc.).
-  const userId = (await getRequestUserId(req)) ?? DEMO_USER_ID
+  // Ingesting a video costs money (yt-dlp + transcription + the correction model) and writes a
+  // row owned by `userId`. The "V1 runs anonymously" comment that used to sit here stopped being
+  // true when the login gate landed 2026-08-01; the demo-user fallback it justified was an
+  // unauthenticated write endpoint that also spends.
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
 
   const body = await req.json()
   const { url, force, companyId } = body
