@@ -85,7 +85,15 @@ async function main() {
   console.log('\n=== ANON KEY (the one that ships in the browser bundle) ===')
   console.log('rows visible :', anonRows?.length ?? 0, anonErr ? `(error: ${anonErr.message})` : '')
 
-  await pub.auth.signOut().catch(() => {})
+  // DO NOT call signOut() without a scope here. supabase-js defaults to
+  // scope:'global', which revokes EVERY refresh token for this user — including
+  // the founder's own browser session. That happened once (2026-08-02): running
+  // this script silently logged him out of the app mid-review, and the symptom
+  // ("I can't log in") looks nothing like the cause.
+  //
+  // This client never persisted a session (persistSession:false), so there is
+  // nothing local to clean up. If a future version needs one, pass
+  // { scope: 'local' } explicitly.
 }
 
 main().catch((e) => {
