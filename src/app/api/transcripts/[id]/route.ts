@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
 import { getRequestUserId } from '@/lib/auth'
+import { resolveUser } from '@/lib/auth/verifyUser'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,10 +88,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const user = await resolveUser(supabase)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Fetch the row owner — authorization gate (we use supabaseAdmin which bypasses RLS)
   const { data: row, error: fetchErr } = await supabaseAdmin
@@ -101,13 +100,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   if (fetchErr || !row) return NextResponse.json({ error: 'לא נמצא' }, { status: 404 })
 
-  let canEdit = session.user.id === row.user_id
+  let canEdit = user.id === row.user_id
   if (!canEdit) {
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single()
+    const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
     canEdit = profile?.role === 'admin'
   }
   if (!canEdit) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -128,18 +123,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json({ ok: true })
 }
 
-// Admin gate shared by DELETE + PATCH: cookie session → profiles.role === 'admin'.
+// Admin gate shared by DELETE + PATCH: VERIFIED user → profiles.role === 'admin'.
 async function requireAdmin(): Promise<NextResponse | null> {
   const supabase = createServerSupabase(cookies())
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single()
+  const user = await resolveUser(supabase)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   return null
 }

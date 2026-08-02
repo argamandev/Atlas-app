@@ -45,6 +45,10 @@ export async function listConversations(userId: string): Promise<ConversationSum
       .from('chat_conversations')
       .select('id, title, company_id, transcript_id, created_at, updated_at')
       .eq('user_id', userId)
+      // Project chats stay in their project rather than being duplicated into
+      // the global Recent Chats list — the founder's brief scopes them "to that
+      // project's backlog", which is the organizing value of the feature.
+      .is('project_id', null)
       .order('updated_at', { ascending: false })
     if (!error) {
       return (data ?? []).map((r) => {
@@ -75,7 +79,18 @@ export async function getConversation(userId: string, id: string): Promise<Conve
 
 export async function createConversation(
   userId: string,
-  input: { title?: string; companyId?: string | null; transcriptId?: string | null }
+  input: {
+    title?: string
+    companyId?: string | null
+    transcriptId?: string | null
+    /**
+     * When set, this chat belongs to a project. The composite key
+     * (project_id, user_id) -> projects(id, user_id) means the DATABASE refuses
+     * a project that is not this user's — including the DEMO_USER_ID fallback
+     * the route uses when nobody is signed in.
+     */
+    projectId?: string | null
+  }
 ): Promise<Conversation> {
   const now = new Date().toISOString()
   if (!flag.on) {
@@ -86,6 +101,7 @@ export async function createConversation(
         title: input.title ?? 'New chat',
         company_id: input.companyId ?? null,
         transcript_id: input.transcriptId ?? null,
+        project_id: input.projectId ?? null,
         messages: [],
       })
       .select('id, title, company_id, transcript_id, messages, created_at, updated_at')

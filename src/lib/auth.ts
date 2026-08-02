@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import type { NextRequest } from 'next/server'
 import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
+import { resolveUser } from '@/lib/auth/verifyUser'
 
 // Resolves the user id from a request, accepting EITHER the browser session
 // cookie OR an `Authorization: Bearer <access_token>` header. The bearer path
@@ -18,10 +19,8 @@ export async function getRequestUserId(req: NextRequest): Promise<string | null>
 
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  return session?.user?.id ?? null
+  const user = await resolveUser(supabase)
+  return user?.id ?? null
 }
 
 export interface CurrentUser {
@@ -35,24 +34,22 @@ export interface CurrentUser {
 export async function getCurrentUser(): Promise<CurrentUser> {
   const cookieStore = cookies()
   const supabase = createServerSupabase(cookieStore)
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const user = await resolveUser(supabase)
 
-  if (!session?.user) {
+  if (!user) {
     return { userId: null, userName: 'משתמש', isAdmin: false }
   }
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('first_name, last_name, role')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single()
 
-  const userName = profile?.first_name || session.user.email?.split('@')[0] || 'משתמש'
+  const userName = profile?.first_name || user.email?.split('@')[0] || 'משתמש'
 
   return {
-    userId: session.user.id,
+    userId: user.id,
     userName,
     isAdmin: profile?.role === 'admin',
   }

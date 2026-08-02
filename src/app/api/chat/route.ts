@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import OpenAI from 'openai'
 import { getChatContext, getDocumentContext } from '@/lib/chat/context'
 import { getRequestUserId } from '@/lib/auth'
+import { createServerSupabase } from '@/lib/supabase'
+import { getProjectWithSources } from '@/lib/db/projects'
+import { buildProjectContext } from '@/lib/chat/projectContext'
 import {
   parseAttachments,
   snipCaption,
@@ -42,7 +46,8 @@ async function openAiFallback(
   recent: ChatMessage[],
   message: string,
   sourceHeader: string,
-  snipContent: Array<Record<string, unknown>> = []
+  snipContent: Array<Record<string, unknown>> = [],
+  extraHeaders: Record<string, string> = {}
 ): Promise<Response | null> {
   const key = process.env.OPENAI_API_KEY
   if (!key) return null
@@ -93,7 +98,7 @@ async function openAiFallback(
       },
     })
     return textResponse(stream as unknown as BodyInit, {
-      headers: { 'x-chat-source': sourceHeader, 'x-chat-fallback': 'openai' },
+      headers: { 'x-chat-source': sourceHeader, 'x-chat-fallback': 'openai', ...extraHeaders },
     })
   } catch (err) {
     console.error('[POST /api/chat] OpenAI fallback init failed', (err as Error).message)
@@ -109,6 +114,11 @@ export async function POST(req: NextRequest) {
   // The LIVE view sends the on-screen captions directly (there's no completed transcript yet) so the
   // chat is grounded on the call in front of the user — not a DB lookup that could hit another company.
   const liveContext: string | undefined = body?.liveContext || undefined
+  // A chat inside a project inherits that project's own written context. Loaded
+  // through the USER'S client below, so a projectId belonging to someone else
+  // returns nothing and injects nothing — RLS decides, not this route.
+  const projectId: string | undefined =
+    typeof body?.projectId === 'string' && body.projectId ? body.projectId : undefined
   // Multiview M1: a marked PDF passage arrives with its document + page numbers; the stored
   // page text becomes a labeled REPORT CONTEXT block beside the transcript.
   const documentRef: { documentId: string; pages: number[] } | undefined =
@@ -158,6 +168,30 @@ export async function POST(req: NextRequest) {
   const captions = attachments.map((a) => snipCaption(snipMeta ? { title: snipMeta.title } : null, a.page))
   const docBlock = groundingRef && userId ? await getDocumentContext(groundingRef).catch(() => '') : ''
 
+  // Project context: the user's own instructions, memory and typed notes.
+  // Direct injection, NOT retrieval — nothing here touches the shared corpus.
+  let projectBlock = ''
+  let projectTruncated = false
+  if (projectId) {
+    try {
+      const supabase = createServerSupabase(cookies())
+      const found = await getProjectWithSources(supabase, projectId)
+      if (found) {
+        const built = buildProjectContext({
+          name: found.project.name,
+          instructions: found.project.instructions,
+          memory: found.project.memory,
+          sources: found.sources.map((s) => ({ name: s.name, body: s.body })),
+        })
+        projectBlock = built.text
+        projectTruncated = built.truncated
+      }
+    } catch (err) {
+      // A failed load must not silently pretend the project had no context.
+      console.error('[POST /api/chat] project context load failed', (err as Error).message)
+    }
+  }
+
   const system =
     'You are Atlas, a research assistant for Israeli public-company investor calls. ' +
     'Answer the user using the transcript context below when relevant, and cite the speaker by name. ' +
@@ -173,6 +207,7 @@ export async function POST(req: NextRequest) {
         docBlock +
         '\n'
       : '') +
+    (projectBlock ? `\n\n=== PROJECT CONTEXT ===\n${projectBlock}\n` : '') +
     (ctx.text ? `\n\n=== TRANSCRIPT CONTEXT ===\n${ctx.text}` : '\n\n(No transcript context is available.)')
 
   // Gemini requires the first turn to be 'user' and uses 'model' for the assistant.
@@ -184,6 +219,11 @@ export async function POST(req: NextRequest) {
   ]
 
   const sourceHeader = ctx.source ? encodeURIComponent(JSON.stringify(ctx.source)) : ''
+  // Truncation is REPORTED, never silent: an answer built on half the user's
+  // instructions must not look identical to one built on all of them.
+  const projectHeaders: Record<string, string> = projectTruncated
+    ? { 'x-project-context-truncated': '1' }
+    : {}
 
   let upstream: Response | null = null
   try {
@@ -219,7 +259,8 @@ export async function POST(req: NextRequest) {
       recent,
       message,
       sourceHeader,
-      openAiSnipContent(attachments, captions)
+      openAiSnipContent(attachments, captions),
+      projectHeaders
     )
     if (fallback) return fallback
     return NextResponse.json({ error: 'Chat is temporarily unavailable.' }, { status: 500 })
@@ -267,5 +308,7 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  return textResponse(stream as unknown as BodyInit, { headers: { 'x-chat-source': sourceHeader } })
+  return textResponse(stream as unknown as BodyInit, {
+    headers: { 'x-chat-source': sourceHeader, ...projectHeaders },
+  })
 }

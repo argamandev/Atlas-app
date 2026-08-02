@@ -30,6 +30,8 @@ export function ChatView({
   initialQuote,
   initialTranscript,
   mainView,
+  renderMain,
+  projectId,
 }: {
   initialCompany: { id: string; name: string; logoUrl: string | null } | null
   initialQuote?: string | null
@@ -40,6 +42,27 @@ export function ChatView({
    * inside this same surface. Conversation state below is untouched by it.
    */
   mainView?: React.ReactNode
+  /**
+   * Same slot, but handed the chat's own `send` so the embedded surface can
+   * drive it. This is how a project's composer reaches the real chat engine —
+   * streaming, persistence, citations and history all stay here rather than
+   * being reimplemented inside the project page.
+   */
+  renderMain?: (api: {
+    send: (text: string) => void
+    sending: boolean
+    /**
+     * Loads a past conversation into this view. Rejects if the fetch fails, so
+     * the embedded surface can SHOW that rather than swallow it.
+     */
+    open: (id: string) => Promise<void>
+  }) => React.ReactNode
+  /**
+   * When set, every message in this view belongs to that project: the project's
+   * context is injected server-side, and the conversation row is stamped with
+   * project_id so it lists under that project instead of the global recents.
+   */
+  projectId?: string
 }) {
   const { dict, locale } = useI18n()
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -109,7 +132,13 @@ export function ChatView({
     let full = ''
     try {
       const { source } = await streamChat(
-        { message: apiMessage, companyId: companyId ?? undefined, transcriptId: transcript?.id, history },
+        {
+          message: apiMessage,
+          companyId: companyId ?? undefined,
+          transcriptId: transcript?.id,
+          projectId,
+          history,
+        },
         (delta) => {
           full += delta
           setLastAssistant({ content: full })
@@ -129,6 +158,7 @@ export function ChatView({
         const conv = await createConversation({
           companyId: companyId ?? null,
           transcriptId: transcript?.id ?? null,
+          projectId: projectId ?? null,
         })
         cid = conv.id
         setConversationId(cid)
@@ -239,24 +269,30 @@ export function ChatView({
         <div className="mx-auto w-full max-w-[720px] space-y-[22px]">
           {messages.map((m, i) =>
             m.role === 'user' ? (
-              // Charcoal pill (design bubble: 14/14/4/14) anchored to the PHYSICAL right in both
-              // locales — founder decision 2026-08-02, the ChatGPT model: your own message is
-              // always the one on the right.
+              // Charcoal pill (design bubble: 14/14/4/14) anchored to the PHYSICAL right in
+              // BOTH locales — founder decision 2026-08-02, the ChatGPT model: your own message
+              // is always the one on the right. This is a deliberate deviation from the design
+              // reference, which puts the bubble on the *trailing* edge; in English those agree,
+              // in Hebrew they do not, and the founder chose right. Do not "restore" the mirror.
               //
-              // `ml-auto` and `rounded-br` are deliberate, and must not be "corrected" back to the
-              // logical `ms-auto` / `rounded-ee`: those follow writing direction, so in Hebrew they
-              // mirrored the bubble to the LEFT. An auto margin on the physical left absorbs the
-              // free space on that side in any direction, which is exactly the invariant we want.
+              // The bug both fixes came from: `ms-auto` on an element carrying dir="auto".
+              // Logical margins resolve against the element's OWN direction, so a Hebrew message
+              // computed to RTL, `ms-auto` became margin-RIGHT, and that one message jumped to
+              // the opposite side of the thread from its English neighbours.
               //
-              // ALIGNMENT is physical; DIRECTION is not. `dir="auto"` stays, so the text inside
-              // still resolves per its own language — Hebrew reads RTL, English reads LTR — which
-              // is the whole point of moving the box rather than forcing `dir` on the content.
+              // EVERY property that decides the SIDE must therefore be physical: `ml-auto` and
+              // `rounded-br`. The logical spellings are all traps here — `ms-auto`, `rounded-ee`
+              // and `justify-end` alike follow writing direction, and <html dir="rtl"> in Hebrew
+              // flips all three to the left. An auto margin on the physical left absorbs the free
+              // space on that side in any direction, which is exactly the invariant we want.
+              //
+              // ALIGNMENT is physical; DIRECTION is not. The text stays in its own <bdi> (which
+              // is dir="auto" by default), so Hebrew reads RTL and English reads LTR inside a box
+              // that does not move — moving the box is the whole point of not forcing `dir` on
+              // the content, which is the bidi defect class rules/app.md has filed four times.
               <div key={i} className="flex animate-fade-up">
-                <div
-                  dir="auto"
-                  className="ml-auto max-w-[75%] rounded-[14px] rounded-br-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper"
-                >
-                  {m.content}
+                <div className="ml-auto max-w-[75%] rounded-[14px] rounded-br-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper">
+                  <bdi className="block">{m.content}</bdi>
                 </div>
               </div>
             ) : (
@@ -282,8 +318,15 @@ export function ChatView({
     </div>
   )
 
+  // The embedded surface, if any. `renderMain` gets the chat's own send, so a
+  // project's composer drives this engine instead of reimplementing it.
+  // Evaluated once — calling it per branch would build the tree twice.
+  const embedded: React.ReactNode = renderMain
+    ? renderMain({ send, sending, open: openConversation })
+    : mainView
+
   // Chat secondary panel (design lines 948-971): mini-nav rows (New chat / Projects /
-  // Workspace / Agents) → divider → RECENT CHATS list. Projects is a stub affordance for now.
+  // Workspace / Agents) → divider → RECENT CHATS list.
   const navRow =
     'flex w-full items-center gap-[11px] rounded-lg px-[11px] py-[9px] text-start text-[13.5px] transition-colors'
 
@@ -335,7 +378,7 @@ export function ChatView({
         </div>
       }
     >
-      {mainView ?? content}
+      {embedded && messages.length === 0 ? embedded : content}
     </CollapsiblePanel>
   )
 }

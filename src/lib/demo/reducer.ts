@@ -1,23 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Session-only demo state — the pure reducer behind DemoStateProvider.
 //
-// SCOPE LOCK (spec 2026-08-01-three-surfaces-import-design §3.3): this chapter
-// ships NO backend. Creating a project/agent/workspace and editing a project or
-// the working document are real, but they live in React state for the session
-// and RESET ON RELOAD. Nothing here writes to storage, cookies or the server —
-// imitating persistence is this repo's filed fake-data defect class.
+// PROJECTS MOVED OUT 2026-08-02: projects are real rows now (migration 015),
+// owned and behind RLS, read and written through /api/projects.
+//
+// What remains here is WORKSPACES and AGENTS, which still ship NO backend.
+// Creating one lives in React state for the session and RESETS ON RELOAD.
+// Nothing here writes to storage, cookies or the server — imitating persistence
+// is this repo's filed fake-data defect class, and the visible demo marker
+// (components/ds/DemoBanner.tsx) is what tells the user.
 //
 // Kept pure and DOM-free so it is testable under node:test (the repo has no DOM
 // test infra). Ids are derived, never Date.now()/Math.random(), so the reducer
 // stays deterministic.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { emptyProject, type Project } from '@/lib/projects/data'
 import { emptyAgent, type AgentCard } from '@/lib/agents/data'
 import { emptyWorkspace, type Workspace } from '@/lib/workspace/data'
 
 export type DemoState = {
-  projects: Project[]
   agents: AgentCard[]
   workspaces: Workspace[]
   /** workspaceId -> working-document HTML */
@@ -25,16 +26,15 @@ export type DemoState = {
 }
 
 export type DemoAction =
-  | { type: 'addProject'; name: string }
-  | { type: 'patchProject'; id: string; patch: Partial<Project> }
   | { type: 'addAgent'; agent: Omit<AgentCard, 'id'> }
   | { type: 'addWorkspace'; name: string }
   | { type: 'setDocHtml'; workspaceId: string; html: string }
 
 /**
- * Deterministic, collision-free against the demo seeds (which use p1/p2/p3, ag_*, slugs).
- * Exported because the provider must return the new id to its caller (so a "New project"
- * click can route to it) — one source of truth, not two implementations that can drift.
+ * Deterministic, collision-free against the demo seeds (ag_*, slugs).
+ * Exported because the provider must return the new id to its caller (so a
+ * "New agent" click can route to it) — one source of truth, not two
+ * implementations that can drift.
  */
 export function nextId(prefix: string, taken: readonly { id: string }[]): string {
   let n = taken.length + 1
@@ -45,16 +45,6 @@ export function nextId(prefix: string, taken: readonly { id: string }[]): string
 
 export function demoReducer(state: DemoState, action: DemoAction): DemoState {
   switch (action.type) {
-    case 'addProject': {
-      const id = nextId('new-project-', state.projects)
-      return { ...state, projects: [...state.projects, emptyProject(id, action.name)] }
-    }
-    case 'patchProject': {
-      return {
-        ...state,
-        projects: state.projects.map((p) => (p.id === action.id ? { ...p, ...action.patch } : p)),
-      }
-    }
     case 'addAgent': {
       const id = nextId('new-agent-', state.agents)
       return {

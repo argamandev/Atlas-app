@@ -70,6 +70,23 @@
   the `endOfContent` selection guard), copy its WHOLE CSS cluster — a companion rule 3 rules
   away (`z-index` on glyph spans) was load-bearing; grep the upstream stylesheet for every
   selector touching the element.
+- **NEVER run `npm run build` while a dev server is up in the same checkout.** They share one
+  `.next`, so the build overwrites the running server's chunks: every `/_next/static/*` 404s and
+  routes die with `Cannot find module './vendor-chunks/*.js'` / `MODULE_NOT_FOUND`. It looks like
+  the app broke, and it wrecks whatever the founder was mid-way through testing (2026-08-02 —
+  it killed a live verification pass). Stop the dev server first, or build in another worktree.
+  Recovery is the documented one: kill dev, delete `.next`, restart, then hard-refresh the tab
+  (it is holding 404ing chunk URLs).
+- **A Server Component may not pass a FUNCTION to a Client Component — and neither `tsc` nor
+  `next build` will tell you.** The rule is enforced at render time ("Functions cannot be passed
+  directly to Client Components"), so the page 500s while every gate in the repo stays green.
+  Occurrence 2026-08-02: `app/chat/projects/[id]/page.tsx` passed `renderMain` to `ChatView`,
+  which broke EVERY project page — the feature had never rendered once, and it shipped with a
+  green battery behind it. Remedy: create the closure on the client side of the boundary (the
+  route passes plain data to a `'use client'` wrapper — `components/projects/ProjectChat.tsx`).
+  The wider lesson is the same one this file keeps filing: **a green typecheck/build is not
+  evidence that a page renders.** Load the route in a browser, or at minimum watch the dev-server
+  log return 200 for that exact URL.
 - **Mutable private resources are served `no-store`** — a bad response + long max-age once
   pinned a 0-byte PDF past the server-side fix; hard refresh does NOT purge fetch()-cached
   entries (purge needs `fetch(url,{cache:'reload'})`). Storage paths are stable per

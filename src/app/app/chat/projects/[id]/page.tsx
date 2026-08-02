@@ -1,9 +1,8 @@
-import { ChatView } from '@/components/chat/ChatView'
-import { ProjectView } from '@/components/projects/ProjectView'
+import { ProjectChat } from '@/components/projects/ProjectChat'
 
-// A single project. The id may name a demo project OR one created this session,
-// so resolution happens client-side against the session demo state (a server-side
-// notFound() would reject projects the user just created).
+// The route stays a Server Component and passes a plain string; all the chat
+// wiring lives in ProjectChat, which is a Client Component because the wiring
+// needs a callback. See the comment there before changing this file.
 export default function ProjectPage({ params }: { params: { id: string } }) {
-  return <ChatView initialCompany={null} mainView={<ProjectView projectId={params.id} />} />
+  return <ProjectChat projectId={params.id} />
 }
