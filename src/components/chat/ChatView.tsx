@@ -239,12 +239,22 @@ export function ChatView({
         <div className="mx-auto w-full max-w-[720px] space-y-[22px]">
           {messages.map((m, i) =>
             m.role === 'user' ? (
-              // charcoal pill on the trailing edge (design bubble: 14/14/4/14); dir="auto"
-              // lets a Hebrew message read RTL even in English mode.
+              // Charcoal pill (design bubble: 14/14/4/14) anchored to the PHYSICAL right in both
+              // locales — founder decision 2026-08-02, the ChatGPT model: your own message is
+              // always the one on the right.
+              //
+              // `ml-auto` and `rounded-br` are deliberate, and must not be "corrected" back to the
+              // logical `ms-auto` / `rounded-ee`: those follow writing direction, so in Hebrew they
+              // mirrored the bubble to the LEFT. An auto margin on the physical left absorbs the
+              // free space on that side in any direction, which is exactly the invariant we want.
+              //
+              // ALIGNMENT is physical; DIRECTION is not. `dir="auto"` stays, so the text inside
+              // still resolves per its own language — Hebrew reads RTL, English reads LTR — which
+              // is the whole point of moving the box rather than forcing `dir` on the content.
               <div key={i} className="flex animate-fade-up">
                 <div
                   dir="auto"
-                  className="ms-auto max-w-[75%] rounded-[14px] rounded-ee-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper"
+                  className="ml-auto max-w-[75%] rounded-[14px] rounded-br-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper"
                 >
                   {m.content}
                 </div>
