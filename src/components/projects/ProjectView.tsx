@@ -13,6 +13,8 @@ import {
   AtIcon,
 } from '@/components/ds/icons'
 import type { Project } from '@/lib/projects/data'
+import { ErrorLine } from '@/components/projects/ErrorLine'
+import { injectedSources } from '@/lib/chat/projectContext'
 import { presentProject, presentChats } from '@/lib/projects/present'
 import { fetchProject, patchProjectReq, addSourceReq, patchSourceReq } from '@/lib/projects/client'
 
@@ -125,9 +127,11 @@ export function ProjectView({
             dir="auto"
             className={`max-w-[420px] text-[13px] leading-[1.6] ${loadError ? 'text-[#B0533E]' : 'text-ink-muted'}`}
           >
-            {loadError
-              ? dict.projects.loadOneFailed.replace('{error}', loadError)
-              : dict.projects.notFoundHint}
+            {loadError ? (
+              <ErrorLine template={dict.projects.loadOneFailed} error={loadError} />
+            ) : (
+              dict.projects.notFoundHint
+            )}
           </p>
           <button
             type="button"
@@ -166,6 +170,11 @@ export function ProjectView({
     write(() =>
       addSourceReq(project.id, dict.projects.newSource.replace('{n}', String(project.context.length + 1)))
     )
+
+  // Not project.context.length: the rail LISTS every note the user made, while
+  // only the ones with a body are sent. Counted through the injector's own rule
+  // so the two can never drift.
+  const inContextCount = injectedSources(project.context).length
 
   const cardBtn =
     'flex h-[26px] w-[26px] flex-none items-center justify-center rounded-md text-ink-faint transition-colors hover:bg-subtle hover:text-ink'
@@ -294,8 +303,15 @@ export function ProjectView({
                     <AtIcon size={15} strokeWidth={1.5} />
                   </span>
                   <span className="flex-1" />
+                  {/* Counts the sources that REACH THE MODEL, not the rows on
+                      screen. addContext() creates a note with an empty body and
+                      buildProjectContext skips exactly those, so counting rows
+                      claimed context the model was never sent — one click on "+"
+                      used to raise this number without changing anything. */}
                   <span className="me-2 text-[11.5px] text-ink-ghost">
-                    {dict.projects.sourcesInContext.replace('{count}', String(project.context.length))}
+                    {inContextCount === 1
+                      ? dict.projects.sourceInContext
+                      : dict.projects.sourcesInContext.replace('{count}', String(inContextCount))}
                   </span>
                   {/* Solid the moment there is something to send, exactly like
                       the chat composer. A permanently grey button reads as "this
@@ -304,7 +320,7 @@ export function ProjectView({
                     type="button"
                     onClick={() => submitDraft()}
                     disabled={!onSend || sending || !draft.trim()}
-                    aria-label={dict.projects.composerPlaceholder.replace('{name}', project.name)}
+                    aria-label={dict.projects.send}
                     className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
                       onSend && !sending && draft.trim()
                         ? 'bg-ink text-paper hover:bg-black'
@@ -557,23 +573,6 @@ export function ProjectView({
         </div>
       </div>
     </div>
-  )
-}
-
-/**
- * Renders "…{error}" copy with the raw error isolated in its own <bdi>.
- * A Postgres message is a Latin run landing inside a Hebrew sentence — exactly
- * the mixed line rules/app.md forbids giving a single direction, because the
- * first strong character would decide the whole line's layout.
- */
-function ErrorLine({ template, error }: { template: string; error: string }) {
-  const [before, after = ''] = template.split('{error}')
-  return (
-    <>
-      {before}
-      <bdi>{error}</bdi>
-      {after}
-    </>
   )
 }
 

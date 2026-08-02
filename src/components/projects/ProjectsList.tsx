@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ProjectsIcon, PlusIcon } from '@/components/ds/icons'
+import { ErrorLine } from '@/components/projects/ErrorLine'
 import type { ProjectRow } from '@/lib/projects/data'
 import { fetchProjects, createProjectReq } from '@/lib/projects/client'
 
@@ -69,9 +70,10 @@ export function ProjectsList() {
               role="alert"
               className="mb-4 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
             >
-              {loadError
-                ? dict.projects.loadFailed.replace('{error}', loadError)
-                : dict.projects.saveFailed.replace('{error}', error as string)}
+              <ErrorLine
+                template={loadError ? dict.projects.loadFailed : dict.projects.saveFailed}
+                error={(loadError ?? error) as string}
+              />
             </div>
           )}
 
