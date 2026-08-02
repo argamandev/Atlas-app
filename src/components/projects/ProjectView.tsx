@@ -31,6 +31,7 @@ type Editing = { kind: 'instructions' | 'memory' } | { kind: 'source'; id: strin
 export function ProjectView({
   projectId,
   onSend,
+  onOpenChat,
   sending = false,
 }: {
   projectId: string
@@ -40,6 +41,12 @@ export function ProjectView({
    * of a second implementation living here.
    */
   onSend?: (text: string) => void
+  /**
+   * Loads one of this project's past conversations back into the chat view.
+   * Also from renderMain — the rows below are the only way to reach them, since
+   * a project's chats are deliberately absent from the global recents list.
+   */
+  onOpenChat?: (id: string) => Promise<void>
   sending?: boolean
 }) {
   const { dict, locale } = useI18n()
@@ -55,6 +62,8 @@ export function ProjectView({
   const [renaming, setRenaming] = useState(false)
   // A failed write must be SEEN. Nothing on this screen claims success.
   const [saveError, setSaveError] = useState<string | null>(null)
+  // Same rule for a chat that will not open: a dead click is a silent failure.
+  const [openError, setOpenError] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
 
   const instrRef = useRef<HTMLTextAreaElement>(null)
@@ -147,6 +156,12 @@ export function ProjectView({
     onSend(text)
   }
 
+  const openChat = (id: string) => {
+    if (!onOpenChat) return
+    setOpenError(null)
+    void onOpenChat(id).catch((e) => setOpenError((e as Error).message))
+  }
+
   const addContext = () =>
     write(() =>
       addSourceReq(project.id, dict.projects.newSource.replace('{n}', String(project.context.length + 1)))
@@ -192,13 +207,15 @@ export function ProjectView({
             </span>
           </div>
 
-          {saveError && (
+          {(saveError || openError) && (
             <div
-              dir="auto"
               role="alert"
               className="mb-4 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
             >
-              {dict.projects.saveFailed.replace('{error}', saveError)}
+              <ErrorLine
+                template={saveError ? dict.projects.saveFailed : dict.projects.openChatFailed}
+                error={(saveError ?? openError) as string}
+              />
             </div>
           )}
 
@@ -207,6 +224,7 @@ export function ProjectView({
             {renaming ? (
               <input
                 autoFocus
+                dir="auto"
                 defaultValue={project.name}
                 onBlur={(e) => {
                   const next = e.currentTarget.value.trim()
@@ -279,12 +297,19 @@ export function ProjectView({
                   <span className="me-2 text-[11.5px] text-ink-ghost">
                     {dict.projects.sourcesInContext.replace('{count}', String(project.context.length))}
                   </span>
+                  {/* Solid the moment there is something to send, exactly like
+                      the chat composer. A permanently grey button reads as "this
+                      does nothing" even while it is live. */}
                   <button
                     type="button"
                     onClick={() => submitDraft()}
                     disabled={!onSend || sending || !draft.trim()}
                     aria-label={dict.projects.composerPlaceholder.replace('{name}', project.name)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-send-idle text-canvas transition-opacity disabled:opacity-40"
+                    className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                      onSend && !sending && draft.trim()
+                        ? 'bg-ink text-paper hover:bg-black'
+                        : 'bg-send-idle text-ghost'
+                    }`}
                   >
                     <ArrowUpIcon size={15} strokeWidth={2} />
                   </button>
@@ -302,9 +327,15 @@ export function ProjectView({
 
               <div className="flex flex-col">
                 {project.chats.map((c) => (
-                  <div
+                  // These rows are the ONLY way back into a project's past
+                  // conversations — they are deliberately absent from the global
+                  // recents list, so a row that does not open is a dead end.
+                  <button
                     key={c.id}
-                    className="flex w-full items-center gap-[13px] border-b border-hairline px-2 py-3.5 text-start"
+                    type="button"
+                    onClick={() => openChat(c.id)}
+                    disabled={!onOpenChat}
+                    className="flex w-full items-center gap-[13px] border-b border-hairline px-2 py-3.5 text-start transition-colors hover:bg-subtle/60 disabled:cursor-default disabled:hover:bg-transparent"
                   >
                     <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full bg-subtle text-ink-faint">
                       <ChatIcon size={14} strokeWidth={1.7} />
@@ -315,7 +346,7 @@ export function ProjectView({
                     <span className="flex-none text-[11.5px] text-ink-ghost">
                       <bdi dir="auto">{c.when}</bdi>
                     </span>
-                  </div>
+                  </button>
                 ))}
                 {project.chats.length === 0 && (
                   <div className="rounded-xl border border-dashed border-hairline p-7 text-center text-[13px] leading-[1.6] text-ink-ghost">
@@ -348,6 +379,7 @@ export function ProjectView({
                       <textarea
                         ref={instrRef}
                         autoFocus
+                        dir="auto"
                         defaultValue={project.instructions}
                         placeholder={dict.projects.instructionsPlaceholder}
                         className="min-h-[80px] w-full resize-y rounded-[9px] border border-hairline bg-paper px-2.5 py-[9px] text-[12.5px] leading-[1.6] text-ink outline-none"
@@ -388,6 +420,7 @@ export function ProjectView({
                       <textarea
                         ref={memRef}
                         autoFocus
+                        dir="auto"
                         defaultValue={project.memory}
                         placeholder={dict.projects.memoryPlaceholder}
                         className="min-h-[96px] w-full resize-y rounded-[9px] border border-hairline bg-paper px-2.5 py-[9px] text-[12.5px] leading-[1.6] text-ink outline-none"
@@ -524,6 +557,23 @@ export function ProjectView({
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Renders "…{error}" copy with the raw error isolated in its own <bdi>.
+ * A Postgres message is a Latin run landing inside a Hebrew sentence — exactly
+ * the mixed line rules/app.md forbids giving a single direction, because the
+ * first strong character would decide the whole line's layout.
+ */
+function ErrorLine({ template, error }: { template: string; error: string }) {
+  const [before, after = ''] = template.split('{error}')
+  return (
+    <>
+      {before}
+      <bdi>{error}</bdi>
+      {after}
+    </>
   )
 }
 

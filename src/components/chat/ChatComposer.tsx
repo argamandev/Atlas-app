@@ -64,6 +64,12 @@ export function ChatComposer({
       <textarea
         ref={ref}
         rows={1}
+        // The typed line picks its own direction from what is in it, so Hebrew
+        // reads RTL without the user switching the interface language (the
+        // ChatGPT behaviour the founder asked for, 2026-08-02). The composer is
+        // the one place `dir="auto"` is exactly right: it is a single authored
+        // run, not the mixed line rules/app.md warns about.
+        dir="auto"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDownCapture={onKeyDownCapture}
@@ -137,6 +143,7 @@ export function ChatComposer({
         <textarea
           ref={ref}
           rows={1}
+          dir="auto"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDownCapture={onKeyDownCapture}

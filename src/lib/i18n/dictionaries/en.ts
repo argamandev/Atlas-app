@@ -442,6 +442,7 @@ export const en = {
     saveFailed: 'Not saved — {error}',
     loadFailed: 'Could not load your projects — {error}',
     loadOneFailed: 'Could not load this project — {error}',
+    openChatFailed: 'Could not open that chat — {error}',
     context: 'Context',
     searchContext: 'Search context',
     addContext: 'Add to context',

@@ -25,8 +25,8 @@ export function ProjectChat({ projectId }: { projectId: string }) {
     <ChatView
       initialCompany={null}
       projectId={projectId}
-      renderMain={({ send, sending }) => (
-        <ProjectView projectId={projectId} onSend={send} sending={sending} />
+      renderMain={({ send, sending, open }) => (
+        <ProjectView projectId={projectId} onSend={send} onOpenChat={open} sending={sending} />
       )}
     />
   )

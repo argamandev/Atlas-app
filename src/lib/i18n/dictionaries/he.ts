@@ -433,6 +433,7 @@ export const he: Dictionary = {
     saveFailed: 'לא נשמר — {error}',
     loadFailed: 'לא ניתן לטעון את הפרויקטים — {error}',
     loadOneFailed: 'לא ניתן לטעון את הפרויקט הזה — {error}',
+    openChatFailed: 'לא ניתן לפתוח את השיחה — {error}',
     context: 'הקשר',
     searchContext: 'חיפוש בהקשר',
     addContext: 'הוספה להקשר',

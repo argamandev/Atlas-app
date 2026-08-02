@@ -48,7 +48,15 @@ export function ChatView({
    * streaming, persistence, citations and history all stay here rather than
    * being reimplemented inside the project page.
    */
-  renderMain?: (api: { send: (text: string) => void; sending: boolean }) => React.ReactNode
+  renderMain?: (api: {
+    send: (text: string) => void
+    sending: boolean
+    /**
+     * Loads a past conversation into this view. Rejects if the fetch fails, so
+     * the embedded surface can SHOW that rather than swallow it.
+     */
+    open: (id: string) => Promise<void>
+  }) => React.ReactNode
   /**
    * When set, every message in this view belongs to that project: the project's
    * context is injected server-side, and the conversation row is stamped with
@@ -261,14 +269,20 @@ export function ChatView({
         <div className="mx-auto w-full max-w-[720px] space-y-[22px]">
           {messages.map((m, i) =>
             m.role === 'user' ? (
-              // charcoal pill on the trailing edge (design bubble: 14/14/4/14); dir="auto"
-              // lets a Hebrew message read RTL even in English mode.
-              <div key={i} className="flex animate-fade-up">
-                <div
-                  dir="auto"
-                  className="ms-auto max-w-[75%] rounded-[14px] rounded-ee-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper"
-                >
-                  {m.content}
+              // Charcoal pill on the trailing edge (design bubble: 14/14/4/14).
+              //
+              // The side is decided by the CONTAINER, never by the message. This
+              // used to be `ms-auto` on an element carrying dir="auto", and
+              // logical margins resolve against the element's OWN direction — so
+              // a Hebrew message computed to RTL, `ms-auto` became margin-RIGHT,
+              // and that message jumped to the opposite side of the thread from
+              // an English one. Same defect class as rules/app.md's bidi rule:
+              // direction belongs on the container, and each authored run is
+              // isolated in its own <bdi> (which is dir="auto" by default) so the
+              // TEXT still reads RTL without moving the bubble.
+              <div key={i} className="flex animate-fade-up justify-end">
+                <div className="max-w-[75%] rounded-[14px] rounded-ee-[4px] bg-ink px-[15px] py-[11px] text-sm leading-relaxed text-paper">
+                  <bdi className="block">{m.content}</bdi>
                 </div>
               </div>
             ) : (
@@ -297,7 +311,9 @@ export function ChatView({
   // The embedded surface, if any. `renderMain` gets the chat's own send, so a
   // project's composer drives this engine instead of reimplementing it.
   // Evaluated once — calling it per branch would build the tree twice.
-  const embedded: React.ReactNode = renderMain ? renderMain({ send, sending }) : mainView
+  const embedded: React.ReactNode = renderMain
+    ? renderMain({ send, sending, open: openConversation })
+    : mainView
 
   // Chat secondary panel (design lines 948-971): mini-nav rows (New chat / Projects /
   // Workspace / Agents) → divider → RECENT CHATS list.
