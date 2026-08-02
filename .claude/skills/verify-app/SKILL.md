@@ -18,6 +18,15 @@ console clean + tests green.
    mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,
    mcp__claude-in-chrome__tabs_create_mcp,mcp__claude-in-chrome__read_console_messages" in ONE call).
 3. Navigate to the changed surface. HARD-REFRESH first (stale bundle = #1 false negative).
+   **SIGN IN FIRST if the surface is under `/app/*` or `/print/*` — those are gated
+   (`src/lib/auth/gate.ts` `GATED_PREFIXES` + the `src/middleware.ts` matcher), so middleware
+   redirects an anonymous visitor BEFORE the page renders.** A 307 to `/login` is a FAILED
+   check, never a pass, and a screenshot of the login page is a real screenshot of a real page
+   that sails through review. If you cannot obtain a session, you cannot verify a gated route —
+   say so instead of reporting green. This has produced TWO false passes since the gate shipped
+   2026-08-01: an anonymous screenshot that was silently the login page, and a Server-Component
+   crash that 500'd EVERY project page while 191 tests, tsc and the build stayed green — found
+   by the founder clicking, not by any gate (see the 2026-08-02 ALERT in cross-cutting).
 4. Screenshot → LOOK at it: layout, RTL/bidi, fonts, spacing, empty states.
 5. Read console messages — zero uncaught errors allowed.
 6. Interact (click/scroll/type) through the feature's main path.
