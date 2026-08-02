@@ -13,7 +13,7 @@ import { ThinkingDots } from './ThinkingDots'
 import { Markdown } from './Markdown'
 import { Logo } from '@/components/ds/Logo'
 import { PencilIcon, ProjectsIcon, WorkspacesIcon, AgentsIcon } from '@/components/ds/icons'
-import { streamChat, type ChatSource } from '@/lib/api/chat'
+import { streamChat, type ChatSource, type ProjectContextStatus } from '@/lib/api/chat'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
 
@@ -23,6 +23,12 @@ interface Msg {
   source?: ChatSource | null
   /** true while tokens are still streaming in from the model (caret shown) */
   streaming?: boolean
+  /**
+   * Set when this answer did NOT get the project's context whole. It is carried
+   * per-message rather than per-view because it is a fact about THIS reply —
+   * the next one may load fine, and the notice must not follow it.
+   */
+  projectContext?: ProjectContextStatus | null
 }
 
 export function ChatView({
@@ -131,7 +137,7 @@ export function ChatView({
 
     let full = ''
     try {
-      const { source } = await streamChat(
+      const { source, projectContext } = await streamChat(
         {
           message: apiMessage,
           companyId: companyId ?? undefined,
@@ -145,7 +151,7 @@ export function ChatView({
           scrollToEnd()
         }
       )
-      setLastAssistant({ content: full, source, streaming: false })
+      setLastAssistant({ content: full, source, projectContext, streaming: false })
 
       // Persist the full thread — create the conversation lazily on the first exchange.
       const fullThread = [
@@ -299,6 +305,17 @@ export function ChatView({
                   <Markdown content={m.content} />
                 )}
                 {m.source && !m.streaming && <CitationChip source={m.source} />}
+                {/* The project's context did not reach the model whole. Said on
+                    the answer it applies to, because that is the only place the
+                    user can act on it (rules/app.md — never render success UI
+                    for content the server dropped). */}
+                {m.projectContext && !m.streaming && (
+                  <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                    {m.projectContext === 'failed'
+                      ? dict.projects.contextFailed
+                      : dict.projects.contextTruncated}
+                  </p>
+                )}
               </div>
             )
           )}
