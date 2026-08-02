@@ -28,7 +28,20 @@ const KIND_STYLE = 'text-ink-faint bg-panel'
 
 type Editing = { kind: 'instructions' | 'memory' } | { kind: 'source'; id: string } | null
 
-export function ProjectView({ projectId }: { projectId: string }) {
+export function ProjectView({
+  projectId,
+  onSend,
+  sending = false,
+}: {
+  projectId: string
+  /**
+   * ChatView's own send, handed down through renderMain. The composer below
+   * drives the real chat engine — streaming, persistence, citations — instead
+   * of a second implementation living here.
+   */
+  onSend?: (text: string) => void
+  sending?: boolean
+}) {
   const { dict, locale } = useI18n()
   const router = useRouter()
 
@@ -42,6 +55,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
   const [renaming, setRenaming] = useState(false)
   // A failed write must be SEEN. Nothing on this screen claims success.
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
 
   const instrRef = useRef<HTMLTextAreaElement>(null)
   const memRef = useRef<HTMLTextAreaElement>(null)
@@ -124,6 +138,15 @@ export function ProjectView({ projectId }: { projectId: string }) {
     write(() => patchProjectReq(project.id, { memory: (memRef.current?.value ?? '').trim() }))
   const saveSourceBody = (sourceId: string) =>
     write(() => patchSourceReq(project.id, sourceId, { body: bodyRef.current?.value ?? '' }))
+  // Hands the draft to ChatView's engine. ChatView swaps this whole page for the
+  // conversation on the first message, so there is nothing to render here after.
+  const submitDraft = () => {
+    const text = draft.trim()
+    if (!text || !onSend || sending) return
+    setDraft('')
+    onSend(text)
+  }
+
   const addContext = () =>
     write(() =>
       addSourceReq(project.id, dict.projects.newSource.replace('{n}', String(project.context.length + 1)))
@@ -230,20 +253,21 @@ export function ProjectView({ projectId }: { projectId: string }) {
             {/* main column */}
             <div className="min-w-[340px] flex-[1_1_520px]">
               <div className="rounded-2xl border border-hairline bg-paper px-4 pb-[11px] pt-[15px]">
-                {/* The composer stays inert: project chat is not wired up yet, and
-                    the title says exactly that on the WRAPPER — Chrome never fires
-                    hover on a disabled control, so a title= on the textarea itself
-                    would be an unreachable explanation. */}
-                <span title={dict.projects.composerDisabled}>
-                  <textarea
-                    rows={1}
-                    dir="auto"
-                    disabled
-                    aria-disabled="true"
-                    placeholder={dict.projects.composerPlaceholder.replace('{name}', project.name)}
-                    className="min-h-[44px] w-full resize-none bg-transparent text-[15px] leading-[1.5] text-ink outline-none placeholder:text-ink-faint disabled:cursor-not-allowed"
-                  />
-                </span>
+                <textarea
+                  rows={1}
+                  dir="auto"
+                  value={draft}
+                  disabled={!onSend || sending}
+                  onChange={(e) => setDraft(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      submitDraft()
+                    }
+                  }}
+                  placeholder={dict.projects.composerPlaceholder.replace('{name}', project.name)}
+                  className="min-h-[44px] w-full resize-none bg-transparent text-[15px] leading-[1.5] text-ink outline-none placeholder:text-ink-faint disabled:cursor-not-allowed"
+                />
                 <div className="mt-1.5 flex items-center gap-0.5">
                   <span className={cardBtn} aria-hidden>
                     <PlusIcon size={15} strokeWidth={1.5} />
@@ -255,12 +279,15 @@ export function ProjectView({ projectId }: { projectId: string }) {
                   <span className="me-2 text-[11.5px] text-ink-ghost">
                     {dict.projects.sourcesInContext.replace('{count}', String(project.context.length))}
                   </span>
-                  <span
-                    aria-hidden
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-send-idle text-canvas"
+                  <button
+                    type="button"
+                    onClick={() => submitDraft()}
+                    disabled={!onSend || sending || !draft.trim()}
+                    aria-label={dict.projects.composerPlaceholder.replace('{name}', project.name)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-send-idle text-canvas transition-opacity disabled:opacity-40"
                   >
                     <ArrowUpIcon size={15} strokeWidth={2} />
-                  </span>
+                  </button>
                 </div>
               </div>
 

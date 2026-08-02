@@ -23,6 +23,10 @@ export interface ChatInput {
   liveContext?: string // LIVE view: the on-screen captions, used directly as grounding context
   documentRef?: DocumentRef // multiview: marked-PDF passage grounding (document + page numbers)
   attachments?: ChatSnip[] // Pinge snips (≤4) — server validates + auth-gates like documentRef
+  // Projects: the chat inherits this project's instructions, memory and notes.
+  // Loaded server-side through the USER'S own client, so someone else's id
+  // injects nothing.
+  projectId?: string
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
 

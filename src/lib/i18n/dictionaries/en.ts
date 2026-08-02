@@ -418,8 +418,6 @@ export const en = {
     pin: 'Pin project',
     composerPlaceholder: 'Start a chat in {name}…',
     sourcesInContext: '{count} sources in context',
-    // The composer is inert this chapter — there is no project chat backend yet.
-    composerDisabled: 'Chat inside a project is not wired up yet.',
     recents: 'Recents',
     noChats: 'No chats yet.',
     noChatsHint: "Anything you ask here inherits this project's instructions and context.",

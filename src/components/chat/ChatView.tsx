@@ -30,6 +30,8 @@ export function ChatView({
   initialQuote,
   initialTranscript,
   mainView,
+  renderMain,
+  projectId,
 }: {
   initialCompany: { id: string; name: string; logoUrl: string | null } | null
   initialQuote?: string | null
@@ -40,6 +42,19 @@ export function ChatView({
    * inside this same surface. Conversation state below is untouched by it.
    */
   mainView?: React.ReactNode
+  /**
+   * Same slot, but handed the chat's own `send` so the embedded surface can
+   * drive it. This is how a project's composer reaches the real chat engine —
+   * streaming, persistence, citations and history all stay here rather than
+   * being reimplemented inside the project page.
+   */
+  renderMain?: (api: { send: (text: string) => void; sending: boolean }) => React.ReactNode
+  /**
+   * When set, every message in this view belongs to that project: the project's
+   * context is injected server-side, and the conversation row is stamped with
+   * project_id so it lists under that project instead of the global recents.
+   */
+  projectId?: string
 }) {
   const { dict, locale } = useI18n()
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -109,7 +124,13 @@ export function ChatView({
     let full = ''
     try {
       const { source } = await streamChat(
-        { message: apiMessage, companyId: companyId ?? undefined, transcriptId: transcript?.id, history },
+        {
+          message: apiMessage,
+          companyId: companyId ?? undefined,
+          transcriptId: transcript?.id,
+          projectId,
+          history,
+        },
         (delta) => {
           full += delta
           setLastAssistant({ content: full })
@@ -129,6 +150,7 @@ export function ChatView({
         const conv = await createConversation({
           companyId: companyId ?? null,
           transcriptId: transcript?.id ?? null,
+          projectId: projectId ?? null,
         })
         cid = conv.id
         setConversationId(cid)
@@ -272,8 +294,13 @@ export function ChatView({
     </div>
   )
 
+  // The embedded surface, if any. `renderMain` gets the chat's own send, so a
+  // project's composer drives this engine instead of reimplementing it.
+  // Evaluated once — calling it per branch would build the tree twice.
+  const embedded: React.ReactNode = renderMain ? renderMain({ send, sending }) : mainView
+
   // Chat secondary panel (design lines 948-971): mini-nav rows (New chat / Projects /
-  // Workspace / Agents) → divider → RECENT CHATS list. Projects is a stub affordance for now.
+  // Workspace / Agents) → divider → RECENT CHATS list.
   const navRow =
     'flex w-full items-center gap-[11px] rounded-lg px-[11px] py-[9px] text-start text-[13.5px] transition-colors'
 
@@ -325,7 +352,7 @@ export function ChatView({
         </div>
       }
     >
-      {mainView ?? content}
+      {embedded && messages.length === 0 ? embedded : content}
     </CollapsiblePanel>
   )
 }

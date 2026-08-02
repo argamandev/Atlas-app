@@ -11,6 +11,8 @@ export function createConversation(input: {
   title?: string
   companyId?: string | null
   transcriptId?: string | null
+  /** set when the chat is started inside a project */
+  projectId?: string | null
 }): Promise<Conversation> {
   return apiPost<Conversation>('/api/conversations', input)
 }

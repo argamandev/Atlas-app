@@ -409,7 +409,6 @@ export const he: Dictionary = {
     pin: 'הצמדת פרויקט',
     composerPlaceholder: 'התחלת שיחה ב־{name}…',
     sourcesInContext: '{count} מקורות בהקשר',
-    composerDisabled: 'שיחה בתוך פרויקט עדיין לא מחוברת.',
     recents: 'אחרונות',
     noChats: 'אין עדיין שיחות.',
     noChatsHint: 'כל שאלה כאן יורשת את ההנחיות וההקשר של הפרויקט.',
