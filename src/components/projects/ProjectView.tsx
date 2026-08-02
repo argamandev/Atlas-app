@@ -221,7 +221,9 @@ export function ProjectView({
               so an open failure arriving after a save failure showed the SAVE
               sentence with the OPEN error's text — a message that was wrong in
               both halves — and the open failure itself was invisible. Two
-              independent failures deserve two lines. */}
+              independent failures deserve two lines. The `flex flex-col` is what
+              made ErrorLine grow its own block wrapper: without one, the <bdi>
+              here became the flex item and each message split across two rows. */}
           {(saveError !== null || openError !== null) && (
             <div
               role="alert"

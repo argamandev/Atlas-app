@@ -235,6 +235,7 @@ export const he: Dictionary = {
     snipDefault: 'הסבירו מה מציג הקטע המצורף.',
     snipFailed: 'הגזירה נכשלה — נסו שוב',
     snipTooBig: 'הגזיר גדול מדי — סמנו אזור קטן יותר',
+    historyFailed: 'לא ניתן לטעון את השיחות — {error}',
     pageShort: 'עמ׳',
     suggestions: [
       'סכמו את שיחת המשקיעים האחרונה בשלוש נקודות',

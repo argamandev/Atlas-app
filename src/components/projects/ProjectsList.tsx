@@ -47,6 +47,7 @@ export function ProjectsList() {
   }, [load])
 
   async function createProject() {
+    setError(null)
     try {
       const { project } = await createProjectReq(dict.projects.untitled)
       router.push(`/app/chat/projects/${project.id}`)
@@ -64,16 +65,20 @@ export function ProjectsList() {
           </h1>
           <p className="mb-[26px] text-[14px] text-ink-muted">{dict.projects.subtitle}</p>
 
-          {(loadError || error) && (
+          {/* Both are rendered, never one instead of the other — the same fix
+              ProjectView already carries. Picking loadError first while neither
+              path clears the other's state meant a create failure ARRIVING
+              AFTER a load failure was invisible: the user clicked New project,
+              nothing happened, and the banner on screen still described the
+              load. A dead click is the founder's red line. */}
+          {(loadError !== null || error !== null) && (
             <div
               dir="auto"
               role="alert"
-              className="mb-4 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
+              className="mb-4 flex flex-col gap-1 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
             >
-              <ErrorLine
-                template={loadError ? dict.projects.loadFailed : dict.projects.saveFailed}
-                error={(loadError ?? error) as string}
-              />
+              {loadError !== null && <ErrorLine template={dict.projects.loadFailed} error={loadError} />}
+              {error !== null && <ErrorLine template={dict.projects.saveFailed} error={error} />}
             </div>
           )}
 

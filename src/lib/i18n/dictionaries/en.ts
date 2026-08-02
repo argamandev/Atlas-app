@@ -244,6 +244,7 @@ export const en = {
     snipDefault: 'Explain what this snippet shows.',
     snipFailed: 'Snip failed — try again',
     snipTooBig: 'Snip too large — select a smaller area',
+    historyFailed: 'Could not load your chats — {error}',
     pageShort: 'p.',
     suggestions: [
       'Summarize the latest investor call in 3 bullets',

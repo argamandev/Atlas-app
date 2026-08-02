@@ -30,6 +30,7 @@ export function ChatHistory({
 }) {
   const { dict } = useI18n()
   const [items, setItems] = useState<ConversationSummary[]>([])
+  const [listError, setListError] = useState<string | null>(null)
   const [openError, setOpenError] = useState<string | null>(null)
 
   const open = (id: string) => {
@@ -37,10 +38,22 @@ export function ChatHistory({
     void Promise.resolve(onOpen(id)).catch((e) => setOpenError((e as Error).message))
   }
 
+  // This used to be `.catch(() => setItems([]))`, which turned every failure of
+  // GET /api/conversations into the confident empty state below — "no chats
+  // yet" for a user whose chats exist and could not be fetched. It was also the
+  // layer that ATE the error `conversationScope.ts` was narrowed to produce, so
+  // the narrowing had nowhere to land. A failed load and an empty account are
+  // different facts and now render differently.
   useEffect(() => {
     fetchConversations()
-      .then(setItems)
-      .catch(() => setItems([]))
+      .then((rows) => {
+        setItems(rows)
+        setListError(null)
+      })
+      .catch((e) => {
+        setItems([])
+        setListError((e as Error).message)
+      })
   }, [refreshKey])
 
   return (
@@ -55,21 +68,23 @@ export function ChatHistory({
         </button>
       )}
 
-      {/* A row that will not open must say so. Without this the rejection from
-          openConversation was unhandled and the click looked like nothing
-          happened at all — the same silent-failure class as the project's own
-          recents rows, on the surface one panel over. */}
-      {openError !== null && (
+      {/* A list that would not load and a row that will not open must both say
+          so. Without these the rejections were swallowed — the click looked
+          like nothing happened at all, and a 500 looked like an empty account.
+          Two independent failures, so two lines, never one instead of the
+          other. */}
+      {(listError !== null || openError !== null) && (
         <div
           role="alert"
           dir="auto"
-          className="rounded-[7px] px-[9px] py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
+          className="flex flex-col gap-1 rounded-[7px] px-[9px] py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
         >
-          <ErrorLine template={dict.projects.openChatFailed} error={openError} />
+          {listError !== null && <ErrorLine template={dict.chat.historyFailed} error={listError} />}
+          {openError !== null && <ErrorLine template={dict.projects.openChatFailed} error={openError} />}
         </div>
       )}
 
-      {items.length === 0 ? (
+      {listError !== null ? null : items.length === 0 ? (
         <div className="flex items-center gap-2 rounded-md px-2.5 py-4 text-sm text-ink-faint">
           <SparkleIcon size={15} />
           {dict.common.empty}
