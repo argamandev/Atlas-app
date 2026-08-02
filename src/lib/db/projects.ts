@@ -120,6 +120,30 @@ export async function patchSource(
   return data as ProjectSourceRow
 }
 
+/**
+ * How many conversations deleting this project would DESTROY.
+ *
+ * Not a convenience. Founder decision 2026-08-02 put `on delete cascade` on the
+ * chat_conversations link, and because `messages` is inline jsonb the cascade
+ * takes the whole conversation history with the row — it does not unlink it.
+ * So any delete path MUST call this and show the number BEFORE destroying
+ * anything; silent destruction is the "degradation must be VISIBLE" class in
+ * .claude/rules/app.md.
+ *
+ * Atlas ships no delete affordance today, but DELETE is already reachable: the
+ * `for all` owner policy covers it, so a project's owner can delete straight
+ * through PostgREST with the browser's anon key. This exists so the obligation
+ * is one call away rather than one thing to remember.
+ */
+export async function countProjectChats(supabase: Db, projectId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('chat_conversations')
+    .select('id', { count: 'exact', head: true })
+    .eq('project_id', projectId)
+  if (error) throw new Error(error.message)
+  return count ?? 0
+}
+
 /** A project's chats, owner-filtered as well as project-filtered — belt and braces. */
 export async function listProjectChats(
   supabase: Db,
