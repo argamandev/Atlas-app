@@ -10,14 +10,18 @@
 
 ## 0. What is NOT proven here — read this first
 
-- **The browser half is not done.** Everything below is proven at the database and
+- ~~**The browser half is not done.** Everything below is proven at the database and
   at PostgREST with a real signed token. Nobody has yet logged into the app as
   user A, created a project through the UI, reloaded, and then failed to see it as
-  user B. That needs the founder, and it is the remaining half of the two-user bar.
-- **The signup path is not exercised.** User B was created in the Supabase
+  user B. That needs the founder, and it is the remaining half of the two-user bar.~~
+  ✅ **CLOSED 2026-08-02 — see §12.** Done in the founder's own signed-in Chrome:
+  his account lists exactly one project while the database holds two across two
+  owners, so B's is invisible to him through the app, not just through PostgREST.
+- **The signup path is STILL not exercised.** User B was created in the Supabase
   dashboard by founder decision 2026-08-02, so the access-request +
   admin-approval flow is untested by this round. Recorded rather than glossed.
-- **No screenshots.** Nothing visual is claimed.
+- ~~**No screenshots.** Nothing visual is claimed.~~ ✅ **CLOSED — §12**, three
+  committed under `shots/`, both locales, with what each does and does not show.
 - ~~**`chat_conversations.project_id` is written by nothing yet.** The link column
   and its key exist and are enforced; no application code populates them, so
   `listProjectChats()` returns `[]` for every project today. The UI is honest
@@ -253,3 +257,47 @@ Atlas still ships no delete affordance, so no user can reach this today. The
 first one that exists must show the count from `countProjectChats()` before it
 deletes, or it silently destroys chat history — `rules/app.md`, degradation must
 be visible.
+
+## 12. The signed-in browser pass (added 2026-08-02 — the half that was owed)
+
+§0 said "the browser half is not done" and "no screenshots". Both are now closed.
+Driven through the founder's own signed-in Chrome, which is the sanctioned path
+(`/verify-app`): no password, no magic link, no credential anywhere.
+
+His browser is set to **Hebrew**, so this pass is the RTL one for free; EN was
+checked by toggling the locale and toggling back (verified after:
+`htmlDir rtl · htmlLang he · locale=he`).
+
+**Authenticated, not redirected.** `GET /app/chat/projects 200` in the dev log —
+a 307 would have meant an anonymous probe and a worthless screenshot, which is
+the false pass the login gate has produced twice.
+
+| Claim | What was seen |
+|---|---|
+| The project page renders at all | `/app/chat/projects/[id]` **200**, full render. The Server-Component crash that 500'd every project page is gone. |
+| **Isolation, through a browser** | The founder's account lists **exactly one** project — his own — while the database holds **2 across 2 distinct owners**. User B's project is invisible to him. This is the browser half of the two-user bar. |
+| Persistence | `RECENTS 4`, matching `conversations_with_project = 4` in the database, with real titles and derived times. |
+| A project chat is reachable | Clicking a Recents row **opened the conversation** and loaded its messages. Those rows were inert `<div>`s at `@904030a`, and they are the only route back in. |
+| The bubble side | The user bubble sits on the **physical right in the Hebrew RTL interface** — main's founder decision (`bff0242`) survives this branch's merge. Hebrew reads RTL inside it. |
+| Degradation is visible | Real send, real answer, and under it: *"ההקשר של הפרויקט היה ארוך מדי ונחתך, ולכן אטלס לא ראה את כולו."* in the alert colour. |
+| The source count | `0 מקורות בהקשר` / `0 sources in context` on a project with no sources — the count now follows the injector, not the row list. |
+| Console | Zero errors, zero exceptions. |
+
+Screenshots (durable, in this folder): `shots/2026-08-02-project-page-he.jpg` ·
+`shots/2026-08-02-project-page-en.jpg` ·
+`shots/2026-08-02-project-chat-truncation-notice-he.jpg`.
+
+**Stated plainly, because how a thing was verified matters as much as the result:**
+
+- The `x-project-context: failed` path was proven against the **real server** — a
+  `POST /api/chat` carrying a nonexistent project id returned `200` with
+  `x-project-context: failed`, i.e. the model answered and the server said so.
+- The **rendering** of that notice was exercised by patching `window.fetch` in the
+  page to set the header on an otherwise real response, then sending a real
+  message through the real composer. The React path, the dictionary lookup and
+  the RTL layout are therefore genuinely verified; the specific pairing of a
+  server-side failure with its own rendered notice in one continuous run is not.
+  The two halves are each proven, the seam between them is inference.
+- This pass appended one real exchange ("שלום") to one of the founder's own
+  project conversations. It is his account and his project; recorded rather than
+  glossed.
