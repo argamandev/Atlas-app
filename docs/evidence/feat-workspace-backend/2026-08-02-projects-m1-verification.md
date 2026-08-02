@@ -18,10 +18,27 @@
   dashboard by founder decision 2026-08-02, so the access-request +
   admin-approval flow is untested by this round. Recorded rather than glossed.
 - **No screenshots.** Nothing visual is claimed.
-- **`chat_conversations.project_id` is written by nothing yet.** The link column
+- ~~**`chat_conversations.project_id` is written by nothing yet.** The link column
   and its key exist and are enforced; no application code populates them, so
   `listProjectChats()` returns `[]` for every project today. The UI is honest
-  about that (it renders the empty state).
+  about that (it renders the empty state).~~
+
+  🔴 **CORRECTION 2026-08-02 (review BLOCKER, `@904030a`).** The struck-through
+  sentence above was true when written and FALSE three commits later: `9f5da70`
+  stamps `project_id` through `ChatView` → `/api/conversations` →
+  `createConversation`. Left standing, it denied the existence of the exact write
+  path that makes the founder-countersigned `ON DELETE CASCADE` destructive — so
+  the cascade was countersigned against a model in which no conversation could
+  ever hang off a project. Measured on the live database now, not argued:
+
+  ```
+  conversations_with_project        4      -- written by real app traffic
+  project_chats_owner_matched       4      -- every one owned by its project's owner
+  project_chats_with_real_messages  4      -- max 2 messages, i.e. real exchanges
+  global_recents_rows              22      -- project_id IS NULL, untouched
+  ```
+
+  The path is live and the cascade is therefore live. It is exercised in §11.
 
 ## 1. The gate ran before the migration was applied
 
@@ -189,3 +206,33 @@ rather than unlinking it.
   sentence with detail in the server log before launch).
 - Test artifact `a2345bd1…` ("RLS proof — owned by user B") is left in place so
   the browser half can use it. It belongs to the test account, not the founder's.
+## 11. The cascade, actually exercised (added 2026-08-02, closes the BLOCKER)
+
+§9 described the cascade. Describing it is what let it be countersigned against a
+world where nothing wrote `project_id` — so here it is run, on the real database,
+inside a transaction that **rolls back**, with a project holding a real note and a
+real conversation. The owner is picked by the database (`select id from auth.users
+order by created_at limit 1`) so no live user id enters a script or a transcript.
+
+Appended to `cross-cutting.md` before touching the database, per `rules/db.md`.
+
+```
+stage  | project_rows | source_rows | conversation_rows
+-------+--------------+-------------+------------------
+BEFORE |            1 |           1 |                 1
+AFTER  |            0 |           0 |                 0
+```
+
+`conversation_rows` is counted **by the conversation's own id**, not by
+`project_id` — so this shows the row was DESTROYED, not unlinked. Its `messages`
+jsonb went with it. That is the sealed-container model the founder chose, and it
+is now demonstrated rather than described.
+
+Rollback confirmed by a separate query afterwards: `leftover_projects 0 ·
+leftover_conversations 0 · leftover_sources 0`. Nothing was committed.
+
+**What this obliges, restated because it is now proven rather than theoretical:**
+Atlas still ships no delete affordance, so no user can reach this today. The
+first one that exists must show the count from `countProjectChats()` before it
+deletes, or it silently destroys chat history — `rules/app.md`, degradation must
+be visible.

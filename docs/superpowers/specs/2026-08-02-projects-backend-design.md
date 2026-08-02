@@ -121,22 +121,49 @@ personal-layer data per `docs/DATA-MODEL.md`.
 
 ### The link on `chat_conversations`
 
+> 🔴 **REJECTED AT THE DDL GATE, 2026-08-02 — corrected below.** The single-column form this
+> section originally published (`references public.projects (id)`) does **not** enforce the
+> ownership chain the next paragraph claimed for it: PostgreSQL referential-integrity checks
+> deliberately bypass RLS, so a user could point their chat at a stranger's project uuid — a row
+> RLS hides from them entirely. Reproduced in a rolled-back transaction before the fix
+> (`a_can_SEE_bs_project = 0` while `a_could_REFERENCE_bs_project = 1`) and again after it, where
+> the composite key refuses the insert with `23503`. What shipped is below; the original wording is
+> kept struck through rather than deleted, because a design of record that quietly rewrites itself
+> to match the code proves nothing.
+
 ```sql
+-- ~~add column project_id uuid references public.projects (id) on delete cascade;~~
+-- APPLIED (migration 20260802_015). The column is added bare and the key added
+-- separately, because `add column if not exists` cannot carry a composite key.
 alter table public.chat_conversations
-  add column project_id uuid references public.projects (id) on delete cascade;
+  add column if not exists project_id uuid;
+alter table public.chat_conversations
+  add constraint chat_conversations_project_fk
+  foreign key (project_id, user_id)
+  references public.projects (id, user_id) on delete cascade;
 create index chat_conversations_project_id_idx
   on public.chat_conversations (project_id);
 ```
 
 `ADD COLUMN` is additive and allowed. The column is nullable: all 19 existing rows predate
 Projects and stay unaffected, which also keeps Timlul (which shares this table) working — it
-simply ignores a column it does not select.
+simply ignores a column it does not select. `MATCH SIMPLE` skips a NULL `project_id`, so every
+existing row validates, including the 7 whose owner no longer exists.
 
 **Ownership of a project chat runs through the project, not through `chat_conversations.user_id`.**
 That table's `user_id` has no foreign key and cannot be given one (§10), so the design does not
-lean on it: `project_id → projects(id) → user_id → auth.users(id)`, cascading the whole way. If an
-account is ever removed, its projects and their chats go with it — the exact failure that left 7
-orphan rows behind.
+lean on it. The composite key makes the chain structural rather than described: a conversation's
+`(project_id, user_id)` pair must match a real `projects (id, user_id)` pair, so the chat's owner
+**is** the project's owner, checked by the database on every write. If an account is ever removed,
+its projects and their chats go with it — the exact failure that left 7 orphan rows behind.
+
+**`ON DELETE CASCADE` — founder decision 2026-08-02, taken knowingly.** He was shown that
+`chat_conversations.messages` is inline `jsonb`, so this DESTROYS a project's conversation history
+rather than unlinking it, and that reversing the choice later needs hook-blocked SQL. He chose the
+sealed-container model. Two obligations follow, and they are not optional: any delete affordance
+must tell the user how many conversations it is about to destroy before it acts, and the write path
+is live — `project_id` is stamped by `createConversation` since `9f5da70`. Exercised on the real
+database in `docs/evidence/feat-workspace-backend/2026-08-02-projects-m1-verification.md` §11.
 
 `chat_conversations` already has RLS enabled with `chat_conversations_owner` (`ALL`,
 `auth.uid() = user_id` on **both** `USING` and `WITH CHECK`), verified 2026-08-02. Project chats
@@ -195,6 +222,21 @@ that ratio. Two consequences that are requirements, not nice-to-haves:
   instructions and answer anyway — that is the silent-degradation class in `.claude/rules/app.md`.
 - If injection is cut for time, the instructions/memory UI must state that they are not yet applied.
   Stored-but-ignored instructions are the same defect wearing a different hat.
+
+**Amended 2026-08-02 after review.** "That ratio" has to mean the ratio of what is actually sent,
+not of the raw fields — the first implementation summed `instructions + memory + bodies` and missed
+the framing header, the label line per section and every source name, so a project could read 97%
+while the server was already cutting it, and the over-capacity warning never fired for the people
+who needed it. The meter now calls `buildProjectContext()` itself and reads its `fullLength`, so
+the number the user sees and the number the server enforces are one function and cannot drift.
+Two further consequences of the same principle, both now implemented:
+
+- A note with an empty body is skipped by the injector, so it is neither charged to the budget nor
+  counted in "*n* sources in context". Clicking **+** used to raise that count without changing
+  anything the model received.
+- Truncation and a failed context load are both reported to the client on `x-project-context` and
+  rendered on the answer itself. The first version set a header no client read, which is
+  indistinguishable from not reporting at all.
 
 ## 8. The auth fix — separate commit, founder awake
 
