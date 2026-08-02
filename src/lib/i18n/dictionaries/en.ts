@@ -418,6 +418,8 @@ export const en = {
     pin: 'Pin project',
     composerPlaceholder: 'Start a chat in {name}…',
     sourcesInContext: '{count} sources in context',
+    sourceInContext: '1 source in context',
+    send: 'Send',
     recents: 'Recents',
     noChats: 'No chats yet.',
     noChatsHint: "Anything you ask here inherits this project's instructions and context.",
@@ -443,6 +445,10 @@ export const en = {
     loadFailed: 'Could not load your projects — {error}',
     loadOneFailed: 'Could not load this project — {error}',
     openChatFailed: 'Could not open that chat — {error}',
+    contextFailed:
+      "Answered without this project's context — it could not be loaded, so your instructions, memory and notes did not reach Atlas.",
+    contextTruncated:
+      "This project's context was too long and was cut to fit, so Atlas did not see all of it.",
     context: 'Context',
     searchContext: 'Search context',
     addContext: 'Add to context',

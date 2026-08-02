@@ -409,6 +409,8 @@ export const he: Dictionary = {
     pin: 'הצמדת פרויקט',
     composerPlaceholder: 'התחלת שיחה ב־{name}…',
     sourcesInContext: '{count} מקורות בהקשר',
+    sourceInContext: 'מקור אחד בהקשר',
+    send: 'שליחה',
     recents: 'אחרונות',
     noChats: 'אין עדיין שיחות.',
     noChatsHint: 'כל שאלה כאן יורשת את ההנחיות וההקשר של הפרויקט.',
@@ -434,6 +436,9 @@ export const he: Dictionary = {
     loadFailed: 'לא ניתן לטעון את הפרויקטים — {error}',
     loadOneFailed: 'לא ניתן לטעון את הפרויקט הזה — {error}',
     openChatFailed: 'לא ניתן לפתוח את השיחה — {error}',
+    contextFailed:
+      'התשובה נכתבה בלי ההקשר של הפרויקט — לא ניתן היה לטעון אותו, ולכן ההנחיות, הזיכרון וההערות שלכם לא הגיעו לאטלס.',
+    contextTruncated: 'ההקשר של הפרויקט היה ארוך מדי ונחתך, ולכן אטלס לא ראה את כולו.',
     context: 'הקשר',
     searchContext: 'חיפוש בהקשר',
     addContext: 'הוספה להקשר',
