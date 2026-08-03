@@ -171,6 +171,9 @@ export const en = {
     // it will NOT survive a reload. Saying so beats a workspace that quietly
     // forgets.
     layoutFailed: 'This layout will not be remembered — {error}',
+    // The name on screen is REVERTED when this shows. A rename that failed must
+    // not leave the new name sitting there looking saved.
+    renameFailed: 'The name was not changed — {error}',
 
     // ── Putting a real source on the shelf ─────────────────────────────────
     addSources: 'Add sources',

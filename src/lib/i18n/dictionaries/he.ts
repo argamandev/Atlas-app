@@ -153,6 +153,8 @@ export const he: Dictionary = {
     createFailed: 'לא נשמר — {error}',
     openFailed: 'לא ניתן לפתוח את סביבת העבודה — {error}',
     layoutFailed: 'הסידור הזה לא יישמר — {error}',
+    // השם על המסך חוזר לקדמותו כשההודעה הזו מופיעה.
+    renameFailed: 'השם לא שונה — {error}',
 
     // ── הוספת מקור אמיתי למדף ──────────────────────────────────────────────
     addSources: 'הוספת מקורות',

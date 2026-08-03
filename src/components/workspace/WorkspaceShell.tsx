@@ -18,7 +18,7 @@ import { WorkingDocument } from './WorkingDocument'
 import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
 import { WorkspaceDocs } from './WorkspaceDocs'
 import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
-import { patchItemReq } from '@/lib/workspace/client'
+import { patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
 import { WorkspaceSourcePicker } from './WorkspaceSourcePicker'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 
@@ -64,7 +64,46 @@ export function WorkspaceShell({
   const [legalAreas, setLegalAreas] = useState<string[]>([])
 
   const [layoutError, setLayoutError] = useState<unknown>(null)
+  const [renameError, setRenameError] = useState<unknown>(null)
   const [addOpen, setAddOpen] = useState(false)
+
+  // Escape must DISCARD, and the only reliable way to leave the field is to
+  // blur it — so the cancel intent has to survive the trip to onBlur. A ref, not
+  // state: setting state here would re-render before the blur handler reads it.
+  const renameCancelled = useRef(false)
+
+  /**
+   * Rename, PERSISTED. Until 2026-08-04 this set local state and nothing else:
+   * the header showed the new name, no error appeared, and the old name came
+   * back on the next load. Nothing on screen was false in the moment, which is
+   * what made it the bad kind of bug — the lie only arrived later, at reload.
+   *
+   * Optimistic, then REVERTED if the server refuses, because a name left on
+   * screen after a rejected write is the same lie one step further along.
+   */
+  const commitRename = useCallback(
+    async (raw: string) => {
+      const next = raw.trim()
+      setRenaming(false)
+      // An empty name is not a rename, it is a mistake — `parseName` rejects it
+      // server-side too, so sending it would only produce a needless error.
+      if (!next || next === name) return
+
+      const previous = name
+      setName(next)
+      setRenameError(null)
+      try {
+        await patchWorkspaceReq(workspace.id, { name: next })
+        // The picker is a Server Component; without this, going back can render
+        // the router cache's copy and show the OLD name after a real rename.
+        router.refresh()
+      } catch (e: unknown) {
+        setName(previous)
+        setRenameError(e)
+      }
+    },
+    [name, workspace.id, router]
+  )
 
   /**
    * Persist one tab's open/closed state — the write half of "remember how I
@@ -134,16 +173,28 @@ export function WorkspaceShell({
       {/* A layout change that failed to persist still moved on screen, so
           without this the workspace would silently forget on the next reload —
           the very thing this chapter set out to fix. */}
-      {layoutError !== null && (
+      {(layoutError !== null || renameError !== null) && (
         <div
           role="alert"
-          className="mx-3 mt-3 rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink"
+          className="mx-3 mt-3 flex flex-col gap-1 rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink"
         >
-          <ErrorLine
-            template={dict.workspace.layoutFailed}
-            error={layoutError}
-            auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
-          />
+          {layoutError !== null && (
+            <ErrorLine
+              template={dict.workspace.layoutFailed}
+              error={layoutError}
+              auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+            />
+          )}
+          {/* BOTH render, never one instead of the other — same reasoning as the
+              picker's banner. A rename that failed while a pane also failed to
+              persist would otherwise be invisible. */}
+          {renameError !== null && (
+            <ErrorLine
+              template={dict.workspace.renameFailed}
+              error={renameError}
+              auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+            />
+          )}
         </div>
       )}
       <div className="flex min-h-0 flex-1 gap-3 p-3">
@@ -189,13 +240,22 @@ export function WorkspaceShell({
                           autoFocus
                           defaultValue={name}
                           onBlur={(e) => {
-                            const v = e.currentTarget.value.trim()
-                            if (v) setName(v)
-                            setRenaming(false)
+                            if (renameCancelled.current) {
+                              renameCancelled.current = false
+                              setRenaming(false)
+                              return
+                            }
+                            void commitRename(e.currentTarget.value)
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') e.currentTarget.blur()
-                            if (e.key === 'Escape') setRenaming(false)
+                            // Blur rather than unmount, so ONE path commits or
+                            // discards. Unmounting straight from here raced the
+                            // blur handler and could save what Escape refused.
+                            if (e.key === 'Escape') {
+                              renameCancelled.current = true
+                              e.currentTarget.blur()
+                            }
                           }}
                           className="w-full rounded-[7px] border border-hairline bg-canvas px-2 py-1 text-[14px] font-semibold text-ink outline-none"
                         />
