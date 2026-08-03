@@ -63,9 +63,12 @@ create table if not exists public.workspaces (
 -- disappearing with it. Corpus rows are removed only by an admin/script path,
 -- and Atlas ships no such UI today.
 --
--- The alternative considered and rejected: `on delete restrict`, which makes
--- corpus maintenance fail loudly whenever any user holds the row on a shelf.
--- More honest, operationally worse. FOUNDER RULING REQUIRED AT THE DDL GATE.
+-- FOUNDER RULING 2026-08-03, taken at the DDL gate with that consequence in
+-- front of him: the item goes. The alternative put to him and declined was
+-- `on delete restrict`, which blocks the corpus delete outright while any user
+-- holds the row on a shelf — nothing ever vanishes, but corpus maintenance
+-- fails loudly and someone must go clear the workspaces first. He chose cascade
+-- knowing the writing is protected separately, one table down.
 create table if not exists public.workspace_items (
   id            uuid primary key default gen_random_uuid(),
   workspace_id  uuid not null,
