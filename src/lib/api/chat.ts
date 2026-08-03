@@ -53,6 +53,36 @@ export function sanitizeContextStatus(raw: unknown): ProjectContextStatus | null
   return raw === 'truncated' || raw === 'failed' ? raw : null
 }
 
+/**
+ * Was this stored message's answer cut off? Read side.
+ *
+ * Same reasoning as `sanitizeContextStatus`: the `messages` jsonb predates the
+ * field, so most stored messages have none, and absent must mean "complete"
+ * rather than "unknown, so warn". Only a literal `true` counts — `'true'`,
+ * `1` and `{}` are all truthy in JS and none of them is this flag.
+ */
+export function sanitizeTruncated(raw: unknown): boolean {
+  return raw === true
+}
+
+/**
+ * Should this message be STORED as truncated? Write side.
+ *
+ * Two sources, and both are needed. `errorKind` is this session's live failure
+ * and dies on reload; `truncated` is what a message reopened from storage
+ * carries. A message that has already round-tripped has only the second, and a
+ * message that just broke has only the first — taking either alone silently
+ * drops one of the two cases on the next save.
+ *
+ * Extracted from an inline expression in ChatView because the defect it fixes
+ * (a partial answer persisting as a complete one) was a BLOCKER found at review,
+ * and its sibling `sanitizeContextStatus` had a dedicated test file while this
+ * had none. A later refactor writing `!!m.truncated` would have failed nothing.
+ */
+export function truncatedForPersist(m: { truncated?: boolean | null; errorKind?: string }): boolean {
+  return m.truncated === true || m.errorKind === 'truncated'
+}
+
 // Streamed chat (Feature 5): POST to /api/chat, read the plain-text token stream and call
 // onToken for each delta as it arrives. The citation source rides on the x-chat-source header.
 export async function streamChat(

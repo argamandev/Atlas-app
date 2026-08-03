@@ -19,6 +19,11 @@ import { join, relative, resolve } from 'node:path'
  *
  * The first was found by regenerating a count from a command; the other two were
  * found by a reviewer. Neither is a repeatable mechanism, so this is one.
+ *
+ * STATED LIMIT: the walk covers `src/` and `scripts/` only. A test file outside
+ * both is invisible to a guard whose headline promise is "every test file in the
+ * tree" — said here rather than left for someone to discover, which is the whole
+ * habit this branch has been trying to build.
  */
 
 const ROOT = resolve(process.cwd())

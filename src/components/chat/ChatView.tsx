@@ -13,7 +13,14 @@ import { ThinkingDots } from './ThinkingDots'
 import { Markdown } from './Markdown'
 import { Logo } from '@/components/ds/Logo'
 import { PencilIcon, ProjectsIcon, WorkspacesIcon, AgentsIcon } from '@/components/ds/icons'
-import { streamChat, sanitizeContextStatus, type ChatSource, type ProjectContextStatus } from '@/lib/api/chat'
+import {
+  streamChat,
+  sanitizeContextStatus,
+  sanitizeTruncated,
+  truncatedForPersist,
+  type ChatSource,
+  type ProjectContextStatus,
+} from '@/lib/api/chat'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
@@ -112,6 +119,8 @@ export function ChatView({
   const [quote, setQuote] = useState<string | null>(initialQuote ?? null)
   const [transcript] = useState(initialTranscript ?? null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  /** Which open is current — see openConversation(). */
+  const openSeq = useRef(0)
   // Set when a PAST conversation was deliberately opened. Distinct from
   // `conversationId`, which is also set the moment a brand-new thread is
   // persisted — that one must not take over an embedded surface.
@@ -220,7 +229,7 @@ export function ChatView({
             // Carry the "this one is partial" fact into storage. Without it the
             // partial text persists as an ordinary complete answer, because it
             // has content and therefore survives the filter above.
-            truncated: m.truncated === true || m.errorKind === 'truncated',
+            truncated: truncatedForPersist(m),
           })),
         { role: 'user' as const, content: text },
         // This turn reached here only because the stream RESOLVED, so it is not
@@ -261,7 +270,26 @@ export function ChatView({
   }
 
   async function openConversation(id: string) {
-    const conv = await fetchConversation(id)
+    // ONE sequence counter, here, because this function is what both surfaces
+    // call. The children each grew their own guard a round ago, which covered
+    // their own REJECTIONS and nothing else: two counters that cannot see each
+    // other, and neither watching the success path. So clicking row A (slow)
+    // then row B (fast) let A's late resolution overwrite B — the user reading
+    // a conversation they did not open, with the sidebar highlighting the one
+    // they did. A superseded open now returns silently, success or failure,
+    // which also retires the cross-surface stale-rejection case.
+    const seq = ++openSeq.current
+    let conv: Awaited<ReturnType<typeof fetchConversation>>
+    try {
+      conv = await fetchConversation(id)
+    } catch (e) {
+      // Only the CURRENT open may report a failure. An error about a
+      // conversation the user has already navigated away from describes the
+      // wrong thing.
+      if (seq !== openSeq.current) return
+      throw e
+    }
+    if (seq !== openSeq.current) return
     setConversationId(conv.id)
     // Sanitised, not trusted: `messages` is a jsonb blob that predates this
     // field, so rows written by older code have none and anything unrecognised
@@ -271,10 +299,7 @@ export function ChatView({
         role: m.role,
         content: m.content,
         projectContext: sanitizeContextStatus(m.projectContext),
-        // Only a literal true counts — same reasoning as sanitizeContextStatus:
-        // the jsonb predates the field, so absent and unrecognised must both
-        // mean "not truncated" rather than being coerced.
-        truncated: m.truncated === true,
+        truncated: sanitizeTruncated(m.truncated),
       }))
     )
     // Last, and only on success: a rejected fetch must leave the surface where

@@ -35,6 +35,11 @@ import { ApiError, isUnauthorized, handleResponse } from './client'
  *    canary only catches TOTAL destruction, not a single mangled line.
  * 3. It proves the module can PRODUCE an `ApiError`, not that every one of its
  *    paths does, and not that the component renders the branch correctly.
+ * 4. **Sites are found by the exact literal `auth={{ expired:`.** A prettier
+ *    rewrap, or hoisting the copy into a variable (`auth={authCopy}`), removes a
+ *    site from this scan silently. The only canary is `sites.length > 0`, which
+ *    catches the prop being renamed away entirely but not one site drifting out.
+ * 5. The dependency regex matches SINGLE-quoted specifiers only.
  *
  * What closes 1 and 2 properly is a real import graph, not a bigger regex. Until
  * then, treat a pass as "no DIRECT dependency is obviously wrong".

@@ -41,18 +41,16 @@ export function ChatHistory({
   // for a shorter moment.
   const [loading, setLoading] = useState(true)
 
-  // Which open is the current one. The list fetch gained cancellation this
-  // round and this did not, so a slow REJECTED open resolving after a newer
-  // successful one painted "Could not open that chat" over a chat that was open
-  // — the same stale-rejection defect, one function away.
-  const openSeq = useRef(0)
-
+  // No sequence counter here on purpose. This grew one, and so did
+  // ProjectView — two counters that could not see each other, both guarding
+  // only their own REJECTIONS, while the success path (a slow open overwriting
+  // a newer one) went unguarded in both. The guard now lives once in
+  // `ChatView.openConversation`, which is the function both surfaces call: a
+  // superseded open returns silently instead of rejecting, so nothing reaches
+  // this catch to be painted over a chat the user is already reading.
   const open = (id: string) => {
-    const seq = ++openSeq.current
     setOpenError(null)
-    void Promise.resolve(onOpen(id)).catch((e) => {
-      if (seq === openSeq.current) setOpenError(e)
-    })
+    void Promise.resolve(onOpen(id)).catch((e) => setOpenError(e))
   }
 
   // This used to be `.catch(() => setItems([]))`, which turned every failure of

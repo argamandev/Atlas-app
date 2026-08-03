@@ -284,7 +284,7 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **222 tests across 36 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **229 tests across 37 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -293,20 +293,27 @@ invoked directly, and never ran in the battery: `api/errorShape.test.ts` (for an
 `live/search.test.ts` + `live/syncEngine.test.ts` (10 tests, far longer). A battery that does not
 run a file cannot tell you it is missing.
 
-`correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `apiAuthBoundary.test.ts`
-· `api/errorShape.test.ts` · `api/contextStatus.test.ts` · `db/conversationScope.test.ts`
-· `live/finishLiveCall.test.ts` · `live/liveTiming.test.ts` · `live/ivritStitcher.test.ts`
-· `live/pcmChunker.test.ts` · `live/wavEncode.test.ts` · `live/call-stubs.test.ts`
-· `live/snipBridge.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`
+`agents/data.test.ts` · `api/contextStatus.test.ts` · `api/errorShape.test.ts`
+· `api/messageFlags.test.ts` · `apiAuthBoundary.test.ts` · `auth/gate.test.ts`
+· `auth/verifyUser.test.ts` · `calendar/event-meta.test.ts` · `chat/attachments.test.ts`
+· `chat/documentContext.test.ts` · `chat/history.test.ts` · `chat/projectContext.test.ts`
+· `company/overview-stub.test.ts` · `correction.test.ts` · `db/conversationScope.test.ts`
+· `demo/demoState.test.ts` · `demo/seedDocument.test.ts` · `design/anim.test.ts`
+· `documents/extract.test.ts` · `documents/snip.test.ts` · `legacyBoundary.test.ts`
+· `live/call-stubs.test.ts` · `live/finishLiveCall.test.ts` · `live/ivritStitcher.test.ts`
+· `live/liveTiming.test.ts` · `live/pcmChunker.test.ts` · `live/search.test.ts`
+· `live/snipBridge.test.ts` · `live/syncEngine.test.ts` · `live/wavEncode.test.ts`
 · `projects/data.test.ts` · `projects/derive.test.ts` · `projects/validate.test.ts`
-· `demo/demoState.test.ts` · `demo/seedDocument.test.ts`
-· `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
-· `documents/extract.test.ts` · `documents/snip.test.ts` · `chat/documentContext.test.ts`
-· `chat/attachments.test.ts` · `chat/history.test.ts` · `chat/projectContext.test.ts`
-· `auth/gate.test.ts` · `auth/verifyUser.test.ts` · `scripts/lib/measure-core.test.ts`.
+· `scripts/lib/measure-core.test.ts` · `testRegistry.test.ts` · `transcription.test.ts`
+· `workspace/data.test.ts`.
 
-> This list is generated from `package.json`, not from memory — it previously named
-> `live/syncEngine.test.ts` and `live/search.test.ts`, neither of which is in the runner.
+> **This list is emitted from `package.json` by a script, not edited by hand**, and the note that
+> used to sit here is why. It read: *"it previously named `live/syncEngine.test.ts` and
+> `live/search.test.ts`, neither of which is in the runner."* That was true when written and was
+> made FALSE by the very commit that left it standing — those two files were registered in it. A
+> hand-maintained enumeration next to a hand-maintained count is two chances to lie about the same
+> thing; `testRegistry.test.ts` now guarantees the SET is right, and this list is regenerated
+> whenever it changes.
 
 ---
 
