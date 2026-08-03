@@ -1,7 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildProjectContext } from './projectContext'
-import { PROJECT_CONTEXT_BUDGET } from '@/lib/projects/derive'
+import { buildProjectContext, PROJECT_CONTEXT_BUDGET } from './projectContext'
 
 test('the block carries instructions, memory and every source body', () => {
   const r = buildProjectContext({
@@ -57,6 +56,12 @@ test('going over budget truncates AND says so — never silently', () => {
   })
   assert.ok(r.text.length <= PROJECT_CONTEXT_BUDGET, 'must be capped at the budget')
   assert.equal(r.truncated, true, 'the caller must be able to tell the user')
+  // fullLength survives the cut — it is what the capacity meter reads, so a bar
+  // pinned at 100% can still be backed by the real overrun.
+  assert.ok(
+    r.fullLength > PROJECT_CONTEXT_BUDGET,
+    `fullLength must report the pre-truncation size, got ${r.fullLength}`
+  )
 })
 
 test('a project exactly at the budget is not reported as truncated', () => {

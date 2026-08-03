@@ -13,6 +13,8 @@ import {
   AtIcon,
 } from '@/components/ds/icons'
 import type { Project } from '@/lib/projects/data'
+import { ErrorLine } from '@/components/projects/ErrorLine'
+import { injectedSources } from '@/lib/chat/projectContext'
 import { presentProject, presentChats } from '@/lib/projects/present'
 import { fetchProject, patchProjectReq, addSourceReq, patchSourceReq } from '@/lib/projects/client'
 
@@ -57,13 +59,15 @@ export function ProjectView({
   // A 404 and a 500 are different truths. "This project belongs to another
   // account" is a LIE when the real cause is the server failing, so the two
   // are kept apart rather than both collapsing into the not-found screen.
-  const [loadError, setLoadError] = useState<string | null>(null)
+  // Thrown values, not messages: ErrorLine needs the status to tell an expired
+  // session apart from a broken query.
+  const [loadError, setLoadError] = useState<unknown>(null)
   const [editing, setEditing] = useState<Editing>(null)
   const [renaming, setRenaming] = useState(false)
   // A failed write must be SEEN. Nothing on this screen claims success.
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<unknown>(null)
   // Same rule for a chat that will not open: a dead click is a silent failure.
-  const [openError, setOpenError] = useState<string | null>(null)
+  const [openError, setOpenError] = useState<unknown>(null)
   const [draft, setDraft] = useState('')
 
   const instrRef = useRef<HTMLTextAreaElement>(null)
@@ -82,7 +86,7 @@ export function ProjectView({
       const msg = (e as Error).message
       // Only a genuine "not found" earns the not-found screen; anything else
       // is reported as what it is.
-      setLoadError(/not found/i.test(msg) ? null : msg)
+      setLoadError(/not found/i.test(msg) ? null : e)
     } finally {
       setLoading(false)
     }
@@ -97,11 +101,16 @@ export function ProjectView({
     try {
       await fn()
       setSaveError(null)
+      // A successful write also retires a stale "could not open that chat" line.
+      // It cleared only its own state before, so one failed open left a banner
+      // standing over every subsequent successful save until another open was
+      // attempted — describing something that was no longer true.
+      setOpenError(null)
       setEditing(null)
       setRenaming(false)
       await load()
     } catch (e) {
-      setSaveError((e as Error).message)
+      setSaveError(e)
     }
   }
 
@@ -125,9 +134,15 @@ export function ProjectView({
             dir="auto"
             className={`max-w-[420px] text-[13px] leading-[1.6] ${loadError ? 'text-[#B0533E]' : 'text-ink-muted'}`}
           >
-            {loadError
-              ? dict.projects.loadOneFailed.replace('{error}', loadError)
-              : dict.projects.notFoundHint}
+            {loadError ? (
+              <ErrorLine
+                template={dict.projects.loadOneFailed}
+                error={loadError}
+                auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+              />
+            ) : (
+              dict.projects.notFoundHint
+            )}
           </p>
           <button
             type="button"
@@ -158,14 +173,21 @@ export function ProjectView({
 
   const openChat = (id: string) => {
     if (!onOpenChat) return
+    // Not sequence-guarded here — see the note in ChatHistory.open(). The single
+    // guard lives in ChatView.openConversation, which both surfaces call.
     setOpenError(null)
-    void onOpenChat(id).catch((e) => setOpenError((e as Error).message))
+    void onOpenChat(id).catch((e) => setOpenError(e))
   }
 
   const addContext = () =>
     write(() =>
       addSourceReq(project.id, dict.projects.newSource.replace('{n}', String(project.context.length + 1)))
     )
+
+  // Not project.context.length: the rail LISTS every note the user made, while
+  // only the ones with a body are sent. Counted through the injector's own rule
+  // so the two can never drift.
+  const inContextCount = injectedSources(project.context).length
 
   const cardBtn =
     'flex h-[26px] w-[26px] flex-none items-center justify-center rounded-md text-ink-faint transition-colors hover:bg-subtle hover:text-ink'
@@ -207,15 +229,33 @@ export function ProjectView({
             </span>
           </div>
 
-          {(saveError || openError) && (
+          {/* Both are rendered, never one instead of the other. This used to
+              pick saveError first while neither path cleared the other's state,
+              so an open failure arriving after a save failure showed the SAVE
+              sentence with the OPEN error's text — a message that was wrong in
+              both halves — and the open failure itself was invisible. Two
+              independent failures deserve two lines. The `flex flex-col` is what
+              made ErrorLine grow its own block wrapper: without one, the <bdi>
+              here became the flex item and each message split across two rows. */}
+          {(saveError !== null || openError !== null) && (
             <div
               role="alert"
-              className="mb-4 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
+              className="mb-4 flex flex-col gap-1 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
             >
-              <ErrorLine
-                template={saveError ? dict.projects.saveFailed : dict.projects.openChatFailed}
-                error={(saveError ?? openError) as string}
-              />
+              {saveError !== null && (
+                <ErrorLine
+                  template={dict.projects.saveFailed}
+                  error={saveError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
+              {openError !== null && (
+                <ErrorLine
+                  template={dict.projects.openChatFailed}
+                  error={openError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
             </div>
           )}
 
@@ -294,8 +334,15 @@ export function ProjectView({
                     <AtIcon size={15} strokeWidth={1.5} />
                   </span>
                   <span className="flex-1" />
+                  {/* Counts the sources that REACH THE MODEL, not the rows on
+                      screen. addContext() creates a note with an empty body and
+                      buildProjectContext skips exactly those, so counting rows
+                      claimed context the model was never sent — one click on "+"
+                      used to raise this number without changing anything. */}
                   <span className="me-2 text-[11.5px] text-ink-ghost">
-                    {dict.projects.sourcesInContext.replace('{count}', String(project.context.length))}
+                    {inContextCount === 1
+                      ? dict.projects.sourceInContext
+                      : dict.projects.sourcesInContext.replace('{count}', String(inContextCount))}
                   </span>
                   {/* Solid the moment there is something to send, exactly like
                       the chat composer. A permanently grey button reads as "this
@@ -304,7 +351,7 @@ export function ProjectView({
                     type="button"
                     onClick={() => submitDraft()}
                     disabled={!onSend || sending || !draft.trim()}
-                    aria-label={dict.projects.composerPlaceholder.replace('{name}', project.name)}
+                    aria-label={dict.projects.send}
                     className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
                       onSend && !sending && draft.trim()
                         ? 'bg-ink text-paper hover:bg-black'
@@ -557,23 +604,6 @@ export function ProjectView({
         </div>
       </div>
     </div>
-  )
-}
-
-/**
- * Renders "…{error}" copy with the raw error isolated in its own <bdi>.
- * A Postgres message is a Latin run landing inside a Hebrew sentence — exactly
- * the mixed line rules/app.md forbids giving a single direction, because the
- * first strong character would decide the whole line's layout.
- */
-function ErrorLine({ template, error }: { template: string; error: string }) {
-  const [before, after = ''] = template.split('{error}')
-  return (
-    <>
-      {before}
-      <bdi>{error}</bdi>
-      {after}
-    </>
   )
 }
 

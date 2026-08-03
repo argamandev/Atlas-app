@@ -176,7 +176,12 @@ export async function POST(req: NextRequest) {
   // Project context: the user's own instructions, memory and typed notes.
   // Direct injection, NOT retrieval — nothing here touches the shared corpus.
   let projectBlock = ''
-  let projectTruncated = false
+  // 'ok' is claimed only when the block was built WHOLE. The other two states
+  // exist to be told to the user, on the answer itself: a reply written without
+  // the project's instructions, or on half of them, must not be
+  // indistinguishable from a complete one (rules/app.md — degradation must be
+  // VISIBLE). This rides back on `x-project-context`, which the client reads.
+  let projectContext: 'ok' | 'truncated' | 'failed' = 'ok'
   if (projectId) {
     try {
       const supabase = createServerSupabase(cookies())
@@ -189,11 +194,17 @@ export async function POST(req: NextRequest) {
           sources: found.sources.map((s) => ({ name: s.name, body: s.body })),
         })
         projectBlock = built.text
-        projectTruncated = built.truncated
+        if (built.truncated) projectContext = 'truncated'
+      } else {
+        // The caller is sitting inside a project the database will not hand
+        // back — deleted, or someone else's under RLS. Answering anyway is
+        // defensible; answering anyway in SILENCE is the defect.
+        projectContext = 'failed'
       }
     } catch (err) {
       // A failed load must not silently pretend the project had no context.
       console.error('[POST /api/chat] project context load failed', (err as Error).message)
+      projectContext = 'failed'
     }
   }
 
@@ -224,11 +235,13 @@ export async function POST(req: NextRequest) {
   ]
 
   const sourceHeader = ctx.source ? encodeURIComponent(JSON.stringify(ctx.source)) : ''
-  // Truncation is REPORTED, never silent: an answer built on half the user's
-  // instructions must not look identical to one built on all of them.
-  const projectHeaders: Record<string, string> = projectTruncated
-    ? { 'x-project-context-truncated': '1' }
-    : {}
+  // Degradation is REPORTED, never silent: an answer built on half the user's
+  // instructions — or on none of them — must not look identical to one built on
+  // all of them. Read by streamChat (src/lib/api/chat.ts) and rendered on the
+  // answer. A header no client reads is the same as no header, which is exactly
+  // what the previous `x-project-context-truncated` was.
+  const projectHeaders: Record<string, string> =
+    projectId && projectContext !== 'ok' ? { 'x-project-context': projectContext } : {}
 
   let upstream: Response | null = null
   try {

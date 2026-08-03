@@ -275,22 +275,45 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `utils.ts` | Small helpers (`cn()` class merge, `isValidVideoUrl`). |
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `apiAuthBoundary.test.ts` | Build-enforced guard: every exported HTTP handler under `src/app/api` must resolve a signed-in user **and act on the result**, or be listed in its `PUBLIC` allowlist **with a reason**. Also bans any `DEMO_USER_ID` reference across `src/app` — the constant itself was deleted from `lib/api/types.ts` on 2026-08-03, so the ban is structural. Added because the holes it closes were months of drift, not one mistake, and because the fleet's own notes described them as "two routes" when a command found 16 sites in 8 files. It is a TEXT scan with stated limits in its own header: it proves the auth result is checked, **not** that the check precedes anything expensive, and **not** that the caller may touch the row it reads (that is the `lib/db` modules' job — most still use `supabaseAdmin`, which bypasses RLS). Fails closed on auth helpers it does not know and on handler shapes it cannot parse. |
+| `api/client.ts` | The browser's fetch layer: `apiGet/apiPost/apiPatch/apiDelete`, plus `ApiError` (carrying the HTTP `status`), `isUnauthorized()` and the exported `handleResponse()`. **`handleResponse` is the only place allowed to decide what a failed request throws** — it was private, and `lib/projects/client.ts` promptly grew a second `throw new Error(...)` that lost the status, which made the sign-in-on-401 branch unreachable on every Projects screen. |
+| `projects/client.ts` | The browser's door to `/api/projects*`. Owns its `cache: 'no-store'` and headers; delegates the failure path to `handleResponse` rather than throwing its own. |
+| `db/conversationScope.ts` | Two pure decisions for the conversations layer: `isMissingTable(err, table)` (narrow — a missing *column* must not downgrade the whole process to the in-memory store) and `resolveProjectId(body)`, which parses an untrusted body and **carries no user identity by design**; the route resolves and refuses the caller itself. |
+| `components/projects/ErrorLine.tsx` | The shared error line. Owns its own block wrapper (so a caller's flex layout cannot blockify the `<bdi>` and split one message across two rows) and, given an `auth` prop, renders expired-session copy plus a sign-in route via `loginRedirectTarget` when the thrown value is a 401 — which is why it takes the thrown value and not its message. |
+| `api/errorShape.test.ts` | Build-enforced guard: any fetch layer reachable from an error banner that offers a sign-in route must throw `ApiError`, not a plain `Error`. Blanks comments before scanning, with a canary — its first version matched the word `ApiError` inside a comment and failed to bite when the bug was reintroduced to test it. **States its own limits in its header** (direct `@/…` imports only; the comment blanker is not a JS parser), because claiming "reachable" without them would repeat the counting failure it exists for. |
+| `testRegistry.test.ts` | Build-enforced guard: every `*.test.ts` on disk is registered in `package.json`'s test script, and every registered path exists. Added after three test files were found to have never run. |
+| `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **194 tests across 30 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
-`correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `apiAuthBoundary.test.ts`
-· `live/finishLiveCall.test.ts` · `live/liveTiming.test.ts` · `live/ivritStitcher.test.ts`
-· `live/pcmChunker.test.ts` · `live/wavEncode.test.ts` · `live/call-stubs.test.ts`
-· `live/snipBridge.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`
-· `projects/data.test.ts` · `projects/derive.test.ts` · `projects/validate.test.ts`
-· `demo/demoState.test.ts` · `demo/seedDocument.test.ts`
-· `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
-· `documents/extract.test.ts` · `documents/snip.test.ts` · `chat/documentContext.test.ts`
-· `chat/attachments.test.ts` · `chat/history.test.ts` · `chat/projectContext.test.ts`
-· `auth/gate.test.ts` · `auth/verifyUser.test.ts` · `scripts/lib/measure-core.test.ts`.
+### Tests (run via `npm test` — **229 tests across 37 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
+Both numbers regenerated from commands, never edited by hand: the file count from
+`package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
+that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
+every registered path must exist. It exists because three files had been written, were passing when
+invoked directly, and never ran in the battery: `api/errorShape.test.ts` (for an hour) and
+`live/search.test.ts` + `live/syncEngine.test.ts` (10 tests, far longer). A battery that does not
+run a file cannot tell you it is missing.
 
-> This list is generated from `package.json`, not from memory — it previously named
-> `live/syncEngine.test.ts` and `live/search.test.ts`, neither of which is in the runner.
+`agents/data.test.ts` · `api/contextStatus.test.ts` · `api/errorShape.test.ts`
+· `api/messageFlags.test.ts` · `apiAuthBoundary.test.ts` · `auth/gate.test.ts`
+· `auth/verifyUser.test.ts` · `calendar/event-meta.test.ts` · `chat/attachments.test.ts`
+· `chat/documentContext.test.ts` · `chat/history.test.ts` · `chat/projectContext.test.ts`
+· `company/overview-stub.test.ts` · `correction.test.ts` · `db/conversationScope.test.ts`
+· `demo/demoState.test.ts` · `demo/seedDocument.test.ts` · `design/anim.test.ts`
+· `documents/extract.test.ts` · `documents/snip.test.ts` · `legacyBoundary.test.ts`
+· `live/call-stubs.test.ts` · `live/finishLiveCall.test.ts` · `live/ivritStitcher.test.ts`
+· `live/liveTiming.test.ts` · `live/pcmChunker.test.ts` · `live/search.test.ts`
+· `live/snipBridge.test.ts` · `live/syncEngine.test.ts` · `live/wavEncode.test.ts`
+· `projects/data.test.ts` · `projects/derive.test.ts` · `projects/validate.test.ts`
+· `scripts/lib/measure-core.test.ts` · `testRegistry.test.ts` · `transcription.test.ts`
+· `workspace/data.test.ts`.
+
+> **This list is emitted from `package.json` by a script, not edited by hand**, and the note that
+> used to sit here is why. It read: *"it previously named `live/syncEngine.test.ts` and
+> `live/search.test.ts`, neither of which is in the runner."* That was true when written and was
+> made FALSE by the very commit that left it standing — those two files were registered in it. A
+> hand-maintained enumeration next to a hand-maintained count is two chances to lie about the same
+> thing; `testRegistry.test.ts` now guarantees the SET is right, and this list is regenerated
+> whenever it changes.
 
 ---
 

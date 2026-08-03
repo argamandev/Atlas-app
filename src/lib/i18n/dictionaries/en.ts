@@ -26,6 +26,11 @@ export const en = {
     empty: 'Nothing here yet',
     comingSoon: 'Coming soon',
     quickAccess: 'Quick access',
+    // Shown INSTEAD of a raw 401 body. The server says "unauthorized"; that is
+    // not something to put in front of a user, and it hides the one action that
+    // fixes it.
+    sessionExpired: 'Your session has expired.',
+    signIn: 'Sign in',
   },
   nav: {
     product: 'Product',
@@ -244,6 +249,20 @@ export const en = {
     snipDefault: 'Explain what this snippet shows.',
     snipFailed: 'Snip failed — try again',
     snipTooBig: 'Snip too large — select a smaller area',
+    historyFailed: 'Could not load your chats — {error}',
+    // Two DIFFERENT failures, deliberately not one string. Before this, both were
+    // written into the assistant bubble as if Atlas had said them: the first left
+    // the user with a server string where an answer belongs, and the second threw
+    // away an answer that had already arrived in full.
+    answerFailed: 'Atlas could not answer — {error}',
+    // The stream broke partway. What is on screen is real but INCOMPLETE, and
+    // saying either "could not answer" or "was not saved" about it would be
+    // false in opposite directions.
+    answerTruncated: 'This answer was cut off before it finished — {error}',
+    // The same fact, read back from storage. No {error}: the cause did not
+    // survive the reload and naming one would be an invention.
+    answerWasTruncated: 'This answer was cut off before it finished.',
+    notSaved: 'This answer arrived but was not saved — {error}',
     pageShort: 'p.',
     suggestions: [
       'Summarize the latest investor call in 3 bullets',
@@ -418,6 +437,8 @@ export const en = {
     pin: 'Pin project',
     composerPlaceholder: 'Start a chat in {name}…',
     sourcesInContext: '{count} sources in context',
+    sourceInContext: '1 source in context',
+    send: 'Send',
     recents: 'Recents',
     noChats: 'No chats yet.',
     noChatsHint: "Anything you ask here inherits this project's instructions and context.",
@@ -443,6 +464,10 @@ export const en = {
     loadFailed: 'Could not load your projects — {error}',
     loadOneFailed: 'Could not load this project — {error}',
     openChatFailed: 'Could not open that chat — {error}',
+    contextFailed:
+      "Answered without this project's context — it could not be loaded, so your instructions, memory and notes did not reach Atlas.",
+    contextTruncated:
+      "This project's context was too long and was cut to fit, so Atlas did not see all of it.",
     context: 'Context',
     searchContext: 'Search context',
     addContext: 'Add to context',

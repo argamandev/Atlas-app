@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabase'
+import { isMissingTable } from './conversationScope'
 import type { ChatMsg, Conversation, ConversationSummary } from '@/lib/api/types'
 
 // Persisted chat conversations. DB when the table exists (migration 009), in-memory fallback
@@ -13,18 +14,11 @@ const g = globalThis as unknown as {
 const convMem = (g.__timlulConvMem ??= new Map<string, Conversation[]>())
 const flag = (g.__timlulConvFlag ??= { on: false })
 
-function missingTable(err: { code?: string; message?: string } | null): boolean {
-  if (!err) return false
-  const code = err.code ?? ''
-  const msg = err.message ?? ''
-  return (
-    code === '42P01' ||
-    code === 'PGRST205' ||
-    /does not exist/i.test(msg) ||
-    /could not find the table/i.test(msg) ||
-    /schema cache/i.test(msg)
-  )
-}
+// Narrow by design — see isMissingTable's contract. Setting the flag downgrades
+// EVERY conversation for the rest of the process to the in-memory store,
+// silently, so a false positive is expensive and invisible.
+const missingTable = (err: { code?: string; message?: string } | null): boolean =>
+  isMissingTable(err, 'chat_conversations')
 
 type Row = Record<string, unknown>
 function mapConv(r: Row): Conversation {
@@ -86,8 +80,14 @@ export async function createConversation(
     /**
      * When set, this chat belongs to a project. The composite key
      * (project_id, user_id) -> projects(id, user_id) means the DATABASE refuses
-     * a project that is not this user's — including the DEMO_USER_ID fallback
-     * the route uses when nobody is signed in.
+     * a project that is not this user's.
+     *
+     * This used to add "— including the DEMO_USER_ID fallback the route uses
+     * when nobody is signed in". There is no such fallback: the route refuses an
+     * unidentified caller with a 401, and the constant is deleted from the repo.
+     * The key still earns its place — it defends against one signed-in user
+     * naming another's project id — but the sentence describing a caller that
+     * can no longer exist had to go.
      */
     projectId?: string | null
   }
