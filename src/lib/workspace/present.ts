@@ -1,0 +1,117 @@
+import type { Dictionary } from '@/lib/i18n/dictionaries/en'
+import { relativeLabel, type Locale } from '@/lib/time/relative'
+import type { CitationState, Workspace, WorkspaceItemRow, WorkspaceRow, WsFile } from './data'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Row -> display shape. PURE, DOM-free, no I/O, so every label rule is testable
+// under node:test (this repo has no DOM test infrastructure).
+//
+// This is the seam where facts become labels, and nothing upstream of it is
+// allowed to store one. The stub this replaces kept `updatedLabel: '2h ago'`,
+// `initial: 'ת'` and `subtitle` as DATA; all three are computed here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Collapse whitespace so a reflowed line is not mistaken for a moved one. */
+const norm = (s: string) => s.replace(/\s+/g, ' ').trim()
+
+/**
+ * Is a citation still telling the truth?
+ *
+ * `resolved` is the text the anchor points at TODAY, or null when the anchor no
+ * longer resolves at all.
+ *
+ * The comparison exists because `transcripts.formatted_data` is REGENERATED
+ * when a call is re-processed through Gemini: the line ids survive while their
+ * sentences change, so a citation can resolve perfectly to the wrong words.
+ * Rendering that as a normal link is the exact "plausible-looking, not absent"
+ * failure .claude/rules/app.md keeps filing — hence three states, not two.
+ *
+ * A block with no quote snapshot cannot be judged, so it stays live while it
+ * resolves. Only `quote` blocks are required to carry one, and the database
+ * enforces that (workspace_doc_blocks_quote_has_text).
+ */
+export function citationState(
+  block: { source_item_id: string | null; source_quote: string | null },
+  resolved: string | null
+): CitationState {
+  if (!block.source_item_id) return 'absent'
+  if (resolved === null) return 'absent'
+  if (!block.source_quote) return 'live'
+  return norm(resolved).includes(norm(block.source_quote)) ? 'live' : 'drifted'
+}
+
+/**
+ * The avatar tile glyph.
+ *
+ * Spread rather than `name[0]`: an emoji is a surrogate pair, and indexing
+ * splits it into half a character that renders as a replacement glyph. The
+ * stub's own demo data used '⚓', so this was reachable on day one.
+ */
+export function workspaceInitial(name: string): string {
+  const trimmed = name.trim()
+  if (!trimmed) return '+'
+  // codePointAt/fromCodePoint rather than [0] or a spread: this file compiles
+  // below the ES2015 iteration target, and indexing would return half a
+  // surrogate pair anyway.
+  return String.fromCodePoint(trimmed.codePointAt(0)!)
+}
+
+/**
+ * One company names itself; several are counted; none is not invented.
+ *
+ * DERIVED, never stored — a workspace can be about one issuer or about a whole
+ * sector, and a `company_id` column could not represent the second without
+ * picking one of them and lying about the rest.
+ */
+export function deriveCompany(companyNames: string[], dict: Dictionary): string {
+  // filter/indexOf rather than a Set spread, same ES2015 iteration reason as
+  // workspaceInitial above. A source with no company must not count as one.
+  const unique = companyNames.filter((n, i) => n && companyNames.indexOf(n) === i)
+  if (unique.length === 0) return dict.workspace.companyNone
+  if (unique.length === 1) return unique[0]
+  return dict.workspace.companyMany.replace('{n}', String(unique.length))
+}
+
+/** The second half of the picker subtitle. Inflects at one in both locales. */
+export function deriveSub(count: number, dict: Dictionary): string {
+  if (count === 1) return dict.workspace.sourceOne
+  return dict.workspace.sourceMany.replace('{n}', String(count))
+}
+
+export function presentWorkspace(
+  row: WorkspaceRow,
+  items: WorkspaceItemRow[],
+  companyNames: string[],
+  now: Date,
+  locale: Locale,
+  dict: Dictionary
+): Workspace {
+  const company = deriveCompany(companyNames, dict)
+  const sub = deriveSub(items.length, dict)
+
+  return {
+    id: row.id,
+    name: row.name,
+    company,
+    sub,
+    subtitle: `${company} · ${sub}`,
+    fileCount: items.length,
+    updatedLabel: relativeLabel(row.updated_at, now, locale),
+    initial: workspaceInitial(row.name),
+    files: items.map((i): WsFile => ({
+      id: i.id,
+      name: i.name,
+      kind: i.kind,
+      // The persisted "how I left it" flag reaching the UI, which initialises
+      // its open tabs from exactly this rather than defaulting to the first
+      // source every time.
+      live: i.is_open,
+    })),
+    // Agent execution is out of scope this chapter, so a real workspace has
+    // none. EMPTY, never the demo agent constants — feeding those into a row
+    // that came out of the database would put invented findings on a real page.
+    agents: [],
+    actions: [],
+    docTitle: row.doc_title,
+  }
+}

@@ -131,6 +131,16 @@ export const he: Dictionary = {
     removeFromSplit: 'הסרה מהתצוגה המפוצלת',
     resetSplit: 'איפוס רוחב',
     workspaceChat: 'שיחת סביבת העבודה',
+
+    // ── נגזר בזמן הרנדור מהשורות השמורות (מיגרציה 016) ─────────────────────
+    companyNone: 'ללא שם',
+    companyMany: '{n} חברות',
+    // 'מקור אחד' ולא '1 מקור' — הצורה המספרית נשמעת כמו טקסט ממשק שנשכח.
+    sourceOne: 'מקור אחד',
+    sourceMany: '{n} מקורות',
+
+    citationDrifted: 'המקור זז — הציטוט כבר לא נמצא בשורה הזו',
+    citationAbsent: 'המקור הוסר מסביבת העבודה',
   },
   agents: {
     ready: 'מוכן כשאתם מוכנים.',

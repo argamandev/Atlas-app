@@ -135,6 +135,22 @@ export const en = {
     removeFromSplit: 'Remove from split',
     resetSplit: 'Reset widths',
     workspaceChat: 'Workspace chat',
+
+    // ── Derived at render from persisted rows (migration 016) ──────────────
+    // A workspace's company is DERIVED from its sources, never stored: one
+    // workspace is about Tigbur, another is about three companies at once, and
+    // a stored column could not represent the second without lying.
+    companyNone: 'Untitled',
+    companyMany: '{n} companies',
+    // Both locales inflect at one: "1 sources" / "1 מקורות" would ship to the UI.
+    sourceOne: '1 source',
+    sourceMany: '{n} sources',
+
+    // A citation must never render as a working link when it is not one.
+    // `drifted` is the dangerous case: the anchor still resolves, but the
+    // transcript was re-processed and the line now holds different words.
+    citationDrifted: 'The source moved — this quote is no longer at that line',
+    citationAbsent: 'The source was removed from this workspace',
   },
   agents: {
     ready: 'Ready when you are.',
