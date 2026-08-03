@@ -13,14 +13,20 @@
 // .claude/rules/app.md (degradation must be VISIBLE).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type WsFileKind = 'pdf' | 'xlsx' | 'slide'
+/**
+ * The first three are the REAL provenances a persisted item can have (migration
+ * 016). The last three are legacy display kinds still used by the agent and
+ * legal demo constants further down this file, which stay demo this chapter
+ * because agent execution needs the deploy.
+ */
+export type WsFileKind = 'transcript' | 'document' | 'file' | 'pdf' | 'xlsx' | 'slide'
 
 export type WsFile = {
   id: string
   name: string
   kind: WsFileKind
   year?: string
-  /** the file the workspace is currently centred on */
+  /** open in the side-by-side view — persisted as workspace_items.is_open */
   live?: boolean
 }
 
@@ -295,17 +301,12 @@ export const LEGAL_SEVERITY_STYLE: Record<LegalSeverity, { color: string; backgr
  * "Actions taken" count 10 for Tigbur rather than 8.
  */
 export function workspaceSessions(w: Workspace): WsSession[] {
-  const live: WsAction[] = [...w.actions]
-    .reverse()
-    .map((text, i) => ({
-      text,
-      when: i === 0 ? 'just now' : i === 1 ? '4m ago' : '12m ago',
-      kind: /legal|agent|deploy/i.test(text) ? 'agent' : /built|index|fetch/i.test(text) ? 'build' : 'open',
-    }))
-  return [
-    { ...WS_SESSIONS[0], items: [...live, ...WS_SESSIONS[0].items] },
-    ...WS_SESSIONS.slice(1),
-  ]
+  const live: WsAction[] = [...w.actions].reverse().map((text, i) => ({
+    text,
+    when: i === 0 ? 'just now' : i === 1 ? '4m ago' : '12m ago',
+    kind: /legal|agent|deploy/i.test(text) ? 'agent' : /built|index|fetch/i.test(text) ? 'build' : 'open',
+  }))
+  return [{ ...WS_SESSIONS[0], items: [...live, ...WS_SESSIONS[0].items] }, ...WS_SESSIONS.slice(1)]
 }
 
 export async function getWorkspaces(): Promise<Workspace[]> {
@@ -332,4 +333,83 @@ export function emptyWorkspace(id: string, name: string): Workspace {
     actions: [],
     docTitle: 'Untitled document',
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Row shapes, exactly as migration 016 defines them.
+//
+// These are FACTS. Everything the display shapes above add — updatedLabel,
+// initial, subtitle, fileCount, company — is DERIVED at render by
+// ./present.ts and is deliberately absent here. Storing "2h ago" freezes it
+// forever, which is what the stub above did.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The three real provenances an item can have. Not the legacy display kinds. */
+export type WsItemKind = 'transcript' | 'document' | 'file'
+
+export type WsBlockKind = 'heading' | 'text' | 'quote'
+
+/**
+ * Whether a citation is still telling the truth. `drifted` exists because a
+ * re-processed transcript keeps its line ids while their sentences change, so a
+ * citation can resolve to the WRONG words — which must never render as a
+ * working link. See citationState() in ./present.
+ */
+export type CitationState = 'live' | 'drifted' | 'absent'
+
+export type WorkspaceRow = {
+  id: string
+  user_id: string
+  name: string
+  doc_title: string
+  created_at: string
+  updated_at: string
+}
+
+export type WorkspaceItemRow = {
+  id: string
+  workspace_id: string
+  user_id: string
+  /** text, not uuid — transcripts.id is text */
+  transcript_id: string | null
+  document_id: string | null
+  storage_path: string | null
+  name: string
+  kind: WsItemKind
+  /** open in the side-by-side view; survives the browser closing */
+  is_open: boolean
+  /** orders ALL items, not only the open ones */
+  position: number
+  created_at: string
+}
+
+export type WorkspaceThreadRow = {
+  id: string
+  workspace_id: string
+  user_id: string
+  title: string
+  messages: unknown[]
+  created_at: string
+  updated_at: string
+}
+
+export type WorkspaceBlockRow = {
+  id: string
+  workspace_id: string
+  user_id: string
+  kind: WsBlockKind
+  body: string
+  position: number
+  /** null once the cited source left the shelf — the "visibly absent" state */
+  source_item_id: string | null
+  /** snapshot, so an absent source is informative rather than a dangling marker */
+  source_label: string | null
+  /** a document page */
+  source_page: number | null
+  /** a transcript line, e.g. 'L0001' */
+  source_line_id: string | null
+  /** snapshot of the quoted words — what makes drift detectable */
+  source_quote: string | null
+  created_at: string
+  updated_at: string
 }

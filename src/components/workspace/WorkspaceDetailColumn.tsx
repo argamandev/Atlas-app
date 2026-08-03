@@ -16,7 +16,14 @@ import {
 
 export type DetailKey = 'files' | 'agents' | 'chats' | 'actions'
 
+// The three REAL provenances carry NO `meta`: a persisted item's page or line
+// count is not known here, and the demo kinds below get theirs from fabricated
+// demo content. Inventing "68 pages" for a row that came out of the database
+// would be the stub problem all over again — a real page showing a made-up fact.
 const KIND: Record<WsFileKind, { label: string; cls: string; meta: string }> = {
+  transcript: { label: 'CALL', cls: 'text-[#4A6E8A] bg-[rgba(74,110,138,.12)]', meta: '' },
+  document: { label: 'DOC', cls: 'text-[#9C6B4E] bg-[rgba(156,107,78,.12)]', meta: '' },
+  file: { label: 'FILE', cls: 'text-ink-ghost bg-[rgba(0,0,0,.05)]', meta: '' },
   pdf: { label: 'PDF', cls: 'text-[#9C6B4E] bg-[rgba(156,107,78,.12)]', meta: '68 pages' },
   xlsx: { label: 'XLS', cls: 'text-[#4F7A52] bg-[rgba(79,122,82,.11)]', meta: '4 sheets' },
   slide: { label: 'DECK', cls: 'text-[#6A5F8C] bg-[rgba(106,95,140,.12)]', meta: '24 slides' },
@@ -91,13 +98,19 @@ export function WorkspaceDetailColumn({
                     onClick={() => onOpenFile(f.id)}
                     className="min-w-0 flex-1 text-start"
                   >
-                    <div dir="ltr" className="truncate text-[12.5px] text-ink rtl:text-right">
-                      {f.name}
+                    {/* NOT dir="ltr": a persisted item's name is usually Hebrew
+                        (transcript titles are), and dir on the line resolves the
+                        WHOLE line from its first strong character — the exact
+                        damage .claude/rules/app.md files. <bdi> lets each run
+                        resolve on its own; the container keeps the direction. */}
+                    <div className="truncate text-[12.5px] text-ink">
+                      <bdi>{f.name}</bdi>
                     </div>
-                    <div dir="ltr" className="truncate text-[11px] text-ink-ghost rtl:text-right">
-                      {f.year ? `${f.year} · ` : ''}
-                      {k.meta}
-                    </div>
+                    {[f.year, k.meta].some(Boolean) && (
+                      <div className="truncate text-[11px] text-ink-ghost">
+                        {[f.year, k.meta].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
                   </button>
                   {isOpen ? (
                     <button
