@@ -131,12 +131,49 @@ personal-layer data per `docs/DATA-MODEL.md`.
 > a **composite** key instead. This block is kept as the record of what was designed and why it
 > changed — read the migration, not this snippet.
 
-**What was designed (rejected):**
+**What was designed (rejected — DO NOT RUN):**
+
+Every line below is commented out on purpose. It was previously published as live,
+copy-pasteable SQL sitting under a line reading `-- APPLIED (migration 20260802_015)`,
+which is two untruths at once: this shape was never applied, and the database it would
+have run against is shared with deployed production Timlul. `~~strikethrough~~` does not
+render inside a fenced block, so the only safe way to publish rejected DDL is to make it
+non-executable.
+
+```sql
+-- REJECTED AT THE DDL GATE — NOT APPLIED, NOT SAFE TO RUN.
+-- The single-column key does not constrain WHOSE project is referenced.
+--
+-- alter table public.chat_conversations
+--   add column project_id uuid references public.projects (id) on delete cascade;
+```
+
+**What was actually applied** (`20260802_015_projects.sql:129-146`) — the column bare, then
+the composite key separately, because `add column if not exists` cannot carry one:
 
 ```sql
 alter table public.chat_conversations
-  add column project_id uuid references public.projects (id) on delete cascade;
+  add column if not exists project_id uuid;
+
+create index if not exists chat_conversations_project_id_idx
+  on public.chat_conversations (project_id);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'chat_conversations_project_fk'
+  ) then
+    alter table public.chat_conversations
+      add constraint chat_conversations_project_fk
+      foreign key (project_id, user_id)
+      references public.projects (id, user_id)
+      on delete cascade;
+  end if;
+end $$;
 ```
+
+*(Transcribed from `20260802_015_projects.sql`, not from memory — a first pass at this block
+invented the constraint name `chat_conversations_project_owner_fkey`, which does not exist.)*
 
 **What was applied:** a bare nullable `project_id` column plus a two-column foreign key
 `(project_id, user_id) → projects (id, user_id)`, which is why `projects` carries the otherwise
@@ -147,7 +184,8 @@ conversation under a project belonging to someone else: the database checks both
 
 `ADD COLUMN` is additive and allowed. The column is nullable: all 19 existing rows predate
 Projects and stay unaffected, which also keeps Timlul (which shares this table) working — it
-simply ignores a column it does not select.
+simply ignores a column it does not select. `MATCH SIMPLE` skips a NULL `project_id`, so every
+existing row validates, including the 7 whose owner no longer exists.
 
 **Ownership of a project chat runs through the project, not through `chat_conversations.user_id`.**
 That table's `user_id` has no foreign key and cannot be given one (§10), so the design does not
@@ -218,6 +256,21 @@ that ratio. Two consequences that are requirements, not nice-to-haves:
   instructions and answer anyway — that is the silent-degradation class in `.claude/rules/app.md`.
 - If injection is cut for time, the instructions/memory UI must state that they are not yet applied.
   Stored-but-ignored instructions are the same defect wearing a different hat.
+
+**Amended 2026-08-02 after review.** "That ratio" has to mean the ratio of what is actually sent,
+not of the raw fields — the first implementation summed `instructions + memory + bodies` and missed
+the framing header, the label line per section and every source name, so a project could read 97%
+while the server was already cutting it, and the over-capacity warning never fired for the people
+who needed it. The meter now calls `buildProjectContext()` itself and reads its `fullLength`, so
+the number the user sees and the number the server enforces are one function and cannot drift.
+Two further consequences of the same principle, both now implemented:
+
+- A note with an empty body is skipped by the injector, so it is neither charged to the budget nor
+  counted in "*n* sources in context". Clicking **+** used to raise that count without changing
+  anything the model received.
+- Truncation and a failed context load are both reported to the client on `x-project-context` and
+  rendered on the answer itself. The first version set a header no client read, which is
+  indistinguishable from not reporting at all.
 
 ## 8. The auth fix — separate commit, founder awake
 

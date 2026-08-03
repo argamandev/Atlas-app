@@ -25,6 +25,11 @@ export const he: Dictionary = {
     empty: 'אין כאן עדיין כלום',
     comingSoon: 'בקרוב',
     quickAccess: 'גישה מהירה',
+    // Shown INSTEAD of a raw 401 body. The server says "unauthorized"; that is
+    // not something to put in front of a user, and it hides the one action that
+    // fixes it.
+    sessionExpired: 'תוקף ההתחברות שלך פג.',
+    signIn: 'התחברות',
   },
   nav: {
     product: 'מוצר',
@@ -245,6 +250,20 @@ export const he: Dictionary = {
     snipDefault: 'הסבירו מה מציג הקטע המצורף.',
     snipFailed: 'הגזירה נכשלה — נסו שוב',
     snipTooBig: 'הגזיר גדול מדי — סמנו אזור קטן יותר',
+    historyFailed: 'לא ניתן לטעון את השיחות — {error}',
+    // Two DIFFERENT failures, deliberately not one string. Before this, both were
+    // written into the assistant bubble as if Atlas had said them: the first left
+    // the user with a server string where an answer belongs, and the second threw
+    // away an answer that had already arrived in full.
+    answerFailed: 'אטלס לא הצליח להשיב — {error}',
+    // The stream broke partway. What is on screen is real but INCOMPLETE, and
+    // saying either "could not answer" or "was not saved" about it would be
+    // false in opposite directions.
+    answerTruncated: 'התשובה נקטעה לפני שהסתיימה — {error}',
+    // The same fact, read back from storage. No {error}: the cause did not
+    // survive the reload and naming one would be an invention.
+    answerWasTruncated: 'התשובה נקטעה לפני שהסתיימה.',
+    notSaved: 'התשובה התקבלה אך לא נשמרה — {error}',
     pageShort: 'עמ׳',
     suggestions: [
       'סכמו את שיחת המשקיעים האחרונה בשלוש נקודות',
@@ -419,6 +438,8 @@ export const he: Dictionary = {
     pin: 'הצמדת פרויקט',
     composerPlaceholder: 'התחלת שיחה ב־{name}…',
     sourcesInContext: '{count} מקורות בהקשר',
+    sourceInContext: 'מקור אחד בהקשר',
+    send: 'שליחה',
     recents: 'אחרונות',
     noChats: 'אין עדיין שיחות.',
     noChatsHint: 'כל שאלה כאן יורשת את ההנחיות וההקשר של הפרויקט.',
@@ -444,6 +465,9 @@ export const he: Dictionary = {
     loadFailed: 'לא ניתן לטעון את הפרויקטים — {error}',
     loadOneFailed: 'לא ניתן לטעון את הפרויקט הזה — {error}',
     openChatFailed: 'לא ניתן לפתוח את השיחה — {error}',
+    contextFailed:
+      'התשובה נכתבה בלי ההקשר של הפרויקט — לא ניתן היה לטעון אותו, ולכן ההנחיות, הזיכרון וההערות שלכם לא הגיעו לאטלס.',
+    contextTruncated: 'ההקשר של הפרויקט היה ארוך מדי ונחתך, ולכן אטלס לא ראה את כולו.',
     context: 'הקשר',
     searchContext: 'חיפוש בהקשר',
     addContext: 'הוספה להקשר',

@@ -537,3 +537,46 @@ single-use — the fix is auto-register → fresh tk → launch bot, see VISION 
   "localhost-only engine" mitigation was false; and every `lib/db` module except `projects.ts`
   still queries through `supabaseAdmin`, so authentication is not yet authorisation.
 - Battery on merged main: **194/194 · tsc exit 0 · build green**. Merge `164c892`.
+
+## 2026-08-03 — `fix/projects-honesty` merged (`af85deb`): the UI stops saying untrue things
+
+Lane M's Projects debt round, finished by the supervisor across four cold review rounds because the
+founder chose not to interrupt a live Workspace lane to do it.
+
+**What changed for a user.** An error is no longer rendered as Atlas's answer, and a save failure no
+longer destroys an answer that already arrived. The "answered without your project's full context"
+notice and the "this answer was cut off" fact are both persisted, so one page refresh no longer
+turns a degraded answer into a confident complete one. An expired session offers a route back to
+sign-in instead of the bare word `unauthorized` under a heading blaming the wrong thing. Opening a
+slow conversation can no longer silently replace a newer one on screen. And `POST /api/conversations`
+refuses an unidentified caller instead of writing rows under a shared demo identity.
+
+**The decision worth recording is the one about verification, not the code.**
+
+Four gates ran. Three found a BLOCKER in the supervisor's own work; the fourth found none, and that
+convergence — not fatigue — is what the merge decision rested on. Each blocker was created by the
+previous round's fix, which is the pattern the fourth round was explicitly pointed at.
+
+Three lessons graduated to `ready-queue.md`, all sharper versions of rules this repo already had:
+
+1. **A command answers the question you typed, not the question you meant.** The standing rule "a
+   count comes from a command, never from another document" was FOLLOWED and still produced a false
+   claim: coverage of a new sign-in branch was checked with a grep for the PROP, and half the sites
+   had the prop while being unable to use it. When the claim is about behaviour, the check must
+   execute the behaviour.
+2. **Close a lesson for its class, not its instance.** One unregistered test file was fixed as one
+   file; the next round found two more that had never run. Both directions are now enforced by
+   `testRegistry.test.ts`.
+3. **A guard is worthless until it has been seen to fail.** The guard written to prevent recurrence
+   passed on the reintroduced bug, because it matched an identifier inside a comment — the same
+   defect `apiAuthBoundary.test.ts` had been fixed for days earlier. Every guard added here was
+   proven to bite before being trusted.
+
+**Deliberately not fixed, and filed with its remedy:** `/api/chat` fabricates an answer at three
+sites when the model returns nothing or is unconfigured, and the server cannot tell the client a
+stream ended early (the token cap ends it with a clean close; nothing checks `finishReason`). The
+honest fix changes the path every user hits and could not be verified without stubbing the upstream.
+Shipping that reasoned-only at round four is how a fifth round starts.
+
+Battery on merged main: **229/229 across 37 files · tsc exit 0 · build green · Middleware 81.8 kB**.
+`feat/workspace-backend` deleted, both tips verified contained first. Next: Railway.

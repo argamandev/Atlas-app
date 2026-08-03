@@ -1,6 +1,10 @@
 // Shared domain types for the V1 product (companies, calls, quotes). Used by the
 // server data layer (lib/db), the route handlers, and the client fetchers (lib/api).
 
+// Type-only, and erased at build. `chat.ts` imports nothing from this file, so
+// there is no cycle — the status lives beside the header that produces it.
+import type { ProjectContextStatus } from './chat'
+
 // DELETED 2026-08-03 — `DEMO_USER_ID = '00000000-…'`, the id used "when there is no auth session
 // (public demo)". Its old comment argued it was safe to persist because supabaseAdmin bypasses
 // RLS and neither quotes nor followed_calls FK to auth.users. That was the problem, not the
@@ -81,6 +85,37 @@ export function companyDisplayName(
 export interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
+  /**
+   * Set when this answer did NOT get its project's context whole. PERSISTED with
+   * the message, not merely held in view state.
+   *
+   * It rides in the existing `messages` jsonb, so this costs no migration. It is
+   * here rather than in the component because the notice used to live only in
+   * React state: `saveConversation` wrote `{role, content}`, so one reload turned
+   * "answered without your instructions" into an answer that looked complete.
+   * A degradation the user can refresh away is not a visible degradation.
+   *
+   * Always sanitise on READ (see `sanitizeContextStatus`) — this column is a
+   * jsonb blob that predates the field, so absent, stale and hand-written values
+   * all have to land on `null` rather than on a rendered banner.
+   */
+  projectContext?: ProjectContextStatus | null
+  /**
+   * This answer's stream BROKE partway, so the stored text is real but partial.
+   * PERSISTED for the same reason `projectContext` is.
+   *
+   * Without it, the fix for "an error rendered as an answer" quietly created a
+   * new false state: the partial text has non-empty content, so it survived the
+   * empty-turn filter and was written into the thread on the next successful
+   * send as an ordinary complete answer. `errorKind` is view state and does not
+   * persist, so one reload turned half an answer into Atlas's whole answer —
+   * rendered through Markdown, often mid-sentence, and replayed to the model as
+   * its own prior turn. Strictly worse than the untrue-but-visible state it
+   * replaced, because nothing on screen says anything is missing.
+   *
+   * Sanitise on READ like `projectContext`: only `true` counts.
+   */
+  truncated?: boolean | null
 }
 
 export interface Conversation {

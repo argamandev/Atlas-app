@@ -13,6 +13,9 @@ const ATLAS_ROOTS = [
   'src/components/chat',
   'src/components/company',
   'src/components/calendar',
+  // Added 2026-08-02: this folder existed for a day outside the guard, so its
+  // files could have imported Timlul and nothing would have said so.
+  'src/components/projects',
 ]
 
 // Legacy folders Atlas may not depend on.

@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { presentProject, presentChats } from './present'
 import { PROJECT_CONTEXT_BUDGET } from './derive'
+import { buildProjectContext } from '@/lib/chat/projectContext'
 import { en } from '@/lib/i18n/dictionaries/en'
 import { he } from '@/lib/i18n/dictionaries/he'
 import type { ProjectRow, ProjectSourceRow } from './data'
@@ -54,17 +55,33 @@ test('an empty source is labelled empty rather than claiming content', () => {
   assert.equal(p.context[0].meta, en.projects.sourceEmpty)
 })
 
-test('capacity reflects instructions, memory and every source body', () => {
-  const p = presentProject(
-    row({ instructions: 'i'.repeat(400), memory: 'm'.repeat(400) }),
-    [source({ body: 'b'.repeat(800) })],
-    [],
-    NOW,
-    'en',
-    en
-  )
-  assert.equal(p.capacity, Math.round((1600 / PROJECT_CONTEXT_BUDGET) * 100))
+test('capacity reflects the block the server actually sends', () => {
+  const r = row({ instructions: 'i'.repeat(400), memory: 'm'.repeat(400) })
+  const s = source({ body: 'b'.repeat(800) })
+  const p = presentProject(r, [s], [], NOW, 'en', en)
+
+  // Expected comes from the injector, not from a hand-summed constant — a
+  // number typed here would be free to drift away from what is sent, which is
+  // exactly the defect this replaces (the old assertion said 1600 chars while
+  // the real block is larger).
+  const real = buildProjectContext({
+    name: r.name,
+    instructions: r.instructions,
+    memory: r.memory,
+    sources: [{ name: s.name, body: s.body }],
+  }).fullLength
+  assert.ok(real > 1600, 'the framing the server adds is part of the budget')
+  assert.equal(p.capacity, Math.round((real / PROJECT_CONTEXT_BUDGET) * 100))
   assert.equal(p.overBudget, false)
+})
+
+test('a blank note is not counted as context, in the meter or in the count', () => {
+  const withBlank = presentProject(row(), [source({ body: '   ' })], [], NOW, 'en', en)
+  const without = presentProject(row(), [], [], NOW, 'en', en)
+  // It still LISTS — the user wrote it and can go fill it in — but it costs
+  // nothing, because buildProjectContext skips a source with no body.
+  assert.equal(withBlank.context.length, 1)
+  assert.equal(withBlank.capacity, without.capacity)
 })
 
 test('a project past the budget reports overBudget so the UI can say so', () => {

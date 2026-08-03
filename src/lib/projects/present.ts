@@ -22,10 +22,14 @@ export function presentProject(
   locale: Locale,
   dict: Dictionary
 ): Project {
+  // Measured through the injector itself, so `capacity` is the real ratio of
+  // what gets sent — name, framing header, section labels and source names all
+  // included, exactly as the server counts them.
   const used = contextChars({
+    name: row.name,
     instructions: row.instructions,
     memory: row.memory,
-    bodies: sources.map((s) => s.body),
+    sources: sources.map((s) => ({ name: s.name, body: s.body })),
   })
 
   return {
