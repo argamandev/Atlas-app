@@ -275,10 +275,22 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `utils.ts` | Small helpers (`cn()` class merge, `isValidVideoUrl`). |
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
 | `apiAuthBoundary.test.ts` | Build-enforced guard: every exported HTTP handler under `src/app/api` must resolve a signed-in user **and act on the result**, or be listed in its `PUBLIC` allowlist **with a reason**. Also bans any `DEMO_USER_ID` reference across `src/app` — the constant itself was deleted from `lib/api/types.ts` on 2026-08-03, so the ban is structural. Added because the holes it closes were months of drift, not one mistake, and because the fleet's own notes described them as "two routes" when a command found 16 sites in 8 files. It is a TEXT scan with stated limits in its own header: it proves the auth result is checked, **not** that the check precedes anything expensive, and **not** that the caller may touch the row it reads (that is the `lib/db` modules' job — most still use `supabaseAdmin`, which bypasses RLS). Fails closed on auth helpers it does not know and on handler shapes it cannot parse. |
+| `api/client.ts` | The browser's fetch layer: `apiGet/apiPost/apiPatch/apiDelete`, plus `ApiError` (carrying the HTTP `status`), `isUnauthorized()` and the exported `handleResponse()`. **`handleResponse` is the only place allowed to decide what a failed request throws** — it was private, and `lib/projects/client.ts` promptly grew a second `throw new Error(...)` that lost the status, which made the sign-in-on-401 branch unreachable on every Projects screen. |
+| `projects/client.ts` | The browser's door to `/api/projects*`. Owns its `cache: 'no-store'` and headers; delegates the failure path to `handleResponse` rather than throwing its own. |
+| `db/conversationScope.ts` | Two pure decisions for the conversations layer: `isMissingTable(err, table)` (narrow — a missing *column* must not downgrade the whole process to the in-memory store) and `resolveProjectId(body)`, which parses an untrusted body and **carries no user identity by design**; the route resolves and refuses the caller itself. |
+| `components/projects/ErrorLine.tsx` | The shared error line. Owns its own block wrapper (so a caller's flex layout cannot blockify the `<bdi>` and split one message across two rows) and, given an `auth` prop, renders expired-session copy plus a sign-in route via `loginRedirectTarget` when the thrown value is a 401 — which is why it takes the thrown value and not its message. |
+| `api/errorShape.test.ts` | Build-enforced guard: any fetch layer reachable from an error banner that offers a sign-in route must throw `ApiError`, not a plain `Error`. Blanks comments before scanning, with a canary — its first version matched the word `ApiError` inside a comment and failed to bite when the bug was reintroduced to test it. |
+| `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **194 tests across 30 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **211 tests across 33 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
+Both numbers regenerated from commands, never edited by hand: the file count from
+`package.json`'s test script, the test count from a real run. A file created but not registered
+there never runs — `api/errorShape.test.ts` was written and left unregistered for an hour, so it
+was in the tree, passing when invoked directly, and absent from the battery.
+
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `apiAuthBoundary.test.ts`
+· `api/errorShape.test.ts` · `api/contextStatus.test.ts` · `db/conversationScope.test.ts`
 · `live/finishLiveCall.test.ts` · `live/liveTiming.test.ts` · `live/ivritStitcher.test.ts`
 · `live/pcmChunker.test.ts` · `live/wavEncode.test.ts` · `live/call-stubs.test.ts`
 · `live/snipBridge.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`

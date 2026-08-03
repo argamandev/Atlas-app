@@ -80,8 +80,14 @@ export async function createConversation(
     /**
      * When set, this chat belongs to a project. The composite key
      * (project_id, user_id) -> projects(id, user_id) means the DATABASE refuses
-     * a project that is not this user's — including the DEMO_USER_ID fallback
-     * the route uses when nobody is signed in.
+     * a project that is not this user's.
+     *
+     * This used to add "— including the DEMO_USER_ID fallback the route uses
+     * when nobody is signed in". There is no such fallback: the route refuses an
+     * unidentified caller with a 401, and the constant is deleted from the repo.
+     * The key still earns its place — it defends against one signed-in user
+     * naming another's project id — but the sentence describing a caller that
+     * can no longer exist had to go.
      */
     projectId?: string | null
   }

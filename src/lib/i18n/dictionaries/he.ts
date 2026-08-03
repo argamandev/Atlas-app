@@ -246,6 +246,10 @@ export const he: Dictionary = {
     // the user with a server string where an answer belongs, and the second threw
     // away an answer that had already arrived in full.
     answerFailed: 'אטלס לא הצליח להשיב — {error}',
+    // The stream broke partway. What is on screen is real but INCOMPLETE, and
+    // saying either "could not answer" or "was not saved" about it would be
+    // false in opposite directions.
+    answerTruncated: 'התשובה נקטעה לפני שהסתיימה — {error}',
     notSaved: 'התשובה התקבלה אך לא נשמרה — {error}',
     pageShort: 'עמ׳',
     suggestions: [

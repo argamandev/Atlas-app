@@ -43,11 +43,16 @@ interface Msg {
    */
   error?: unknown
   /**
-   * Which half failed. `answer` = nothing arrived. `save` = the answer is real
-   * and on screen, only persistence failed. Rendering one sentence for both
-   * would make one of them a lie.
+   * Which half failed. `answer` = nothing arrived. `truncated` = the stream
+   * broke partway, so the text on screen is REAL but incomplete. `save` = the
+   * answer finished and only persistence failed.
+   *
+   * Three, not two. A first version keyed off `full.length > 0` and folded
+   * `truncated` into `save`, telling the user "this answer arrived but was not
+   * saved" about half an answer — presenting an incomplete reply as a complete
+   * one, which is the exact class this branch exists to remove.
    */
-  errorKind?: 'answer' | 'save'
+  errorKind?: 'answer' | 'truncated' | 'save'
 }
 
 export function ChatView({
@@ -159,6 +164,13 @@ export function ChatView({
       })
 
     let full = ''
+    // Did the model's stream finish? Distinguishes a mid-stream break from a
+    // failure that happened AFTER a complete answer arrived. `full.length > 0`
+    // cannot tell those apart — a stream that broke halfway also has content —
+    // and labelling a truncated answer "arrived but was not saved" presents an
+    // incomplete answer as a complete one, which is the defect this branch
+    // exists to remove rather than relocate.
+    let streamFinished = false
     try {
       const { source, projectContext } = await streamChat(
         {
@@ -174,6 +186,7 @@ export function ChatView({
           scrollToEnd()
         }
       )
+      streamFinished = true
       setLastAssistant({ content: full, source, projectContext, streaming: false })
 
       // Persist the full thread — create the conversation lazily on the first exchange.
@@ -183,11 +196,21 @@ export function ChatView({
       // degradation was visible exactly until the user did the most ordinary
       // thing possible. Prior messages carry theirs through unchanged.
       const fullThread = [
-        ...priorMessages.map((m) => ({
-          role: m.role,
-          content: m.content,
-          projectContext: m.projectContext ?? null,
-        })),
+        ...priorMessages
+          // A turn that FAILED leaves an assistant message with empty content —
+          // its error lives in `error`/`errorKind`, which are view state and are
+          // not persisted. Writing it through anyway stored `{role:'assistant',
+          // content:''}`, so reloading the thread showed the user's question
+          // followed by a silently blank reply: the fix for "an error rendered
+          // as an answer" had traded it for "nothing rendered at all", which
+          // rules/app.md ranks as the worse of the two. Drop the empty turn; the
+          // question stands on its own and nothing claims to be a reply.
+          .filter((m) => !(m.role === 'assistant' && m.content.length === 0))
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+            projectContext: m.projectContext ?? null,
+          })),
         { role: 'user' as const, content: text },
         { role: 'assistant' as const, content: full, projectContext: projectContext ?? null },
       ]
@@ -211,7 +234,7 @@ export function ChatView({
       setLastAssistant({
         streaming: false,
         error: err,
-        errorKind: full.length > 0 ? 'save' : 'answer',
+        errorKind: streamFinished ? 'save' : full.length > 0 ? 'truncated' : 'answer',
       })
     } finally {
       setSending(false)
@@ -387,7 +410,13 @@ export function ChatView({
                 {m.error != null && !m.streaming && (
                   <p role="alert" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
                     <ErrorLine
-                      template={m.errorKind === 'save' ? dict.chat.notSaved : dict.chat.answerFailed}
+                      template={
+                        m.errorKind === 'save'
+                          ? dict.chat.notSaved
+                          : m.errorKind === 'truncated'
+                            ? dict.chat.answerTruncated
+                            : dict.chat.answerFailed
+                      }
                       error={m.error}
                       auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
                     />

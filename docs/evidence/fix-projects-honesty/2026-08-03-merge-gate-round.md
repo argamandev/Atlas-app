@@ -8,7 +8,11 @@ fix-and-self-review still applies: this goes through a fresh cold `atlas-reviewe
 merge, exactly as `fix/api-security` did.
 
 **Commits this round:** `485e000` (merge) · `8065c48` (the five UI findings) · `0455c37` (spec) ·
-plus the sanitizer test. Branch base `bba0a21`.
+`851e03b` (sanitizer test + this file) · plus the round-two commits in §9.
+
+**Merge-base with main is `c27995a`** — `git merge-base main fix/projects-honesty`. An earlier
+version of this line said `bba0a21`, which was the base *before* main was merged in at `485e000`;
+I also briefed the round-two reviewer with that stale value and it corrected me (§9.6).
 
 ---
 
@@ -16,15 +20,23 @@ plus the sanitizer test. Branch base `bba0a21`.
 
 Listed first, because a previous round on this branch was blocked for evidence that overclaimed.
 
-- **No chat was sent through a model.** The `errorKind: 'save'` path — an answer that streamed in
-  full and then failed to persist — is reasoned from the code, not photographed. What IS shown is
-  that the error no longer occupies `content`; the save-vs-answer split is a two-branch conditional
-  over `full.length > 0` and is unit-testable but untested.
+- **No chat was sent through a model.** The `errorKind` paths — `answer`, `truncated`, `save` — are
+  reasoned from the code, not photographed. What IS shown is that the error no longer occupies
+  `content`. The three-way split keys off a `streamFinished` flag and remains unit-testable but
+  untested; round two rewrote it after the gate showed the original two-way split over
+  `full.length > 0` mislabelled a truncated answer as an unsaved one (§9.2).
 - **The persisted degradation notice was proven at the API layer, not by eye.** I did not force a
   real truncation through a project's context and then reload the page. What I did prove is the
   round trip that the fix depends on (§4).
-- **Only `/app/chat` and `/app/chat/projects` were loaded.** `ProjectView`'s own banner is not in
-  any frame this round; it takes the same `ErrorLine` change as the two that are.
+- **No `ProjectsList` or `ProjectView` error surface was exercised at all.** Not in a frame, not
+  forced, not probed.
+
+  > **This line previously read** *"`ProjectView`'s own banner is not in any frame this round; it
+  > takes the same `ErrorLine` change as the two that are."* That second clause is an affirmative
+  > claim wearing the costume of a disclaimer, and **it was false** — those screens use a different
+  > fetch layer, so their 401 branch was unreachable. It is the sentence that hid the round-two
+  > BLOCKER. Corrected in place rather than deleted, because the shape is the lesson: a
+  > "not proven" list must not smuggle in a reassurance about the thing it is declining to prove.
 - **The build claim is from a clean build with the dev server stopped and `.next` cleared** — but
   the browser pass above it ran against the DEV server, so the two are different artifacts.
 
@@ -98,19 +110,15 @@ The status was being **thrown away in the fetch layer** — `client.ts` turned e
 source: `ApiError` carries `status`, `isUnauthorized()` is the predicate, and `ErrorLine` takes the
 thrown value and renders the expired-session copy plus a sign-in button for a 401.
 
-Applied at **all 8** `ErrorLine` render sites, not the three the gate named — counted by command
-(`git grep -c "auth={{ expired:"`), which is also how the number in this sentence was corrected
-after a first draft wrote "five" above a list that summed to eight:
+Applied at all 8 `ErrorLine` render sites — but see §9. **Round one of this claim was wrong, and
+the way it was wrong is the most useful thing in this document.**
 
 ```
 src/components/chat/ChatHistory.tsx:2
-src/components/chat/ChatView.tsx:1        (new this round)
+src/components/chat/ChatView.tsx:1         (new this round)
 src/components/projects/ProjectView.tsx:3  (incl. the not-found screen)
 src/components/projects/ProjectsList.tsx:2
 ```
-
-`git grep -h "<ErrorLine" -- src | wc -l` is also 8, so coverage is total: there is no `ErrorLine`
-left that could render a 401 as a dead end.
 
 ## 4. WARNING — a notice that vanished on reload
 
@@ -203,3 +211,112 @@ none is a mock.
 filed rule. `:3001` is Lane S's held seat and was **left running** — killing another lane's dev
 server is a recorded past mistake. `:3002`, `:3003`, `:8788` free throughout. No migration, no DDL,
 no live-engine claim.
+
+---
+
+## 9. Round two — the gate found a BLOCKER in my own fix, and it was hiding behind a command
+
+The second cold gate returned **CHANGES**: 1 BLOCKER, 2 WARNING, 6 NIT. All closed below.
+
+### 9.1 BLOCKER — the sign-in route was dead on exactly the screens this branch is about
+
+`src/lib/projects/client.ts:16` threw a plain `new Error(body?.error ?? ...)`. `isUnauthorized()`
+tests `err instanceof ApiError`, so **four of the eight banners could never reach their 401
+branch** — and they were `ProjectsList` ×2 and `ProjectView` ×2, i.e. the Projects screens. On
+those, a 401 still rendered `Could not load your projects — unauthorized` with no way back. The
+repo has **two** fetch layers and I only fixed one.
+
+**How it survived my own verification, which is the part worth keeping.** I checked coverage with
+`git grep -c "auth={{ expired:"` and got 8, and wrote *"coverage is total"*. That command counts
+the **prop**. Every site had the prop; half could not use it. I had already learned "a claim in a
+document comes from a command" — and then satisfied it with a command that answered a question I
+had not asked.
+
+> **A command answers the question you typed, not the question you meant.** The corollary: when the
+> claim is about BEHAVIOUR, the check has to execute the behaviour, not match a token near it.
+
+**Fixed structurally, not locally.** `handleResponse()` is now exported from `lib/api/client.ts` and
+is the single place that decides what a failed request throws; `projects/client.ts` delegates to it
+instead of owning a second throw. Fixing only the one line would have left the next fetch layer free
+to repeat it.
+
+**And it now has a guard that was proven to bite** (`src/lib/api/errorShape.test.ts`): for every
+component rendering an `auth`-enabled `ErrorLine`, every `@/lib` module it imports that calls
+`fetch(` must reference `handleResponse` or `ApiError`.
+
+**The guard's first version was broken in the same way the thing it guards was.** It passed when I
+reverted the fix to test it — because `lib/projects/client.ts`'s explanatory comment contains the
+word `ApiError`, and the scan read prose as code. That is precisely the finding
+`apiAuthBoundary.test.ts` was fixed for days earlier. Now blanks comments, with a canary that fails
+loudly if blanking eats the file. Re-proven by reintroducing the bug:
+
+```
+✗ every data module reachable from a 401-capable error banner throws ApiError
+  + 'src\components\projects\ProjectsList.tsx → src\lib\projects\client.ts'
+  + 'src\components\projects\ProjectView.tsx → src\lib\projects\client.ts'
+```
+
+Fix restored; 5/5 green.
+
+### 9.2 WARNING — a truncated answer was labelled "not saved"
+
+`errorKind: full.length > 0 ? 'save' : 'answer'` cannot tell a mid-stream break from a completed
+answer that failed to persist — both have content. So a client-side `reader.read()` rejection told
+the user *"This answer arrived but was not saved"* about **half an answer**: an incomplete reply
+presented as complete, which is the class this branch exists to remove rather than relocate. Now
+three kinds keyed off a `streamFinished` flag set at the moment `streamChat` resolves — `answer`
+(nothing arrived) · `truncated` (real but cut off) · `save` (complete, unstored) — with new copy in
+both locales.
+
+**Carried, not fixed, and named because the gate found it:** a *server*-side mid-stream failure is
+caught and the stream closed **cleanly** (`src/app/api/chat/route.ts:321-326`), so it produces no
+notice at all. Pre-existing, outside this branch, and now filed rather than discovered later.
+
+### 9.3 WARNING — the fix had traded a wrong answer for a blank one
+
+A turn that failed left an assistant message with empty `content` (its error lives in view state,
+which is not persisted). The **next** successful send wrote that empty turn into the thread, so a
+reload rendered the user's question followed by a silently blank reply. I had traded "an error
+rendered as an answer" for "nothing rendered at all", which `rules/app.md` ranks as worse. Empty
+assistant turns are now dropped at persistence: the question stands alone and nothing claims to be
+a reply.
+
+### 9.4 NITs, all taken
+
+- `ErrorLine`'s 401 branch discarded `template` entirely, so a `notSaved` 401 announced the expired
+  session but not that the answer on screen is unsaved — and its sign-in button then navigates away
+  and destroys it. The template's head is now kept: *"This answer arrived but was not saved — Your
+  session has expired. Sign in"*.
+- `ChatHistory.openError` was cleared only by another open attempt, so it stood over a list that had
+  since reloaded fine — the mirror of the `ProjectView.write()` NIT fixed in round one. Now cleared
+  on a successful refresh.
+- `lib/db/conversations.ts:83` still described the composite key as guarding against "the
+  DEMO_USER_ID fallback the route uses when nobody is signed in". No such caller exists any more.
+- The spec cited `20260802_015_projects.sql:130-143`; the block is **129-146**. Verified by
+  `grep -n` and `sed`, not by trusting the finding.
+- `ARCHITECTURE.md` gained entries for `api/client.ts`, `projects/client.ts`,
+  `db/conversationScope.ts`, `components/projects/ErrorLine.tsx` and both new test files.
+- §0 and §3 of this document corrected in place (above).
+
+### 9.5 One thing the gate did not catch, found while closing its NITs
+
+**`api/errorShape.test.ts` was written, passing, and NOT REGISTERED in `package.json`.** It existed
+in the tree and passed when invoked directly, and would have been absent from every battery run —
+including the one I would have cited as proof it guards anything. Found only because regenerating
+the `ARCHITECTURE.md` test line from a command returned 32 files when I expected 33. Registered;
+the counts below come from that same command.
+
+### 9.6 The gate corrected my prompt, again
+
+I briefed the reviewer with merge-base `bba0a21`. `git merge-base main fix/projects-honesty` returns
+**`c27995a`** — merging main in moved it. Reviewing the range I gave would have dragged main's own
+`fix/api-security` commits into scope. The reviewer caught it and reviewed `main..851e03b` instead.
+Second round running, second stale number carried into a prompt from my own head.
+
+### 9.7 Battery after round two
+
+| check | result |
+|---|---|
+| `npm test` | **211 / 211** across **33 files** — both regenerated from commands (`package.json`'s test script for the file count, a real run for the test count) |
+| `npx tsc --noEmit` | **exit 0** |
+| dictionary parity | enforced by `tsc`; failed loudly mid-edit until `answerTruncated` existed in both locales |

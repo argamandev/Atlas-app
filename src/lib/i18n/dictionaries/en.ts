@@ -255,6 +255,10 @@ export const en = {
     // the user with a server string where an answer belongs, and the second threw
     // away an answer that had already arrived in full.
     answerFailed: 'Atlas could not answer — {error}',
+    // The stream broke partway. What is on screen is real but INCOMPLETE, and
+    // saying either "could not answer" or "was not saved" about it would be
+    // false in opposite directions.
+    answerTruncated: 'This answer was cut off before it finished — {error}',
     notSaved: 'This answer arrived but was not saved — {error}',
     pageShort: 'p.',
     suggestions: [

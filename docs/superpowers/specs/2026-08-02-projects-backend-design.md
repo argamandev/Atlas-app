@@ -148,7 +148,7 @@ non-executable.
 --   add column project_id uuid references public.projects (id) on delete cascade;
 ```
 
-**What was actually applied** (`20260802_015_projects.sql:130-143`) — the column bare, then
+**What was actually applied** (`20260802_015_projects.sql:129-146`) — the column bare, then
 the composite key separately, because `add column if not exists` cannot carry one:
 
 ```sql

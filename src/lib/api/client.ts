@@ -25,7 +25,19 @@ export function isUnauthorized(err: unknown): boolean {
   return err instanceof ApiError && err.status === 401
 }
 
-async function handle<T>(res: Response): Promise<T> {
+/**
+ * Turn a fetch Response into data, or throw an ApiError carrying the status.
+ *
+ * EXPORTED because it is the single place allowed to decide what a failed
+ * request throws. It was private, and the cost was immediate: `lib/projects/client.ts`
+ * is a SECOND fetch layer that grew its own `throw new Error(body.error)`, so
+ * `isUnauthorized()` — which needs `instanceof ApiError` — was false on every
+ * Projects screen. Four of the eight error banners could not reach their 401
+ * branch, and the sign-in route added for them was dead code on exactly the
+ * screens this branch is about. Any new fetch layer calls this; it does not
+ * write its own throw.
+ */
+export async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message = `Request failed (${res.status})`
     try {
@@ -40,11 +52,11 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  return handle<T>(await fetch(path, { credentials: 'include' }))
+  return handleResponse<T>(await fetch(path, { credentials: 'include' }))
 }
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  return handle<T>(
+  return handleResponse<T>(
     await fetch(path, {
       method: 'POST',
       credentials: 'include',
@@ -55,7 +67,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
-  return handle<T>(
+  return handleResponse<T>(
     await fetch(path, {
       method: 'PATCH',
       credentials: 'include',
@@ -66,5 +78,5 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function apiDelete<T>(path: string): Promise<T> {
-  return handle<T>(await fetch(path, { method: 'DELETE', credentials: 'include' }))
+  return handleResponse<T>(await fetch(path, { method: 'DELETE', credentials: 'include' }))
 }

@@ -57,8 +57,19 @@ export function ErrorLine({
   // cause, and send the user to sign in. Assignment rather than a <a href> so
   // nothing is computed from `window` during render.
   if (auth && isUnauthorized(error)) {
+    // Keep WHAT failed, not just why. The first version rendered only the
+    // expired-session sentence, so a 401 on `notSaved` told the user their
+    // session had lapsed while silently dropping the part that mattered most —
+    // that the answer on screen is unsaved and the sign-in button they are
+    // about to press navigates away from it.
+    const head = template
+      .split('{error}')
+      .join('')
+      .replace(/[\s—–-]+$/, '')
+      .trim()
     return (
       <span className="block">
+        {head && `${head} — `}
         {auth.expired}{' '}
         <button
           type="button"

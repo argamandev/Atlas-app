@@ -63,6 +63,11 @@ export function ChatHistory({
         if (!live) return
         setItems(rows)
         setListError(null)
+        // A successful reload also retires a stale "could not open that chat"
+        // line — it was cleared only by another open attempt, so it stood over a
+        // list that had since loaded fine. Same defect as the one fixed in
+        // ProjectView.write() this round, in the mirror position.
+        setOpenError(null)
       })
       .catch((e) => {
         if (!live) return
