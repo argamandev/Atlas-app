@@ -1,5 +1,3 @@
-import { DEMO_USER_ID } from '@/lib/api/types'
-
 // Pure decision logic for the conversations layer. Split out of the route and
 // the db module so it can be tested without a Supabase client or a request —
 // the wiring commit that introduced both rules shipped with no test at all.
@@ -37,22 +35,34 @@ export function isMissingTable(err: { code?: string; message?: string } | null, 
   )
 }
 
-export type ConversationScope =
-  { ok: true; userId: string; projectId: string | null } | { ok: false; status: 401 }
-
 /**
- * Who owns the conversation about to be created, and which project (if any) it
- * belongs to.
+ * Which project (if any) the conversation about to be created belongs to.
  *
- * A project chat needs a REAL user: projects are owner-scoped and the
- * DEMO_USER_ID fallback owns nothing, so attaching one would be refused by the
- * composite foreign key as a 500. Refusing it here makes it a 401, which is what
- * actually happened. An ordinary chat still falls back to the demo id, because
- * that path predates ownership and is not this chapter's to change.
+ * THIS FUNCTION DELIBERATELY CARRIES NO IDENTITY, and that is the whole point of
+ * its shape. It used to be `resolveConversationScope(realUserId, body)` and
+ * returned `userId: realUserId ?? DEMO_USER_ID` — it refused a PROJECT chat
+ * without a real user, and let an ordinary one fall through to the shared demo
+ * identity, on the reasoning that "that path predates ownership".
+ *
+ * Two things were wrong with that, both found at the merge gate:
+ *
+ * 1. It MOVED a hole rather than closing one. The fallback started in
+ *    `src/app/api/conversations/route.ts`, which `apiAuthBoundary.test.ts`
+ *    scans for exactly this pattern; lifting it into `src/lib/db` put it where
+ *    that test does not look. The guard would have gone green over a live
+ *    shared-identity write.
+ * 2. "Not this chapter's to change" was the wrong call. An unidentified caller
+ *    writing rows owned by one shared uuid is the defect `DEMO_USER_ID` was
+ *    deleted from the repo to make unrepresentable.
+ *
+ * So the route resolves the user itself, refuses without one, and calls this
+ * with a body alone. There is no null-user case left to decide here — which is
+ * why the return type is a plain `string | null` and not a result object.
+ *
+ * What remains genuinely worth a pure test: an untrusted body must not be able
+ * to turn a non-string (or empty) `projectId` into a project chat.
  */
-export function resolveConversationScope(realUserId: string | null, body: unknown): ConversationScope {
+export function resolveProjectId(body: unknown): string | null {
   const raw = (body as { projectId?: unknown } | null)?.projectId
-  const projectId = typeof raw === 'string' && raw ? raw : null
-  if (projectId && !realUserId) return { ok: false, status: 401 }
-  return { ok: true, userId: realUserId ?? DEMO_USER_ID, projectId }
+  return typeof raw === 'string' && raw ? raw : null
 }

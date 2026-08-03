@@ -1,39 +1,45 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isMissingTable, resolveConversationScope } from './conversationScope'
-import { DEMO_USER_ID } from '@/lib/api/types'
+import { isMissingTable, resolveProjectId } from './conversationScope'
 
-// Covers the two rules the chat-wiring commit (9f5da70) introduced and shipped
-// with no test: who may open a chat inside a project, and what counts as "the
+// Covers what the chat-wiring commit (9f5da70) introduced and shipped with no
+// test: which project a new chat belongs to, and what counts as "the
 // conversations table is gone" now that this module references a column which
 // can be absent.
+//
+// The identity half of this module is GONE — it used to take a `realUserId` and
+// return `realUserId ?? DEMO_USER_ID`, and one of the tests below asserted that
+// fallback as CORRECT behaviour. Both were deleted at the merge gate: the route
+// now refuses an unidentified caller before this function is reached. A test
+// that pins a hole in place is worse than no test, because it makes removing the
+// hole look like a regression.
 
-test('a project chat requires a real user, not the demo fallback', () => {
-  const r = resolveConversationScope(null, { projectId: 'p1' })
-  assert.equal(r.ok, false)
-  assert.equal(r.ok === false && r.status, 401)
+test('a real projectId is carried through', () => {
+  assert.equal(resolveProjectId({ projectId: 'p1' }), 'p1')
 })
 
-test('a signed-in user may open a chat inside a project', () => {
-  const r = resolveConversationScope('u1', { projectId: 'p1' })
-  assert.equal(r.ok, true)
-  assert.equal(r.ok && r.userId, 'u1')
-  assert.equal(r.ok && r.projectId, 'p1')
-})
-
-test('an ordinary chat still falls back to the demo id — that path is not this chapter to change', () => {
-  const r = resolveConversationScope(null, { companyId: 'c1' })
-  assert.equal(r.ok, true)
-  assert.equal(r.ok && r.userId, DEMO_USER_ID)
-  assert.equal(r.ok && r.projectId, null)
-})
-
-test('a non-string or empty projectId is not a project chat, and must not 401 an ordinary one', () => {
-  for (const bad of [{ projectId: '' }, { projectId: 123 }, { projectId: null }, {}, null]) {
-    const r = resolveConversationScope(null, bad)
-    assert.equal(r.ok, true, `${JSON.stringify(bad)} must not be treated as a project`)
-    assert.equal(r.ok && r.projectId, null)
+test('an untrusted body cannot turn a non-string or empty projectId into a project chat', () => {
+  for (const bad of [
+    { projectId: '' },
+    { projectId: 123 },
+    { projectId: null },
+    { projectId: {} },
+    { projectId: ['p1'] },
+    { projectId: true },
+    {},
+    null,
+    undefined,
+  ]) {
+    assert.equal(
+      resolveProjectId(bad),
+      null,
+      `${JSON.stringify(bad) ?? 'undefined'} must not be treated as a project`
+    )
   }
+})
+
+test('an ordinary chat is simply not in a project', () => {
+  assert.equal(resolveProjectId({ companyId: 'c1' }), null)
 })
 
 test('a genuinely absent table is recognised, by code and by message', () => {

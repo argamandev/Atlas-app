@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import OpenAI from 'openai'
 import { getChatContext, getDocumentContext } from '@/lib/chat/context'
-import { getRequestUserId } from '@/lib/auth'
+import { getRequestUserId, unauthorized } from '@/lib/auth'
 import { createServerSupabase } from '@/lib/supabase'
 import { getProjectWithSources } from '@/lib/db/projects'
 import { buildProjectContext } from '@/lib/chat/projectContext'
@@ -107,6 +107,15 @@ async function openAiFallback(
 }
 
 export async function POST(req: NextRequest) {
+  // AUTH FIRST — before the body is parsed, before getChatContext runs, before the key check.
+  // Placement is the whole point: the guard originally sat below getChatContext, so an anonymous
+  // POST still made a service-role query and built up to a 40k-character transcript string before
+  // being refused. That is free unauthenticated database load on precisely the all-companies
+  // fallback this guard exists to protect. A refusal that happens after the expensive part is not
+  // a refusal.
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
+
   const body = await req.json().catch(() => null)
   const message: string = body?.message
   const companyId: string | undefined = body?.companyId || undefined
@@ -142,12 +151,6 @@ export async function POST(req: NextRequest) {
     ? { text: liveContext.slice(0, 40_000), source: null }
     : await getChatContext(companyId, transcriptId)
 
-  // Document grounding is auth-gated even though chat itself is not — documentRef reads company
-  // documents via supabaseAdmin (bypasses RLS), so only a signed-in user may trigger that lookup.
-  const userId = documentRef || attachments.length > 0 ? await getRequestUserId(req) : null
-  // No signed-in user → no document access of any kind (same policy + launch-notes flag as docRef).
-  if (!userId) attachments = []
-
   // Snipped pages ride the documentRef page-text grounding: image = authority on the
   // numbers, page prose = surrounding context (spec 2026-07-17).
   let groundingRef = documentRef
@@ -166,7 +169,9 @@ export async function POST(req: NextRequest) {
   const snipMeta =
     attachments.length > 0 ? await getDocumentMeta(attachments[0].documentId).catch(() => null) : null
   const captions = attachments.map((a) => snipCaption(snipMeta ? { title: snipMeta.title } : null, a.page))
-  const docBlock = groundingRef && userId ? await getDocumentContext(groundingRef).catch(() => '') : ''
+  // No `&& userId` here: the route 401s at the top, so that clause was provably dead. Leaving it
+  // in would tell a reader this line is what gates document access, which it no longer is.
+  const docBlock = groundingRef ? await getDocumentContext(groundingRef).catch(() => '') : ''
 
   // Project context: the user's own instructions, memory and typed notes.
   // Direct injection, NOT retrieval — nothing here touches the shared corpus.

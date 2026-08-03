@@ -230,6 +230,7 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `lib/projects/` | The projects domain, split so each half is testable alone: `client.ts` (browser fetch wrappers), `validate.ts` (input rules), `derive.ts` (capacity/count maths shown in the UI), `present.ts` (row → view model). |
 | `lib/chat/projectContext.ts` | Builds the project's instructions + memory + context sources into the system block injected server-side on every message sent inside a project, and reports whether it had to truncate. |
 | `lib/auth/verifyUser.ts` | The verifying user lookup (`getUser()`, which revalidates the token) that replaced every `auth.getSession()` call site on 2026-08-02. Unit-tested. |
+| `lib/auth.ts` | `getRequestUserId(req)` — resolves the caller from the session cookie OR an `Authorization: Bearer` token (the bearer path is how trusted automation drives the same API) — plus `getCurrentUser()` and `unauthorized()`, the single 401 every route returns. The route pattern is two lines: resolve, then `if (!userId) return unauthorized()`; `apiAuthBoundary.test.ts` enforces it. |
 | `lib/transcripts.ts` | Shared transcript fetch/shape helpers. |
 
 ### Live engine — `lib/live/`
@@ -273,18 +274,20 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `types.ts` | The `Transcript` shape (= the shape of `formatted_data`). |
 | `utils.ts` | Small helpers (`cn()` class merge, `isValidVideoUrl`). |
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
+| `apiAuthBoundary.test.ts` | Build-enforced guard: every exported HTTP handler under `src/app/api` must resolve a signed-in user **and act on the result**, or be listed in its `PUBLIC` allowlist **with a reason**. Also bans any `DEMO_USER_ID` reference across `src/app` — the constant itself was deleted from `lib/api/types.ts` on 2026-08-03, so the ban is structural. Added because the holes it closes were months of drift, not one mistake, and because the fleet's own notes described them as "two routes" when a command found 16 sites in 8 files. It is a TEXT scan with stated limits in its own header: it proves the auth result is checked, **not** that the check precedes anything expensive, and **not** that the caller may touch the row it reads (that is the `lib/db` modules' job — most still use `supabaseAdmin`, which bypasses RLS). Fails closed on auth helpers it does not know and on handler shapes it cannot parse. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **160 tests across 25 files** as of 2026-08-01; the list in `package.json` is explicit — add new test files there)
-`correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
-· `live/liveTiming.test.ts` · `live/ivritStitcher.test.ts` · `live/pcmChunker.test.ts`
-· `live/wavEncode.test.ts` · `live/call-stubs.test.ts` · `live/snipBridge.test.ts`
-· `workspace/data.test.ts` · `agents/data.test.ts` · `projects/data.test.ts`
+### Tests (run via `npm test` — **194 tests across 30 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
+`correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `apiAuthBoundary.test.ts`
+· `live/finishLiveCall.test.ts` · `live/liveTiming.test.ts` · `live/ivritStitcher.test.ts`
+· `live/pcmChunker.test.ts` · `live/wavEncode.test.ts` · `live/call-stubs.test.ts`
+· `live/snipBridge.test.ts` · `workspace/data.test.ts` · `agents/data.test.ts`
+· `projects/data.test.ts` · `projects/derive.test.ts` · `projects/validate.test.ts`
 · `demo/demoState.test.ts` · `demo/seedDocument.test.ts`
 · `company/overview-stub.test.ts` · `calendar/event-meta.test.ts` · `design/anim.test.ts`
 · `documents/extract.test.ts` · `documents/snip.test.ts` · `chat/documentContext.test.ts`
-· `chat/attachments.test.ts` · `chat/history.test.ts`
-· `auth/gate.test.ts` · `scripts/lib/measure-core.test.ts`.
+· `chat/attachments.test.ts` · `chat/history.test.ts` · `chat/projectContext.test.ts`
+· `auth/gate.test.ts` · `auth/verifyUser.test.ts` · `scripts/lib/measure-core.test.ts`.
 
 > This list is generated from `package.json`, not from memory — it previously named
 > `live/syncEngine.test.ts` and `live/search.test.ts`, neither of which is in the runner.

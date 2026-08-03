@@ -1,9 +1,17 @@
 // Shared domain types for the V1 product (companies, calls, quotes). Used by the
 // server data layer (lib/db), the route handlers, and the client fetchers (lib/api).
 
-// Used when there is no auth session (public demo). supabaseAdmin bypasses RLS, and
-// neither quotes nor followed_calls FK to auth.users, so this id is safe to persist.
-export const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000'
+// DELETED 2026-08-03 — `DEMO_USER_ID = '00000000-…'`, the id used "when there is no auth session
+// (public demo)". Its old comment argued it was safe to persist because supabaseAdmin bypasses
+// RLS and neither quotes nor followed_calls FK to auth.users. That was the problem, not the
+// justification: 16 API sites and two server components fell back to it, so unidentified callers
+// read and wrote ONE shared identity's real rows.
+//
+// The constant is REMOVED rather than merely unused, deliberately. `apiAuthBoundary.test.ts`
+// guards `src/app` only, so a `src/components` or `src/lib` file could have re-imported it
+// invisibly. Nothing can import what does not exist, which turns a scoped promise into a
+// structural one. If you are here because something failed to compile, the answer is to refuse
+// the request (`unauthorized()`) or render nothing — never to reinstate a shared identity.
 
 export interface Company {
   id: string
