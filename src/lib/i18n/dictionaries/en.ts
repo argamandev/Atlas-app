@@ -259,6 +259,9 @@ export const en = {
     // saying either "could not answer" or "was not saved" about it would be
     // false in opposite directions.
     answerTruncated: 'This answer was cut off before it finished — {error}',
+    // The same fact, read back from storage. No {error}: the cause did not
+    // survive the reload and naming one would be an invention.
+    answerWasTruncated: 'This answer was cut off before it finished.',
     notSaved: 'This answer arrived but was not saved — {error}',
     pageShort: 'p.',
     suggestions: [

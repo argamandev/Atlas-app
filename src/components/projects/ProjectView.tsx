@@ -68,6 +68,8 @@ export function ProjectView({
   const [saveError, setSaveError] = useState<unknown>(null)
   // Same rule for a chat that will not open: a dead click is a silent failure.
   const [openError, setOpenError] = useState<unknown>(null)
+  /** Which open is current — see openChat() below. */
+  const openSeq = useRef(0)
   const [draft, setDraft] = useState('')
 
   const instrRef = useRef<HTMLTextAreaElement>(null)
@@ -173,8 +175,14 @@ export function ProjectView({
 
   const openChat = (id: string) => {
     if (!onOpenChat) return
+    // Sequence-guarded for the same reason ChatHistory.open() is: a slow
+    // REJECTED open resolving after a newer successful one would report a
+    // failure about a chat the user is already looking at.
+    const seq = ++openSeq.current
     setOpenError(null)
-    void onOpenChat(id).catch((e) => setOpenError(e))
+    void onOpenChat(id).catch((e) => {
+      if (seq === openSeq.current) setOpenError(e)
+    })
   }
 
   const addContext = () =>

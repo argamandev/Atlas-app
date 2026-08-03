@@ -28,15 +28,19 @@ Listed first, because a previous round on this branch was blocked for evidence t
 - **The persisted degradation notice was proven at the API layer, not by eye.** I did not force a
   real truncation through a project's context and then reload the page. What I did prove is the
   round trip that the fix depends on (§4).
-- **No `ProjectsList` or `ProjectView` error surface was exercised at all.** Not in a frame, not
-  forced, not probed.
+- **`ProjectsList`'s 401 IS photographed (round two, §9.8); `ProjectView`'s four banners are NOT.**
+  `ProjectView`'s `loadError`, `saveError` and `openError` surfaces were never forced, framed or
+  probed in any round — they are inferred from sharing `ErrorLine` and `projects/client.ts` with
+  `ProjectsList`, which IS proven. Stated as inference, because that is what it is.
 
-  > **This line previously read** *"`ProjectView`'s own banner is not in any frame this round; it
-  > takes the same `ErrorLine` change as the two that are."* That second clause is an affirmative
-  > claim wearing the costume of a disclaimer, and **it was false** — those screens use a different
-  > fetch layer, so their 401 branch was unreachable. It is the sentence that hid the round-two
-  > BLOCKER. Corrected in place rather than deleted, because the shape is the lesson: a
-  > "not proven" list must not smuggle in a reassurance about the thing it is declining to prove.
+  > **This bullet has now been wrong twice, in opposite directions, and both are recorded because
+  > the pattern is the lesson.** It first read *"`ProjectView`'s own banner is not in any frame; it
+  > takes the same `ErrorLine` change as the two that are"* — an affirmative claim wearing the
+  > costume of a disclaimer, and false: those screens use a different fetch layer, so their 401
+  > branch was unreachable. **That sentence is what hid the round-two BLOCKER.** It was then
+  > over-corrected to *"No `ProjectsList` or `ProjectView` error surface was exercised at all"*,
+  > which round two's own committed screenshots contradict. A "not proven" list is load-bearing
+  > evidence and has to be re-checked against the artifacts every round, exactly like a count.
 - **The build claim is from a clean build with the dev server stopped and `.next` cleared** — but
   the browser pass above it ran against the DEV server, so the two are different artifacts.
 
@@ -320,3 +324,123 @@ Second round running, second stale number carried into a prompt from my own head
 | `npm test` | **211 / 211** across **33 files** — both regenerated from commands (`package.json`'s test script for the file count, a real run for the test count) |
 | `npx tsc --noEmit` | **exit 0** |
 | dictionary parity | enforced by `tsc`; failed loudly mid-edit until `answerTruncated` existed in both locales |
+
+### 9.8 The screenshots round two produced, now actually cited
+
+Round two committed these and then referenced them from nowhere — `git grep -n projects-401-signin
+-- docs` returned nothing, so the only eyes-on proof of the round-two BLOCKER fix was an orphaned
+file. Cited here:
+
+| shot | shows |
+|---|---|
+| `shots/2026-08-03-projects-401-signin-en.jpg` | `/app/chat/projects`, EN. **`Could not load your projects — Your session has expired. Sign in`** in the main banner, and the same treatment in the sidebar's RECENT CHATS. The projects line is the one that read `— unauthorized` with no button before the fix. |
+| `shots/2026-08-03-projects-401-signin-he.jpg` | The same screen, HE, `dir=rtl`: `לא ניתן לטעון את הפרויקטים — תוקף ההתחברות שלך פג. התחברות`, sign-in link at the line's end. |
+
+Both were forced from the real routes (`/api/conversations` and `/api/projects` each returning 401
+temporarily), and both temporary edits were reverted with the revert proven by `git grep` and an
+empty `git diff`.
+
+**Still not photographed:** `ProjectView`'s own four banners. See §0.
+
+---
+
+## 10. Round three — the truncation fix had the same hole it was fixing
+
+Third cold gate: **CHANGES** — 1 BLOCKER, 4 WARNING, 5 NIT.
+
+### 10.1 BLOCKER — a cut-off answer became a complete one on reload
+
+Round two split `errorKind` into `answer` / `truncated` / `save` so a cut-off answer would stop
+being described as merely unsaved. But `errorKind` is **view state**, and a truncated turn has
+NON-EMPTY content — the partial text — so it sailed through the empty-turn filter and was written
+into the thread on the next successful send as an ordinary complete answer.
+
+1. stream breaks at 60% → the screen honestly says *"This answer was cut off before it finished"*;
+2. the user asks something else, that send succeeds → the 60% is persisted as a plain answer;
+3. reload → **half an answer, rendered through `<Markdown>`, presented as Atlas's whole reply**, and
+   replayed to the model as its own prior turn.
+
+That is *worse* than what round one replaced: on main the partial was overwritten by the error text
+— untrue, but visibly so. My fix made it invisible.
+
+**It is the identical class to §4, which I had already fixed, one field away.** I persisted
+`projectContext` because a notice that dies on reload is not a notice, and then introduced a second
+notice that dies on reload. Fixed the same way: `ChatMsg.truncated`, written at persistence
+(`m.truncated === true || m.errorKind === 'truncated'`), sanitised on read (`=== true` only), and
+rendered on a reopened thread with copy that carries **no `{error}`** — the cause did not survive
+the reload and naming one would be an invention.
+
+### 10.2 The other findings
+
+- **WARNING ×2 — my own §0 was stale in BOTH directions across two rounds.** Corrected above, with
+  both wrong versions preserved. A "what this does not prove" list has to be re-checked against the
+  committed artifacts every round, exactly like a count.
+- **WARNING — the round-two screenshots were cited nowhere.** Fixed in §9.8.
+- **WARNING — `errorShape.test.ts` claimed "reachable" with no stated limits**, unlike
+  `apiAuthBoundary.test.ts` which states its own. It follows only DIRECT `@/…` imports (relative
+  imports and two-hop modules are invisible) and `blankComments` mis-parses `//` and `/*` inside
+  string literals — which fails safe for a hidden `handleResponse` but **fails open** for a hidden
+  `fetch(`. All three limits are now in the guard's header.
+- **NITs taken:** the empty-turn filter now uses `.trim()` (whitespace-only turns were persisting as
+  blank bubbles); `open()` in `ChatHistory` and `openChat()` in `ProjectView` are sequence-guarded,
+  so a slow rejected open resolving after a newer successful one can no longer report a failure
+  about a chat the user is already reading.
+- **NIT — `projects.send` is a scope stowaway.** An `aria-label` and a dictionary key in both
+  locales that no evidence file, spec or architecture entry mentions. Disclosed here rather than
+  removed: it is correct and additive, it was simply never declared.
+
+### 10.3 Two findings I am NOT fixing, named rather than buried
+
+- **`src/app/api/chat/route.ts:96` and `:324` fabricate an answer.** When the model emits nothing,
+  the route enqueues the hardcoded Hebrew string `לא הצלחתי להפיק תשובה לשאלה הזו.` INTO THE TOKEN
+  STREAM. It therefore renders in the ordinary reply branch as Atlas's own words, is persisted as a
+  real answer, and is Hebrew regardless of locale — so an English user is told, in Hebrew, something
+  Atlas never generated. **This is exactly this branch's thesis**, in a file this branch edited.
+  I am not fixing it here: the honest remedy is for the server to emit nothing and let the client
+  treat an empty successful stream as a failure, which changes the chat success path and cannot be
+  verified without forcing a real empty model response. Doing that at round four, unverifiable,
+  is how a fifth round starts. **Filed to the ready queue as a named follow-up with the remedy.**
+- **A SERVER-side mid-stream break still mislabels.** `route.ts:321-326` catches an upstream read
+  error and closes the stream *cleanly*, so `streamChat` resolves and `streamFinished` is true over
+  an incomplete answer. §9.2 disclosed that this produces no notice; it did not disclose that a
+  following persistence failure then labels half an answer "arrived but was not saved". Same root
+  cause as the item above — the server cannot currently tell the client "this stream is incomplete"
+  — and it belongs to the same follow-up.
+
+### 10.4 Found while closing round three, not by the gate
+
+Round two's §9.5 lesson — *"a file created but not registered never runs"* — was closed for ONE
+file. The gate then found two more (`live/search.test.ts`, `live/syncEngine.test.ts`: **10 tests,
+passing, never run**). Closing a lesson for its instance instead of its class is how it recurs, so
+there is now `src/lib/testRegistry.test.ts`: every `*.test.ts` on disk must appear in the npm test
+script, and every registered path must exist. Both directions, so a rename cannot orphan a file
+either.
+
+### 10.5 Battery after round three
+
+| check | result |
+|---|---|
+| `npm test` | **222 / 222** across **36 files** — up from 211/33: +10 from the two recovered live test files, +1 registry guard, +1 truncation-persistence coverage. Both numbers from commands. |
+| `npx tsc --noEmit` | **exit 0** |
+
+### 10.6 The BLOCKER fix, proven end to end in the browser
+
+Not reasoned — opened. A throwaway conversation was stored holding a deliberately cut-off Hebrew
+answer (`truncated: true`), the page was **reloaded**, and the conversation reopened from the
+sidebar exactly as a user would:
+
+| step | result |
+|---|---|
+| `POST` + `PATCH` a message with `truncated: true` | 200, read back as `truncated: true` |
+| reload the page, click the row in RECENT CHATS | thread opens |
+| partial text on screen | **yes** — `זו תשובה שנקטעה באמצע המ` |
+| `[role="status"]` under it | **`התשובה נקטעה לפני שהסתיימה.`** |
+| `[role="alert"]` | none — correct, this is not an error, it is a fact about the stored answer |
+| `dir` | `rtl` |
+
+**Before this fix that same row rendered the partial text with nothing whatsoever indicating it was
+incomplete.** Screenshot: `shots/2026-08-03-truncation-survives-reload-he.jpg`.
+
+Cleanup: the probe row was deleted (200, then 404). It was matched by asserting its exact message
+content and `truncated` flag before deleting — not by title, which `titleFromMessages` had rewritten
+to the user's first line — so nothing of the founder's could be caught by the cleanup.

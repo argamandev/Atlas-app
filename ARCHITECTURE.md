@@ -279,15 +279,19 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `projects/client.ts` | The browser's door to `/api/projects*`. Owns its `cache: 'no-store'` and headers; delegates the failure path to `handleResponse` rather than throwing its own. |
 | `db/conversationScope.ts` | Two pure decisions for the conversations layer: `isMissingTable(err, table)` (narrow — a missing *column* must not downgrade the whole process to the in-memory store) and `resolveProjectId(body)`, which parses an untrusted body and **carries no user identity by design**; the route resolves and refuses the caller itself. |
 | `components/projects/ErrorLine.tsx` | The shared error line. Owns its own block wrapper (so a caller's flex layout cannot blockify the `<bdi>` and split one message across two rows) and, given an `auth` prop, renders expired-session copy plus a sign-in route via `loginRedirectTarget` when the thrown value is a 401 — which is why it takes the thrown value and not its message. |
-| `api/errorShape.test.ts` | Build-enforced guard: any fetch layer reachable from an error banner that offers a sign-in route must throw `ApiError`, not a plain `Error`. Blanks comments before scanning, with a canary — its first version matched the word `ApiError` inside a comment and failed to bite when the bug was reintroduced to test it. |
+| `api/errorShape.test.ts` | Build-enforced guard: any fetch layer reachable from an error banner that offers a sign-in route must throw `ApiError`, not a plain `Error`. Blanks comments before scanning, with a canary — its first version matched the word `ApiError` inside a comment and failed to bite when the bug was reintroduced to test it. **States its own limits in its header** (direct `@/…` imports only; the comment blanker is not a JS parser), because claiming "reachable" without them would repeat the counting failure it exists for. |
+| `testRegistry.test.ts` | Build-enforced guard: every `*.test.ts` on disk is registered in `package.json`'s test script, and every registered path exists. Added after three test files were found to have never run. |
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **211 tests across 33 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **222 tests across 36 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
 Both numbers regenerated from commands, never edited by hand: the file count from
-`package.json`'s test script, the test count from a real run. A file created but not registered
-there never runs — `api/errorShape.test.ts` was written and left unregistered for an hour, so it
-was in the tree, passing when invoked directly, and absent from the battery.
+`package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
+that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
+every registered path must exist. It exists because three files had been written, were passing when
+invoked directly, and never ran in the battery: `api/errorShape.test.ts` (for an hour) and
+`live/search.test.ts` + `live/syncEngine.test.ts` (10 tests, far longer). A battery that does not
+run a file cannot tell you it is missing.
 
 `correction.test.ts` · `transcription.test.ts` · `legacyBoundary.test.ts` · `apiAuthBoundary.test.ts`
 · `api/errorShape.test.ts` · `api/contextStatus.test.ts` · `db/conversationScope.test.ts`

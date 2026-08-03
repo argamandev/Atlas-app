@@ -21,6 +21,23 @@ import { ApiError, isUnauthorized, handleResponse } from './client'
  * prop. Half of them could not use it. **A command answers the question you
  * typed, not the question you meant** — so the check below asserts the
  * BEHAVIOUR reachable from each site, not the presence of an attribute.
+ *
+ * STATED LIMITS — this is a TEXT scan, and saying "reachable" without saying
+ * what it cannot reach would repeat the failure it exists for:
+ *
+ * 1. **Direct `@/…` imports only.** A module imported RELATIVELY (`./Foo`) is
+ *    never visited, and neither is anything two hops away. If a banner
+ *    component grows a data layer behind a re-export, this will not see it.
+ * 2. **`blankComments` is not a JS parser.** A `//` inside a string literal
+ *    truncates that line, and a `/*` inside one blanks to the next `*​/`. That
+ *    usually fails SAFE (a real `handleResponse` hidden → false positive), but
+ *    a `fetch(` hidden that way fails OPEN: the module drops out of scope. The
+ *    canary only catches TOTAL destruction, not a single mangled line.
+ * 3. It proves the module can PRODUCE an `ApiError`, not that every one of its
+ *    paths does, and not that the component renders the branch correctly.
+ *
+ * What closes 1 and 2 properly is a real import graph, not a bigger regex. Until
+ * then, treat a pass as "no DIRECT dependency is obviously wrong".
  */
 
 const SRC = resolve(process.cwd(), 'src')

@@ -100,6 +100,22 @@ export interface ChatMsg {
    * all have to land on `null` rather than on a rendered banner.
    */
   projectContext?: ProjectContextStatus | null
+  /**
+   * This answer's stream BROKE partway, so the stored text is real but partial.
+   * PERSISTED for the same reason `projectContext` is.
+   *
+   * Without it, the fix for "an error rendered as an answer" quietly created a
+   * new false state: the partial text has non-empty content, so it survived the
+   * empty-turn filter and was written into the thread on the next successful
+   * send as an ordinary complete answer. `errorKind` is view state and does not
+   * persist, so one reload turned half an answer into Atlas's whole answer —
+   * rendered through Markdown, often mid-sentence, and replayed to the model as
+   * its own prior turn. Strictly worse than the untrue-but-visible state it
+   * replaced, because nothing on screen says anything is missing.
+   *
+   * Sanitise on READ like `projectContext`: only `true` counts.
+   */
+  truncated?: boolean | null
 }
 
 export interface Conversation {

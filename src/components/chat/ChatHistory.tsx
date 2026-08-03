@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { PlusIcon, SparkleIcon } from '@/components/ds/icons'
 import { fetchConversations } from '@/lib/api/conversations'
@@ -41,9 +41,18 @@ export function ChatHistory({
   // for a shorter moment.
   const [loading, setLoading] = useState(true)
 
+  // Which open is the current one. The list fetch gained cancellation this
+  // round and this did not, so a slow REJECTED open resolving after a newer
+  // successful one painted "Could not open that chat" over a chat that was open
+  // — the same stale-rejection defect, one function away.
+  const openSeq = useRef(0)
+
   const open = (id: string) => {
+    const seq = ++openSeq.current
     setOpenError(null)
-    void Promise.resolve(onOpen(id)).catch((e) => setOpenError(e))
+    void Promise.resolve(onOpen(id)).catch((e) => {
+      if (seq === openSeq.current) setOpenError(e)
+    })
   }
 
   // This used to be `.catch(() => setItems([]))`, which turned every failure of

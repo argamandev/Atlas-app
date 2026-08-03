@@ -53,6 +53,13 @@ interface Msg {
    * one, which is the exact class this branch exists to remove.
    */
   errorKind?: 'answer' | 'truncated' | 'save'
+  /**
+   * The persisted counterpart of `errorKind === 'truncated'`. `errorKind`
+   * describes THIS session's failure and dies on reload; this is the fact that
+   * has to outlive it, so a reopened thread still says the answer is partial
+   * instead of presenting half an answer as the whole one.
+   */
+  truncated?: boolean | null
 }
 
 export function ChatView({
@@ -205,14 +212,26 @@ export function ChatView({
           // as an answer" had traded it for "nothing rendered at all", which
           // rules/app.md ranks as the worse of the two. Drop the empty turn; the
           // question stands on its own and nothing claims to be a reply.
-          .filter((m) => !(m.role === 'assistant' && m.content.length === 0))
+          .filter((m) => !(m.role === 'assistant' && m.content.trim().length === 0))
           .map((m) => ({
             role: m.role,
             content: m.content,
             projectContext: m.projectContext ?? null,
+            // Carry the "this one is partial" fact into storage. Without it the
+            // partial text persists as an ordinary complete answer, because it
+            // has content and therefore survives the filter above.
+            truncated: m.truncated === true || m.errorKind === 'truncated',
           })),
         { role: 'user' as const, content: text },
-        { role: 'assistant' as const, content: full, projectContext: projectContext ?? null },
+        // This turn reached here only because the stream RESOLVED, so it is not
+        // truncated — stated rather than omitted, so the field is never absent
+        // by accident on a message that has one.
+        {
+          role: 'assistant' as const,
+          content: full,
+          projectContext: projectContext ?? null,
+          truncated: false,
+        },
       ]
       let cid = conversationId
       if (!cid) {
@@ -252,6 +271,10 @@ export function ChatView({
         role: m.role,
         content: m.content,
         projectContext: sanitizeContextStatus(m.projectContext),
+        // Only a literal true counts — same reasoning as sanitizeContextStatus:
+        // the jsonb predates the field, so absent and unrecognised must both
+        // mean "not truncated" rather than being coerced.
+        truncated: m.truncated === true,
       }))
     )
     // Last, and only on success: a rejected fetch must leave the surface where
@@ -407,6 +430,16 @@ export function ChatView({
                     arrived and simply was not stored — saying "Atlas could not
                     answer" there would be false, and overwriting it (which this
                     used to do) threw away work the user had already been given. */}
+                {/* A reopened thread. `errorKind` died with the session, so
+                    without this the partial text below would read as a complete
+                    answer. No {error} here — the failure that caused it is not
+                    known any more, and inventing one would be worse than saying
+                    only what is true: this answer is not all of it. */}
+                {m.truncated === true && m.error == null && !m.streaming && (
+                  <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                    {dict.chat.answerWasTruncated}
+                  </p>
+                )}
                 {m.error != null && !m.streaming && (
                   <p role="alert" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
                     <ErrorLine
