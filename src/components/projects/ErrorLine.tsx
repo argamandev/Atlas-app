@@ -1,4 +1,8 @@
+'use client'
+
 import { Fragment } from 'react'
+import { isUnauthorized } from '@/lib/api/client'
+import { loginRedirectTarget } from '@/lib/auth/gate'
 
 /**
  * Renders "…{error}" copy with the raw error isolated in its own <bdi>.
@@ -26,7 +30,49 @@ import { Fragment } from 'react'
  * <span>, not <div>, because one caller renders this inside a <p> and a <div>
  * there is invalid HTML that the parser would close the paragraph around.
  */
-export function ErrorLine({ template, error }: { template: string; error: string }) {
+export function ErrorLine({
+  template,
+  error,
+  auth,
+}: {
+  template: string
+  /**
+   * The thrown value, NOT its message — the status has to survive this far. Kept
+   * as `unknown` so a caller cannot quietly narrow it back to a string and lose
+   * the one thing that distinguishes an expired session from a broken query.
+   */
+  error: unknown
+  /**
+   * Copy for the expired-session case. Pass it wherever the failure can be a
+   * 401; omit it only where it genuinely cannot.
+   */
+  auth?: { expired: string; signIn: string }
+}) {
+  const message = error instanceof Error ? error.message : String(error)
+
+  // An expired session is not an error message, it is an ACTION. The server says
+  // "unauthorized"; rendering that word told the user nothing and offered no way
+  // out, while the template around it ("Could not load your chats — unauthorized")
+  // actively implied the chats were the problem. rules/app.md: never invent a
+  // cause, and send the user to sign in. Assignment rather than a <a href> so
+  // nothing is computed from `window` during render.
+  if (auth && isUnauthorized(error)) {
+    return (
+      <span className="block">
+        {auth.expired}{' '}
+        <button
+          type="button"
+          onClick={() => {
+            window.location.href = loginRedirectTarget(window.location.pathname, window.location.search)
+          }}
+          className="underline underline-offset-2 hover:no-underline"
+        >
+          {auth.signIn}
+        </button>
+      </span>
+    )
+  }
+
   // Interleave every segment rather than taking the first two: a template with
   // two placeholders used to lose its tail, and one with NONE used to have the
   // raw error jammed onto the end with no separator. Neither shape exists in the
@@ -36,7 +82,7 @@ export function ErrorLine({ template, error }: { template: string; error: string
   if (parts.length === 1) {
     return (
       <span className="block">
-        {template} — <bdi>{error}</bdi>
+        {template} — <bdi>{message}</bdi>
       </span>
     )
   }
@@ -48,7 +94,7 @@ export function ErrorLine({ template, error }: { template: string; error: string
         // is real and every <bdi> isolates within it.
         <Fragment key={i}>
           {part}
-          {i < parts.length - 1 && <bdi>{error}</bdi>}
+          {i < parts.length - 1 && <bdi>{message}</bdi>}
         </Fragment>
       ))}
     </span>

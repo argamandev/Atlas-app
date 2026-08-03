@@ -24,8 +24,10 @@ export function ProjectsList() {
   // A failed LOAD and a failed WRITE are different sentences. Rendering
   // "Not saved — relation does not exist" for a load error tells the user
   // something untrue about what just happened.
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // Thrown values, not messages: ErrorLine needs the status to tell an expired
+  // session apart from a broken query.
+  const [loadError, setLoadError] = useState<unknown>(null)
+  const [error, setError] = useState<unknown>(null)
 
   const load = useCallback(async () => {
     try {
@@ -36,7 +38,7 @@ export function ProjectsList() {
       setProjects(rows.map((r) => ({ ...r, chats: 0, sources: 0 })))
       setLoadError(null)
     } catch (e) {
-      setLoadError((e as Error).message)
+      setLoadError(e)
     } finally {
       setLoading(false)
     }
@@ -52,7 +54,7 @@ export function ProjectsList() {
       const { project } = await createProjectReq(dict.projects.untitled)
       router.push(`/app/chat/projects/${project.id}`)
     } catch (e) {
-      setError((e as Error).message)
+      setError(e)
     }
   }
 
@@ -77,8 +79,20 @@ export function ProjectsList() {
               role="alert"
               className="mb-4 flex flex-col gap-1 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
             >
-              {loadError !== null && <ErrorLine template={dict.projects.loadFailed} error={loadError} />}
-              {error !== null && <ErrorLine template={dict.projects.saveFailed} error={error} />}
+              {loadError !== null && (
+                <ErrorLine
+                  template={dict.projects.loadFailed}
+                  error={loadError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
+              {error !== null && (
+                <ErrorLine
+                  template={dict.projects.saveFailed}
+                  error={error}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
             </div>
           )}
 

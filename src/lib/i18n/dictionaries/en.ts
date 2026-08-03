@@ -26,6 +26,11 @@ export const en = {
     empty: 'Nothing here yet',
     comingSoon: 'Coming soon',
     quickAccess: 'Quick access',
+    // Shown INSTEAD of a raw 401 body. The server says "unauthorized"; that is
+    // not something to put in front of a user, and it hides the one action that
+    // fixes it.
+    sessionExpired: 'Your session has expired.',
+    signIn: 'Sign in',
   },
   nav: {
     product: 'Product',
@@ -245,6 +250,12 @@ export const en = {
     snipFailed: 'Snip failed — try again',
     snipTooBig: 'Snip too large — select a smaller area',
     historyFailed: 'Could not load your chats — {error}',
+    // Two DIFFERENT failures, deliberately not one string. Before this, both were
+    // written into the assistant bubble as if Atlas had said them: the first left
+    // the user with a server string where an answer belongs, and the second threw
+    // away an answer that had already arrived in full.
+    answerFailed: 'Atlas could not answer — {error}',
+    notSaved: 'This answer arrived but was not saved — {error}',
     pageShort: 'p.',
     suggestions: [
       'Summarize the latest investor call in 3 bullets',

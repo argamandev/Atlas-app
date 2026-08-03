@@ -13,7 +13,8 @@ import { ThinkingDots } from './ThinkingDots'
 import { Markdown } from './Markdown'
 import { Logo } from '@/components/ds/Logo'
 import { PencilIcon, ProjectsIcon, WorkspacesIcon, AgentsIcon } from '@/components/ds/icons'
-import { streamChat, type ChatSource, type ProjectContextStatus } from '@/lib/api/chat'
+import { streamChat, sanitizeContextStatus, type ChatSource, type ProjectContextStatus } from '@/lib/api/chat'
+import { ErrorLine } from '@/components/projects/ErrorLine'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
 
@@ -29,6 +30,24 @@ interface Msg {
    * the next one may load fine, and the notice must not follow it.
    */
   projectContext?: ProjectContextStatus | null
+  /**
+   * A failure attached to this turn — kept OUT of `content` on purpose.
+   *
+   * The error used to be written into `content`, so a raw server string
+   * ("unauthorized", or a Postgres relation message) rendered in the place a
+   * Hebrew answer belongs, styled exactly as if Atlas had said it. And because
+   * the persistence step runs AFTER the answer has streamed in full, that also
+   * DESTROYED a good answer and replaced it with the reason it could not be
+   * saved. Held as the thrown value rather than its message so an expired
+   * session can be told apart from a model failure.
+   */
+  error?: unknown
+  /**
+   * Which half failed. `answer` = nothing arrived. `save` = the answer is real
+   * and on screen, only persistence failed. Rendering one sentence for both
+   * would make one of them a lie.
+   */
+  errorKind?: 'answer' | 'save'
 }
 
 export function ChatView({
@@ -158,10 +177,19 @@ export function ChatView({
       setLastAssistant({ content: full, source, projectContext, streaming: false })
 
       // Persist the full thread — create the conversation lazily on the first exchange.
+      // `projectContext` rides along so the notice SURVIVES a reload. It used to
+      // live only in view state, so refreshing the page turned "answered without
+      // your project's context" into an answer that looked complete — the
+      // degradation was visible exactly until the user did the most ordinary
+      // thing possible. Prior messages carry theirs through unchanged.
       const fullThread = [
-        ...priorMessages.map((m) => ({ role: m.role, content: m.content })),
+        ...priorMessages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          projectContext: m.projectContext ?? null,
+        })),
         { role: 'user' as const, content: text },
-        { role: 'assistant' as const, content: full },
+        { role: 'assistant' as const, content: full, projectContext: projectContext ?? null },
       ]
       let cid = conversationId
       if (!cid) {
@@ -176,7 +204,15 @@ export function ChatView({
       await saveConversation(cid, fullThread)
       setHistoryKey((k) => k + 1)
     } catch (err) {
-      setLastAssistant({ content: (err as Error).message, streaming: false })
+      // NEVER `content: err.message`. `full` is whatever actually streamed in:
+      // if the failure came from createConversation/saveConversation the answer
+      // is complete and correct, and the only true statement is that it was not
+      // saved. Leaving `content` alone keeps it on screen.
+      setLastAssistant({
+        streaming: false,
+        error: err,
+        errorKind: full.length > 0 ? 'save' : 'answer',
+      })
     } finally {
       setSending(false)
     }
@@ -185,7 +221,16 @@ export function ChatView({
   async function openConversation(id: string) {
     const conv = await fetchConversation(id)
     setConversationId(conv.id)
-    setMessages(conv.messages.map((m) => ({ role: m.role, content: m.content })))
+    // Sanitised, not trusted: `messages` is a jsonb blob that predates this
+    // field, so rows written by older code have none and anything unrecognised
+    // must land on null rather than on a rendered warning.
+    setMessages(
+      conv.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        projectContext: sanitizeContextStatus(m.projectContext),
+      }))
+    )
     // Last, and only on success: a rejected fetch must leave the surface where
     // it was so the caller's error banner is what the user sees.
     setConversationOpen(true)
@@ -332,6 +377,20 @@ export function ChatView({
                     {m.projectContext === 'failed'
                       ? dict.projects.contextFailed
                       : dict.projects.contextTruncated}
+                  </p>
+                )}
+                {/* The failure, BESIDE the answer rather than instead of it. When
+                    `errorKind` is 'save' the text above is a real answer that
+                    arrived and simply was not stored — saying "Atlas could not
+                    answer" there would be false, and overwriting it (which this
+                    used to do) threw away work the user had already been given. */}
+                {m.error != null && !m.streaming && (
+                  <p role="alert" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                    <ErrorLine
+                      template={m.errorKind === 'save' ? dict.chat.notSaved : dict.chat.answerFailed}
+                      error={m.error}
+                      auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                    />
                   </p>
                 )}
               </div>

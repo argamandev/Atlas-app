@@ -1,3 +1,5 @@
+import { ApiError } from './client'
+
 export interface ChatSource {
   company: string
   quarter: string
@@ -38,6 +40,19 @@ export interface ChatInput {
  */
 export type ProjectContextStatus = 'truncated' | 'failed'
 
+/**
+ * Narrow an unknown value to a context status, or null.
+ *
+ * Used on BOTH ways in: the `x-project-context` response header below, and a
+ * `projectContext` read back out of a stored message's jsonb. Anything not
+ * explicitly named is treated as "the context was whole" rather than guessed at,
+ * so a stale row or a hand-edited blob cannot paint a warning onto a good
+ * answer — or, worse, a string of someone's choosing onto a rendered surface.
+ */
+export function sanitizeContextStatus(raw: unknown): ProjectContextStatus | null {
+  return raw === 'truncated' || raw === 'failed' ? raw : null
+}
+
 // Streamed chat (Feature 5): POST to /api/chat, read the plain-text token stream and call
 // onToken for each delta as it arrives. The citation source rides on the x-chat-source header.
 export async function streamChat(
@@ -58,7 +73,11 @@ export async function streamChat(
     } catch {
       /* non-JSON */
     }
-    throw new Error(message)
+    // ApiError, not Error: /api/chat requires a signed-in user since the API-auth
+    // boundary landed, so a 401 here is now reachable in normal use (an expired
+    // session) and the caller has to be able to tell it apart from a model
+    // failure. Without the status it arrives as the word "unauthorized".
+    throw new ApiError(message, res.status)
   }
 
   const srcHeader = res.headers.get('x-chat-source')
@@ -68,8 +87,7 @@ export async function streamChat(
 
   // Absent means the project's context reached the model whole. Anything the
   // server did not name is treated as whole rather than guessed at.
-  const raw = res.headers.get('x-project-context')
-  const projectContext: ProjectContextStatus | null = raw === 'truncated' || raw === 'failed' ? raw : null
+  const projectContext = sanitizeContextStatus(res.headers.get('x-project-context'))
 
   if (!res.body) {
     // no stream (shouldn't happen) — fall back to the whole body as one token

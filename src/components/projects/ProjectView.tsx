@@ -59,13 +59,15 @@ export function ProjectView({
   // A 404 and a 500 are different truths. "This project belongs to another
   // account" is a LIE when the real cause is the server failing, so the two
   // are kept apart rather than both collapsing into the not-found screen.
-  const [loadError, setLoadError] = useState<string | null>(null)
+  // Thrown values, not messages: ErrorLine needs the status to tell an expired
+  // session apart from a broken query.
+  const [loadError, setLoadError] = useState<unknown>(null)
   const [editing, setEditing] = useState<Editing>(null)
   const [renaming, setRenaming] = useState(false)
   // A failed write must be SEEN. Nothing on this screen claims success.
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<unknown>(null)
   // Same rule for a chat that will not open: a dead click is a silent failure.
-  const [openError, setOpenError] = useState<string | null>(null)
+  const [openError, setOpenError] = useState<unknown>(null)
   const [draft, setDraft] = useState('')
 
   const instrRef = useRef<HTMLTextAreaElement>(null)
@@ -84,7 +86,7 @@ export function ProjectView({
       const msg = (e as Error).message
       // Only a genuine "not found" earns the not-found screen; anything else
       // is reported as what it is.
-      setLoadError(/not found/i.test(msg) ? null : msg)
+      setLoadError(/not found/i.test(msg) ? null : e)
     } finally {
       setLoading(false)
     }
@@ -99,11 +101,16 @@ export function ProjectView({
     try {
       await fn()
       setSaveError(null)
+      // A successful write also retires a stale "could not open that chat" line.
+      // It cleared only its own state before, so one failed open left a banner
+      // standing over every subsequent successful save until another open was
+      // attempted — describing something that was no longer true.
+      setOpenError(null)
       setEditing(null)
       setRenaming(false)
       await load()
     } catch (e) {
-      setSaveError((e as Error).message)
+      setSaveError(e)
     }
   }
 
@@ -128,7 +135,11 @@ export function ProjectView({
             className={`max-w-[420px] text-[13px] leading-[1.6] ${loadError ? 'text-[#B0533E]' : 'text-ink-muted'}`}
           >
             {loadError ? (
-              <ErrorLine template={dict.projects.loadOneFailed} error={loadError} />
+              <ErrorLine
+                template={dict.projects.loadOneFailed}
+                error={loadError}
+                auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+              />
             ) : (
               dict.projects.notFoundHint
             )}
@@ -163,7 +174,7 @@ export function ProjectView({
   const openChat = (id: string) => {
     if (!onOpenChat) return
     setOpenError(null)
-    void onOpenChat(id).catch((e) => setOpenError((e as Error).message))
+    void onOpenChat(id).catch((e) => setOpenError(e))
   }
 
   const addContext = () =>
@@ -229,8 +240,20 @@ export function ProjectView({
               role="alert"
               className="mb-4 flex flex-col gap-1 rounded-[9px] border border-hairline bg-paper px-3 py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
             >
-              {saveError !== null && <ErrorLine template={dict.projects.saveFailed} error={saveError} />}
-              {openError !== null && <ErrorLine template={dict.projects.openChatFailed} error={openError} />}
+              {saveError !== null && (
+                <ErrorLine
+                  template={dict.projects.saveFailed}
+                  error={saveError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
+              {openError !== null && (
+                <ErrorLine
+                  template={dict.projects.openChatFailed}
+                  error={openError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
             </div>
           )}
 

@@ -25,6 +25,11 @@ export const he: Dictionary = {
     empty: 'אין כאן עדיין כלום',
     comingSoon: 'בקרוב',
     quickAccess: 'גישה מהירה',
+    // Shown INSTEAD of a raw 401 body. The server says "unauthorized"; that is
+    // not something to put in front of a user, and it hides the one action that
+    // fixes it.
+    sessionExpired: 'תוקף ההתחברות שלך פג.',
+    signIn: 'התחברות',
   },
   nav: {
     product: 'מוצר',
@@ -236,6 +241,12 @@ export const he: Dictionary = {
     snipFailed: 'הגזירה נכשלה — נסו שוב',
     snipTooBig: 'הגזיר גדול מדי — סמנו אזור קטן יותר',
     historyFailed: 'לא ניתן לטעון את השיחות — {error}',
+    // Two DIFFERENT failures, deliberately not one string. Before this, both were
+    // written into the assistant bubble as if Atlas had said them: the first left
+    // the user with a server string where an answer belongs, and the second threw
+    // away an answer that had already arrived in full.
+    answerFailed: 'אטלס לא הצליח להשיב — {error}',
+    notSaved: 'התשובה התקבלה אך לא נשמרה — {error}',
     pageShort: 'עמ׳',
     suggestions: [
       'סכמו את שיחת המשקיעים האחרונה בשלוש נקודות',

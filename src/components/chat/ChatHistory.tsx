@@ -30,12 +30,20 @@ export function ChatHistory({
 }) {
   const { dict } = useI18n()
   const [items, setItems] = useState<ConversationSummary[]>([])
-  const [listError, setListError] = useState<string | null>(null)
-  const [openError, setOpenError] = useState<string | null>(null)
+  // The thrown value, not its message: ErrorLine needs the status to tell an
+  // expired session apart from a broken query.
+  const [listError, setListError] = useState<unknown>(null)
+  const [openError, setOpenError] = useState<unknown>(null)
+  // Distinguishes "not fetched yet" from "fetched, and there is nothing". Without
+  // it the empty state below rendered on the very first paint, so every load
+  // flashed "Nothing here yet" at a user whose chats were on the way — the same
+  // untrue-empty-state defect as the `.catch` this component already fixed, just
+  // for a shorter moment.
+  const [loading, setLoading] = useState(true)
 
   const open = (id: string) => {
     setOpenError(null)
-    void Promise.resolve(onOpen(id)).catch((e) => setOpenError((e as Error).message))
+    void Promise.resolve(onOpen(id)).catch((e) => setOpenError(e))
   }
 
   // This used to be `.catch(() => setItems([]))`, which turned every failure of
@@ -45,15 +53,28 @@ export function ChatHistory({
   // the narrowing had nowhere to land. A failed load and an empty account are
   // different facts and now render differently.
   useEffect(() => {
+    // Cancellation, because `refreshKey` bumps after every exchange: without it
+    // a slow REJECTED fetch could resolve after a newer successful one and paint
+    // an error banner over a list that had loaded correctly.
+    let live = true
+    setLoading(true)
     fetchConversations()
       .then((rows) => {
+        if (!live) return
         setItems(rows)
         setListError(null)
       })
       .catch((e) => {
+        if (!live) return
         setItems([])
-        setListError((e as Error).message)
+        setListError(e)
       })
+      .finally(() => {
+        if (live) setLoading(false)
+      })
+    return () => {
+      live = false
+    }
   }, [refreshKey])
 
   return (
@@ -79,12 +100,24 @@ export function ChatHistory({
           dir="auto"
           className="flex flex-col gap-1 rounded-[7px] px-[9px] py-2 text-[12.5px] leading-[1.5] text-[#B0533E]"
         >
-          {listError !== null && <ErrorLine template={dict.chat.historyFailed} error={listError} />}
-          {openError !== null && <ErrorLine template={dict.projects.openChatFailed} error={openError} />}
+          {listError !== null && (
+            <ErrorLine
+              template={dict.chat.historyFailed}
+              error={listError}
+              auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+            />
+          )}
+          {openError !== null && (
+            <ErrorLine
+              template={dict.projects.openChatFailed}
+              error={openError}
+              auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+            />
+          )}
         </div>
       )}
 
-      {listError !== null ? null : items.length === 0 ? (
+      {listError !== null || loading ? null : items.length === 0 ? (
         <div className="flex items-center gap-2 rounded-md px-2.5 py-4 text-sm text-ink-faint">
           <SparkleIcon size={15} />
           {dict.common.empty}
