@@ -91,7 +91,8 @@ export const he: Dictionary = {
     buildingSteps: 'אוסף קבצים · מאנדקס financials.xlsx · מפעיל סוכנים',
     buildingDemoNote: 'שום דבר לא נאסף בפועל — זהו זרימת העיצוב בלבד.',
     notFound: 'סביבת העבודה הזו כבר לא כאן.',
-    notFoundHint: 'סביבות עבודה שנוצרות בהדגמה קיימות למשך ההפעלה בלבד — רענון הדף מוחק אותן.',
+    // הוחלף במיגרציה 016 — סביבות עבודה נשמרות עכשיו, ורענון כבר לא מוחק אותן.
+    notFoundHint: 'ייתכן שהיא נמחקה, או שהיא שייכת לחשבון אחר.',
     allWorkspaces: 'כל סביבות העבודה',
     collapsePanel: 'כיווץ הפאנל',
     expandPanel: 'הצגת הפאנל',
@@ -146,6 +147,12 @@ export const he: Dictionary = {
 
     citationDrifted: 'המקור זז — הציטוט כבר לא נמצא בשורה הזו',
     citationAbsent: 'המקור הוסר מסביבת העבודה',
+
+    // כשלים מוצגים. רשת ריקה ושאילתה שנכשלה לא ייראו אותו דבר.
+    loadFailed: 'לא ניתן לטעון את סביבות העבודה — {error}',
+    createFailed: 'לא נשמר — {error}',
+    openFailed: 'לא ניתן לפתוח את סביבת העבודה — {error}',
+    layoutFailed: 'הסידור הזה לא יישמר — {error}',
   },
   agents: {
     ready: 'מוכן כשאתם מוכנים.',

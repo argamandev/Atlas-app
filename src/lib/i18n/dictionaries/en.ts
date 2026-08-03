@@ -94,7 +94,12 @@ export const en = {
     // The build is not real — no backend gathers anything this chapter.
     buildingDemoNote: 'Nothing is actually being fetched — this is the designed flow only.',
     notFound: 'This workspace is no longer here.',
-    notFoundHint: 'Workspaces created in this demo live for the session only — a page reload clears them.',
+    // Was "workspaces live for the session only — a page reload clears them",
+    // which stopped being true at migration 016. Workspaces persist now, so the
+    // honest reasons it is not here are deletion or ownership: RLS makes
+    // another account's workspace NOT THERE rather than forbidden, and this
+    // screen is what that looks like.
+    notFoundHint: 'It may have been deleted, or it belongs to a different account.',
     allWorkspaces: 'All workspaces',
     collapsePanel: 'Collapse panel',
     expandPanel: 'Show panel',
@@ -156,6 +161,16 @@ export const en = {
     // transcript was re-processed and the line now holds different words.
     citationDrifted: 'The source moved — this quote is no longer at that line',
     citationAbsent: 'The source was removed from this workspace',
+
+    // Failures are RENDERED. An empty grid and a failed query must never look
+    // the same, and a create that did nothing must not leave a silent button.
+    loadFailed: 'Could not load your workspaces — {error}',
+    createFailed: 'Not saved — {error}',
+    openFailed: 'Could not open this workspace — {error}',
+    // The pane moved on screen but the change did not reach the database, so
+    // it will NOT survive a reload. Saying so beats a workspace that quietly
+    // forgets.
+    layoutFailed: 'This layout will not be remembered — {error}',
   },
   agents: {
     ready: 'Ready when you are.',

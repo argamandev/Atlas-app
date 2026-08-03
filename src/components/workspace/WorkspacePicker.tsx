@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { useDemoState } from '@/lib/demo/DemoStateProvider'
-import { DemoBanner } from '@/components/ds/DemoBanner'
 import { Monogram } from '@/components/ds/Monogram'
+import { ErrorLine } from '@/components/projects/ErrorLine'
 import { SearchIcon, PlusIcon, ChevronDownIcon, CheckIcon } from '@/components/ds/icons'
-import { WS_SORTS, type WsSortKey } from '@/lib/workspace/data'
+import { WS_SORTS, type WsSortKey, type WorkspaceRow, type WorkspaceItemRow } from '@/lib/workspace/data'
+import { presentWorkspace } from '@/lib/workspace/present'
+import { createWorkspaceReq } from '@/lib/workspace/client'
 
 // Workspace picker (design lines 1263-1333): header + sort menu + black
 // "New workspace", explainer, 44px search, 3-column grid, and the two empty
@@ -19,14 +20,45 @@ import { WS_SORTS, type WsSortKey } from '@/lib/workspace/data'
 // founder answered on 2026-08-01 by rebuilding the headline in the design as
 // serif — so parity and app-wide consistency now agree. Verified against the
 // re-rendered design, not against bundle CSS (rules/app.md).
-export function WorkspacePicker() {
-  const { dict } = useI18n()
+export function WorkspacePicker({
+  rows,
+  items,
+  companies,
+  loadError,
+  nowIso,
+}: {
+  rows: WorkspaceRow[]
+  items: WorkspaceItemRow[]
+  /** itemId -> company name; the workspace's company is derived from these */
+  companies: Record<string, string>
+  loadError: string | null
+  /** the server's clock, so hydration cannot mismatch on "2 hours ago" */
+  nowIso: string
+}) {
+  const { dict, locale } = useI18n()
   const router = useRouter()
-  const { workspaces, addWorkspace } = useDemoState()
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<WsSortKey>('updated')
   const [sortOpen, setSortOpen] = useState(false)
+  const [createError, setCreateError] = useState<unknown>(null)
+  const [creating, setCreating] = useState(false)
   const sortRef = useRef<HTMLDivElement>(null)
+
+  // Rows -> display shapes here rather than on the server, because every label
+  // is DERIVED and derivation needs the dictionary and locale.
+  const workspaces = useMemo(() => {
+    const now = new Date(nowIso)
+    const byWorkspace: Record<string, WorkspaceItemRow[]> = {}
+    for (const it of items) {
+      if (!byWorkspace[it.workspace_id]) byWorkspace[it.workspace_id] = []
+      byWorkspace[it.workspace_id].push(it)
+    }
+    return rows.map((r) => {
+      const own = byWorkspace[r.id] ?? []
+      const names = own.map((i) => companies[i.id]).filter(Boolean)
+      return presentWorkspace(r, own, names, now, locale, dict)
+    })
+  }, [rows, items, companies, nowIso, locale, dict])
 
   useEffect(() => {
     if (!sortOpen) return
@@ -51,17 +83,31 @@ export function WorkspacePicker() {
     files: dict.workspace.sortFiles,
   }
 
-  function createWorkspace() {
-    const id = addWorkspace(dict.workspace.untitled)
-    router.push(`/app/workspace/${id}`)
+  async function createWorkspace() {
+    if (creating) return
+    setCreating(true)
+    // Cleared first, so a retry that succeeds does not sit under a stale
+    // failure — and a retry that fails again replaces rather than accumulates.
+    setCreateError(null)
+    try {
+      const { workspace } = await createWorkspaceReq(dict.workspace.untitled)
+      router.push(`/app/workspace/${workspace.id}`)
+    } catch (e) {
+      // Rendered, never swallowed. A dead "New workspace" button that silently
+      // does nothing is the defect this chapter's predecessor was gated on.
+      setCreateError(e)
+      setCreating(false)
+    }
   }
 
   const newBtn =
     'flex items-center gap-[7px] rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper transition-opacity hover:opacity-90'
 
   return (
+    // No DemoBanner: these workspaces are real rows belonging to the signed-in
+    // account. Claiming "demo" over persisted data is untrue in the other
+    // direction, and the banner's whole job is to be believed.
     <div className="flex h-full min-h-0 flex-col">
-      <DemoBanner />
       <div className="atscroll min-h-0 flex-1 overflow-y-auto px-12 pb-[120px] pt-11">
         <div className="mx-auto w-full max-w-[960px]">
           <div className="flex items-start justify-between gap-5">
@@ -113,6 +159,32 @@ export function WorkspacePicker() {
             </div>
           </div>
           <p className="mb-[22px] mt-2 max-w-[620px] text-[14px] text-ink-muted">{dict.workspace.subtitle}</p>
+
+          {/* BOTH failures render, never one instead of the other: a create
+              that fails while a load has already failed would otherwise be an
+              invisible dead click. Each ErrorLine owns its own block box, so
+              this flex column cannot blockify the <bdi> inside it. */}
+          {(loadError !== null || createError !== null) && (
+            <div
+              role="alert"
+              className="mb-[22px] flex flex-col gap-1 rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink"
+            >
+              {loadError !== null && (
+                <ErrorLine
+                  template={dict.workspace.loadFailed}
+                  error={loadError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
+              {createError !== null && (
+                <ErrorLine
+                  template={dict.workspace.createFailed}
+                  error={createError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
+            </div>
+          )}
 
           <div className="relative mb-[22px]">
             <SearchIcon

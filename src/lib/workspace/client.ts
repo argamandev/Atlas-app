@@ -1,0 +1,99 @@
+import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow } from './data'
+import type { ItemCreate, BlockCreate } from './validate'
+import { handleResponse } from '@/lib/api/client'
+
+// The browser's only door to the workspace API. Every call surfaces its failure
+// to the caller — a rejected promise, never a swallowed one. The UI is required
+// to render that failure: a save that silently did nothing while the screen
+// looks unchanged is the defect class in .claude/rules/app.md, and the exact
+// thing `fix/projects-honesty` was gated on (`.catch(() => setItems([]))`
+// turning a 500 into a confident "nothing here yet").
+
+// THE THROW IS NOT LOCAL, and that is deliberate. This module first shipped
+// with its own `throw new Error(body?.error ?? …)`, copied from the Projects
+// client as it stood before 2026-08-03 — which loses the HTTP status.
+// `isUnauthorized()` tests `instanceof ApiError`, so every 401 would have
+// reached the UI as an ordinary Error and the sign-in branch inside ErrorLine
+// would have been unreachable on exactly the screens that pass it. Caught by
+// `src/lib/api/errorShape.test.ts`, which exists because the same mistake shipped
+// once already. Two fetch layers must not hold two answers to "what does a
+// failure throw".
+async function call<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    cache: 'no-store',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+  })
+  return handleResponse<T>(res)
+}
+
+export type WorkspaceFull = {
+  workspace: WorkspaceRow
+  items: WorkspaceItemRow[]
+  blocks: WorkspaceBlockRow[]
+  /** itemId -> company name, for the DERIVED company label */
+  companies: Record<string, string>
+}
+
+export const fetchWorkspaces = () =>
+  call<{ workspaces: WorkspaceRow[]; items: WorkspaceItemRow[] }>('/api/workspaces')
+
+export const fetchWorkspace = (id: string) => call<WorkspaceFull>(`/api/workspaces/${id}`)
+
+export const createWorkspaceReq = (name: string) =>
+  call<{ workspace: WorkspaceRow }>('/api/workspaces', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+
+export const patchWorkspaceReq = (id: string, patch: Record<string, unknown>) =>
+  call<{ workspace: WorkspaceRow }>(`/api/workspaces/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+
+export const deleteWorkspaceReq = (id: string) =>
+  call<{ deleted: true; counts: { items: number; threads: number; blocks: number } }>(
+    `/api/workspaces/${id}`,
+    { method: 'DELETE' }
+  )
+
+export const addItemReq = (workspaceId: string, input: ItemCreate) =>
+  call<{ item: WorkspaceItemRow }>(`/api/workspaces/${workspaceId}/items`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+
+/** Layout only — `is_open` and `position`. Debounce this at the call site. */
+export const patchItemReq = (
+  workspaceId: string,
+  itemId: string,
+  patch: { is_open?: boolean; position?: number }
+) =>
+  call<{ item: WorkspaceItemRow }>(`/api/workspaces/${workspaceId}/items/${itemId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+
+export const deleteItemReq = (workspaceId: string, itemId: string) =>
+  call<{ deleted: true }>(`/api/workspaces/${workspaceId}/items/${itemId}`, { method: 'DELETE' })
+
+export const addBlockReq = (workspaceId: string, input: BlockCreate) =>
+  call<{ block: WorkspaceBlockRow }>(`/api/workspaces/${workspaceId}/blocks`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+
+export const patchBlockReq = (
+  workspaceId: string,
+  blockId: string,
+  patch: { body?: string; position?: number }
+) =>
+  call<{ block: WorkspaceBlockRow }>(`/api/workspaces/${workspaceId}/blocks/${blockId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+
+export const deleteBlockReq = (workspaceId: string, blockId: string) =>
+  call<{ deleted: true }>(`/api/workspaces/${workspaceId}/blocks/${blockId}`, { method: 'DELETE' })

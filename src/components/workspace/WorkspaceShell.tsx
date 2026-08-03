@@ -18,6 +18,8 @@ import { WorkingDocument } from './WorkingDocument'
 import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
 import { WorkspaceDocs } from './WorkspaceDocs'
 import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
+import { patchItemReq } from '@/lib/workspace/client'
+import { ErrorLine } from '@/components/projects/ErrorLine'
 
 // The populated control layout (design lines 1433-2084): a floating workspace
 // panel beside a floating main card with a tab bar. Special tabs __doc / __legal
@@ -33,8 +35,17 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
 
   const [panelOpen, setPanelOpen] = useState(true)
   const [detail, setDetail] = useState<DetailKey | null>(null)
-  const [openTabs, setOpenTabs] = useState<string[]>([workspace.files[0]?.id ?? DOC_TAB])
-  const [activeTab, setActiveTab] = useState<string>(workspace.files[0]?.id ?? DOC_TAB)
+  // THE WORKSPACE REOPENS WARM. `live` is workspace_items.is_open, persisted —
+  // founder, 2026-08-03: "the workspace should remember how i left it. it must
+  // not open cold every time." This used to be `[files[0].id]`, i.e. it threw
+  // away what the user had open and reopened the first source, every time.
+  // The rows arrive already ordered by `position`, so the tab order is the
+  // order they were left in rather than the order they were attached.
+  const openFromLastTime = workspace.files.filter((f) => f.live).map((f) => f.id)
+  const [openTabs, setOpenTabs] = useState<string[]>(
+    openFromLastTime.length > 0 ? openFromLastTime : [workspace.files[0]?.id ?? DOC_TAB]
+  )
+  const [activeTab, setActiveTab] = useState<string>(openFromLastTime[0] ?? workspace.files[0]?.id ?? DOC_TAB)
   const [split, setSplit] = useState(false)
   const [multi, setMulti] = useState<string[]>([])
   const [renaming, setRenaming] = useState(false)
@@ -44,19 +55,50 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   const [legalStep, setLegalStep] = useState(0)
   const [legalAreas, setLegalAreas] = useState<string[]>([])
 
-  const openTab = useCallback((id: string) => {
-    setOpenTabs((t) => (t.includes(id) ? t : [...t, id]))
-    setActiveTab(id)
-  }, [])
+  const [layoutError, setLayoutError] = useState<unknown>(null)
 
-  const closeTab = useCallback((id: string) => {
-    setOpenTabs((t) => {
-      const next = t.filter((x) => x !== id)
-      setActiveTab((a) => (a === id ? (next[next.length - 1] ?? '') : a))
-      return next
-    })
-    setMulti((m) => m.filter((x) => x !== id))
-  }, [])
+  /**
+   * Persist one tab's open/closed state — the write half of "remember how I
+   * left it". ONE row, not the whole workspace, and it deliberately does not
+   * move `workspaces.updated_at`: opening a pane is not an edit.
+   *
+   * The synthetic tabs (__doc, __legal, __chat) are not shelf items and have no
+   * row to patch, so they are skipped rather than sent and 404'd.
+   */
+  const persistOpen = useCallback(
+    (id: string, isOpen: boolean) => {
+      if (id === DOC_TAB || id === LEGAL_TAB || id === CHAT_TAB) return
+      patchItemReq(workspace.id, id, { is_open: isOpen }).catch((e: unknown) => {
+        // Surfaced, not swallowed. If this fails the pane still moved on screen
+        // but WILL NOT survive a reload, and the user has to be told — a layout
+        // that silently forgets is precisely what this chapter set out to fix.
+        setLayoutError(e)
+      })
+    },
+    [workspace.id]
+  )
+
+  const openTab = useCallback(
+    (id: string) => {
+      setOpenTabs((t) => (t.includes(id) ? t : [...t, id]))
+      setActiveTab(id)
+      persistOpen(id, true)
+    },
+    [persistOpen]
+  )
+
+  const closeTab = useCallback(
+    (id: string) => {
+      setOpenTabs((t) => {
+        const next = t.filter((x) => x !== id)
+        setActiveTab((a) => (a === id ? (next[next.length - 1] ?? '') : a))
+        return next
+      })
+      setMulti((m) => m.filter((x) => x !== id))
+      persistOpen(id, false)
+    },
+    [persistOpen]
+  )
 
   const sections: { key: DetailKey; label: string; count: number }[] = [
     { key: 'files', label: dict.workspace.sectionFiles, count: workspace.files.length },
@@ -74,7 +116,25 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {/* The workspace and its shelf are real rows now; the AGENT and legal
+          surfaces inside this shell are still demo, which is what the banner
+          still speaks for. */}
       <DemoBanner />
+      {/* A layout change that failed to persist still moved on screen, so
+          without this the workspace would silently forget on the next reload —
+          the very thing this chapter set out to fix. */}
+      {layoutError !== null && (
+        <div
+          role="alert"
+          className="mx-3 mt-3 rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink"
+        >
+          <ErrorLine
+            template={dict.workspace.layoutFailed}
+            error={layoutError}
+            auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+          />
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         {panelOpen ? (
           <div className="flex w-[290px] flex-none flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
