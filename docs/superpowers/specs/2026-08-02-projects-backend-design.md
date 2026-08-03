@@ -131,15 +131,49 @@ personal-layer data per `docs/DATA-MODEL.md`.
 > a **composite** key instead. This block is kept as the record of what was designed and why it
 > changed — read the migration, not this snippet.
 
-**What was designed (rejected):**
+**What was designed (rejected — DO NOT RUN):**
+
+Every line below is commented out on purpose. It was previously published as live,
+copy-pasteable SQL sitting under a line reading `-- APPLIED (migration 20260802_015)`,
+which is two untruths at once: this shape was never applied, and the database it would
+have run against is shared with deployed production Timlul. `~~strikethrough~~` does not
+render inside a fenced block, so the only safe way to publish rejected DDL is to make it
+non-executable.
 
 ```sql
--- ~~add column project_id uuid references public.projects (id) on delete cascade;~~
--- APPLIED (migration 20260802_015). The column is added bare and the key added
--- separately, because `add column if not exists` cannot carry a composite key.
-alter table public.chat_conversations
-  add column project_id uuid references public.projects (id) on delete cascade;
+-- REJECTED AT THE DDL GATE — NOT APPLIED, NOT SAFE TO RUN.
+-- The single-column key does not constrain WHOSE project is referenced.
+--
+-- alter table public.chat_conversations
+--   add column project_id uuid references public.projects (id) on delete cascade;
 ```
+
+**What was actually applied** (`20260802_015_projects.sql:130-143`) — the column bare, then
+the composite key separately, because `add column if not exists` cannot carry one:
+
+```sql
+alter table public.chat_conversations
+  add column if not exists project_id uuid;
+
+create index if not exists chat_conversations_project_id_idx
+  on public.chat_conversations (project_id);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'chat_conversations_project_fk'
+  ) then
+    alter table public.chat_conversations
+      add constraint chat_conversations_project_fk
+      foreign key (project_id, user_id)
+      references public.projects (id, user_id)
+      on delete cascade;
+  end if;
+end $$;
+```
+
+*(Transcribed from `20260802_015_projects.sql`, not from memory — a first pass at this block
+invented the constraint name `chat_conversations_project_owner_fkey`, which does not exist.)*
 
 **What was applied:** a bare nullable `project_id` column plus a two-column foreign key
 `(project_id, user_id) → projects (id, user_id)`, which is why `projects` carries the otherwise
