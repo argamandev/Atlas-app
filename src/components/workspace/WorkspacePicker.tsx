@@ -215,15 +215,23 @@ export function WorkspacePicker({
                       {w.updatedLabel}
                     </span>
                   </div>
+                  {/* NOT dir="auto" on either line — 4th occurrence of the rule
+                      in .claude/rules/app.md, and the first where real data made
+                      it bite. `dir` resolves the WHOLE line from its FIRST
+                      strong character, and presentWorkspace now feeds these real
+                      Hebrew issuer names beside a Latin-or-Hebrew source count:
+                      in EN a Hebrew company flipped the line to RTL and rendered
+                      "4 · ןארידת sources"; in HE a Latin company flipped it to
+                      LTR and rendered "Qualitau · 4 תורוקמ". <bdi> per run lets
+                      each resolve on its own and the container keeps the page's
+                      direction. The parent is a block div, not flex, so these
+                      stay inline rather than blockifying. */}
                   <div className="flex-1">
-                    <div
-                      className="mb-[3px] text-[15px] font-semibold tracking-[-0.01em] text-ink"
-                      dir="auto"
-                    >
-                      {w.name}
+                    <div className="mb-[3px] text-[15px] font-semibold tracking-[-0.01em] text-ink">
+                      <bdi>{w.name}</bdi>
                     </div>
-                    <div className="text-[12.5px] text-ink-muted" dir="auto">
-                      {w.company} · {w.sub}
+                    <div className="text-[12.5px] text-ink-muted">
+                      <bdi>{w.company}</bdi> · <bdi>{w.sub}</bdi>
                     </div>
                   </div>
                   <div className="font-mono-num text-[11.5px] text-ink-faint">

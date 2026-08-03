@@ -201,11 +201,13 @@ export function WorkspaceShell({
                         />
                       ) : (
                         <div className="flex min-w-0 items-center gap-1.5">
-                          <span
-                            dir="auto"
-                            className="min-w-0 flex-1 truncate font-display text-[16.5px] font-medium leading-[1.2] tracking-[-0.01em] text-ink"
-                          >
-                            {name}
+                          {/* A workspace name is USER INPUT and can itself mix
+                              scripts ("Tigbur — הפרטה"). <bdi> rather than
+                              dir="auto" so the flip point is the run, not the
+                              line — and so this cannot become the 5th occurrence
+                              when someone puts a ticker in a Hebrew name. */}
+                          <span className="min-w-0 flex-1 truncate font-display text-[16.5px] font-medium leading-[1.2] tracking-[-0.01em] text-ink">
+                            <bdi>{name}</bdi>
                           </span>
                           <button
                             type="button"
@@ -217,8 +219,13 @@ export function WorkspaceShell({
                           </button>
                         </div>
                       )}
-                      <span dir="auto" className="truncate text-[11.5px] text-ink-ghost">
-                        {workspace.company} · {workspace.sub}
+                      {/* Same defect as WorkspacePicker's card line, same fix.
+                          The review flagged the picker; this copy in the panel
+                          header was missed, which is the lesson app.md already
+                          files — one flagged occurrence is not the whole set,
+                          so this was found by grepping the SHAPE ("} · {"). */}
+                      <span className="truncate text-[11.5px] text-ink-ghost">
+                        <bdi>{workspace.company}</bdi> · <bdi>{workspace.sub}</bdi>
                       </span>
                     </div>
                   </div>
@@ -265,8 +272,9 @@ export function WorkspaceShell({
                       <DocGlyph />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span dir="auto" className="truncate text-[13px] font-semibold text-ink">
-                        {docTitle(workspace)}
+                      {/* Also user input — same reasoning as the workspace name. */}
+                      <span className="truncate text-[13px] font-semibold text-ink">
+                        <bdi>{docTitle(workspace)}</bdi>
                       </span>
                       {/* "Draft", not "saved just now" — nothing saves, and the
                           timestamp was static anyway. */}

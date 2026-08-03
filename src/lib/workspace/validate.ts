@@ -5,11 +5,26 @@ import type { WsItemKind, WsBlockKind } from './data'
 // without booting Next. Hand-rolled rather than zod, matching
 // src/lib/projects/validate.ts — see its header for why.
 //
-// Several rules here MIRROR a database CHECK on purpose. The database is the
-// thing that actually guarantees them; repeating them at the door turns a 500
-// with a Postgres constraint name into a 400 with a sentence the UI can render.
-// If one of these is ever loosened, the constraint stays and the route starts
-// returning 500s — which is the safe direction.
+// WHICH RULES THE DATABASE ACTUALLY BACKS, named rather than asserted in bulk.
+// This header used to claim that every rule below mirrors a constraint and that
+// loosening one "only causes 500s, which is the safe direction". That was FALSE
+// for the kind↔provenance rule, which had no constraint at all until migration
+// 017 — loosening it wrote a corrupt row silently, and a row lying about its own
+// kind makes the UI resolve a page anchor against a call. A cold review caught
+// the comment and the hole together, which is the useful lesson: a blanket claim
+// about someone else's guarantees is exactly the sentence that rots.
+//
+//   parseItemCreate   exactly-one-provenance  -> workspace_items_one_source (016)
+//   parseItemCreate   kind matches provenance -> workspace_items_kind_matches_source (017)
+//   parseBlockCreate  page XOR line           -> workspace_doc_blocks_one_anchor (016)
+//   parseBlockCreate  a quote carries its text-> workspace_doc_blocks_quote_has_text (016)
+//
+// Those four are belt-and-braces: the constraint is the guarantee, and checking
+// here turns a Postgres constraint name in a 500 into a sentence the UI can
+// render. Every OTHER rule below — lengths, trimming, which fields a patch may
+// touch — exists ONLY here. Loosening one of those writes a bad row silently, so
+// they are not "the safe direction" and must not be relaxed on that reasoning.
+// If you add a rule, either add its constraint or say plainly that it is alone.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const WS_NAME_MAX = 200
