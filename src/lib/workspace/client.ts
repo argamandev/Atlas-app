@@ -1,4 +1,4 @@
-import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow } from './data'
+import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow, AttachableSource } from './data'
 import type { ItemCreate, BlockCreate } from './validate'
 import { handleResponse } from '@/lib/api/client'
 
@@ -35,6 +35,10 @@ export type WorkspaceFull = {
   /** itemId -> company name, for the DERIVED company label */
   companies: Record<string, string>
 }
+
+/** The corpus a user may put on a shelf. Static segment, so it does not collide
+ *  with /api/workspaces/[id] — Next resolves `sources` before the dynamic one. */
+export const fetchSources = () => call<{ sources: AttachableSource[] }>('/api/workspaces/sources')
 
 export const fetchWorkspaces = () =>
   call<{ workspaces: WorkspaceRow[]; items: WorkspaceItemRow[] }>('/api/workspaces')

@@ -19,6 +19,7 @@ import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDilige
 import { WorkspaceDocs } from './WorkspaceDocs'
 import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
 import { patchItemReq } from '@/lib/workspace/client'
+import { WorkspaceSourcePicker } from './WorkspaceSourcePicker'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 
 // The populated control layout (design lines 1433-2084): a floating workspace
@@ -29,7 +30,14 @@ const DOC_TAB = '__doc'
 const LEGAL_TAB = '__legal'
 const CHAT_TAB = '__chat'
 
-export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
+export function WorkspaceShell({
+  workspace,
+  attachedSourceIds,
+}: {
+  workspace: Workspace
+  /** corpus ids already on the shelf, so the picker offers no duplicate Add */
+  attachedSourceIds: string[]
+}) {
   const { dict } = useI18n()
   const router = useRouter()
 
@@ -56,6 +64,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   const [legalAreas, setLegalAreas] = useState<string[]>([])
 
   const [layoutError, setLayoutError] = useState<unknown>(null)
+  const [addOpen, setAddOpen] = useState(false)
 
   /**
    * Persist one tab's open/closed state — the write half of "remember how I
@@ -115,7 +124,9 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
     'flex h-6 w-6 flex-none items-center justify-center rounded-md text-ink-ghost transition-colors hover:bg-subtle hover:text-ink'
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // `relative` so the add-sources overlay's `absolute inset-0` is bounded by
+    // the workspace surface rather than escaping to the viewport.
+    <div className="relative flex h-full min-h-0 flex-col">
       {/* The workspace and its shelf are real rows now; the AGENT and legal
           surfaces inside this shell are still demo, which is what the banner
           still speaks for. */}
@@ -224,6 +235,17 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                       {dict.workspace.newWorkspaceChat}
                     </span>
                     <PlusIcon size={14} strokeWidth={2} className="flex-none opacity-50" />
+                  </button>
+
+                  {/* The shelf had no add affordance before migration 016,
+                      because nothing could be added. */}
+                  <button
+                    type="button"
+                    onClick={() => setAddOpen(true)}
+                    className="mt-2 flex w-full items-center gap-2.5 rounded-[11px] border border-hairline px-3 py-[10px] text-start text-ink transition-colors hover:bg-subtle"
+                  >
+                    <PlusIcon size={15} strokeWidth={1.9} className="flex-none opacity-60" />
+                    <span className="flex-1 text-[13px] font-medium">{dict.workspace.addSources}</span>
                   </button>
 
                   <div className="mb-2 ms-0.5 mt-5 text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-ghost">
@@ -339,6 +361,39 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
           }
         />
       </div>
+
+      {addOpen && (
+        <div
+          className="absolute inset-0 z-30 flex items-start justify-center bg-ink/20 p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label={dict.workspace.addSources}
+          onMouseDown={(e) => {
+            // Backdrop only — a mousedown that started inside the panel must not
+            // close it when the pointer is released over the backdrop.
+            if (e.target === e.currentTarget) setAddOpen(false)
+          }}
+        >
+          <div className="flex max-h-full w-full max-w-[560px] flex-col gap-3 overflow-hidden rounded-win border border-float-line bg-canvas p-5 shadow-pane">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[15px] font-semibold text-ink">{dict.workspace.addSources}</div>
+                <p className="mt-1 text-[12.5px] leading-[1.5] text-ink-muted">
+                  {dict.workspace.addSourcesHint}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddOpen(false)}
+                className="flex-none rounded-[7px] bg-ink px-3 py-1.5 text-[12.5px] text-paper"
+              >
+                {dict.workspace.doneAdding}
+              </button>
+            </div>
+            <WorkspaceSourcePicker workspaceId={workspace.id} attachedSourceIds={attachedSourceIds} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

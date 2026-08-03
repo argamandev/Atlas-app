@@ -4,8 +4,8 @@ import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ErrorLine } from '@/components/projects/ErrorLine'
-import { WorkspaceIntake } from './WorkspaceIntake'
 import { WorkspaceShell } from './WorkspaceShell'
+import { WorkspaceSourcePicker } from './WorkspaceSourcePicker'
 import { presentWorkspace } from '@/lib/workspace/present'
 import type { WorkspaceRow, WorkspaceItemRow } from '@/lib/workspace/data'
 
@@ -46,6 +46,14 @@ export function WorkspaceRoute({
           )
         : null,
     [workspace, items, companies, nowIso, locale, dict]
+  )
+
+  // What is already on the shelf, in CORPUS ids rather than item ids — the
+  // picker compares against these so an attached source shows as added instead
+  // of offering an Add that the unique index would refuse.
+  const attachedSourceIds = useMemo(
+    () => items.map((i) => i.transcript_id ?? i.document_id).filter((v): v is string => !!v),
+    [items]
   )
 
   const backButton = (
@@ -95,6 +103,29 @@ export function WorkspaceRoute({
     )
   }
 
-  if (presented.files.length === 0) return <WorkspaceIntake workspaceName={presented.name} />
-  return <WorkspaceShell workspace={presented} />
+  // An EMPTY workspace offers the real way to fill it.
+  //
+  // It used to show WorkspaceIntake — the designed "describe it and an agent
+  // gathers the files" flow, which carries its own demo marker because nothing
+  // gathers anything. That flow needs agent execution, which needs the deploy,
+  // which comes after this chapter. Until then the honest empty state is the
+  // one that actually works: pick from the corpus that exists. WorkspaceIntake
+  // is still in the repo, unrouted, waiting for the engine it describes.
+  if (presented.files.length === 0) {
+    return (
+      <div className="atscroll flex h-full min-h-0 flex-col overflow-y-auto px-10 py-10">
+        <div className="mx-auto flex w-full max-w-[620px] flex-1 flex-col">
+          <h1 className="font-display text-[26px] font-medium tracking-[-0.02em] text-ink">
+            <bdi>{presented.name}</bdi>
+          </h1>
+          <p className="mb-6 mt-2 text-[14px] leading-[1.55] text-ink-muted">
+            {dict.workspace.addSourcesHint}
+          </p>
+          <WorkspaceSourcePicker workspaceId={presented.id} attachedSourceIds={attachedSourceIds} />
+        </div>
+      </div>
+    )
+  }
+
+  return <WorkspaceShell workspace={presented} attachedSourceIds={attachedSourceIds} />
 }

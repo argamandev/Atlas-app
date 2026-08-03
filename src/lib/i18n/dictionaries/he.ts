@@ -153,6 +153,17 @@ export const he: Dictionary = {
     createFailed: 'לא נשמר — {error}',
     openFailed: 'לא ניתן לפתוח את סביבת העבודה — {error}',
     layoutFailed: 'הסידור הזה לא יישמר — {error}',
+
+    // ── הוספת מקור אמיתי למדף ──────────────────────────────────────────────
+    addSources: 'הוספת מקורות',
+    addSourcesHint: 'הכניסו שיחות משקיעים ומסמכי חברה. כל מה שתוסיפו יישאר בסביבת העבודה הזו.',
+    searchSources: 'חיפוש שיחות ומסמכים…',
+    sourceAdded: 'נוסף',
+    noSources: 'אין עדיין שיחות או מסמכים זמינים.',
+    noSourceMatch: 'אין תוצאות לחיפוש הזה.',
+    sourcesFailed: 'לא ניתן לטעון את המקורות הזמינים — {error}',
+    attachFailed: 'לא ניתן להוסיף את המקור — {error}',
+    doneAdding: 'סיום',
   },
   agents: {
     ready: 'מוכן כשאתם מוכנים.',

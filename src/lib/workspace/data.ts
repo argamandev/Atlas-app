@@ -383,6 +383,20 @@ export type WorkspaceItemRow = {
   created_at: string
 }
 
+/**
+ * A shared-corpus row a user may put on a shelf. Not a table — it is the union
+ * of `transcripts` and `company_documents` as the source picker sees them.
+ */
+export type AttachableSource = {
+  /** transcripts.id is TEXT; company_documents.id is a uuid. Both are strings here. */
+  sourceId: string
+  kind: 'transcript' | 'document'
+  title: string
+  /** null when the source has no company attached — never a fabricated one */
+  company: string | null
+  when: string | null
+}
+
 export type WorkspaceThreadRow = {
   id: string
   workspace_id: string

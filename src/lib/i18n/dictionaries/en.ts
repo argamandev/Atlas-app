@@ -171,6 +171,18 @@ export const en = {
     // it will NOT survive a reload. Saying so beats a workspace that quietly
     // forgets.
     layoutFailed: 'This layout will not be remembered — {error}',
+
+    // ── Putting a real source on the shelf ─────────────────────────────────
+    addSources: 'Add sources',
+    addSourcesHint:
+      'Pull in investor calls and company documents. Everything you add stays in this workspace.',
+    searchSources: 'Search calls and documents…',
+    sourceAdded: 'Added',
+    noSources: 'No calls or documents are available yet.',
+    noSourceMatch: 'Nothing matches that search.',
+    sourcesFailed: 'Could not load the available sources — {error}',
+    attachFailed: 'Could not add that source — {error}',
+    doneAdding: 'Done',
   },
   agents: {
     ready: 'Ready when you are.',
