@@ -548,3 +548,26 @@ upstream, so shipping it reasoned-only at round four is worse than the disclosed
   caught mid-stream read error.
 
 Both added to the ready-queue follow-up. Neither is introduced by this branch.
+
+### 11.6 The race fix, proven BEFORE and AFTER in the browser
+
+A guard that is not seen failing proves nothing — the lesson from §9.1, where the first version of
+`errorShape.test.ts` passed on the reintroduced bug. So this one was run both ways.
+
+**Method (real server, not a patched `fetch`):** a temporary delay in `GET /api/conversations/[id]`
+that slows only the FIRST conversation opened after a server start. Then, in the founder's signed-in
+Chrome: click row **`hey`** (slow, 4s), wait 500ms, click row **`did they say this?`** (fast), wait
+8s — well past the slow one's arrival. Distinct titles, deliberately: a first attempt used two rows
+that were both titled `מה הולך` and could not have told the two apart.
+
+| build | screen after 8s | verdict |
+|---|---|---|
+| **guard REMOVED** | `hey` — the one clicked FIRST | 🐛 reproduces: the slow open overwrites the newer one, so the user reads a conversation they did not open |
+| **guard in place** | `did they say this?` — the one clicked LAST | ✅ correct, and no error banner |
+
+Both temporary edits reverted, and the revert proven: `git grep "TEMP-VERIFY\|__slowSeen\|x-verify"`
+returns nothing, `git diff` is empty, `git status` clean.
+
+**What this does NOT cover:** the same race through `ProjectView`'s chat rows was not clicked by
+hand. It routes through the identical `ChatView.openConversation`, which is the whole point of
+moving the guard there — but that is inference, stated as such.
