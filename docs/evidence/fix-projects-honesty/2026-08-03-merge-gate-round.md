@@ -1,0 +1,205 @@
+# fix/projects-honesty — the merge-gate round (supervisor)
+
+**Who did this round and why it is not Lane M.** The cold gate on `b1d5d3d` returned CHANGES
+(1 BLOCKER · 4 WARNING · 4 NIT). By then Lane M had already branched `feat/workspace-tables` off
+main and started the Workspace chapter, so the founder chose to have the supervisor take the fix
+round rather than interrupt a live lane. The standing rule that the supervisor does not
+fix-and-self-review still applies: this goes through a fresh cold `atlas-reviewer` before it may
+merge, exactly as `fix/api-security` did.
+
+**Commits this round:** `485e000` (merge) · `8065c48` (the five UI findings) · `0455c37` (spec) ·
+plus the sanitizer test. Branch base `bba0a21`.
+
+---
+
+## 0. What this round does NOT prove
+
+Listed first, because a previous round on this branch was blocked for evidence that overclaimed.
+
+- **No chat was sent through a model.** The `errorKind: 'save'` path — an answer that streamed in
+  full and then failed to persist — is reasoned from the code, not photographed. What IS shown is
+  that the error no longer occupies `content`; the save-vs-answer split is a two-branch conditional
+  over `full.length > 0` and is unit-testable but untested.
+- **The persisted degradation notice was proven at the API layer, not by eye.** I did not force a
+  real truncation through a project's context and then reload the page. What I did prove is the
+  round trip that the fix depends on (§4).
+- **Only `/app/chat` and `/app/chat/projects` were loaded.** `ProjectView`'s own banner is not in
+  any frame this round; it takes the same `ErrorLine` change as the two that are.
+- **The build claim is from a clean build with the dev server stopped and `.next` cleared** — but
+  the browser pass above it ran against the DEV server, so the two are different artifacts.
+
+---
+
+## 1. BLOCKER — the merge, and a correction to my own instruction
+
+The gate's headline finding was that the merge resolution *I had written into the ready queue and
+the board* does not work. It said: make `resolveConversationScope` refuse, then "add it to the
+guard's `AUTH_FNS` list (one deliberate line)".
+
+`src/lib/apiAuthBoundary.test.ts:80` binds an auth result only through
+`(?:const|let|var)\s+(\w+)\s*(?::[^=;]+)?=\s*await\s+(?:AUTH_FNS)\s*\(`. **The `await` is
+required.** `resolveConversationScope` is synchronous, so nothing binds, the refusal is not tied to
+an auth identifier, and the handler still reports *"resolves a user but never acts on the result"*.
+The allowlist line would have done nothing. The reviewer proved this by building the route shape my
+note described, patching `AUTH_FNS`, and running the guard — not by reading.
+
+**I wrote that instruction from my memory of writing the guard, instead of from the guard.** That is
+the same "a claim in a document comes from a command" failure this branch's neighbour filed three
+times. Correction appended to `cross-cutting.md` the moment it was found, because Lane M was live
+and was the intended reader of the wrong version.
+
+**Resolved instead as:** the route keeps main's two lines itself (`getRequestUserId` →
+`unauthorized()`), and the helper becomes `resolveProjectId(body)` carrying **no identity at all**.
+
+Why that is better than making the helper async to satisfy the scanner: the old shape had lifted the
+`?? DEMO_USER_ID` fallback out of `src/app/api` — which the guard scans — into `src/lib/db`, which it
+does not. It moved a hole to where nothing was watching. The new shape removes it.
+
+Also deleted: the unit test asserting `realUserId ?? DEMO_USER_ID` as **correct**
+(`conversationScope.test.ts`, "an ordinary chat still falls back to the demo id"). A test that pins a
+hole in place makes removing the hole look like a regression.
+
+```
+$ node --import tsx --test src/lib/apiAuthBoundary.test.ts
+✔ every API route handler resolves a user AND refuses without one
+✔ nothing under src/app falls back to the shared DEMO_USER_ID identity
+✔ the public allowlist stays small and every entry states its reason
+```
+
+**No allowlist change was needed.** `package.json` takes both test files.
+
+---
+
+## 2. WARNING — an error was being rendered as Atlas's answer
+
+`ChatView.tsx` wrote `(err as Error).message` into the assistant message's `content`, so a raw
+server string rendered in the place a Hebrew answer belongs, in the same unstyled branch as a real
+reply. Two distinct harms:
+
+- the user reads `unauthorized`, or `relation "public.chat_conversations" does not exist`, as
+  though Atlas had said it;
+- the persistence step runs **after** the answer has streamed in full, so a `createConversation` /
+  `saveConversation` failure **destroyed a correct answer** and replaced it with the reason it could
+  not be stored.
+
+Now: the error is carried on a separate `error` field (the thrown value, not its message — the
+status has to survive), `content` is never touched, and the copy states which half failed.
+`answerFailed` when nothing arrived, `notSaved` when the answer is real and only storing it failed.
+One string for both would make one of them false.
+
+## 3. WARNING — a 401 had no way back
+
+Three banner sites rendered a 401 as the bare word `unauthorized`, under a template that blamed the
+wrong thing: *"Could not load your chats — unauthorized"* invites the reading that the chats are the
+problem. `rules/app.md` prescribes `loginRedirectTarget` for this caller class.
+
+The status was being **thrown away in the fetch layer** — `client.ts` turned every failure into
+`new Error(body.error)` — so no caller could have acted on it even if it had wanted to. Fixed at the
+source: `ApiError` carries `status`, `isUnauthorized()` is the predicate, and `ErrorLine` takes the
+thrown value and renders the expired-session copy plus a sign-in button for a 401.
+
+Applied at **all 8** `ErrorLine` render sites, not the three the gate named — counted by command
+(`git grep -c "auth={{ expired:"`), which is also how the number in this sentence was corrected
+after a first draft wrote "five" above a list that summed to eight:
+
+```
+src/components/chat/ChatHistory.tsx:2
+src/components/chat/ChatView.tsx:1        (new this round)
+src/components/projects/ProjectView.tsx:3  (incl. the not-found screen)
+src/components/projects/ProjectsList.tsx:2
+```
+
+`git grep -h "<ErrorLine" -- src | wc -l` is also 8, so coverage is total: there is no `ErrorLine`
+left that could render a 401 as a dead end.
+
+## 4. WARNING — a notice that vanished on reload
+
+The project-context degradation notice lived only in React state. `saveConversation` persists
+`{role, content}`, so **one reload turned "answered without your project's context" into an answer
+that looked complete.** The degradation was visible exactly until the user did the most ordinary
+thing available to them.
+
+Now persisted in the existing `messages` jsonb — additive, **no migration**, nothing applied against
+the shared database. Announced in `cross-cutting.md` before the edit, per the parallel-work law,
+because `ChatMsg` is a shared type and Lane M is live.
+
+**Proven by round trip against the real routes**, in the founder's signed-in browser, using a
+throwaway conversation created and deleted in the same script (his row, created by me, removed by
+me — disclosed rather than hidden):
+
+| step | result |
+|---|---|
+| `POST /api/conversations` | 200 |
+| `PATCH` with `projectContext: 'truncated'` and `projectContext: 'notARealStatus'` | 200 |
+| `GET` read-back | `truncated` → **`truncated`**, `notARealStatus` → **`notARealStatus`** |
+| `DELETE` | 200 |
+| `GET` after delete | **404** |
+
+**The second row is the important one.** The server stores the blob verbatim, so an arbitrary string
+CAN reach the client — and the render treats anything that is not `'failed'` as truncated. The
+client-side `sanitizeContextStatus` is therefore the only thing standing between the blob and a
+warning painted on an undegraded answer. It now has its own test file
+(`src/lib/api/contextStatus.test.ts`, 3 tests, 13 junk values) with that reasoning written above it.
+
+## 5. NITs taken
+
+- `ChatHistory` flashed "Nothing here yet" on first paint before the fetch resolved — the same
+  untrue empty state the component exists to prevent, for a shorter moment. Now has a `loading` flag.
+- Its refresh effect had no cancellation, and `refreshKey` bumps after every exchange, so a slow
+  **rejected** fetch could resolve after a newer successful one and paint an error over a list that
+  had loaded correctly. Now cancels.
+- `ProjectView.write()` cleared only `saveError`, leaving a stale "could not open that chat" line
+  standing over every later successful save. Now clears both.
+- The spec published the **rejected** single-column foreign key as live, copy-pasteable SQL under a
+  line reading `-- APPLIED (migration 20260802_015)` — two untruths at once, against a database
+  shared with deployed production Timlul. (`~~strikethrough~~` does not render inside a fenced
+  block.) Every line is now commented out, with the applied shape beside it, transcribed from the
+  migration file — **after a first pass invented a constraint name that does not exist**, which is
+  noted in the spec itself.
+
+---
+
+## 6. Battery, on the merge result
+
+| check | result |
+|---|---|
+| `npm test` | **206 / 206** — 201 on the branch before the merge, and the delta reconciles exactly: `conversationScope.test.ts` **8 → 7** (the demo-fallback assertion deleted), `apiAuthBoundary.test.ts` **+3** (arrives with main), `contextStatus.test.ts` **+3** (new this round). 201 − 1 + 3 + 3 = 206. *(Counted per file by running them; a first draft of this table guessed the decomposition and was wrong.)* |
+| `npx tsc --noEmit` | **exit 0** |
+| `npm run build` | **green**, dev server stopped and `.next` cleared first; Middleware **81.8 kB** intact, all `/app/chat/projects*` routes compiled |
+| dictionary parity | enforced by `tsc` — `he.ts` must structurally match `en.ts`, and it failed loudly mid-edit until both locales had all four new keys |
+
+---
+
+## 7. Eyes-on, in the founder's signed-in Chrome, both locales
+
+The 401 and 500 surfaces were forced by **temporarily returning them from the real handler** — the
+same technique the previous round was credited for, not a patched `window.fetch`. Reverted, and the
+revert proven: `git diff` empty, `git grep "TEMP-VERIFY\|x-verify-skip" -- src` returns nothing,
+`git status` clean.
+
+| surface | observed |
+|---|---|
+| `/app/chat` EN, 401 | `Your session has expired.` + **`Sign in`** button · banner 34.75px (one row) · empty state NOT shown |
+| `/app/chat` HE, 401 | `תוקף ההתחברות שלך פג. התחברות` · `dir=rtl` · wrapper span computed **`block`** · 34.75px · empty state NOT shown |
+| `/app/chat` HE, 500 | `לא ניתן לטעון את השיחות — relation "public.chat_conversations" does not exist` · wrapper **`block`** top 270.5 · `<bdi>` **`inline`** top 271.5 · **no** sign-in button |
+| `/app/chat` normal | 0 alerts · 18 recent-chat rows · no false empty state |
+| `/app/chat/projects` | loads · 0 alerts · **0 console errors** |
+
+**The 500 row is the regression check that mattered.** Changing `ErrorLine`'s signature from
+`error: string` to `error: unknown` could have broken the block-wrapper contract the previous round
+measured and was gated on. It holds: wrapper `block`, `<bdi>` `inline`, one bidi paragraph, the
+Latin Postgres run keeping its quotes on the correct side under `dir=rtl`. And the 401 correctly
+does *not* render a `<bdi>` — there is no foreign error string in that branch, only localized copy.
+
+**Screenshots:** `shots/2026-08-03-session-expired-en.jpg` · `shots/2026-08-03-session-expired-he.jpg`
+· `shots/2026-08-03-server-error-bdi-he.jpg`. Each shows the sidebar banner in place on a real page;
+none is a mock.
+
+---
+
+## 8. Ports and shared state
+
+`:3000` (supervisor) was mine, used for the browser pass, then **stopped** before the build per the
+filed rule. `:3001` is Lane S's held seat and was **left running** — killing another lane's dev
+server is a recorded past mistake. `:3002`, `:3003`, `:8788` free throughout. No migration, no DDL,
+no live-engine claim.
