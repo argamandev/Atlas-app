@@ -31,7 +31,7 @@ export type SourceRequest = {
  * that period" and "I do not have that company at all" are different sentences,
  * and neither may be rendered as an ordinary empty list.
  */
-export type FindReason = 'ok' | 'company-has-nothing-in-period' | 'no-such-company' | 'empty-corpus'
+export type FindReason = 'ok' | 'company-has-nothing-in-period' | 'nothing-matched' | 'empty-corpus'
 
 export type FindResult = {
   request: SourceRequest
