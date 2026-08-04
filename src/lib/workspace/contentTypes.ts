@@ -1,3 +1,5 @@
+import type { WordTimedTranscript } from '@/lib/live/syncEngine'
+
 // The shapes `content.ts` returns, split out because that module is
 // `server-only` and the browser needs to name what it receives. Same reason
 // `intake/types.ts` sits beside `intake/selectSources.ts`.
@@ -23,6 +25,26 @@ export type ItemContent =
       quarter: string | null
       date: string | null
       sections: ContentSection[]
+      /**
+       * THE RECORDING, when there is one.
+       *
+       * Founder, 2026-08-05: *"when we're pulling a transcript, we also need to
+       * pull the audio from it and the same functionality of viewing that live
+       * transcript with the audio sync."*
+       *
+       * Both fields are null for most of the archive and that is a fact about
+       * the corpus, not a bug: only calls that went through the IVRIT pipeline
+       * carry stored audio and per-word timings — 4 of 56 completed transcripts
+       * on 2026-08-05. The pane shows the player ONLY when both are present,
+       * because a play button over silence is worse than no play button.
+       */
+      audioUrl: string | null
+      /** per-word timings for karaoke; null when the call was never word-timed */
+      wordTimed: WordTimedTranscript | null
+      /** the CORPUS id, not the shelf item's. The global player keys the active
+       *  track by it, so the same call opened from the call page and from a
+       *  workspace pane is one track and not two competing ones. */
+      transcriptId: string
     }
   | {
       kind: 'document'

@@ -1,6 +1,9 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Transcript } from '@/lib/types'
+import { buildFromIvrit, buildFromIvritWithGeminiNames } from '@/lib/live/loadCall'
+import { applySpeakerEdits } from '@/lib/live/syncEngine'
+import type { IvritSegment, SpeakerEdits } from '@/lib/live/syncEngine'
 import type { ItemContent } from './contentTypes'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,7 +76,9 @@ async function loadTranscript(
 ): Promise<ItemContent> {
   const { data, error } = await supabase
     .from('transcripts')
-    .select('id, youtube_title, status, formatted_data, speaker_names')
+    .select(
+      'id, youtube_title, status, formatted_data, speaker_names, audio_url, word_segments, speaker_edits'
+    )
     .eq('id', transcriptId)
     .maybeSingle()
   if (error) throw new Error(error.message)
@@ -95,8 +100,41 @@ async function loadTranscript(
   const nameOf = new Map<string, string>()
   for (const s of fd.speakers ?? []) nameOf.set(s.id, overrides[s.id] ?? s.name)
 
+  // ── THE RECORDING, ASSEMBLED THE SAME WAY THE CALL PAGE ASSEMBLES IT ───────
+  // Founder, 2026-08-05: a transcript on the shelf should play, and the words
+  // should follow the audio, exactly as they do in a live call.
+  //
+  // These are the live view's OWN builders (`lib/live/loadCall`), imported
+  // rather than reimplemented: speaker grouping, the Gemini-name relabel that
+  // leaves word timings untouched, and the manual diarization overlay are three
+  // pieces of accumulated correctness, and a second copy of them here would
+  // drift the moment either side was fixed. Only the QUERY differs — this one
+  // goes through the user's client, because the shelf item's RLS check is the
+  // hop that already proved this row is theirs to read.
+  const audioUrl = (data.audio_url as string | null) ?? null
+  const wordSegs = (data.word_segments as IvritSegment[] | null) ?? null
+  const edits = (data.speaker_edits as SpeakerEdits | null) ?? null
+
+  // BOTH or neither. Word timings with no audio is a transcript that cannot be
+  // followed, and audio with no timings is a player with nothing to highlight —
+  // the pane treats either half alone as "no recording" and says nothing about
+  // it, rather than showing a control that does not work.
+  const wordTimed =
+    audioUrl && wordSegs && wordSegs.length
+      ? applySpeakerEdits(
+          // A Gemini pass means real speaker names exist; prefer them.
+          (fd.sections?.flatMap((s) => s.lines) ?? []).length > 0
+            ? buildFromIvritWithGeminiNames(wordSegs, fd, overrides)
+            : buildFromIvrit(wordSegs, overrides),
+          edits
+        )
+      : null
+
   return {
     kind: 'transcript',
+    transcriptId,
+    audioUrl: wordTimed ? audioUrl : null,
+    wordTimed,
     title: fd.company && fd.quarter ? `${fd.company} — ${fd.quarter}` : title,
     company: fd.company ?? null,
     quarter: fd.quarter ?? null,

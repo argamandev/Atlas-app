@@ -55,7 +55,7 @@ function parseTs(ts: string | null | undefined): number {
 // Build a word-timed (karaoke) transcript from stored IVRIT word_segments. Diarized
 // segments are grouped into speaker blocks; otherwise one continuous block. Falls back
 // to a chunk-per-segment when a segment lacks per-word timings.
-function buildFromIvrit(segs: IvritSegment[], overrides: Record<string, string> = {}): WordTimedTranscript {
+export function buildFromIvrit(segs: IvritSegment[], overrides: Record<string, string> = {}): WordTimedTranscript {
   const toWords = (s: IvritSegment) =>
     s.words.length
       ? s.words.map((w) => ({ text: w.word, start: w.start, end: w.end }))
@@ -108,7 +108,7 @@ function buildFromIvrit(segs: IvritSegment[], overrides: Record<string, string> 
 // Gemini speaker names. Both transcripts are the same words in the same order, so a proportional
 // position map assigns each timed word its Gemini speaker. Word timings are untouched → the
 // karaoke highlight is byte-identical; only the speaker turns + labels change.
-function buildFromIvritWithGeminiNames(
+export function buildFromIvritWithGeminiNames(
   segs: IvritSegment[],
   fd: Transcript,
   overrides: Record<string, string> = {}

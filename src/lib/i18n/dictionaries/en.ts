@@ -248,6 +248,10 @@ export const en = {
     doneAdding: 'Done',
     // A clip that was captured but cannot be sent. Said out loud, because the
     // alternative is a chip in the composer for an image the server dropped.
+    // The word after the quarter on a tab chip: "Q1 2026 · Transcript".
+    tabKinds: { transcript: 'Transcript', document: 'Report' },
+    closeTab: 'Close tab — the file stays on the shelf',
+    playRecording: 'Play the recording',
     snipTooLarge: 'That clipping is too large to send — try a smaller area.',
     snipFailed: 'That clipping could not be captured. Try again.',
   },

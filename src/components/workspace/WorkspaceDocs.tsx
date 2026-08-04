@@ -2,8 +2,9 @@
 
 import { useRef, useState, type ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { CloseIcon, PlusIcon, ColumnsIcon, SinglePaneIcon, SparkleIcon } from '@/components/ds/icons'
+import { CloseIcon, ColumnsIcon, SinglePaneIcon, SparkleIcon } from '@/components/ds/icons'
 import { SourceDocument } from './SourceDocument'
+import { tabLabel } from '@/lib/workspace/tabLabel'
 import type { ChatSnip } from '@/lib/api/chat'
 import type { Workspace } from '@/lib/workspace/data'
 
@@ -140,13 +141,20 @@ export function WorkspaceDocs({
         <div className="atscroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {openTabs.map((id) => {
             const f = fileById(id)
-            const label = f ? f.name : specialLabel(id)
+            // WHAT DISTINGUISHES THE FILE, not what it is filed under. See
+            // lib/workspace/tabLabel.ts: three calls from one company share a
+            // forty-character prefix and differ only at the end, which is the
+            // part a tab chip truncates away. The stored name stays whole in the
+            // tooltip, the pane header and the file list.
+            const label = f ? tabLabel(f.name, f.kind, dict.workspace.tabKinds) : specialLabel(id)
+            const full = f ? f.name : specialLabel(id)
             const on = activeTab === id
             const inSplit = multi.includes(id)
             return (
               <div
                 key={id}
-                className={`group flex h-[34px] flex-none items-center gap-1.5 rounded-lg border px-2.5 text-[12.5px] ${
+                title={full}
+                className={`group flex h-[34px] flex-none items-center gap-1 rounded-lg border ps-2.5 pe-1.5 text-[12.5px] ${
                   on
                     ? 'border-float-line bg-canvas font-medium text-ink'
                     : 'border-transparent text-ink-faint hover:bg-subtle/60'
@@ -161,28 +169,53 @@ export function WorkspaceDocs({
                       name on its own without leaking direction into the bar. */}
                   <bdi>{label}</bdi>
                 </button>
-                {/* No `&& f`: the working document may join multi-view too. */}
+
+                {/* ── TWO REMOVALS THAT ARE NOT THE SAME REMOVAL ──────────────
+                    Founder, 2026-08-05: *"I've got two x's one by one … one x is
+                    pulling it off the tab, second x is pulling it off the multi
+                    view. It's too confusing right now."*
+
+                    He is describing two identical ✕ glyphs sitting side by side
+                    doing different things, which is unreadable however you label
+                    the tooltips. So only ONE of them stays a ✕ — the one that
+                    means "gone from here". The other stops being a removal
+                    control at all and becomes a STATE you can see without
+                    clicking: a pane glyph that is filled when this file has a
+                    pane and hollow when it does not. Same click, same effect,
+                    but now the tab tells you which files are on screen.
+
+                    Filled/hollow rather than present/absent because a control
+                    that disappears when it is off cannot be turned back on from
+                    the same place — which is how the split toggle became
+                    unreachable in the first place (see toggleSplit). */}
                 {split && (
                   <button
                     type="button"
                     onClick={() => onToggleMulti(id)}
                     title={inSplit ? dict.workspace.removeFromSplit : dict.workspace.addToSplit}
-                    className="flex h-4 w-4 items-center justify-center rounded text-ink-ghost hover:text-ink"
+                    aria-pressed={inSplit}
+                    className={`flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md transition-colors ${
+                      inSplit ? 'bg-ink text-paper' : 'text-ink-ghost hover:bg-subtle hover:text-ink'
+                    }`}
                   >
-                    {inSplit ? (
-                      <CloseIcon size={11} strokeWidth={2.2} />
-                    ) : (
-                      <PlusIcon size={11} strokeWidth={2.2} />
-                    )}
+                    <ColumnsIcon size={12} strokeWidth={1.9} />
                   </button>
                 )}
+                {/* The ✕ keeps ONE meaning — off the tab bar. The file stays on
+                    the shelf and reopens from Workspace files, which is what
+                    makes this safe to do on a single click. Always visible while
+                    the split toggle is beside it: a control that only appears on
+                    hover, next to one that is always there, reads as a glitch. */}
                 <button
                   type="button"
                   onClick={() => onClose(id)}
                   aria-label={dict.common.close}
-                  className="flex h-4 w-4 items-center justify-center rounded text-ink-ghost opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+                  title={dict.workspace.closeTab}
+                  className={`flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md text-ink-ghost transition-all hover:bg-subtle hover:text-ink ${
+                    split || on ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
                 >
-                  <CloseIcon size={11} strokeWidth={2.2} />
+                  <CloseIcon size={12} strokeWidth={2.2} />
                 </button>
               </div>
             )

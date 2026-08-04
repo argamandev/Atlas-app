@@ -1,12 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { fetchItemContent } from '@/lib/workspace/client'
 import { detectDir } from '@/lib/utils'
 import { PdfViewer } from '@/components/live/PdfViewer'
-import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon } from '@/components/ds/icons'
+import { TranscriptBody } from '@/components/live/TranscriptBody'
+import { usePlayer, usePlayerTime } from '@/lib/player/PlayerProvider'
+import { activeWordIndex, flattenWords } from '@/lib/live/syncEngine'
+import type { WordTimedTranscript } from '@/lib/live/syncEngine'
+import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon, PlayIcon } from '@/components/ds/icons'
 import type { ChatSnip } from '@/lib/api/chat'
 import type { ItemContent, UnavailableReason } from '@/lib/workspace/contentTypes'
 import type { WsFile } from '@/lib/workspace/data'
@@ -533,7 +537,15 @@ export function SourceDocument({
           ) : content.kind === 'unavailable' ? (
             <Unavailable title={content.title} reason={content.reason} />
           ) : content.kind === 'transcript' ? (
-            <TranscriptBody content={content} />
+            // A call with stored audio AND word timings plays and follows along;
+            // one without either is a read view. Most of the archive is the
+            // second kind, and it says nothing about a recording rather than
+            // showing a play button over silence.
+            content.wordTimed && content.audioUrl ? (
+              <KaraokeTranscript content={{ ...content, wordTimed: content.wordTimed }} />
+            ) : (
+              <TranscriptBodyRead content={content} />
+            )
           ) : (
             <DocumentBody content={content} />
           )}
@@ -604,7 +616,108 @@ function Unavailable({ title, reason }: { title: string; reason: UnavailableReas
   )
 }
 
-function TranscriptBody({ content }: { content: Extract<ItemContent, { kind: 'transcript' }> }) {
+/**
+ * THE CALL, PLAYING, WITH THE WORDS FOLLOWING IT.
+ *
+ * Founder, 2026-08-05: *"when we're pulling a transcript, we also need to pull
+ * the audio from it and the same functionality of viewing that live transcript
+ * with the audio sync."*
+ *
+ * This is the live view's own karaoke component and the app's one global
+ * player — not a second player. That matters for a reason beyond reuse: the
+ * player lives in the app shell so audio survives navigation, so a call started
+ * in a workspace keeps playing while the analyst walks to another page, and
+ * keying the track by the CORPUS id means opening the same call from the call
+ * page does not start it over.
+ *
+ * ITS OWN COMPONENT so the clock stays local. `usePlayerTime` re-renders its
+ * subscriber several times a second; with three panes open and a PDF among them,
+ * subscribing from SourceDocument would have re-rendered the PDF on every tick.
+ */
+function KaraokeTranscript({
+  content,
+}: {
+  content: Extract<ItemContent, { kind: 'transcript' }> & { wordTimed: WordTimedTranscript }
+}) {
+  const { dict } = useI18n()
+  const player = usePlayer()
+  const t = usePlayerTime()
+
+  const flat = useMemo(() => flattenWords(content.wordTimed), [content.wordTimed])
+  // Only THIS call's words move. Another call playing in the shell must not
+  // light up a highlight in a transcript it has nothing to do with.
+  const isActive = player.call?.id === content.transcriptId
+  const activeIndex = isActive ? activeWordIndex(flat, t) : -1
+
+  const asCall = useCallback(
+    (startAt?: number) => ({
+      id: content.transcriptId,
+      companyId: null,
+      title: content.title,
+      subtitle: content.quarter ?? '',
+      logoUrl: null,
+      audioUrl: content.audioUrl as string,
+      isLive: false,
+      duration: content.wordTimed.durationSec || undefined,
+      ...(startAt !== undefined ? { startAt } : {}),
+    }),
+    [content]
+  )
+
+  return (
+    <article>
+      <header className="mb-4">
+        <h1 className="mb-1.5 font-display text-[24px] leading-[1.25] text-ink">
+          <bdi>{content.title}</bdi>
+        </h1>
+        <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-ghost">
+          {content.company && <bdi>{content.company}</bdi>}
+          {content.company && content.quarter && <span aria-hidden>·</span>}
+          {content.quarter && <bdi>{content.quarter}</bdi>}
+          {content.date && <span aria-hidden>·</span>}
+          {content.date && (
+            <bdi dir="ltr" className="font-mono-num">
+              {content.date}
+            </bdi>
+          )}
+        </div>
+      </header>
+
+      {/* One button, and it means what it says. Loading the call publishes it to
+          the shell's docked player, which is where pause/scrub/volume already
+          live — a second set of transport controls in the pane would be a second
+          thing to keep in sync with the audio. */}
+      <button
+        type="button"
+        onClick={() => {
+          if (!isActive) player.load(asCall())
+          else player.showBar()
+          player.play()
+        }}
+        className="mb-6 flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-[12.5px] font-semibold text-paper transition-opacity hover:opacity-90"
+      >
+        <PlayIcon size={13} /> {dict.workspace.playRecording}
+      </button>
+
+      <TranscriptBody
+        transcript={content.wordTimed}
+        activeIndex={activeIndex}
+        autoScroll
+        karaoke
+        followLabel={dict.live.backToPlaying}
+        // Click a word to hear it. If the call is not the active track yet, load
+        // it AT that word rather than at zero — the click already said where.
+        onWordClick={(start) => {
+          if (!isActive) player.load(asCall(start))
+          else player.seek(start)
+          player.play()
+        }}
+      />
+    </article>
+  )
+}
+
+function TranscriptBodyRead({ content }: { content: Extract<ItemContent, { kind: 'transcript' }> }) {
   const { dict } = useI18n()
   return (
     <article>
@@ -645,7 +758,7 @@ function TranscriptBody({ content }: { content: Extract<ItemContent, { kind: 'tr
               // source_line_id, so a quote taken out of this pane can be pointed
               // back at the exact line it came from.
               <div key={l.id} data-line-id={l.id} className="flex flex-col gap-1">
-                <div dir="auto" className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-2">
                   {l.speaker && (
                     <span className="text-[12.5px] font-semibold text-ink">
                       <bdi>{l.speaker}</bdi>
@@ -657,9 +770,25 @@ function TranscriptBody({ content }: { content: Extract<ItemContent, { kind: 'tr
                     </span>
                   )}
                 </div>
-                <p dir="auto" className="text-[14.5px] leading-[1.85] text-ink">
-                  {l.text}
-                </p>
+                {/* NO dir="auto" HERE, and this is the whole bug the founder
+                    saw (2026-08-05: *"text inside a transcript needs to be
+                    right-to-left because it's in Hebrew"*).
+
+                    `dir="auto"` resolves from the line's FIRST STRONG
+                    CHARACTER. In an investor call a great many lines open with
+                    a figure or an English word — "358.5 מיליון…", "Q1 היה…",
+                    "EBITDA עמד על…" — and every one of those lines flipped
+                    itself to left-to-right inside an otherwise right-to-left
+                    transcript. The container was already RTL; these per-line
+                    overrides were fighting it, one line at a time, which is
+                    why it looked arbitrary rather than simply broken.
+
+                    The remedy is the one .claude/rules/app.md has now filed
+                    five times: DIRECTION ON THE CONTAINER, <bdi> per mixed
+                    run. The line inherits; a Latin run inside it still resolves
+                    on its own because the browser does that within a bidi
+                    paragraph anyway. */}
+                <p className="text-[14.5px] leading-[1.85] text-ink">{l.text}</p>
               </div>
             ))}
           </div>
@@ -696,9 +825,10 @@ function DocumentBody({ content }: { content: Extract<ItemContent, { kind: 'docu
           <div dir="ltr" className="mb-1.5 font-mono-num text-[11px] text-ink-ghost">
             {dict.workspace.sourcePage.replace('{n}', String(p.pageNo))}
           </div>
-          <p dir="auto" className="whitespace-pre-wrap text-[14px] leading-[1.85] text-ink">
-            {p.text}
-          </p>
+          {/* Same rule as the transcript line above: the container is RTL, and
+              a page of a Hebrew filing that opens with a table figure must not
+              flip the whole page with it. */}
+          <p className="whitespace-pre-wrap text-[14px] leading-[1.85] text-ink">{p.text}</p>
         </section>
       ))}
       <p dir="auto" className="mt-8 border-t border-hairline pt-4 text-[12px] text-ink-ghost">
