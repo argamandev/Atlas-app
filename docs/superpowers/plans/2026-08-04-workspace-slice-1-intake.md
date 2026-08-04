@@ -6,7 +6,7 @@
 
 **Architecture:** A model turns the user's sentence into a structured `SourceRequest`. `findSources()` — the seam Maya later plugs into — ranks the corpus against it and returns both what matched and *why nothing did*, when nothing did. The panel's clarify questions are generated from that result instead of being hardcoded, a confirm list is added inside the clarify conversation (founder D5), and the approved selection is attached through the existing `POST /api/workspaces/[id]/items`.
 
-**Tech Stack:** Next.js 14 App Router · TypeScript · Supabase (user client, RLS load-bearing) · Gemini 3.5 Flash with the repo's existing GPT-4.1 fallback · Vitest.
+**Tech Stack:** Next.js 14 App Router · TypeScript · Supabase (user client, RLS load-bearing) · Gemini 3.5 Flash with the repo's existing GPT-4.1 fallback · `node:test` + `node:assert/strict` run through `tsx`.
 
 ## Global Constraints
 
@@ -15,7 +15,8 @@
 - **No migration in this slice.** `workspaces.layout` belongs to slice 2.
 - **Every API route resolves a user or returns `unauthorized()`** — `src/lib/apiAuthBoundary.test.ts` fails the battery otherwise. The pattern is two lines: `const userId = await getRequestUserId(req)` / `if (!userId) return unauthorized()`. Workspace routes use `resolveUser(supabase)` + `unauthorized()`; match the neighbours in `src/app/api/workspaces/`.
 - **Query through the USER'S client** (`createServerSupabase(cookies())`), never `supabaseAdmin`. RLS must stay load-bearing.
-- **`package.json`'s `test` script is an explicit file list.** Every new `*.test.ts` must be added to it or it silently never runs.
+- **Tests are `node:test`, NOT vitest** — `import { test } from 'node:test'` + `import assert from 'node:assert/strict'`. Match `src/lib/workspace/present.test.ts`. A single file runs with `node --import tsx --test <path>`.
+- **`package.json`'s `test` script is an explicit file list.** Every new `*.test.ts` must be added to it or it silently never runs — and `src/lib/testRegistry.test.ts` fails the battery if you forget.
 - **Both locales.** Every new string lands in `src/lib/i18n/dictionaries/en.ts` AND `he.ts`; the `Dictionary` type makes a missing key a compile error.
 - **Mixed Hebrew/Latin runs get `<bdi>` per run**, direction on the container — never `dir` on the mixed line (`.claude/rules/app.md`, 4 filed occurrences).
 - **Degradation must be visible.** No fabricated results, no confident empty state over a failure.
@@ -40,55 +41,54 @@ The model returns JSON. This task is the pure, testable half — no network.
 
 ```ts
 // src/lib/workspace/intake/parseRequest.test.ts
-import { describe, it, expect } from 'vitest'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
 import { parseModelRequest } from './parseRequest'
 
-describe('parseModelRequest', () => {
-  it('reads a well-formed answer', () => {
-    const r = parseModelRequest(
-      '{"company":"תיגבור","fromYear":2024,"toYear":2026,"kinds":["transcript","document"]}',
-      'raw text'
-    )
-    expect(r.company).toBe('תיגבור')
-    expect(r.fromYear).toBe(2024)
-    expect(r.toYear).toBe(2026)
-    expect(r.kinds).toEqual(['transcript', 'document'])
-    expect(r.interpreted).toBe(true)
-  })
+test('reads a well-formed answer', () => {
+  const r = parseModelRequest(
+    '{"company":"תיגבור","fromYear":2024,"toYear":2026,"kinds":["transcript","document"]}',
+    'raw text'
+  )
+  assert.equal(r.company, 'תיגבור')
+  assert.equal(r.fromYear, 2024)
+  assert.equal(r.toYear, 2026)
+  assert.deepEqual(r.kinds, ['transcript', 'document'])
+  assert.equal(r.interpreted, true)
+})
 
-  it('survives the model fencing its JSON in markdown', () => {
-    const r = parseModelRequest('```json\n{"company":"Tigbur"}\n```', 'raw')
-    expect(r.company).toBe('Tigbur')
-    expect(r.interpreted).toBe(true)
-  })
+test('survives the model fencing its JSON in markdown', () => {
+  const r = parseModelRequest('```json\n{"company":"Tigbur"}\n```', 'raw')
+  assert.equal(r.company, 'Tigbur')
+  assert.equal(r.interpreted, true)
+})
 
-  // THE HONESTY CASE: an unparseable answer must not silently become "no filters",
-  // which would return the whole corpus dressed as a considered result.
-  it('falls back to the raw sentence and says it did NOT interpret', () => {
-    const r = parseModelRequest('I think you want Tigbur reports!', 'תיגבור דוחות')
-    expect(r.interpreted).toBe(false)
-    expect(r.text).toBe('תיגבור דוחות')
-    expect(r.company).toBeNull()
-  })
+// THE HONESTY CASE: an unparseable answer must not silently become "no filters",
+// which would return the whole corpus dressed as a considered result.
+test('falls back to the raw sentence and says it did NOT interpret', () => {
+  const r = parseModelRequest('I think you want Tigbur reports!', 'תיגבור דוחות')
+  assert.equal(r.interpreted, false)
+  assert.equal(r.text, 'תיגבור דוחות')
+  assert.equal(r.company, null)
+})
 
-  it('ignores nonsense field types rather than trusting them', () => {
-    const r = parseModelRequest('{"company":42,"fromYear":"soon","kinds":"all"}', 'raw')
-    expect(r.company).toBeNull()
-    expect(r.fromYear).toBeNull()
-    expect(r.kinds).toBeNull()
-  })
+test('ignores nonsense field types rather than trusting them', () => {
+  const r = parseModelRequest('{"company":42,"fromYear":"soon","kinds":"all"}', 'raw')
+  assert.equal(r.company, null)
+  assert.equal(r.fromYear, null)
+  assert.equal(r.kinds, null)
+})
 
-  it('swaps a reversed year range instead of returning an empty window', () => {
-    const r = parseModelRequest('{"fromYear":2026,"toYear":2024}', 'raw')
-    expect(r.fromYear).toBe(2024)
-    expect(r.toYear).toBe(2026)
-  })
+test('swaps a reversed year range instead of returning an empty window', () => {
+  const r = parseModelRequest('{"fromYear":2026,"toYear":2024}', 'raw')
+  assert.equal(r.fromYear, 2024)
+  assert.equal(r.toYear, 2026)
 })
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
 
-Run: `npx vitest run src/lib/workspace/intake/parseRequest.test.ts`
+Run: `node --import tsx --test src/lib/workspace/intake/parseRequest.test.ts`
 Expected: FAIL — cannot resolve `./parseRequest`.
 
 - [ ] **Step 3: Write the types**
@@ -206,7 +206,7 @@ In `package.json`, append `src/lib/workspace/intake/parseRequest.test.ts` to the
 
 - [ ] **Step 6: Run the test and the battery**
 
-Run: `npx vitest run src/lib/workspace/intake/parseRequest.test.ts` → Expected: 5 passing.
+Run: `node --import tsx --test src/lib/workspace/intake/parseRequest.test.ts` → Expected: 5 passing.
 Run: `npx tsc --noEmit` → Expected: clean.
 
 - [ ] **Step 7: Commit**
@@ -233,7 +233,8 @@ git commit -m "feat(workspace): the intake's request shape, and a parser that ad
 
 ```ts
 // src/lib/workspace/intake/findSources.test.ts
-import { describe, it, expect } from 'vitest'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
 import { findSources } from './findSources'
 import type { SourceRequest } from './types'
 import type { AttachableSource } from '../data'
@@ -307,7 +308,7 @@ describe('findSources', () => {
 
 - [ ] **Step 2: Run it and watch it fail**
 
-Run: `npx vitest run src/lib/workspace/intake/findSources.test.ts`
+Run: `node --import tsx --test src/lib/workspace/intake/findSources.test.ts`
 Expected: FAIL — cannot resolve `./findSources`.
 
 - [ ] **Step 3: Implement**
@@ -396,7 +397,7 @@ export function findSources(request: SourceRequest, corpus: AttachableSource[]):
 
 - [ ] **Step 4: Run the test**
 
-Run: `npx vitest run src/lib/workspace/intake/findSources.test.ts` → Expected: 7 passing.
+Run: `node --import tsx --test src/lib/workspace/intake/findSources.test.ts` → Expected: 7 passing.
 
 - [ ] **Step 5: Add to `package.json`'s test list, then commit**
 
@@ -563,7 +564,7 @@ with `import type { FindResult } from './intake/types'` added to the type import
 
 - [ ] **Step 3: Prove the auth guard sees it**
 
-Run: `npx vitest run src/lib/apiAuthBoundary.test.ts` → Expected: PASS, with the new route covered (it resolves a user, so it needs no allowlist entry).
+Run: `node --import tsx --test src/lib/apiAuthBoundary.test.ts` → Expected: PASS, with the new route covered (it resolves a user, so it needs no allowlist entry).
 Run: `npx tsc --noEmit` → clean.
 
 - [ ] **Step 4: Commit**
