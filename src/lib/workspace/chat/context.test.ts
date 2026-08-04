@@ -57,9 +57,26 @@ test('items with no text at all do not count against the budget', () => {
   assert.ok(!built.text.includes('empty'))
 })
 
-test('the default budget is big enough for a couple of real calls', () => {
-  // A 2h Hebrew investor call is roughly 50k characters.
-  assert.ok(CONTEXT_BUDGET_CHARS >= 100_000)
+test('the default budget fits inside one minute of the provider ceiling', () => {
+  // This assertion replaced "big enough for a couple of real calls"
+  // (>= 100_000) on 2026-08-05, because that number was never reachable: a
+  // 120k-character prompt measured 61,267 tokens against an account rated
+  // 30,000 tokens per MINUTE, so every such question 429'd and the analyst got
+  // no answer at all. Depth you cannot send is not depth.
+  //
+  // Hebrew measured ~2.1 characters per token on this corpus — half the English
+  // rule of thumb, which is exactly how the old number got set. Budget for the
+  // worse case (2 chars/token) and leave a third of the minute for the prompt
+  // scaffolding, a clipped image and the answer.
+  const CEILING_TPM = 30_000
+  const worstCharsPerToken = 2
+  const estimatedTokens = CONTEXT_BUDGET_CHARS / worstCharsPerToken
+  assert.ok(
+    estimatedTokens <= CEILING_TPM * 0.7,
+    `${CONTEXT_BUDGET_CHARS} chars ≈ ${estimatedTokens} tokens, past 70% of the ${CEILING_TPM} TPM ceiling`
+  )
+  // …and still worth sending: below this it cannot hold a real passage.
+  assert.ok(CONTEXT_BUDGET_CHARS >= 20_000)
 })
 
 // ── flattening ───────────────────────────────────────────────────────────────

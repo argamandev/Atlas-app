@@ -22,8 +22,38 @@ import type { ItemContent } from '../contentTypes'
 // this function stays as it is.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Total characters of source text one prompt may carry. */
-export const CONTEXT_BUDGET_CHARS = 120_000
+/**
+ * Total characters of source text one prompt may carry.
+ *
+ * 120_000 until 2026-08-05, and it was not a budget so much as a wish. Moving
+ * the workspace onto ChatGPT surfaced what the number really costs: the account
+ * is rated 30,000 tokens per minute for gpt-4.1, and one question came back
+ *
+ *   429 — Request too large … Limit 30000, Requested 61267
+ *
+ * i.e. the prompt was TWICE the per-minute allowance for the whole account. It
+ * failed on OpenAI, fell to the Gemini hedge, and Gemini then timed out on the
+ * same wall of text — so the analyst got "I could not answer that just now" and
+ * no reason. Both providers were defeated by the size of the question, not by
+ * the question.
+ *
+ * The measurement, kept because the next person will want it: 120k characters
+ * of Hebrew came to ~58k tokens, so Hebrew runs about 2.1 characters per token
+ * here — roughly half of what English does. A budget set by reading an English
+ * rule of thumb will be twice too big on this corpus.
+ *
+ * 40_000 is ~19k tokens, which leaves room for the prompt, a clipped image and
+ * the answer inside one minute's allowance. It is deliberately a ceiling on the
+ * REQUEST, not on what the analyst may ask about: what does not fit is reported
+ * (`truncated`/`omitted`) and the UI says so under the answer.
+ *
+ * THIS IS THE NUMBER RETRIEVAL EXISTS TO DELETE. Sending every file's opening
+ * pages on every turn is the wrong shape whatever the limit is — an answer
+ * about minute 40 of a call cannot come from its first 8,000 characters. The
+ * founder chose "seam now, vectors next" for exactly this reason; until then a
+ * smaller honest read beats a larger one that 429s.
+ */
+export const CONTEXT_BUDGET_CHARS = 40_000
 
 /** Below this a slice is not worth sending — a paragraph of a filing answers
  *  nothing and still invites the model to sound certain. */

@@ -2,8 +2,9 @@
 
 import { useRef, useState, type ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { CloseIcon, PlusIcon, ColumnsIcon, SinglePaneIcon } from '@/components/ds/icons'
+import { CloseIcon, PlusIcon, ColumnsIcon, SinglePaneIcon, SparkleIcon } from '@/components/ds/icons'
 import { SourceDocument } from './SourceDocument'
+import type { ChatSnip } from '@/lib/api/chat'
 import type { Workspace } from '@/lib/workspace/data'
 
 // The workspace main card: tab bar (design 1726-1756), single or split documents
@@ -26,6 +27,11 @@ export function WorkspaceDocs({
   specialLabel,
   onAskAtlas,
   onConnect,
+  onStar,
+  snipArm,
+  onSnip,
+  onSnipEnd,
+  onSnippable,
 }: {
   workspace: Workspace
   openTabs: string[]
@@ -40,6 +46,12 @@ export function WorkspaceDocs({
   specialLabel: (id: string) => string
   onAskAtlas: (passage: { itemId: string; title: string; text: string }) => void
   onConnect: (passage: { itemId: string; title: string; text: string }) => void
+  /** the star at the tab bar's right edge — opens Ask Atlas with nothing marked */
+  onStar: () => void
+  snipArm: number
+  onSnip: (snip: ChatSnip) => void
+  onSnipEnd: () => void
+  onSnippable: (itemId: string, can: boolean) => void
 }) {
   const { dict } = useI18n()
   const [flex, setFlex] = useState<Record<string, number>>({})
@@ -87,7 +99,10 @@ export function WorkspaceDocs({
   function onGutterMove(e: React.PointerEvent) {
     const d = dragging.current
     if (!d) return
-    const delta = (e.clientX - d.startX) / 400
+    // NEGATED, because the pane row is RTL: pane `d.id` sits to the RIGHT of the
+    // gutter and `d.nextId` to its left, so dragging right must SHRINK the first
+    // one. Without the sign flip the divider ran away from the cursor.
+    const delta = -(e.clientX - d.startX) / 400
     const a = Math.max(0.25, d.a + delta)
     const b = Math.max(0.25, d.b - delta)
     setFlex((f) => ({ ...f, [d.id]: a, [d.nextId]: b }))
@@ -105,6 +120,23 @@ export function WorkspaceDocs({
           workspace holds Hebrew filings and calls, so this is the direction the
           shelf reads in even when the interface language is English. */}
       <div dir="rtl" className="flex h-[46px] flex-none items-center gap-1 border-b border-hairline px-2">
+        {/* THE STAR, at the physical top RIGHT — founder, 2026-08-05: *"we need
+            to open a star icon on the top right … when we press on it, it opens
+            Ask Atlas."* It is the first child of an RTL row, which is the right
+            edge, and it is deliberately the same SparkleIcon the panel button
+            and the side-chat header carry: one feature, one mark. Ask Atlas was
+            reachable only by marking text or crossing to the panel, so with the
+            panel collapsed there was no way in at all. */}
+        <button
+          type="button"
+          onClick={onStar}
+          title={dict.live.askAtlas}
+          aria-label={dict.live.askAtlas}
+          className="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-faint transition-colors hover:bg-subtle hover:text-ink"
+        >
+          <SparkleIcon size={17} />
+        </button>
+        <span className="h-4 w-px flex-none bg-hairline" aria-hidden />
         <div className="atscroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {openTabs.map((id) => {
             const f = fileById(id)
@@ -176,7 +208,16 @@ export function WorkspaceDocs({
         </button>
       </div>
 
-      <div className="flex min-h-0 flex-1" onPointerMove={onGutterMove} onPointerUp={endDrag}>
+      {/* THE PANES RUN THE SAME WAY THE TABS DO.
+          Founder, 2026-08-05: *"on the top right, if we have the Q1 2026 report,
+          then under it we're gonna see that same report in Multiview. Currently
+          it is on the opposite side."* Exactly so: the tab bar was made RTL
+          yesterday (tab 1 at the right edge) while this row stayed LTR (pane 1
+          at the left edge), so the two lists ran in OPPOSITE directions and the
+          first tab sat above the LAST pane. Two panes hid it — you had to open
+          three before the mismatch was visible. Both rows are RTL now, so tab N
+          is always above pane N. */}
+      <div dir="rtl" className="flex min-h-0 flex-1" onPointerMove={onGutterMove} onPointerUp={endDrag}>
         {docsShown.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
             <div className="text-[15px] font-medium text-ink">{dict.workspace.noTabsHead}</div>
@@ -199,6 +240,10 @@ export function WorkspaceDocs({
                 file={f}
                 onAskAtlas={onAskAtlas}
                 onConnect={onConnect}
+                snipArm={snipArm}
+                onSnip={onSnip}
+                onSnipEnd={onSnipEnd}
+                onSnippable={onSnippable}
               />
             ) : null
             if (!body) return null

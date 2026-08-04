@@ -36,6 +36,8 @@ export type PromptInput = {
   conversation: ChatTurn[]
   /** Ask Atlas: the passage the analyst marked, if any */
   selection?: { title: string; text: string } | null
+  /** how many clipped page regions ride with this question (see `askModel`) */
+  snipCount?: number
 }
 
 export function buildChatPrompt(input: PromptInput): string {
@@ -64,6 +66,18 @@ Their message is about this passage unless they clearly change the subject.
 `
     : ''
 
+  // THE CLIPPED IMAGES ARE ALREADY IN THE MESSAGE, above this text, each with a
+  // caption naming its page. Saying so is not decoration: without it a model
+  // handed a picture and a wall of transcript tends to answer from the text and
+  // never look, which is the failure the analyst cannot see — the clip they
+  // chose is the whole question.
+  const clipped =
+    !input.snipCount || input.snipCount < 1
+      ? ''
+      : `\nTHE ANALYST CLIPPED ${input.snipCount === 1 ? 'A REGION' : `${input.snipCount} REGIONS`} OF A DOCUMENT AND ATTACHED ${input.snipCount === 1 ? 'IT' : 'THEM'} ABOVE, with a caption naming the page.
+Read the ${input.snipCount === 1 ? 'image' : 'images'} — ${input.snipCount === 1 ? 'it is' : 'they are'} the document's own page, so a figure you can read there is a figure from the file and may be used as one. If a number in the image is not legible, say that rather than guessing at it.
+`
+
   const talk = input.conversation
     .map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${t.content}`)
     .join('\n')
@@ -72,7 +86,7 @@ Their message is about this passage unless they clearly change the subject.
 
 FILES ON THE SHELF:
 ${shelf}
-${partial}${marked}
+${partial}${marked}${clipped}
 THE TEXT OF THOSE FILES:
 ${input.context || '(no readable text is available for these files yet)'}
 

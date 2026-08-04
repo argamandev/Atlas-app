@@ -1,5 +1,6 @@
 import 'server-only'
 import OpenAI from 'openai'
+import { geminiSnipParts, openAiSnipContent, type ChatAttachment } from '@/lib/chat/attachments'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ONE MODEL CALL, TWO PROVIDERS, whichever answers first.
@@ -10,22 +11,34 @@ import OpenAI from 'openai'
 // second route is how one copy quietly goes back to being a chain.
 //
 // Founder, 2026-08-04: *"it responds very slow, it needs to be a lot faster."*
-// The dev log said why: Gemini was returning 503 "high demand" and timing out,
-// and the fallback only started once Gemini had exhausted itself — 12s, 17s,
+// The dev log said why: a provider was returning 503 "high demand" and timing
+// out, and the fallback only started once it had exhausted itself — 12s, 17s,
 // 27s, one turn at 68s. Every one of those seconds was spent waiting on a model
 // that was never going to answer while a working one sat idle.
 //
-// So OpenAI no longer waits its turn. Gemini starts; if it has not answered
-// within HEDGE_MS — or has already failed — OpenAI starts alongside it, and the
-// first USABLE answer wins. Latency stops being the sum of one provider's
-// retries and becomes the minimum of two independent attempts.
+// So the second model no longer waits its turn. The primary starts; if it has
+// not answered within HEDGE_MS — or has already failed — the other starts
+// alongside it, and the first USABLE answer wins. Latency stops being the sum
+// of one provider's retries and becomes the minimum of two independent
+// attempts.
+//
+// WHICH ONE LEADS, 2026-08-05 — the founder, of the workspace: *"replace the
+// chat layer and API calls to ChatGPT because Gemini keeps on falling, and
+// that's not good."* So OpenAI is now the primary and Gemini is the hedge, the
+// exact reverse of how this shipped yesterday. Gemini is kept rather than
+// deleted BECAUSE it only ever runs when the primary is slow or silent: it
+// costs nothing on a healthy turn and is the reason a bad minute at one vendor
+// is not a dead workspace. The complaint was "Gemini answers my questions
+// badly/never", and after this change it answers almost none of them.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MODEL = 'gemini-3.5-flash'
+const GEMINI_MODEL = 'gemini-3.5-flash'
+/** Same env override the main chat route reads, so the app runs ONE OpenAI model. */
+const OPENAI_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4.1'
 
 /** Budget for a request someone is watching. */
-const GEMINI_TIMEOUT_MS = 20_000
-/** How long Gemini gets alone before a second model is started alongside it. */
+const DEFAULT_TIMEOUT_MS = 20_000
+/** How long the primary gets alone before the other is started alongside it. */
 const HEDGE_MS = 1_200
 
 export type AskOptions = {
@@ -33,6 +46,16 @@ export type AskOptions = {
   /** Long-context reads (a whole transcript) need more than an interactive
    *  selection does; the caller knows which it is. */
   timeoutMs?: number
+  /**
+   * Pinge snips travelling with the question — the workspace's Ask Atlas can
+   * clip a region of a PDF, and the clip is the question. Sent to BOTH
+   * providers, so a hedged answer sees the same picture the primary did; an
+   * answer written without the image the user attached would be worse than no
+   * answer, and indistinguishable from a good one.
+   */
+  attachments?: ChatAttachment[]
+  /** One caption per attachment, in the same order (see `snipCaption`). */
+  captions?: string[]
 }
 
 /**
@@ -41,17 +64,17 @@ export type AskOptions = {
  * Failing here would turn a missing API key into "the workspace is broken".
  */
 export async function askModel(prompt: string, opts: AskOptions): Promise<string> {
-  const gemini = askGemini(prompt, opts)
+  const primary = askOpenAi(prompt, opts)
 
   const hedged = (async () => {
-    // Whichever comes first: Gemini finishing, or the patience running out.
-    const early = await Promise.race([gemini, sleep(HEDGE_MS).then(() => null)])
-    // Gemini already answered — nothing to hedge against, and no second bill.
+    // Whichever comes first: the primary finishing, or the patience running out.
+    const early = await Promise.race([primary, sleep(HEDGE_MS).then(() => null)])
+    // It already answered — nothing to hedge against, and no second bill.
     if (typeof early === 'string' && early) return ''
-    return askOpenAi(prompt, opts)
+    return askGemini(prompt, opts)
   })()
 
-  return firstUsable([gemini, hedged])
+  return firstUsable([primary, hedged])
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -89,12 +112,20 @@ async function askGemini(prompt: string, opts: AskOptions): Promise<string> {
   }
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          contents: [
+            {
+              role: 'user',
+              // Images first, each followed by its caption, then the question —
+              // the same order /api/chat sends, so the two surfaces read a snip
+              // the same way.
+              parts: [...geminiSnipParts(opts.attachments ?? [], opts.captions ?? []), { text: prompt }],
+            },
+          ],
           generationConfig: {
             // temperature 0: these are selections and grounded answers, not
             // compositions. Two identical requests must agree.
@@ -108,7 +139,7 @@ async function askGemini(prompt: string, opts: AskOptions): Promise<string> {
             thinkingConfig: { thinkingBudget: 0 },
           },
         }),
-        signal: AbortSignal.timeout(opts.timeoutMs ?? GEMINI_TIMEOUT_MS),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
       }
     )
     if (!res.ok) {
@@ -131,19 +162,44 @@ async function askGemini(prompt: string, opts: AskOptions): Promise<string> {
 
 async function askOpenAi(prompt: string, opts: AskOptions): Promise<string> {
   const key = process.env.OPENAI_API_KEY
-  if (!key) return ''
+  if (!key) {
+    console.warn('[workspace] OPENAI_API_KEY is not set')
+    return ''
+  }
+  const snips = openAiSnipContent(opts.attachments ?? [], opts.captions ?? [])
   try {
     const openai = new OpenAI({ apiKey: key })
-    const res = await openai.chat.completions.create({
-      model: process.env.OPENAI_CHAT_MODEL || 'gpt-4.1',
-      temperature: 0,
-      max_tokens: opts.maxOutputTokens,
-      response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: prompt }],
-    })
-    return res.choices[0]?.message?.content ?? ''
+    const res = await openai.chat.completions.create(
+      {
+        model: OPENAI_MODEL,
+        temperature: 0,
+        max_tokens: opts.maxOutputTokens,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'user',
+            content:
+              snips.length > 0
+                ? ([
+                    ...snips,
+                    { type: 'text', text: prompt },
+                  ] as unknown as OpenAI.Chat.Completions.ChatCompletionContentPart[])
+                : prompt,
+          },
+        ],
+      },
+      // The SDK retries internally and its default timeout is 10 minutes, so
+      // without this the primary could still be waiting long after the hedge
+      // gave up — and the caller's own budget would mean nothing.
+      { signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS) }
+    )
+    const out = res.choices[0]?.message?.content ?? ''
+    if (!out) {
+      console.warn(`[workspace] OpenAI returned no text (finish=${res.choices[0]?.finish_reason})`)
+    }
+    return out
   } catch (e) {
-    console.warn(`[workspace] OpenAI fallback failed: ${(e as Error).message}`)
+    console.warn(`[workspace] OpenAI call failed: ${(e as Error).message}`)
     return ''
   }
 }

@@ -7,6 +7,7 @@ import { askModel } from '@/lib/workspace/askModel'
 import { loadItemContent } from '@/lib/workspace/content'
 import { buildContext, contentToText, type SourceText } from '@/lib/workspace/chat/context'
 import { buildChatPrompt, parseChatAnswer, type ChatTurn } from '@/lib/workspace/chat/prompt'
+import { parseAttachments, snipCaption } from '@/lib/chat/attachments'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const body = (await req.json().catch(() => null)) as {
     messages?: unknown
     selection?: unknown
+    attachments?: unknown
   } | null
 
   const messages = parseTurns(body?.messages)
@@ -42,6 +44,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: 'messages is required' }, { status: 400 })
   }
   const selection = parseSelection(body?.selection)
+  // The SAME validator /api/chat uses — shape, PNG prefix, size cap, count cap.
+  // A clip past the cap is dropped here, which is why the client refuses to
+  // send one (`attachmentOversized`): a chip on screen for an image the server
+  // silently discarded is the visible-degradation law's exact bad case.
+  const attachments = parseAttachments(body?.attachments)
 
   try {
     // RLS answers ownership: a workspace that is not this user's is simply not
@@ -56,10 +63,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const { data: items, error: iErr } = await supabase
       .from('workspace_items')
-      .select('id, name, kind')
+      .select('id, name, kind, document_id')
       .eq('workspace_id', params.id)
       .order('position')
     if (iErr) throw new Error(iErr.message)
+
+    // A clip's caption names the page AND the file it came from, so an answer
+    // can cite it the way it cites text. The title comes from the shelf item
+    // the clip's document belongs to; a clip of something not on this shelf
+    // still gets the generic caption rather than a wrong one.
+    const docTitles = new Map(
+      (items ?? []).filter((i) => i.document_id).map((i) => [i.document_id as string, i.name as string])
+    )
+    const captions = attachments.map((a) => {
+      const t = docTitles.get(a.documentId)
+      return snipCaption(t ? { title: t } : null, a.page)
+    })
 
     const shelf = (items ?? []).map((i) => ({
       title: i.name as string,
@@ -106,8 +125,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         truncated: context.truncated,
         conversation: messages,
         selection,
+        snipCount: attachments.length,
       }),
-      { maxOutputTokens: 1400, timeoutMs: CHAT_TIMEOUT_MS }
+      { maxOutputTokens: 1400, timeoutMs: CHAT_TIMEOUT_MS, attachments, captions }
     )
 
     const answer = parseChatAnswer(raw)

@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { fetchItemContent } from '@/lib/workspace/client'
 import { detectDir } from '@/lib/utils'
 import { PdfViewer } from '@/components/live/PdfViewer'
+import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon } from '@/components/ds/icons'
+import type { ChatSnip } from '@/lib/api/chat'
 import type { ItemContent, UnavailableReason } from '@/lib/workspace/contentTypes'
 import type { WsFile } from '@/lib/workspace/data'
 
@@ -28,6 +30,10 @@ export function SourceDocument({
   file,
   onAskAtlas,
   onConnect,
+  snipArm = 0,
+  onSnip,
+  onSnipEnd,
+  onSnippable,
 }: {
   workspaceId: string
   file: WsFile
@@ -35,6 +41,21 @@ export function SourceDocument({
   onAskAtlas?: (passage: { itemId: string; title: string; text: string }) => void
   /** work the marked passage into the working document */
   onConnect?: (passage: { itemId: string; title: string; text: string }) => void
+  /**
+   * SNIP MODE, ARMED FROM OUTSIDE — the Ask Atlas composer's scissors, exactly
+   * as the in-call composer arms the report pane. A rising nonce arms; 0
+   * disarms. The live call does this through a window event and a module-level
+   * bridge, which a workspace cannot copy verbatim: several PDFs can be open at
+   * once here, and a global boolean set false by the first pane to unmount
+   * would disable the composer's scissors while another PDF is still on screen.
+   * Props say which panes exist without any of that bookkeeping.
+   */
+  snipArm?: number
+  onSnip?: (snip: ChatSnip) => void
+  /** the arming ended without a clip (cancel, or a failed capture) */
+  onSnipEnd?: () => void
+  /** this pane is (or is no longer) a real PDF that can be clipped */
+  onSnippable?: (itemId: string, can: boolean) => void
 }) {
   const { dict } = useI18n()
   const [content, setContent] = useState<ItemContent | null>(null)
@@ -49,6 +70,84 @@ export function SourceDocument({
     left: number
   } | null>(null)
   const paneRef = useRef<HTMLDivElement>(null)
+
+  // ── READING A REPORT, the way a report is read in a live call ──────────────
+  // Founder, 2026-08-05: *"when we're viewing a report, we need to have the same
+  // UX as we have the live transcript call, meaning we can move right, we can
+  // move left, we can zoom in, we can zoom out. We need to have the exact same
+  // user experience."* So these are the ReportPane's controls, on the ReportPane's
+  // steps, driving the SAME PdfViewer — only the palette differs, because that
+  // pane is themed for the call surface and this one sits on the workspace's paper.
+  const ZOOM_STEPS = [75, 90, 100, 110, 125, 150, 175, 200]
+  const [zoom, setZoom] = useState(100)
+  const [page, setPage] = useState(1)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [snipArmed, setSnipArmed] = useState(false)
+  const [snipError, setSnipError] = useState<'capture' | 'toolarge' | null>(null)
+
+  const zoomBy = (dir: 1 | -1) =>
+    setZoom((z) => {
+      const i = ZOOM_STEPS.indexOf(z)
+      return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))] ?? 100
+    })
+
+  /** The page number stays honest when the reader scrolls by hand: the last page
+   *  whose top has passed the pane's top is the one being read. */
+  function trackPage() {
+    const sc = scrollRef.current
+    if (!sc) return
+    const top = sc.getBoundingClientRect().top
+    let cur = 1
+    sc.querySelectorAll<HTMLElement>('[data-page]').forEach((el) => {
+      if (el.getBoundingClientRect().top <= top + 24) cur = Number(el.dataset.page) || cur
+    })
+    setPage(cur)
+  }
+
+  function goToPage(n: number, total: number) {
+    const target = Math.min(total, Math.max(1, n))
+    // Instant, not smooth: the label's setState re-renders mid-animation and
+    // Chrome cancels the smooth scroll a few pixels in — the jump silently
+    // never arrived. Learned on the live report pane; same fix here.
+    scrollRef.current
+      ?.querySelector(`[data-page="${target}"]`)
+      ?.scrollIntoView({ block: 'start', inline: 'nearest' })
+    setPage(target)
+  }
+
+  // Past 100% the page overflows the pane, and in an RTL pane it anchors to one
+  // side — so recentre on every zoom change and give explicit pan buttons.
+  useEffect(() => {
+    const sc = scrollRef.current
+    if (!sc) return
+    const max = sc.scrollWidth - sc.clientWidth
+    if (max <= 0) return
+    // Chrome's RTL scroll coordinates run [-max .. 0]; LTR runs [0 .. max].
+    sc.scrollLeft = (getComputedStyle(sc).direction === 'rtl' ? -1 : 1) * (max / 2)
+  }, [zoom])
+
+  const panBy = (dir: 1 | -1) =>
+    // Physical coordinates: positive always moves the view right, either way.
+    scrollRef.current?.scrollBy({ left: dir * scrollRef.current.clientWidth * 0.4, behavior: 'smooth' })
+
+  // Armed from the composer. 0 means "nobody is asking", which is also how an
+  // arming is cancelled once a clip has landed somewhere.
+  useEffect(() => {
+    setSnipArmed(snipArm > 0)
+  }, [snipArm])
+
+  // Escape leaves snip mode, the same key the in-call viewer honours.
+  useEffect(() => {
+    if (!snipArmed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSnipArmed(false)
+        onSnipEnd?.()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [snipArmed, onSnipEnd])
 
   useEffect(() => {
     // Guards the async setState against a pane the user closed mid-flight, and
@@ -67,6 +166,21 @@ export function SourceDocument({
       live = false
     }
   }, [workspaceId, file.id])
+
+  // WHETHER THE COMPOSER'S SCISSORS HAS ANYWHERE TO CUT. Held in a ref so this
+  // reports on the CONTENT changing, not on the parent handing down a fresh
+  // closure — an unmemoized callback in the deps pushed a false→true blip many
+  // times a second through the live call's equivalent, which is a bug worth not
+  // reproducing.
+  const snippableRef = useRef(onSnippable)
+  snippableRef.current = onSnippable
+  const isPdf = content !== null && content.kind === 'document'
+  useEffect(() => {
+    if (!isPdf) return
+    const id = file.id
+    snippableRef.current?.(id, true)
+    return () => snippableRef.current?.(id, false)
+  }, [isPdf, file.id])
 
   // THE SELECTION, read on pointer-up rather than on `selectionchange`.
   //
@@ -142,40 +256,175 @@ export function SourceDocument({
   // absolutely positioned, so a naive `toString()` runs words together), and the
   // viewer already solves that and hands back the page numbers too.
   if (content !== null && content.kind === 'document') {
+    const total = content.pageCount
     return (
-      // PdfViewer's own root is `flex flex-col gap-3` — it renders every page
-      // and lets its PARENT scroll, which is how FacetPanes hosts it. Handing it
-      // a plain `h-full` box with no overflow meant the pages beyond the first
-      // were laid out and simply unreachable (founder, 2026-08-04: *"i cant
-      // scroll through the pdf like i should be able to"*). Same wrapper as the
-      // live report pane, so lazy page loading behaves identically.
-      <div
-        onScroll={() => setPdfMark(null)}
-        className="atscroll h-full min-h-0 overflow-auto bg-paper p-[22px]"
-      >
-        <PdfViewer
-          docId={content.documentId}
-          pageCount={content.pageCount}
-          onAskSelection={
-            onAskAtlas || onConnect
-              ? (text, pages, _docId, anchor) =>
-                  setPdfMark({
-                    text,
-                    // The page is part of the citation, exactly as the in-call
-                    // panel labels a report passage.
-                    title:
-                      pages.length > 0
-                        ? `${content.title} · ${dict.workspace.sourcePage.replace(
-                            '{n}',
-                            pages.length > 1 ? `${pages[0]}–${pages[pages.length - 1]}` : String(pages[0])
-                          )}`
-                        : content.title,
-                    top: anchor.top,
-                    left: anchor.left,
-                  })
-              : undefined
-          }
-        />
+      <div className="flex h-full min-h-0 flex-col bg-paper">
+        <PaneBar title={content.title}>
+          {onSnip && (
+            <button
+              type="button"
+              title={dict.live.snip}
+              aria-label={dict.live.snip}
+              aria-pressed={snipArmed}
+              onClick={() => {
+                const next = !snipArmed
+                setSnipArmed(next)
+                if (!next) onSnipEnd?.()
+              }}
+              className={`flex rounded p-1 transition-colors ${
+                snipArmed ? 'bg-ink text-paper' : 'text-ink-ghost hover:text-ink'
+              }`}
+            >
+              <ScissorsIcon size={14} strokeWidth={1.8} />
+            </button>
+          )}
+          {total > 1 && (
+            // dir="ltr": "3 / 31" is a numeric run and must not be mirrored,
+            // even though the pane around it reads right-to-left.
+            <span dir="ltr" className="flex items-center gap-0.5 text-ink-ghost">
+              <button
+                type="button"
+                aria-label="previous page"
+                onClick={() => goToPage(page - 1, total)}
+                disabled={page <= 1}
+                className="flex rounded p-1 transition-colors hover:text-ink disabled:opacity-40"
+              >
+                <ChevronLeftIcon size={13} strokeWidth={1.8} />
+              </button>
+              <span className="min-w-[44px] text-center font-mono-num text-[10.5px] tabular-nums">
+                {page} / {total}
+              </span>
+              <button
+                type="button"
+                aria-label="next page"
+                onClick={() => goToPage(page + 1, total)}
+                disabled={page >= total}
+                className="flex rounded p-1 transition-colors hover:text-ink disabled:opacity-40"
+              >
+                <ChevronRightIcon size={13} strokeWidth={1.8} />
+              </button>
+            </span>
+          )}
+          <span dir="ltr" className="flex items-center gap-0.5 text-ink-ghost">
+            <button
+              type="button"
+              aria-label="zoom out"
+              onClick={() => zoomBy(-1)}
+              disabled={zoom === ZOOM_STEPS[0]}
+              // py-1.5, not bare px: at `leading-none` these were a 13px-tall
+              // target and a real cursor slid off them (caught in verification
+              // — a synthetic click on the same button passed).
+              className="rounded px-1.5 py-1.5 text-[13px] leading-none transition-colors hover:text-ink disabled:opacity-40"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              title="100%"
+              onClick={() => setZoom(100)}
+              className="w-[38px] py-1.5 text-center font-mono-num text-[10.5px] tabular-nums transition-colors hover:text-ink"
+            >
+              {zoom}%
+            </button>
+            <button
+              type="button"
+              aria-label="zoom in"
+              onClick={() => zoomBy(1)}
+              disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+              // py-1.5, not bare px: at `leading-none` these were a 13px-tall
+              // target and a real cursor slid off them (caught in verification
+              // — a synthetic click on the same button passed).
+              className="rounded px-1.5 py-1.5 text-[13px] leading-none transition-colors hover:text-ink disabled:opacity-40"
+            >
+              +
+            </button>
+          </span>
+          {zoom > 100 && (
+            // The page only overflows once it is zoomed, so the pan controls
+            // only exist once there is somewhere to pan to.
+            <span dir="ltr" className="flex items-center gap-0.5 text-ink-ghost">
+              <button
+                type="button"
+                aria-label="pan left"
+                onClick={() => panBy(-1)}
+                className="rounded px-1.5 py-1.5 text-[12px] leading-none transition-colors hover:text-ink"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                aria-label="pan right"
+                onClick={() => panBy(1)}
+                className="rounded px-1.5 py-1.5 text-[12px] leading-none transition-colors hover:text-ink"
+              >
+                →
+              </button>
+            </span>
+          )}
+        </PaneBar>
+        {/* PdfViewer's own root is `flex flex-col gap-3` — it renders every page
+            and lets its PARENT scroll, which is how FacetPanes hosts it. Handing
+            it a plain `h-full` box with no overflow meant the pages beyond the
+            first were laid out and simply unreachable (founder, 2026-08-04: *"i
+            cant scroll through the pdf like i should be able to"*). Same wrapper
+            as the live report pane, so lazy page loading behaves identically. */}
+        <div
+          ref={scrollRef}
+          onScroll={() => {
+            setPdfMark(null)
+            trackPage()
+          }}
+          className="atscroll min-h-0 flex-1 overflow-auto p-[22px]"
+        >
+          <PdfViewer
+            docId={content.documentId}
+            pageCount={total}
+            zoom={zoom}
+            snipArmed={snipArmed}
+            onSnip={(s) => {
+              setSnipArmed(false) // one clip per arming, as in the call
+              onSnip?.(s)
+            }}
+            onSnipCancel={() => {
+              setSnipArmed(false)
+              onSnipEnd?.()
+            }}
+            onSnipError={(reason) => {
+              // NEVER silent: a clip that was captured but is too large would
+              // otherwise be dropped server-side while a chip sat in the
+              // composer looking sent (.claude/rules/app.md).
+              setSnipError(reason)
+              setTimeout(() => setSnipError(null), 4000)
+            }}
+            onAskSelection={
+              onAskAtlas || onConnect
+                ? (text, pages, _docId, anchor) =>
+                    setPdfMark({
+                      text,
+                      // The page is part of the citation, exactly as the in-call
+                      // panel labels a report passage.
+                      title:
+                        pages.length > 0
+                          ? `${content.title} · ${dict.workspace.sourcePage.replace(
+                              '{n}',
+                              pages.length > 1 ? `${pages[0]}–${pages[pages.length - 1]}` : String(pages[0])
+                            )}`
+                          : content.title,
+                      top: anchor.top,
+                      left: anchor.left,
+                    })
+                : undefined
+            }
+          />
+        </div>
+        {snipError && (
+          <div
+            role="alert"
+            className="flex-none border-t border-hairline bg-paper px-3 py-2 text-[12px] text-ink"
+          >
+            {snipError === 'toolarge' ? dict.workspace.snipTooLarge : dict.workspace.snipFailed}
+          </div>
+        )}
         {pdfMark && (
           // `fixed`, because the anchor is viewport-space and the pane it sits
           // in scrolls underneath it.
@@ -217,76 +466,105 @@ export function SourceDocument({
   }
 
   return (
-    <div
-      ref={paneRef}
-      onPointerUp={readSelection}
-      onScroll={() => setMark(null)}
-      className="atscroll relative h-full min-h-0 overflow-auto bg-paper px-8 py-7"
-    >
-      {mark && (onAskAtlas || onConnect) && (
-        // TWO THINGS TO DO WITH A MARKED PASSAGE: ask about it, or put it in the
-        // document. Founder, 2026-08-04 — the second one is what makes the
-        // workspace feel agentic rather than merely conversational.
-        //
-        // onMouseDown, not onClick, on both: a click collapses the selection
-        // first, so the passage would be gone by the time the handler ran.
-        <div
-          style={{ left: mark.x, top: mark.y }}
-          className="absolute z-20 flex -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg bg-ink text-[12px] font-medium text-paper shadow-menu"
-        >
-          {onAskAtlas && (
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                onAskAtlas({ itemId: file.id, title, text: mark.text })
-                setMark(null)
-                window.getSelection()?.removeAllRanges()
-              }}
-              className="px-3 py-1.5 hover:bg-white/15"
+    <div className="flex h-full min-h-0 flex-col bg-paper">
+      <PaneBar title={title} />
+      <div
+        ref={paneRef}
+        onPointerUp={readSelection}
+        onScroll={() => setMark(null)}
+        className="atscroll relative min-h-0 flex-1 overflow-auto px-8 py-7"
+      >
+        {mark && (onAskAtlas || onConnect) && (
+          // TWO THINGS TO DO WITH A MARKED PASSAGE: ask about it, or put it in the
+          // document. Founder, 2026-08-04 — the second one is what makes the
+          // workspace feel agentic rather than merely conversational.
+          //
+          // onMouseDown, not onClick, on both: a click collapses the selection
+          // first, so the passage would be gone by the time the handler ran.
+          <div
+            style={{ left: mark.x, top: mark.y }}
+            className="absolute z-20 flex -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg bg-ink text-[12px] font-medium text-paper shadow-menu"
+          >
+            {onAskAtlas && (
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  onAskAtlas({ itemId: file.id, title, text: mark.text })
+                  setMark(null)
+                  window.getSelection()?.removeAllRanges()
+                }}
+                className="px-3 py-1.5 hover:bg-white/15"
+              >
+                ✦ {dict.workspace.askAtlas}
+              </button>
+            )}
+            {onAskAtlas && onConnect && <span className="my-1.5 w-px bg-white/25" aria-hidden />}
+            {onConnect && (
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  onConnect({ itemId: file.id, title, text: mark.text })
+                  setMark(null)
+                  window.getSelection()?.removeAllRanges()
+                }}
+                className="px-3 py-1.5 hover:bg-white/15"
+              >
+                {dict.workspace.connectToDocument}
+              </button>
+            )}
+          </div>
+        )}
+        <div dir={docDir} className="mx-auto max-w-[760px]">
+          {error !== null ? (
+            <div
+              role="alert"
+              className="rounded-[10px] border border-hairline bg-canvas px-3.5 py-2.5 text-[13px] text-ink"
             >
-              ✦ {dict.workspace.askAtlas}
-            </button>
-          )}
-          {onAskAtlas && onConnect && <span className="my-1.5 w-px bg-white/25" aria-hidden />}
-          {onConnect && (
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                onConnect({ itemId: file.id, title, text: mark.text })
-                setMark(null)
-                window.getSelection()?.removeAllRanges()
-              }}
-              className="px-3 py-1.5 hover:bg-white/15"
-            >
-              {dict.workspace.connectToDocument}
-            </button>
+              <ErrorLine
+                template={dict.workspace.sourceFailed}
+                error={error}
+                auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+              />
+            </div>
+          ) : content === null ? (
+            <Skeleton label={dict.workspace.sourceLoading} />
+          ) : content.kind === 'unavailable' ? (
+            <Unavailable title={content.title} reason={content.reason} />
+          ) : content.kind === 'transcript' ? (
+            <TranscriptBody content={content} />
+          ) : (
+            <DocumentBody content={content} />
           )}
         </div>
-      )}
-      <div dir={docDir} className="mx-auto max-w-[760px]">
-        {error !== null ? (
-          <div
-            role="alert"
-            className="rounded-[10px] border border-hairline bg-canvas px-3.5 py-2.5 text-[13px] text-ink"
-          >
-            <ErrorLine
-              template={dict.workspace.sourceFailed}
-              error={error}
-              auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
-            />
-          </div>
-        ) : content === null ? (
-          <Skeleton label={dict.workspace.sourceLoading} />
-        ) : content.kind === 'unavailable' ? (
-          <Unavailable title={content.title} reason={content.reason} />
-        ) : content.kind === 'transcript' ? (
-          <TranscriptBody content={content} />
-        ) : (
-          <DocumentBody content={content} />
-        )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * THE NAME OF THE THING YOU ARE READING, above the thing you are reading.
+ *
+ * Founder, 2026-08-05, of multi-view: *"there needs to be a sync where above the
+ * document, there is the name of it."* The tab bar names every open pane in one
+ * row, which is unambiguous with one pane and a puzzle with three — you have to
+ * match chip position to pane position, and the two rows ran in OPPOSITE
+ * directions until this same round fixed the pane order. This bar makes the
+ * matching unnecessary: each pane carries its own name.
+ *
+ * It also gives the PDF controls somewhere to live, which is why it is here and
+ * not in WorkspaceDocs — the toolbar belongs to the document, not to the frame.
+ */
+function PaneBar({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div className="flex h-[34px] flex-none items-center justify-between gap-3 border-b border-hairline px-3">
+      {/* <bdi>, not dir: a file name mixes scripts ("תיגבור Q1 2026") and this
+          line sits inside a container whose direction is not its own. */}
+      <span className="min-w-0 truncate text-[11.5px] font-semibold text-ink-faint">
+        <bdi>{title}</bdi>
+      </span>
+      {children && <span className="flex flex-none items-center gap-2.5">{children}</span>}
     </div>
   )
 }

@@ -246,6 +246,10 @@ export const en = {
     sourcesFailed: 'Could not load the available sources — {error}',
     attachFailed: 'Could not add that source — {error}',
     doneAdding: 'Done',
+    // A clip that was captured but cannot be sent. Said out loud, because the
+    // alternative is a chip in the composer for an image the server dropped.
+    snipTooLarge: 'That clipping is too large to send — try a smaller area.',
+    snipFailed: 'That clipping could not be captured. Try again.',
   },
   agents: {
     ready: 'Ready when you are.',

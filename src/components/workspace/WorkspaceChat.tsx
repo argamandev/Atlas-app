@@ -6,9 +6,10 @@ import { WordReveal } from '@/components/ds/WordReveal'
 import { ThinkingDots } from '@/components/chat/ThinkingDots'
 import { Markdown } from '@/components/chat/Markdown'
 import { ErrorLine } from '@/components/projects/ErrorLine'
-import { CloseIcon, ArrowUpIcon, QuoteIcon, MicIcon } from '@/components/ds/icons'
+import { CloseIcon, ArrowUpIcon, QuoteIcon, MicIcon, ScissorsIcon } from '@/components/ds/icons'
 import { workspaceChatReq } from '@/lib/workspace/client'
 import { detectDir } from '@/lib/utils'
+import type { ChatSnip } from '@/lib/api/chat'
 import type { ChatTurn } from '@/lib/workspace/chat/prompt'
 
 // Workspace chat — and Ask Atlas, which is the same conversation opened with a
@@ -38,6 +39,8 @@ type Msg = {
   /** the passage this question was asked about, kept with it forever */
   reference?: string
   referenceTitle?: string
+  /** the clippings that went with it — what Atlas actually saw stays visible */
+  snips?: ChatSnip[]
   /** files the answer could see only part of, or not at all */
   caveat?: string[]
   revealing?: boolean
@@ -49,6 +52,12 @@ export function WorkspaceChat({
   onClearSeed,
   onRequestDocuments,
   onConnect,
+  snips = [],
+  onRemoveSnip,
+  onClearSnips,
+  snipAvailable = false,
+  onArmSnip,
+  snipCapped = false,
 }: {
   workspaceId: string
   /** a marked passage, when this was opened by Ask Atlas */
@@ -58,6 +67,22 @@ export function WorkspaceChat({
   onRequestDocuments?: (request: string) => void
   /** work a marked piece of an answer into the working document */
   onConnect?: (passage: { title: string; text: string }) => void
+  /**
+   * PINGE, the in-call clipping tool, in the workspace. Founder, 2026-08-05:
+   * *"we need to have the same UX as we have on the viewing live investor call
+   * in terms of the snipping tool in Ask Atlas."* The clips are held by the
+   * SHELL, not here, because the scissors and the PDF it cuts are siblings —
+   * the composer arms, a pane captures, and the chip has to arrive in the
+   * composer either way.
+   */
+  snips?: ChatSnip[]
+  onRemoveSnip?: (i: number) => void
+  onClearSnips?: () => void
+  /** a real PDF is open somewhere; otherwise the scissors is visibly disabled */
+  snipAvailable?: boolean
+  onArmSnip?: () => void
+  /** the 5th clip was refused — said out loud rather than dropped in silence */
+  snipCapped?: boolean
 }) {
   const { dict } = useI18n()
 
@@ -116,8 +141,12 @@ export function WorkspaceChat({
   }, [seed])
 
   async function send() {
-    const text = input.trim()
-    if (!text || sending) return
+    const typed = input.trim()
+    const usedSnips = snips
+    // A clipping IS a question. Sending one with nothing typed is the in-call
+    // behaviour, and the default sentence keeps the model pointed at it.
+    if ((!typed && usedSnips.length === 0) || sending) return
+    const text = typed || dict.chat.snipDefault
 
     const used = ref
     setMessages((prev) => [
@@ -126,11 +155,13 @@ export function WorkspaceChat({
         role: 'user',
         content: text,
         ...(used ? { reference: used.text, referenceTitle: used.title } : {}),
+        ...(usedSnips.length > 0 ? { snips: usedSnips } : {}),
       },
     ])
     setInput('')
     setRef(null)
     onClearSeed?.()
+    onClearSnips?.()
     setError(null)
     setSending(true)
 
@@ -143,7 +174,8 @@ export function WorkspaceChat({
       const { result } = await workspaceChatReq(
         workspaceId,
         history,
-        used ? { title: used.title, text: used.text } : null
+        used ? { title: used.title, text: used.text } : null,
+        usedSnips
       )
       setSending(false)
       // A model that could not answer still gets a turn, so the conversation
@@ -221,6 +253,21 @@ export function WorkspaceChat({
             // takes `ml-auto` rather than the stack taking `items-end`: that one
             // is logical, so in Hebrew it pushes the whole turn to the left.
             <div key={i} className="flex animate-fade-up flex-col gap-1">
+              {m.snips && m.snips.length > 0 && (
+                // WHAT ATLAS SAW STAYS VISIBLE — the trust moment the in-call
+                // panel established. An answer about a picture nobody can see
+                // any more is unverifiable.
+                <div dir="ltr" className="ml-auto flex max-w-[92%] flex-wrap justify-end gap-1.5">
+                  {m.snips.map((s, j) => (
+                    <img
+                      key={j}
+                      src={s.dataUrl}
+                      alt={`${dict.chat.pageShort} ${s.page}`}
+                      className="h-20 w-auto max-w-[170px] rounded-[8px] border border-hairline bg-white object-contain"
+                    />
+                  ))}
+                </div>
+              )}
               {m.reference && (
                 <div
                   dir={detectDir(m.reference)}
@@ -264,8 +311,14 @@ export function WorkspaceChat({
                 >
                   {dict.workspace.chatPartial}
                   <ul className="mt-1 flex flex-col gap-0.5">
-                    {m.caveat.map((t) => (
-                      <li key={t}>
+                    {/* Keyed by POSITION, not by title. Two files on one shelf can
+                        genuinely carry the same name — this workspace holds two
+                        rows both called "דוח דירקטוריון Q1 2026" — and a title key
+                        made React drop one of them with a duplicate-key warning.
+                        Listing it twice is the honest render: both were read in
+                        part, and collapsing them would under-report the gap. */}
+                    {m.caveat.map((t, k) => (
+                      <li key={`${k}-${t}`}>
                         <bdi>{t}</bdi>
                       </li>
                     ))}
@@ -293,6 +346,32 @@ export function WorkspaceChat({
       </div>
 
       <div className="flex-none px-4 pb-4 pt-3.5">
+        {/* The clip stack, above the reference block — same order as in-call. */}
+        {snips.length > 0 && (
+          <div dir="ltr" className="mb-2.5 flex flex-wrap gap-2">
+            {snips.map((s, i) => (
+              <div key={i} className="relative rounded-[10px] border border-hairline bg-white p-1">
+                <img
+                  src={s.dataUrl}
+                  alt={`${dict.chat.pageShort} ${s.page}`}
+                  className="h-16 w-auto max-w-[150px] rounded-[6px] object-contain"
+                />
+                <span className="absolute bottom-1.5 start-1.5 rounded bg-black/50 px-1 text-[10px] leading-[1.5] text-white">
+                  {dict.chat.pageShort} {s.page}
+                </span>
+                <button
+                  type="button"
+                  aria-label={dict.common.remove}
+                  onClick={() => onRemoveSnip?.(i)}
+                  className="absolute -end-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                >
+                  <CloseIcon size={11} strokeWidth={2} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {snipCapped && <div className="mb-2 text-[11.5px] text-ink-muted">{dict.chat.snipCap}</div>}
         {/* THE MARKED PASSAGE, SHOWN BEFORE IT IS SENT — Atlas must never hold a
             paragraph the user cannot see it holding, and they can drop it. Same
             shape as the in-call composer's reference block. */}
@@ -341,7 +420,22 @@ export function WorkspaceChat({
             dir="auto"
             className="max-h-[120px] w-full resize-none bg-transparent pb-[3px] pt-[2px] text-[14.5px] leading-[1.45] text-ink outline-none placeholder:text-ink-ghost"
           />
-          <div className="mt-2 flex items-center justify-end">
+          <div className="mt-2 flex items-center justify-between">
+            {/* ALWAYS RENDERED, disabled when there is nothing to cut — the
+                founder's round-2 note on the in-call composer, and the same
+                reasoning holds: an affordance that appears and disappears makes
+                the control row jump, while one that is visibly disabled says
+                "open a report and I work". */}
+            <button
+              type="button"
+              title={dict.live.snip}
+              aria-label={dict.live.snip}
+              onClick={() => onArmSnip?.()}
+              disabled={!snipAvailable || !onArmSnip}
+              className="grid h-[28px] w-[28px] place-items-center rounded-[8px] text-ink-ghost transition-colors enabled:hover:text-ink disabled:opacity-35"
+            >
+              <ScissorsIcon size={15} strokeWidth={1.8} />
+            </button>
             <span className="flex items-center gap-1.5">
               {/* voice-ask affordance — future feature, visibly disabled rather
                   than absent, exactly as the in-call composer carries it */}
@@ -360,7 +454,7 @@ export function WorkspaceChat({
                 // arrive as the first argument. That exact bug shipped once on
                 // the main composer and the keyboard path masked it.
                 onClick={() => void send()}
-                disabled={sending || !input.trim()}
+                disabled={sending || (!input.trim() && snips.length === 0)}
                 aria-label={dict.workspace.intakeSend}
                 className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full bg-ink text-paper transition-opacity disabled:opacity-40"
               >

@@ -24,6 +24,8 @@ import { patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
 import { WorkspaceIntake } from './WorkspaceIntake'
 import { WorkspaceChat, type AskContext } from './WorkspaceChat'
 import { ErrorLine } from '@/components/projects/ErrorLine'
+import { appendSnip } from '@/lib/documents/snip'
+import type { ChatSnip } from '@/lib/api/chat'
 
 // The populated control layout (design lines 1433-2084): a floating workspace
 // panel beside a floating main card with a tab bar. Special tabs __doc / __legal
@@ -90,6 +92,39 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   const [askSeed, setAskSeed] = useState<AskContext | null>(null)
   /** a request the chat could not act on itself — handed to the intake flow */
   const [addRequest, setAddRequest] = useState<string | null>(null)
+
+  // ── PINGE, the clipping tool, held HERE ────────────────────────────────────
+  // Founder, 2026-08-05: *"we need to have the same UX as we have on the viewing
+  // live investor call in terms of the snipping tool in Ask Atlas."*
+  //
+  // The scissors lives in the composer and the pixels live in a PDF pane, and
+  // those are siblings — so the shell owns the arming, the clips, and the list
+  // of panes that can be cut. The live call solves the same split with a
+  // module-level bridge plus a window event, which does not survive several
+  // documents being open at once: whichever pane unmounted last would report
+  // "nothing to cut" while another PDF was still on screen.
+  const [snipArm, setSnipArm] = useState(0)
+  const [snips, setSnips] = useState<ChatSnip[]>([])
+  const [snipCapped, setSnipCapped] = useState(false)
+  const [snippable, setSnippable] = useState<string[]>([])
+
+  const markSnippable = useCallback((itemId: string, can: boolean) => {
+    setSnippable((s) => (can ? (s.includes(itemId) ? s : [...s, itemId]) : s.filter((x) => x !== itemId)))
+  }, [])
+
+  const takeSnip = useCallback((snip: ChatSnip) => {
+    setSnipArm(0) // one clip per arming, as in the call
+    setSnips((prev) => {
+      const r = appendSnip(prev, snip)
+      if (r.dropped) {
+        setSnipCapped(true)
+        setTimeout(() => setSnipCapped(false), 2500)
+      }
+      return r.list
+    })
+    // The clip is a question, so it has to land somewhere it can be asked.
+    setChatOpen(true)
+  }, [])
 
   // CONNECT TO DOCUMENT. A passage marked anywhere — a source pane, a PDF, an
   // answer Atlas gave — plus one sentence about where it should go. Founder,
@@ -594,6 +629,11 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
             setConnectDraft({ title: passage.title, text: passage.text })
             setConnectNote('')
           }}
+          onStar={() => setChatOpen(true)}
+          snipArm={snipArm}
+          onSnip={takeSnip}
+          onSnipEnd={() => setSnipArm(0)}
+          onSnippable={markSnippable}
         />
 
         {chatOpen && (
@@ -630,6 +670,12 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                   setConnectDraft(passage)
                   setConnectNote('')
                 }}
+                snips={snips}
+                onRemoveSnip={(i) => setSnips((prev) => prev.filter((_, j) => j !== i))}
+                onClearSnips={() => setSnips([])}
+                snipAvailable={snippable.length > 0}
+                onArmSnip={() => setSnipArm((n) => n + 1)}
+                snipCapped={snipCapped}
               />
             </div>
           </div>

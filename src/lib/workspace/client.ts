@@ -3,6 +3,7 @@ import type { ItemCreate, BlockCreate } from './validate'
 import type { IntakeResponse, IntakeTurn } from './intake/types'
 import type { ItemContent } from './contentTypes'
 import type { ChatTurn } from './chat/prompt'
+import type { ChatSnip } from '@/lib/api/chat'
 import { handleResponse } from '@/lib/api/client'
 
 // The browser's only door to the workspace API. Every call surfaces its failure
@@ -67,7 +68,9 @@ export const intakeSearchReq = (workspaceId: string, messages: IntakeTurn[]) =>
 export const workspaceChatReq = (
   workspaceId: string,
   messages: ChatTurn[],
-  selection?: { title: string; text: string } | null
+  selection?: { title: string; text: string } | null,
+  /** Pinge clips of a PDF page, sent to the model as images (`ChatSnip[]`). */
+  attachments?: ChatSnip[]
 ) =>
   call<{
     result: {
@@ -79,7 +82,11 @@ export const workspaceChatReq = (
     }
   }>(`/api/workspaces/${workspaceId}/chat`, {
     method: 'POST',
-    body: JSON.stringify({ messages, ...(selection ? { selection } : {}) }),
+    body: JSON.stringify({
+      messages,
+      ...(selection ? { selection } : {}),
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
+    }),
   })
 
 /**

@@ -196,6 +196,8 @@ export const he: Dictionary = {
     sourcesFailed: 'לא ניתן לטעון את המקורות הזמינים — {error}',
     attachFailed: 'לא ניתן להוסיף את המקור — {error}',
     doneAdding: 'סיום',
+    snipTooLarge: 'הגזירה גדולה מדי לשליחה — נסו לסמן שטח קטן יותר.',
+    snipFailed: 'לא הצלחנו לצלם את הגזירה. נסו שוב.',
   },
   agents: {
     ready: 'מוכן כשאתם מוכנים.',
