@@ -121,6 +121,16 @@ export const he: Dictionary = {
     docToolBullet: 'רשימת תבליטים',
     docToolQuote: 'ציטוט',
     docToolCite: 'הוספת מקור',
+    docLetAtlasWrite: 'שאטלס יכתוב',
+    docWritePlaceholder:
+      'תארו לאטלס מה לכתוב — "פתח בפסקה על הענף, אחר כך הדירקטוריון, ואז למה זו השקעה טובה"',
+    docWriting: 'אטלס כותב…',
+    docWriteFailed: 'אטלס לא הצליח לכתוב את זה: {error}',
+    docWriteNoAnswer: 'אטלס לא הצליח לנסח את זה כרגע. לנסות שוב?',
+    docEmptyHint: 'כתבו כאן — או תארו לאטלס מה לנסח, וערכו את מה שהוא נותן.',
+    connectToDocument: 'חיבור למסמך',
+    connectPlaceholder: 'איפה זה צריך להיכנס, ואיך?',
+    connectTo: 'מוסיף למסמך שלכם',
     docContinue: 'המשך הפסקה',
     docQuoteDemo:
       'הציטוט, מי שמיוחס לו והנתונים במסמך הזה הומצאו לצורך ההדגמה — שום דבר כאן לא נלקח מדוח או משיחה אמיתיים.',

@@ -48,6 +48,7 @@ export function WorkspaceChat({
   seed,
   onClearSeed,
   onRequestDocuments,
+  onConnect,
 }: {
   workspaceId: string
   /** a marked passage, when this was opened by Ask Atlas */
@@ -55,6 +56,8 @@ export function WorkspaceChat({
   onClearSeed?: () => void
   /** the chat cannot attach files — it hands the request to the intake flow */
   onRequestDocuments?: (request: string) => void
+  /** work a marked piece of an answer into the working document */
+  onConnect?: (passage: { title: string; text: string }) => void
 }) {
   const { dict } = useI18n()
 
@@ -68,6 +71,34 @@ export function WorkspaceChat({
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  /** a marked run inside an answer, positioned relative to the scroller */
+  const [answerMark, setAnswerMark] = useState<{ text: string; x: number; y: number } | null>(null)
+  const readAnswerSelection = useCallback(() => {
+    if (!onConnect) return
+    const sel = window.getSelection()
+    const text = sel?.toString().trim() ?? ''
+    const host = scrollRef.current
+    if (!sel || sel.rangeCount === 0 || text.length < 2 || !host) {
+      setAnswerMark(null)
+      return
+    }
+    if (!host.contains(sel.anchorNode) || !host.contains(sel.focusNode)) {
+      setAnswerMark(null)
+      return
+    }
+    const rect = sel.getRangeAt(0).getBoundingClientRect()
+    const box = host.getBoundingClientRect()
+    setAnswerMark({
+      text,
+      // Clamped inside the panel — it is only 340px wide, so an unclamped
+      // centre on a long line puts the button off the edge.
+      x: Math.min(Math.max(rect.left - box.left + rect.width / 2, 80), box.width - 80),
+      // host.scrollTop, because this button is absolute inside a SCROLLING box:
+      // without it the button sits where the selection was before the scroll.
+      y: Math.max(rect.top - box.top + host.scrollTop - 8, 8),
+    })
+  }, [onConnect])
 
   const scrollToEnd = useCallback(() => {
     const el = scrollRef.current
@@ -137,7 +168,31 @@ export function WorkspaceChat({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div ref={scrollRef} className="atscroll flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div
+        ref={scrollRef}
+        onPointerUp={readAnswerSelection}
+        onScroll={() => setAnswerMark(null)}
+        className="atscroll relative flex-1 space-y-4 overflow-y-auto px-4 py-4"
+      >
+        {/* AN ANSWER IS A SOURCE TOO. Founder, 2026-08-04: connect-to-document
+            works *"in the answers atlas gave, in the reports, in the
+            transcripts"*. No "Ask Atlas" here — you are already in it. */}
+        {answerMark && onConnect && (
+          <button
+            type="button"
+            // mousedown, not click: a click collapses the selection first.
+            onMouseDown={(e) => {
+              e.preventDefault()
+              onConnect({ title: dict.live.askAtlas, text: answerMark.text })
+              setAnswerMark(null)
+              window.getSelection()?.removeAllRanges()
+            }}
+            style={{ left: answerMark.x, top: answerMark.y }}
+            className="absolute z-20 -translate-x-1/2 -translate-y-full rounded-lg bg-ink px-3 py-1.5 text-[12px] font-medium text-paper shadow-menu"
+          >
+            {dict.workspace.connectToDocument}
+          </button>
+        )}
         {messages.length === 0 && (
           // The serif hero, staggered word entrance — the same greeting shape the
           // in-call Ask Atlas opens with.

@@ -25,6 +25,7 @@ export function WorkspaceDocs({
   renderSpecial,
   specialLabel,
   onAskAtlas,
+  onConnect,
 }: {
   workspace: Workspace
   openTabs: string[]
@@ -38,6 +39,7 @@ export function WorkspaceDocs({
   renderSpecial: (id: string) => ReactNode
   specialLabel: (id: string) => string
   onAskAtlas: (passage: { itemId: string; title: string; text: string }) => void
+  onConnect: (passage: { itemId: string; title: string; text: string }) => void
 }) {
   const { dict } = useI18n()
   const [flex, setFlex] = useState<Record<string, number>>({})
@@ -192,7 +194,12 @@ export function WorkspaceDocs({
             const body = isSpecial(id) ? (
               renderSpecial(id)
             ) : f ? (
-              <SourceDocument workspaceId={workspace.id} file={f} onAskAtlas={onAskAtlas} />
+              <SourceDocument
+                workspaceId={workspace.id}
+                file={f}
+                onAskAtlas={onAskAtlas}
+                onConnect={onConnect}
+              />
             ) : null
             if (!body) return null
             const notLast = i < docsShown.length - 1

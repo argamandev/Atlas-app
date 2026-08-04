@@ -82,6 +82,30 @@ export const workspaceChatReq = (
     body: JSON.stringify({ messages, ...(selection ? { selection } : {}) }),
   })
 
+/**
+ * Ask Atlas to draft a passage for the working document.
+ *
+ * Returns ONLY the new passage and where it goes — it is never handed the whole
+ * document to rewrite, so nothing the analyst wrote can be lost to a bad
+ * generation. `result: null` means it could not write; render that, never an
+ * empty insertion that looks like success.
+ */
+export const composeReq = (
+  workspaceId: string,
+  input: {
+    instruction: string
+    document: string
+    headings: string[]
+    passage?: { title: string; text: string } | null
+  }
+) =>
+  call<{
+    result: { html: string; afterHeading: string | null; partial: string[] } | null
+  }>(`/api/workspaces/${workspaceId}/compose`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+
 export const fetchWorkspaces = () =>
   call<{ workspaces: WorkspaceRow[]; items: WorkspaceItemRow[] }>('/api/workspaces')
 

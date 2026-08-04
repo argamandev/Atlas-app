@@ -14,11 +14,12 @@ import {
   ChevronRightIcon,
 } from '@/components/ds/icons'
 import { WorkspaceDetailColumn, type DetailKey } from './WorkspaceDetailColumn'
-import { WorkingDocument } from './WorkingDocument'
+import { WorkingDocument, type ConnectRequest } from './WorkingDocument'
 import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
 import { WorkspaceDocs } from './WorkspaceDocs'
 import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
 import { documentTitle } from '@/lib/workspace/present'
+import { detectDir } from '@/lib/utils'
 import { patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
 import { WorkspaceIntake } from './WorkspaceIntake'
 import { WorkspaceChat, type AskContext } from './WorkspaceChat'
@@ -89,6 +90,19 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   const [askSeed, setAskSeed] = useState<AskContext | null>(null)
   /** a request the chat could not act on itself — handed to the intake flow */
   const [addRequest, setAddRequest] = useState<string | null>(null)
+
+  // CONNECT TO DOCUMENT. A passage marked anywhere — a source pane, a PDF, an
+  // answer Atlas gave — plus one sentence about where it should go. Founder,
+  // 2026-08-04: *"he again gives a short description on where to put this text
+  // in the document and how, and atlas adds it to the document."*
+  //
+  // Two states, because they are two different moments: `connectDraft` is the
+  // passage waiting for that sentence, `connectReq` is the whole thing handed to
+  // the document. The nonce is what lets the same passage be sent twice.
+  const [connectDraft, setConnectDraft] = useState<{ title: string; text: string } | null>(null)
+  const [connectNote, setConnectNote] = useState('')
+  const [connectReq, setConnectReq] = useState<ConnectRequest | null>(null)
+  const connectNonce = useRef(0)
 
   const [layoutError, setLayoutError] = useState<unknown>(null)
   const [renameError, setRenameError] = useState<unknown>(null)
@@ -558,6 +572,8 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                 workspaceId={workspace.id}
                 title={docTitleRaw}
                 onRenameDocument={renameDocument}
+                connect={connectReq}
+                onConnected={() => setConnectReq(null)}
               />
             ) : id === LEGAL_TAB ? (
               <LegalAgentChat areas={legalAreas} />
@@ -573,6 +589,10 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
           onAskAtlas={(passage) => {
             setAskSeed(passage)
             setChatOpen(true)
+          }}
+          onConnect={(passage) => {
+            setConnectDraft({ title: passage.title, text: passage.text })
+            setConnectNote('')
           }}
         />
 
@@ -606,11 +626,91 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                   setAddRequest(request)
                   setAddOpen(true)
                 }}
+                onConnect={(passage) => {
+                  setConnectDraft(passage)
+                  setConnectNote('')
+                }}
               />
             </div>
           </div>
         )}
       </div>
+
+      {/* "Where should this go, and how?" — the one sentence that turns a marked
+          passage into a paragraph in the document. It opens the document tab
+          itself, so the insertion happens somewhere the user is looking. */}
+      {connectDraft && (
+        <div
+          className="absolute inset-0 z-40 flex items-start justify-center bg-ink/20 p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label={dict.workspace.connectToDocument}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setConnectDraft(null)
+          }}
+        >
+          <div className="flex w-full max-w-[520px] flex-col gap-3 rounded-win border border-float-line bg-canvas p-5 shadow-pane">
+            <div className="flex items-start justify-between gap-4">
+              <div className="text-[15px] font-semibold text-ink">{dict.workspace.connectToDocument}</div>
+              <button
+                type="button"
+                onClick={() => setConnectDraft(null)}
+                aria-label={dict.common.close}
+                className={iconBtn}
+              >
+                <CloseIcon size={14} strokeWidth={2} />
+              </button>
+            </div>
+            <div
+              dir={detectDir(connectDraft.text)}
+              className="max-h-[160px] overflow-auto rounded-[10px] border border-hairline bg-subtle/60 px-3 py-2.5"
+            >
+              <div className="mb-1 text-[10.5px] font-medium uppercase tracking-[0.1em] text-ink-ghost">
+                <bdi>{connectDraft.title}</bdi>
+              </div>
+              <p className="text-[12.5px] leading-[1.8] text-ink-muted">{connectDraft.text}</p>
+            </div>
+            <input
+              autoFocus
+              value={connectNote}
+              onChange={(e) => setConnectNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' || !connectNote.trim()) return
+                connectNonce.current += 1
+                setConnectReq({
+                  nonce: connectNonce.current,
+                  title: connectDraft.title,
+                  text: connectDraft.text,
+                  instruction: connectNote.trim(),
+                })
+                setConnectDraft(null)
+                openTab(DOC_TAB)
+              }}
+              placeholder={dict.workspace.connectPlaceholder}
+              dir="auto"
+              className="w-full rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[13.5px] text-ink outline-none placeholder:text-ink-ghost"
+            />
+            <button
+              type="button"
+              disabled={!connectNote.trim()}
+              onClick={() => {
+                connectNonce.current += 1
+                setConnectReq({
+                  nonce: connectNonce.current,
+                  title: connectDraft.title,
+                  text: connectDraft.text,
+                  instruction: connectNote.trim(),
+                })
+                setConnectDraft(null)
+                openTab(DOC_TAB)
+              }}
+              className="self-end rounded-lg bg-ink px-3.5 py-2 text-[13px] font-medium text-paper disabled:opacity-40"
+            >
+              {dict.workspace.connectTo}
+            </button>
+          </div>
+        </div>
+      )}
 
       {addOpen && (
         <div

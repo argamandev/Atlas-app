@@ -144,6 +144,18 @@ export const en = {
     docToolBullet: 'Bulleted list',
     docToolQuote: 'Quote block',
     docToolCite: 'Cite a source',
+    // ── Atlas writing into the document ──────────────────────────────────────
+    docLetAtlasWrite: 'Let Atlas write',
+    docWritePlaceholder:
+      'Tell Atlas what to write — "open with the industry, then the board, then why this is a good investment"',
+    docWriting: 'Atlas is writing…',
+    docWriteFailed: 'Atlas could not write that: {error}',
+    docWriteNoAnswer: 'Atlas could not draft that just now. Try again?',
+    docEmptyHint: 'Write here — or tell Atlas what to draft, and edit what it gives you.',
+    // Marked text anywhere in the workspace can be worked into the document.
+    connectToDocument: 'Connect to document',
+    connectPlaceholder: 'Where should this go, and how?',
+    connectTo: 'Adding to your document',
     docContinue: 'Continue this section',
     docQuoteDemo:
       'The quoted passage, its speaker and the figures in this document are invented for the demo — nothing here comes from a real filing or call.',

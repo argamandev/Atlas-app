@@ -27,16 +27,27 @@ export function SourceDocument({
   workspaceId,
   file,
   onAskAtlas,
+  onConnect,
 }: {
   workspaceId: string
   file: WsFile
   /** marking a passage offers this; absent means the pane is read-only */
   onAskAtlas?: (passage: { itemId: string; title: string; text: string }) => void
+  /** work the marked passage into the working document */
+  onConnect?: (passage: { itemId: string; title: string; text: string }) => void
 }) {
   const { dict } = useI18n()
   const [content, setContent] = useState<ItemContent | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [mark, setMark] = useState<{ text: string; x: number; y: number } | null>(null)
+  /** the same menu for a PDF selection — positioned in VIEWPORT coords, which is
+   *  what PdfViewer's anchor is (a getBoundingClientRect on the range). */
+  const [pdfMark, setPdfMark] = useState<{
+    text: string
+    title: string
+    top: number
+    left: number
+  } | null>(null)
   const paneRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -138,15 +149,18 @@ export function SourceDocument({
       // were laid out and simply unreachable (founder, 2026-08-04: *"i cant
       // scroll through the pdf like i should be able to"*). Same wrapper as the
       // live report pane, so lazy page loading behaves identically.
-      <div className="atscroll h-full min-h-0 overflow-auto bg-paper p-[22px]">
+      <div
+        onScroll={() => setPdfMark(null)}
+        className="atscroll h-full min-h-0 overflow-auto bg-paper p-[22px]"
+      >
         <PdfViewer
           docId={content.documentId}
           pageCount={content.pageCount}
           onAskSelection={
-            onAskAtlas
-              ? (text, pages) =>
-                  onAskAtlas({
-                    itemId: file.id,
+            onAskAtlas || onConnect
+              ? (text, pages, _docId, anchor) =>
+                  setPdfMark({
+                    text,
                     // The page is part of the citation, exactly as the in-call
                     // panel labels a report passage.
                     title:
@@ -156,11 +170,48 @@ export function SourceDocument({
                             pages.length > 1 ? `${pages[0]}–${pages[pages.length - 1]}` : String(pages[0])
                           )}`
                         : content.title,
-                    text,
+                    top: anchor.top,
+                    left: anchor.left,
                   })
               : undefined
           }
         />
+        {pdfMark && (
+          // `fixed`, because the anchor is viewport-space and the pane it sits
+          // in scrolls underneath it.
+          <div
+            style={{ top: pdfMark.top - 8, left: pdfMark.left }}
+            className="fixed z-30 flex -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg bg-ink text-[12px] font-medium text-paper shadow-menu"
+          >
+            {onAskAtlas && (
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  onAskAtlas({ itemId: file.id, title: pdfMark.title, text: pdfMark.text })
+                  setPdfMark(null)
+                }}
+                className="px-3 py-1.5 hover:bg-white/15"
+              >
+                ✦ {dict.workspace.askAtlas}
+              </button>
+            )}
+            {onAskAtlas && onConnect && <span className="my-1.5 w-px bg-white/25" aria-hidden />}
+            {onConnect && (
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  onConnect({ itemId: file.id, title: pdfMark.title, text: pdfMark.text })
+                  setPdfMark(null)
+                }}
+                className="px-3 py-1.5 hover:bg-white/15"
+              >
+                {dict.workspace.connectToDocument}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     )
   }
@@ -172,22 +223,47 @@ export function SourceDocument({
       onScroll={() => setMark(null)}
       className="atscroll relative h-full min-h-0 overflow-auto bg-paper px-8 py-7"
     >
-      {mark && onAskAtlas && (
-        <button
-          type="button"
-          // onMouseDown, not onClick: a click first collapses the selection, and
-          // the passage would be gone by the time the handler ran.
-          onMouseDown={(e) => {
-            e.preventDefault()
-            onAskAtlas({ itemId: file.id, title, text: mark.text })
-            setMark(null)
-            window.getSelection()?.removeAllRanges()
-          }}
+      {mark && (onAskAtlas || onConnect) && (
+        // TWO THINGS TO DO WITH A MARKED PASSAGE: ask about it, or put it in the
+        // document. Founder, 2026-08-04 — the second one is what makes the
+        // workspace feel agentic rather than merely conversational.
+        //
+        // onMouseDown, not onClick, on both: a click collapses the selection
+        // first, so the passage would be gone by the time the handler ran.
+        <div
           style={{ left: mark.x, top: mark.y }}
-          className="absolute z-20 -translate-x-1/2 -translate-y-full rounded-lg bg-ink px-3 py-1.5 text-[12px] font-medium text-paper shadow-menu"
+          className="absolute z-20 flex -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg bg-ink text-[12px] font-medium text-paper shadow-menu"
         >
-          ✦ {dict.workspace.askAtlas}
-        </button>
+          {onAskAtlas && (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                onAskAtlas({ itemId: file.id, title, text: mark.text })
+                setMark(null)
+                window.getSelection()?.removeAllRanges()
+              }}
+              className="px-3 py-1.5 hover:bg-white/15"
+            >
+              ✦ {dict.workspace.askAtlas}
+            </button>
+          )}
+          {onAskAtlas && onConnect && <span className="my-1.5 w-px bg-white/25" aria-hidden />}
+          {onConnect && (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                onConnect({ itemId: file.id, title, text: mark.text })
+                setMark(null)
+                window.getSelection()?.removeAllRanges()
+              }}
+              className="px-3 py-1.5 hover:bg-white/15"
+            >
+              {dict.workspace.connectToDocument}
+            </button>
+          )}
+        </div>
       )}
       <div dir={docDir} className="mx-auto max-w-[760px]">
         {error !== null ? (
