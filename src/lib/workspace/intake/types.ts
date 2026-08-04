@@ -33,8 +33,23 @@ export type SourceRequest = {
  */
 export type FindReason = 'ok' | 'company-has-nothing-in-period' | 'nothing-matched' | 'empty-corpus'
 
-/** One turn of the intake conversation. */
-export type IntakeTurn = { role: 'user' | 'assistant'; content: string }
+/**
+ * One turn of the intake conversation.
+ *
+ * `proposed` is THE AGREED SET MADE DURABLE, and it is the fix for two founder
+ * complaints that turned out to be one bug (2026-08-04: "he kept on asking twice
+ * just to be clear" and "he only pulled 1 file while i asked for two"). Before
+ * it, the set Atlas had named existed only inside its own Hebrew prose, so every
+ * turn re-derived it from scratch — which let it re-ask a settled question and
+ * let it quietly emit one id where it had named two.
+ *
+ * Now an assistant turn that proposes files carries their ids, the client sends
+ * them back, and the server treats them as the thing the user agreed to. Ids are
+ * re-validated against the corpus on arrival: this is untrusted input like any
+ * other body field, and it never widens what a user may reach — a stranger's id
+ * is not in the corpus their own client loads.
+ */
+export type IntakeTurn = { role: 'user' | 'assistant'; content: string; proposed?: string[] }
 
 /**
  * Whether Atlas is still talking or has been told to go.
@@ -59,6 +74,14 @@ export type IntakeSelection = {
   reply: string
   status: IntakeStatus
   selectedIds: string[]
+  /**
+   * Ids the model says the user asked to TAKE OUT of the agreed set.
+   *
+   * Explicit because OMISSION IS NOT REMOVAL — see `reconcileSelection`. A file
+   * that was agreed to and then merely left out of the next payload has not been
+   * declined by anyone, so only a removal stated here can drop it.
+   */
+  removedIds: string[]
   dropped: string[]
 }
 

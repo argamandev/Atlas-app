@@ -63,17 +63,31 @@ export function WorkspaceIntake({
 
     try {
       const { result } = await intakeSearchReq(workspaceId, next)
-
-      // A model that could not be reached still gets a turn in the thread, so
-      // the conversation never just stops with nothing said.
-      const said = result.reply ?? dict.workspace.intakeNotInterpreted
-      setTurns([...next, { role: 'assistant', content: said }])
       setThinking(false)
 
-      // THE ONLY PATH THAT TOUCHES THE SHELF, and it needs the user's own yes.
-      if (result.status === 'ready' && result.selected.length > 0) {
-        await pull(result.selected)
+      const ready = result.status === 'ready' && result.selected.length > 0
+
+      if (result.reply !== null) {
+        // THE PROPOSED SET RIDES WITH THE SENTENCE. Atlas names files in prose;
+        // these are the same files as ids, so the next turn can act on what was
+        // agreed instead of asking a model to re-read its own words. Founder,
+        // 2026-08-04: he said yes to two files and one arrived.
+        setTurns([
+          ...next,
+          { role: 'assistant', content: result.reply, proposed: result.selected.map((s) => s.sourceId) },
+        ])
+      } else if (!ready) {
+        // A model that could not be reached still gets a turn in the thread, so
+        // the conversation never just stops with nothing said.
+        setTurns([...next, { role: 'assistant', content: dict.workspace.intakeNotInterpreted }])
       }
+      // `reply: null` WITH `ready` is the deliberate silent case: the user just
+      // said "yes" and the server did not spend a model call inventing a
+      // sentence to say so. The pulling indicator below is the whole answer —
+      // echoing "sure, pulling them" after "yes" is noise, not conversation.
+
+      // THE ONLY PATH THAT TOUCHES THE SHELF, and it needs the user's own yes.
+      if (ready) await pull(result.selected)
     } catch (e: unknown) {
       // The user's message stays in the thread — losing what they typed because
       // the network failed would be its own small betrayal.

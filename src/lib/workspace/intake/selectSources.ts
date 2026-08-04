@@ -30,7 +30,12 @@ export const SELECTION_CANDIDATE_CAP = 80
 
 const kindLabel = (k: AttachableSource['kind']) => (k === 'transcript' ? 'call' : 'report')
 
-export function buildSelectionPrompt(corpus: AttachableSource[], conversation: IntakeTurn[]): string {
+export function buildSelectionPrompt(
+  corpus: AttachableSource[],
+  conversation: IntakeTurn[],
+  /** the ids this conversation has already settled on, if any */
+  proposal: string[] = []
+): string {
   const lines = corpus.map(
     (s) =>
       `- id: ${s.sourceId} | type: ${kindLabel(s.kind)} | company: ${s.company ?? 'unknown'} | date: ${
@@ -40,13 +45,32 @@ export function buildSelectionPrompt(corpus: AttachableSource[], conversation: I
 
   const talk = conversation.map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${t.content}`).join('\n')
 
+  // THE SET, STATED. Without this the model had to re-read its own prose every
+  // turn to work out what it had already proposed — which is exactly how it
+  // came to name two files and then pull one (founder, 2026-08-04).
+  const byId = new Map(corpus.map((s) => [s.sourceId, s]))
+  const standing =
+    proposal.length === 0
+      ? ''
+      : `\nTHE FILES YOU ALREADY PROPOSED, and the analyst is responding to THESE:
+${proposal
+  .map((id) => {
+    const s = byId.get(id)
+    return `- id: ${id}${s ? ` | ${s.title}` : ''}`
+  })
+  .join('\n')}
+Carry every one of them forward unless the analyst asks to take it out. If they
+agree, "selected" must contain ALL of these ids — dropping one is a mistake, not
+a shortcut. If they ask to remove one, put it in "removed".
+`
+
   return `You are Atlas, helping an equity analyst set up a research workspace.
 
 You are having a short, ordinary conversation with them — like a colleague, not a form.
 
 FILES ATLAS HOLDS:
 ${lines.join('\n')}
-
+${standing}
 CONVERSATION SO FAR:
 ${talk}
 
@@ -54,7 +78,8 @@ Reply with ONLY a JSON object:
 {
   "reply": "what you say next, IN THE SAME LANGUAGE THE ANALYST IS WRITING IN",
   "status": "clarifying" | "ready",
-  "selected": ["id", "id"]
+  "selected": ["id", "id"],
+  "removed": ["id the analyst asked to take out, if any"]
 }
 
 How to behave:
@@ -129,22 +154,32 @@ export function parseSelection(raw: string, corpus: AttachableSource[]): IntakeS
   const status = obj.status === 'ready' ? ('ready' as const) : ('clarifying' as const)
 
   const known = new Set(corpus.map((s) => s.sourceId))
-  const seen = new Set<string>()
-  const selectedIds: string[] = []
   const dropped: string[] = []
 
-  for (const raw of obj.selected) {
-    if (typeof raw !== 'string') continue
-    const id = raw.trim()
-    if (!id || seen.has(id)) continue
-    seen.add(id)
-    // THE GUARD. A model that hallucinated a plausible-looking id would
-    // otherwise put a file on the shelf that cannot be opened.
-    if (known.has(id)) selectedIds.push(id)
-    else dropped.push(id)
+  /** Real, de-duplicated ids from one of the model's arrays. */
+  const readIds = (raw: unknown, recordUnknown: boolean): string[] => {
+    if (!Array.isArray(raw)) return []
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const entry of raw) {
+      if (typeof entry !== 'string') continue
+      const id = entry.trim()
+      if (!id || seen.has(id)) continue
+      seen.add(id)
+      // THE GUARD. A model that hallucinated a plausible-looking id would
+      // otherwise put a file on the shelf that cannot be opened.
+      if (known.has(id)) out.push(id)
+      else if (recordUnknown) dropped.push(id)
+    }
+    return out
   }
 
-  return { reply, status, selectedIds, dropped }
+  const selectedIds = readIds(obj.selected, true)
+  // An unknown id in `removed` removes nothing and is not worth alarming about —
+  // only invented SELECTIONS are the dangerous direction.
+  const removedIds = readIds(obj.removed, false)
+
+  return { reply, status, selectedIds, removedIds, dropped }
 }
 
 /** The selected sources, in the model's chosen order, then everything else. */

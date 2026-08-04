@@ -149,6 +149,50 @@ test('the prompt carries every file with its type, date and title', () => {
   assert.ok(p.includes('שני הדוחות של 2026 והשיחה האחרונה'))
 })
 
+// ── the standing proposal ────────────────────────────────────────────────────
+// Founder, 2026-08-04: "he only pulled 1 file while i asked for two files and we
+// agreed on them." The model had to re-read its own Hebrew prose each turn to
+// recall what it had proposed. Now it is stated to it as a fact.
+
+test('the prompt states the set already proposed, with titles', () => {
+  const p = buildSelectionPrompt(CORPUS, [{ role: 'user', content: 'כן' }], ['r1', 'c1'])
+  assert.ok(p.includes('THE FILES YOU ALREADY PROPOSED'))
+  assert.ok(p.includes('id: r1 | דוח דירקטוריון Q1 2026'))
+  assert.ok(p.includes('id: c1 | שיחת משקיעים - רבעון ראשון לשנת 2026'))
+  // and it must say what to DO with them, not merely list them
+  assert.ok(p.includes('Carry every one of them forward'))
+})
+
+test('with nothing proposed yet the prompt does not mention a standing set', () => {
+  const p = buildSelectionPrompt(CORPUS, [{ role: 'user', content: 'תביא לי דוחות' }])
+  assert.ok(!p.includes('THE FILES YOU ALREADY PROPOSED'))
+})
+
+test('reads an explicit removal', () => {
+  const s = parseSelection(
+    '{"reply":"הורדתי את השיחה.","status":"ready","selected":["r1"],"removed":["c1"]}',
+    CORPUS
+  )
+  assert.ok(s)
+  assert.deepEqual(s.selectedIds, ['r1'])
+  assert.deepEqual(s.removedIds, ['c1'])
+})
+
+test('no removed field means nothing was removed — not everything', () => {
+  const s = parseSelection('{"reply":"ok","status":"ready","selected":["r1"]}', CORPUS)
+  assert.ok(s)
+  assert.deepEqual(s.removedIds, [])
+})
+
+test('an unknown id in removed is ignored without alarming', () => {
+  const s = parseSelection('{"reply":"ok","selected":["r1"],"removed":["GHOST"]}', CORPUS)
+  assert.ok(s)
+  assert.deepEqual(s.removedIds, [])
+  // `dropped` is the invented-SELECTION alarm; a phantom removal removes nothing
+  // and must not trip it.
+  assert.deepEqual(s.dropped, [])
+})
+
 test('the prompt carries the whole conversation, both sides', () => {
   const p = buildSelectionPrompt(CORPUS, [
     { role: 'user', content: 'תביא לי את הדוחות של תיגבור' },

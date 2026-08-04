@@ -13,6 +13,7 @@ import {
   orderBySelection,
   SELECTION_CANDIDATE_CAP,
 } from '@/lib/workspace/intake/selectSources'
+import { isBareAgreement, reconcileSelection } from '@/lib/workspace/intake/agreement'
 import type { IntakeTurn } from '@/lib/workspace/intake/types'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +23,8 @@ const MODEL = 'gemini-3.5-flash'
 // Budget for a request someone is waiting on: worst case is roughly
 // 7s + 0.6s + 7s before the fallback model gets its turn.
 const GEMINI_TIMEOUT_MS = 7_000
-const GEMINI_ATTEMPTS = 2
+/** How long Gemini gets alone before a second model is started alongside it. */
+const HEDGE_MS = 1_200
 
 const FILTER_SYSTEM = `You turn an investor-research request into a search filter.
 Reply with ONLY a JSON object, no prose, with these optional keys:
@@ -94,17 +96,46 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       })
     }
 
+    // THE SET ALREADY AGREED, re-validated against the corpus. It arrives from
+    // the client, so it is untrusted like any other body field — but it cannot
+    // widen reach: an id that is not in the corpus this user's own client loaded
+    // is simply not here, and is discarded.
+    const known = new Set(corpus.map((s) => s.sourceId))
+    const proposal = lastProposal(messages).filter((id) => known.has(id))
+
+    // ── the shortcut: "yes" is not a question for a model ────────────────────
+    // Founder, 2026-08-04: he agreed, and Atlas asked the same question again —
+    // then pulled one of the two files they had settled on. Both were the same
+    // hole: the agreed set was re-derived by a model on every turn. When the
+    // latest message is nothing but agreement and a set is on the table, there
+    // is nothing left to reason about, so nothing is asked. The loop and the
+    // dropped file become impossible rather than discouraged, and the turn where
+    // a human is least willing to wait now costs no network time at all.
+    const latest = messages[messages.length - 1]
+    if (proposal.length > 0 && latest?.role === 'user' && isBareAgreement(latest.content)) {
+      const { selected } = orderBySelection(corpus, proposal)
+      // `reply: null` with `ready` means "no sentence needed" — the panel is
+      // already showing that it is pulling. It deliberately does not invent a
+      // Hebrew or English sentence server-side; the client owns its own wording.
+      return json({ reply: null, status: 'ready', selected, fallback: null })
+    }
+
     // ── stage 1: narrow, only if we must ────────────────────────────────────
     let candidates = corpus
     if (corpus.length > SELECTION_CANDIDATE_CAP) {
-      const filterRaw = await askGemini(withDates(FILTER_SYSTEM) + `\n\nRequest: ${text}`, 400)
+      const filterRaw = await askModel(withDates(FILTER_SYSTEM) + `\n\nRequest: ${text}`, 400)
       const found = findSources(parseModelRequest(filterRaw, text), corpus)
       const pool = found.matched.length > 0 ? found.matched : found.otherForCompany
       candidates = (pool.length > 0 ? pool : corpus).slice(0, SELECTION_CANDIDATE_CAP)
+      // Narrowing must never hide a file the conversation has already agreed to
+      // — the model has to see it to carry it forward.
+      const inPool = new Set(candidates.map((s) => s.sourceId))
+      const missing = corpus.filter((s) => proposal.includes(s.sourceId) && !inPool.has(s.sourceId))
+      candidates = [...candidates, ...missing]
     }
 
     // ── stage 2: select, and answer in words ────────────────────────────────
-    const selectionRaw = await askGemini(buildSelectionPrompt(candidates, messages), 1200)
+    const selectionRaw = await askModel(buildSelectionPrompt(candidates, messages, proposal), 1200)
     const selection = parseSelection(selectionRaw, candidates)
 
     if (selection) {
@@ -113,7 +144,16 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // swallowed, because a model beginning to invent ids must not be silent.
         console.warn(`[intake] model returned unknown ids: ${selection.dropped.join(', ')}`)
       }
-      const { selected } = orderBySelection(candidates, selection.selectedIds)
+      // OMISSION IS NOT REMOVAL. At `ready` the agreed proposal is restored
+      // under whatever the model re-typed, so a file that was named, agreed to
+      // and then simply left out of the payload still arrives. Only an explicit
+      // `removed` takes one out. While still clarifying the model is free to
+      // re-shape the set — that is what the conversation is for.
+      const ids =
+        selection.status === 'ready'
+          ? reconcileSelection(proposal, selection.selectedIds, selection.removedIds)
+          : selection.selectedIds
+      const { selected } = orderBySelection(candidates, ids)
       return json({ reply: selection.reply, status: selection.status, selected, fallback: null })
     }
 
@@ -143,12 +183,27 @@ function parseTurns(raw: unknown): IntakeTurn[] {
   if (!Array.isArray(raw)) return []
   const turns: IntakeTurn[] = []
   for (const t of raw) {
-    const o = t as { role?: unknown; content?: unknown }
+    const o = t as { role?: unknown; content?: unknown; proposed?: unknown }
     const role = o?.role === 'assistant' ? 'assistant' : o?.role === 'user' ? 'user' : null
     const content = typeof o?.content === 'string' ? o.content.trim() : ''
-    if (role && content) turns.push({ role, content: content.slice(0, 4000) })
+    if (!role || !content) continue
+    // Bounded like the text is: a client cannot grow the prompt without limit.
+    const proposed = Array.isArray(o?.proposed)
+      ? o.proposed.filter((x): x is string => typeof x === 'string').slice(0, SELECTION_CANDIDATE_CAP)
+      : undefined
+    turns.push({ role, content: content.slice(0, 4000), ...(proposed ? { proposed } : {}) })
   }
   return turns.slice(-20)
+}
+
+/** The most recent set Atlas put on the table, or []. Later turns win — an
+ *  earlier proposal has already been superseded by the one after it. */
+function lastProposal(turns: IntakeTurn[]): string[] {
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i]
+    if (t.role === 'assistant' && t.proposed && t.proposed.length > 0) return t.proposed
+  }
+  return []
 }
 
 function withDates(template: string): string {
@@ -165,6 +220,64 @@ function withDates(template: string): string {
  * says that is what happened. Failing here would turn a missing API key into
  * "the workspace is broken".
  */
+/**
+ * An answer from whichever model answers first.
+ *
+ * WHY THIS IS A HEDGE AND NOT A CHAIN. Founder, 2026-08-04: *"it responds very
+ * slow, it needs to be a lot faster."* The dev log said why — Gemini was
+ * returning 503 "high demand" and timing out, and the fallback only started once
+ * Gemini had exhausted itself: 12s, 17s, 19s, 27s, 32s, one turn at 68s. Every
+ * one of those seconds was spent waiting for a model that was never going to
+ * answer, while a working model sat idle.
+ *
+ * So OpenAI no longer waits its turn. Gemini starts; if it has not answered
+ * within HEDGE_MS — or has already failed — OpenAI starts alongside it, and the
+ * first usable answer wins. Latency stops being the SUM of a bad provider's
+ * retries and becomes the MINIMUM of two independent attempts. The extra call is
+ * only made when the first one is late, and these prompts are a few hundred
+ * tokens over a dozen files.
+ */
+async function askModel(prompt: string, maxOutputTokens: number): Promise<string> {
+  const gemini = askGemini(prompt, maxOutputTokens)
+
+  const hedged = (async () => {
+    // Whichever comes first: Gemini finishing, or the patience running out.
+    const early = await Promise.race([gemini, sleep(HEDGE_MS).then(() => null)])
+    // Gemini already answered — nothing to hedge against, and no second bill.
+    if (typeof early === 'string' && early) return ''
+    return askOpenAi(prompt, maxOutputTokens)
+  })()
+
+  return firstUsable([gemini, hedged])
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * The first non-empty string among the promises, or '' once all are exhausted.
+ *
+ * Not `Promise.race`: that resolves on the first SETTLED promise, which here is
+ * usually the fast failure — the losing provider's empty string would win the
+ * race and discard a good answer that was still in flight.
+ */
+function firstUsable(promises: Promise<string>[]): Promise<string> {
+  return new Promise((resolve) => {
+    let outstanding = promises.length
+    for (const p of promises) {
+      p.then(
+        (text) => {
+          // resolve() after the first call is a no-op, so the loser is ignored.
+          if (text) resolve(text)
+          else if (--outstanding === 0) resolve('')
+        },
+        () => {
+          if (--outstanding === 0) resolve('')
+        }
+      )
+    }
+  })
+}
+
 async function askGemini(prompt: string, maxOutputTokens: number): Promise<string> {
   // OBSERVED 2026-08-04: a plain 503 "This model is currently experiencing high
   // demand" dropped the whole request to a keyword search. On an interactive
@@ -176,20 +289,15 @@ async function askGemini(prompt: string, maxOutputTokens: number): Promise<strin
   // fallback ran (observed 2026-08-04: three consecutive timeouts, 27s+ per
   // request). A background job can afford that; an interactive one cannot.
   //
-  // So: a short timeout, ONE retry, then hand over to a model that is answering.
-  for (let attempt = 1; attempt <= GEMINI_ATTEMPTS; attempt++) {
-    const { text, status } = await askGeminiOnce(prompt, maxOutputTokens)
-    if (text) return text
-    // Only transient classes are worth waiting for. A 400 will be a 400 again.
-    const transient = status === 429 || (typeof status === 'number' && status >= 500)
-    if (!transient || attempt === GEMINI_ATTEMPTS) break
-    await new Promise((r) => setTimeout(r, 600))
-  }
-
-  // Gemini is out. GPT-4.1 backs up the chat the same way (api/chat/route.ts),
-  // so the founder is already paying for the key and the workspace should use it
-  // rather than degrade while a working model sits unused.
-  return askOpenAi(prompt, maxOutputTokens)
+  // ONE ATTEMPT, and no retry — because the hedge in `askModel` IS the retry,
+  // and a different provider is a better second attempt than asking a model
+  // that is shedding load to shed it again. Removing the retry also makes the
+  // hedge react faster: a 503 comes back in a few hundred milliseconds, this
+  // resolves empty immediately, and OpenAI starts then instead of after a
+  // backoff and a second 7-second timeout. Measured on this branch, the founder's
+  // first turn went 12.5s → 5.4s.
+  const { text } = await askGeminiOnce(prompt, maxOutputTokens)
+  return text
 }
 
 async function askOpenAi(prompt: string, maxTokens: number): Promise<string> {
@@ -211,8 +319,9 @@ async function askOpenAi(prompt: string, maxTokens: number): Promise<string> {
   }
 }
 
-/** `status` is returned rather than logged so the caller can tell a transient
- *  failure (retry) from a permanent one (do not). */
+/** `status` is kept in the shape because the failure classes read very
+ *  differently in the log (503 high-demand vs a 400 on the prompt); nothing
+ *  branches on it any more, since the hedge answers every class the same way. */
 async function askGeminiOnce(
   prompt: string,
   maxOutputTokens: number

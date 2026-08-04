@@ -93,6 +93,22 @@ export const FileIcon = (p: IconProps) => (
     <path d="M13 3.5V9.5h6" />
   </Base>
 )
+// Two panes side by side — the multi-view toggle. It replaced SlidesIcon there,
+// which draws a PROJECTOR SCREEN ON A STAND: the founder looked at the control
+// and asked what it represented (2026-08-04), and the honest answer was that it
+// said "presentation" while doing "split into panes".
+export const ColumnsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="4.5" width="18" height="15" rx="2" />
+    <path d="M12 4.5v15" />
+  </Base>
+)
+// One pane — the way back to reading a single file.
+export const SinglePaneIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="4.5" width="18" height="15" rx="2" />
+  </Base>
+)
 export const SlidesIcon = (p: IconProps) => (
   <Base {...p}>
     <rect x="3" y="4.5" width="18" height="13" rx="2" />

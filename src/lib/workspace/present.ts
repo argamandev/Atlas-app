@@ -112,6 +112,10 @@ export function presentWorkspace(
     // that came out of the database would put invented findings on a real page.
     agents: [],
     actions: [],
-    docTitle: row.doc_title,
+    // `doc_title` defaults to '' in the schema and nothing sets it yet, so every
+    // real workspace showed a NAMELESS document — a blank line in the panel, and
+    // once the document could join multi-view (2026-08-04), a blank tab chip
+    // with only a close button in it. A thing you can open needs a name.
+    docTitle: row.doc_title.trim() || dict.workspace.untitledDocument,
   }
 }

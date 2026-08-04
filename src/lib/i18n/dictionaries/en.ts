@@ -147,9 +147,13 @@ export const en = {
     docExportUnavailable: 'Not in this build',
     docCitations: '{n} citations',
     docContinueInserted: 'Sample continuation — no model wrote this.',
-    splitToggle: 'Split view',
-    addToSplit: 'Add to split',
-    removeFromSplit: 'Remove from split',
+    // The toggle names the state it takes you TO. "Split view" named neither
+    // state, on a control whose icon named nothing at all.
+    untitledDocument: 'Untitled document',
+    multiView: 'Multi-view — all open files side by side',
+    singleView: 'Single view — one file at a time',
+    addToSplit: 'Show in multi-view',
+    removeFromSplit: 'Hide from multi-view',
     resetSplit: 'Reset widths',
     workspaceChat: 'Workspace chat',
 

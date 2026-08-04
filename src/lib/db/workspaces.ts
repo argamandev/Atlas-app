@@ -193,6 +193,20 @@ export async function addItem(
       kind: input.kind,
       name: input.name,
       position,
+      // A FILE YOU JUST ADDED IS ONE YOU WANT TO SEE.
+      //
+      // The column defaults to false, which meant a pull of three agreed files
+      // produced three shelf rows and ONE open tab — the workspace's own
+      // "reopen exactly as you left it" logic found nothing open and fell back
+      // to showing the first source. Founder, 2026-08-04: *"he only pulled 1
+      // file while i asked for two files and we agreed on them."* Two rows were
+      // written; one was ever presented, and from the outside those are
+      // indistinguishable.
+      //
+      // Set here rather than as a column default: the default is what an
+      // UNSPECIFIED row means, and a row restored or written by anything else
+      // should still start closed. This is a statement about attaching.
+      is_open: true,
       transcript_id: input.transcript_id ?? null,
       document_id: input.document_id ?? null,
       storage_path: input.storage_path ?? null,

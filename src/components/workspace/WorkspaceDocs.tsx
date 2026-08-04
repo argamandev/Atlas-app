@@ -3,7 +3,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { DemoInline } from '@/components/ds/DemoBanner'
-import { CloseIcon, PlusIcon, SlidesIcon } from '@/components/ds/icons'
+import { CloseIcon, PlusIcon, ColumnsIcon, SinglePaneIcon } from '@/components/ds/icons'
 import type { Workspace, WsFile } from '@/lib/workspace/data'
 
 // The workspace main card: tab bar (design 1726-1756), single or split documents
@@ -43,12 +43,22 @@ export function WorkspaceDocs({
   const dragging = useRef<{ id: string; nextId: string; startX: number; a: number; b: number } | null>(null)
 
   const fileById = (id: string) => workspace.files.find((f) => f.id === id)
-  const fileTabs = openTabs.filter((id) => !isSpecial(id))
-  const docsShown = split
-    ? fileTabs.filter((id) => multi.includes(id))
-    : activeTab && !isSpecial(activeTab)
-      ? [activeTab]
-      : []
+
+  // WHAT IS ON SCREEN.
+  //
+  // In multi-view every tab the user kept in `multi` gets a pane — INCLUDING the
+  // working document and the legal panel, which used to be filtered out here.
+  // Founder decision, 2026-08-04, asked directly: reading a source on one side
+  // and writing about it on the other is "the main point", so a special tab is a
+  // pane like any other.
+  //
+  // The fallback to the active tab is a guard, not a feature. This list going
+  // empty is what produced the reported bug: the toggle turned split on with
+  // `multi` still empty, every pane vanished, and the user got "Nothing open" —
+  // so multi-view looked like it did not exist. The screen must never blank as a
+  // RESULT of a view control.
+  const paneTabs = split ? openTabs.filter((id) => multi.includes(id)) : activeTab ? [activeTab] : []
+  const docsShown = paneTabs.length > 0 ? paneTabs : activeTab ? [activeTab] : []
 
   function onGutterDown(e: React.PointerEvent, id: string, nextId: string) {
     // Guard the capture call — an unguarded setPointerCapture was a real bug in
@@ -110,7 +120,8 @@ export function WorkspaceDocs({
                 >
                   {label}
                 </button>
-                {split && f && (
+                {/* No `&& f`: the working document may join multi-view too. */}
+                {split && (
                   <button
                     type="button"
                     onClick={() => onToggleMulti(id)}
@@ -136,22 +147,28 @@ export function WorkspaceDocs({
             )
           })}
         </div>
+        {/* The control the founder could not read. It now shows the state it
+            will PUT YOU IN — two panes when you are in one, one pane when you
+            are in several — and says so in words on hover. */}
         <button
           type="button"
           onClick={onToggleSplit}
-          title={dict.workspace.splitToggle}
+          title={split ? dict.workspace.singleView : dict.workspace.multiView}
+          aria-pressed={split}
           className={`flex h-7 w-7 flex-none items-center justify-center rounded-md transition-colors ${
             split ? 'bg-ink text-paper' : 'text-ink-faint hover:bg-subtle hover:text-ink'
           }`}
         >
-          <SlidesIcon size={15} strokeWidth={1.7} />
+          {split ? (
+            <SinglePaneIcon size={15} strokeWidth={1.7} />
+          ) : (
+            <ColumnsIcon size={15} strokeWidth={1.7} />
+          )}
         </button>
       </div>
 
       <div className="flex min-h-0 flex-1" onPointerMove={onGutterMove} onPointerUp={endDrag}>
-        {isSpecial(activeTab) ? (
-          <div className="min-h-0 flex-1">{renderSpecial(activeTab)}</div>
-        ) : docsShown.length === 0 ? (
+        {docsShown.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
             <div className="text-[15px] font-medium text-ink">{dict.workspace.noTabsHead}</div>
             <p className="max-w-[320px] text-[13px] leading-[1.6] text-ink-muted">
@@ -159,17 +176,20 @@ export function WorkspaceDocs({
             </p>
           </div>
         ) : (
+          // ONE PANE RENDERER FOR EVERY TAB KIND. Single view is just this list
+          // with one entry in it — the special tabs used to take a separate
+          // full-width branch above, which is precisely why the working document
+          // could never sit beside a source.
           docsShown.map((id, i) => {
             const f = fileById(id)
-            if (!f) return null
+            const body = isSpecial(id) ? renderSpecial(id) : f ? <FilePreview file={f} /> : null
+            if (!body) return null
             const notLast = i < docsShown.length - 1
             const nextId = notLast ? docsShown[i + 1] : ''
             const active = hoverGutter === id || dragging.current?.id === id
             return (
               <div key={id} className="flex min-w-0" style={{ flex: flex[id] ?? 1 }}>
-                <div className="min-w-0 flex-1">
-                  <FilePreview file={f} />
-                </div>
+                <div className="min-w-0 flex-1">{body}</div>
                 {notLast && (
                   <div
                     role="separator"

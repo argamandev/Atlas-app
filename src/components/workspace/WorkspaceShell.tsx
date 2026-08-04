@@ -50,8 +50,15 @@ export function WorkspaceShell({
   // The rows arrive already ordered by `position`, so the tab order is the
   // order they were left in rather than the order they were attached.
   const openFromLastTime = workspace.files.filter((f) => f.live).map((f) => f.id)
+  // NOTHING RECORDED AS OPEN MEANS THE ROOM WAS NEVER ARRANGED, so show the
+  // whole shelf rather than picking one file out of it. This used to open
+  // `files[0]` — an invented choice either way, and the wrong one: it is what
+  // made a workspace holding three agreed sources present exactly one of them
+  // (founder, 2026-08-04), and what would leave every workspace built before
+  // `is_open` was set on attach still opening with a single tab.
+  const allFiles = workspace.files.map((f) => f.id)
   const [openTabs, setOpenTabs] = useState<string[]>(
-    openFromLastTime.length > 0 ? openFromLastTime : [workspace.files[0]?.id ?? DOC_TAB]
+    openFromLastTime.length > 0 ? openFromLastTime : allFiles.length > 0 ? allFiles : [DOC_TAB]
   )
   const [activeTab, setActiveTab] = useState<string>(openFromLastTime[0] ?? workspace.files[0]?.id ?? DOC_TAB)
   const [split, setSplit] = useState(false)
@@ -130,10 +137,35 @@ export function WorkspaceShell({
     (id: string) => {
       setOpenTabs((t) => (t.includes(id) ? t : [...t, id]))
       setActiveTab(id)
+      // In multi-view a newly opened file must APPEAR. Without this it lands as
+      // a tab whose pane is not shown, so clicking a file in the panel would
+      // look like it did nothing.
+      if (split) setMulti((m) => (m.includes(id) ? m : [...m, id]))
       persistOpen(id, true)
     },
-    [persistOpen]
+    [persistOpen, split]
   )
+
+  /**
+   * Multi-view, ON: every open tab becomes a pane.
+   *
+   * THE BUG THIS FIXES, in the founder's words (2026-08-04): *"there isn't any
+   * multi view function at the pulled files and on the top right there is a
+   * screen icon — what does he represent?"* The control was the split toggle,
+   * and clicking it set `split` while `multi` was still empty — so the pane list
+   * resolved to nothing, the file being read disappeared, and the workspace
+   * showed "Nothing open". Multi-view was not missing; it was unreachable,
+   * because the only way in was a per-tab `+` that appears ONLY after the toggle
+   * has already blanked the screen.
+   *
+   * Founder decision, asked directly the same day: one click shows ALL open
+   * files side by side, and you close what you do not want.
+   */
+  const toggleSplit = useCallback(() => {
+    const next = !split
+    if (next) setMulti(openTabs)
+    setSplit(next)
+  }, [split, openTabs])
 
   const closeTab = useCallback(
     (id: string) => {
@@ -411,7 +443,7 @@ export function WorkspaceShell({
           multi={multi}
           onSelect={setActiveTab}
           onClose={closeTab}
-          onToggleSplit={() => setSplit((s) => !s)}
+          onToggleSplit={toggleSplit}
           onToggleMulti={(id) => setMulti((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]))}
           renderSpecial={(id) =>
             id === DOC_TAB ? (
