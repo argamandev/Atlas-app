@@ -252,3 +252,83 @@ explicit anti-loop rule: if the previous message already named the files and the
 a bare "כן", that IS agreement and the status must be `ready`. Verified: a bare `כן` pulls.
 
 Battery **300/300** · tsc clean.
+
+---
+
+## Addendum 3 — four founder reports after using it (2026-08-04, commit `4a910d9`)
+
+> *"1. it responds very slow… 2. i asked him to pull certain documents. he said just to be clear i
+> need to pull this and this. and then i sayd yes. and then he kept on asking twice just to be
+> clear… + he only pulled 1 file while i asked for two files and we agreed on them. + there isnt
+> any multi view function at the pulled files and on the top right there is a screen icon — what
+> does he represents?"*
+
+Reports 2 and 3 turned out to be the same bug. Report 4 was two bugs plus a mislabelled control.
+
+### 1 — latency, measured from the dev log
+
+| Turn | Before | After |
+|---|---|---|
+| opening request | 12 516 ms · 14 738 ms · 27 756 ms · 68 807 ms | **4 639 ms** |
+| the "כן" that pulls | 15 572 ms | **535 ms** |
+
+Cause was not the model but the ORDER: `askOpenAi` only ran after Gemini exhausted two 7 s
+timeouts plus a backoff, and Gemini was returning `503 "This model is currently experiencing high
+demand"` all afternoon. Now hedged — OpenAI starts 1.2 s in and the first usable answer wins
+(`firstUsable`, deliberately not `Promise.race`, which would let the fast failure win). Gemini's
+retry was deleted: a second provider is a better second attempt than the one that just shed load.
+
+### 2 + 3 — the agreed set was never held anywhere
+
+Every turn re-ran the model over the whole thread and asked it to re-derive the selection from its
+own Hebrew prose. So it could re-ask a settled question, and it could emit one id where it had
+named two — and no code could tell either from a legitimate answer. Fixed structurally:
+
+- `IntakeTurn.proposed` carries the ids an assistant turn named; re-validated against the corpus
+  server-side (untrusted input, and it cannot widen reach — a stranger's id is not in the corpus).
+- `isBareAgreement()` — a **closed vocabulary**. A message that is nothing but agreement pulls the
+  standing proposal with **no model call at all**, so the loop and the dropped file are impossible
+  rather than discouraged. `"כן, אבל תוסיף גם את השיחה של רבעון רביעי 2025"` is NOT a bare yes and
+  takes the ordinary path — 15 tests, including every negative case.
+- `reconcileSelection()` — **omission is not removal**. At `ready` the proposal is restored under
+  whatever the model re-typed; only an explicit `removed` drops a file.
+
+The previous attempt at this was a prompt paragraph telling the model not to do it. It did it
+anyway. Filed as the recurring lesson: **the rule that matters is the one in the code.**
+
+### 3b — and what "only pulled 1 file" probably looked like
+
+`workspace_items.is_open` defaults to `false`, so three agreed files produced three rows and **one
+tab** — `WorkspaceShell` found nothing open and fell back to `files[0]`. Two rows written, one ever
+presented; from the outside those are indistinguishable. `addItem` now sets `is_open: true` (in the
+insert, not as a column default — that is a statement about *attaching*), and a workspace with
+nothing recorded as open shows the whole shelf rather than picking one file out of it, which also
+repairs every workspace built before this commit.
+
+### 4 — multi-view was unreachable and mislabelled
+
+The control was the split toggle drawn as `SlidesIcon` — a projector screen on a stand. Clicking it
+set `split` while `multi` was still `[]`, so `docsShown` resolved to nothing and the workspace said
+"Nothing open". **The screen must never blank as a result of a view control.**
+
+- `toggleSplit` seeds `multi` with every open tab — founder decision, asked directly: one click
+  shows all open files side by side, close what you don't want.
+- Glyph shows the state it takes you to (`ColumnsIcon` ⇄ `SinglePaneIcon`), `aria-pressed`, and the
+  tooltip names both states.
+- Special tabs are panes like any other — founder called reading a source while writing about it
+  "the main point". One pane renderer for every tab kind; the old separate full-width branch for
+  specials is why the document could never sit beside a file.
+- `doc_title` defaults to `''`, so the document had no name — a blank line in the panel and, once it
+  could be a tab, a chip containing only a close button. Falls back to a localised "Untitled
+  document".
+
+### Verified in the browser, both locales
+
+3-file Hebrew request → Atlas confirms **in words**, pulls nothing → bare `כן` → **3 tabs open**,
+multi-view → **3 panes**, working document opens as a **4th pane**. Single view returns without
+blanking. Zero console errors. RTL screenshots:
+`2026-08-04-multiview-3-panes-he-rtl.jpg`, `2026-08-04-multiview-single-view-he.jpg`.
+
+Battery **320/320** · `tsc` clean · `next build` green (dev stopped first — and the stale Next
+process survived `TaskStop` and kept the port, so the build did hit a live `.next`; recovered by
+the documented route: kill, delete `.next`, restart).
