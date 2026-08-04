@@ -84,21 +84,18 @@ export const en = {
     intakeSend: 'Send',
     intakeAdd: 'Attach',
     intakeMic: 'Dictate',
-    intakeSearching: 'Looking through what Atlas has…',
-    intakeFound: 'Found {n}. Untick anything you don’t want.',
-    // The company exists, the period does not — a different sentence from
-    // "nothing matched", and it offers what DOES exist rather than an empty list.
-    intakeNothingInPeriod: 'I have nothing for {company} from that period. Here is what I do have:',
-    intakeNoMatch: 'I could not find anything matching that in Atlas yet.',
-    intakeEmptyCorpus: 'There is nothing in Atlas to search yet.',
-    intakeNotInterpreted: 'I could not read that as a search, so these are keyword matches on your words.',
-    intakeSearchFailed: 'The search failed: {error}',
-    intakeAlsoAvailable: 'Also in Atlas',
-    intakeRephrase: 'Try naming the company another way, or describe it differently.',
-    buildWithCount: 'Add {n} and open the workspace',
-    orKeepDescribing: 'or keep describing below',
+    // The intake is a CONVERSATION now, so most of its copy comes from the model
+    // in the user's own language. What is left here is the chrome around it:
+    // what Atlas is doing, and what to say when it cannot answer at all.
+    intakeThinking: 'Thinking…',
+    intakeAdding: 'Pulling the files in…',
+    // Said as a turn in the thread, not as a banner. Honest about WHY there is
+    // no answer, and it asks for the retry rather than silently offering
+    // something worse — the previous copy claimed "keyword matches", which the
+    // conversation no longer shows.
+    intakeNotInterpreted: 'I could not work that out just now — my model did not answer. Try again?',
+    intakeSearchFailed: 'That did not go through: {error}',
     buildingTitle: 'Setting up the workspace…',
-    intakeAdding: 'Adding to the workspace…',
     // A partial fill must be visible. Silently landing 3 of 5 files is exactly
     // the failure this chapter exists to remove.
     intakeAttachFailed: 'Could not add {n} of them: {error}',

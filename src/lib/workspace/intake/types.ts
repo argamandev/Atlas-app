@@ -33,8 +33,22 @@ export type SourceRequest = {
  */
 export type FindReason = 'ok' | 'company-has-nothing-in-period' | 'nothing-matched' | 'empty-corpus'
 
+/** One turn of the intake conversation. */
+export type IntakeTurn = { role: 'user' | 'assistant'; content: string }
+
 /**
- * The reasoning step's answer: Atlas's own sentence, plus the files it chose.
+ * Whether Atlas is still talking or has been told to go.
+ *
+ * `ready` may ONLY be reached because the user agreed in their own words —
+ * founder, 2026-08-04: *"once the user says, yeah, pull those files, then he…
+ * then only then Atlas goes, okay, I'm pulling them."* Nothing is attached to a
+ * shelf while the status is `clarifying`.
+ */
+export type IntakeStatus = 'clarifying' | 'ready'
+
+/**
+ * The reasoning step's answer: what Atlas says next, and — once the user has
+ * agreed — the files it will pull.
  *
  * `selectedIds` is already filtered to ids that EXIST in the corpus it was shown
  * — see parseSelection. `dropped` records anything the model returned that did
@@ -43,6 +57,7 @@ export type FindReason = 'ok' | 'company-has-nothing-in-period' | 'nothing-match
  */
 export type IntakeSelection = {
   reply: string
+  status: IntakeStatus
   selectedIds: string[]
   dropped: string[]
 }
@@ -69,7 +84,8 @@ export type FindResult = {
  */
 export type IntakeResponse = {
   reply: string | null
+  status: IntakeStatus
+  /** the files Atlas will pull — only acted on when `status` is `ready` */
   selected: AttachableSource[]
-  others: AttachableSource[]
   fallback: FindResult | null
 }

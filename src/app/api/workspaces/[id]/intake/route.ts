@@ -13,10 +13,16 @@ import {
   orderBySelection,
   SELECTION_CANDIDATE_CAP,
 } from '@/lib/workspace/intake/selectSources'
+import type { IntakeTurn } from '@/lib/workspace/intake/types'
 
 export const dynamic = 'force-dynamic'
 
 const MODEL = 'gemini-3.5-flash'
+
+// Budget for a request someone is waiting on: worst case is roughly
+// 7s + 0.6s + 7s before the fallback model gets its turn.
+const GEMINI_TIMEOUT_MS = 7_000
+const GEMINI_ATTEMPTS = 2
 
 const FILTER_SYSTEM = `You turn an investor-research request into a search filter.
 Reply with ONLY a JSON object, no prose, with these optional keys:
@@ -55,9 +61,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const user = await resolveUser(supabase)
   if (!user) return unauthorized()
 
-  const body = (await req.json().catch(() => null)) as { text?: unknown } | null
-  const text = typeof body?.text === 'string' ? body.text.trim() : ''
-  if (!text) return NextResponse.json({ error: 'text is required' }, { status: 400 })
+  const body = (await req.json().catch(() => null)) as { messages?: unknown } | null
+  const messages = parseTurns(body?.messages)
+  if (messages.length === 0) {
+    return NextResponse.json({ error: 'messages is required' }, { status: 400 })
+  }
+  // The narrowing stage and the deterministic fallback both work off what the
+  // user actually asked for, which is their first turn — the later ones are
+  // corrections to it, not new searches.
+  const text = messages.find((m) => m.role === 'user')?.content ?? ''
 
   try {
     // The workspace must be the caller's own. RLS answers this: one that is not
@@ -74,7 +86,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const corpus = await loadCorpus(supabase)
     if (corpus.length === 0) {
       const request = parseModelRequest('', text)
-      return json({ reply: null, selected: [], others: [], fallback: findSources(request, corpus) })
+      return json({
+        reply: null,
+        status: 'clarifying',
+        selected: [],
+        fallback: findSources(request, corpus),
+      })
     }
 
     // ── stage 1: narrow, only if we must ────────────────────────────────────
@@ -87,7 +104,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     // ── stage 2: select, and answer in words ────────────────────────────────
-    const selectionRaw = await askGemini(buildSelectionPrompt(candidates, text), 1200)
+    const selectionRaw = await askGemini(buildSelectionPrompt(candidates, messages), 1200)
     const selection = parseSelection(selectionRaw, candidates)
 
     if (selection) {
@@ -96,8 +113,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // swallowed, because a model beginning to invent ids must not be silent.
         console.warn(`[intake] model returned unknown ids: ${selection.dropped.join(', ')}`)
       }
-      const { selected, others } = orderBySelection(candidates, selection.selectedIds)
-      return json({ reply: selection.reply, selected, others, fallback: null })
+      const { selected } = orderBySelection(candidates, selection.selectedIds)
+      return json({ reply: selection.reply, status: selection.status, selected, fallback: null })
     }
 
     // ── the selection failed: deterministic, and SAID to be deterministic ────
@@ -105,7 +122,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // interpreted:false, which is what makes the panel state that these are
     // keyword matches rather than an understood request.
     const request = parseModelRequest('', text)
-    return json({ reply: null, selected: [], others: [], fallback: findSources(request, corpus) })
+    return json({
+      reply: null,
+      status: 'clarifying',
+      selected: [],
+      fallback: findSources(request, corpus),
+    })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
   }
@@ -113,6 +135,20 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
 function json(result: unknown) {
   return NextResponse.json({ result }, { headers: { 'Cache-Control': 'no-store' } })
+}
+
+/** The conversation, from an untrusted body. Caps the history so a long thread
+ *  cannot grow the prompt without bound. */
+function parseTurns(raw: unknown): IntakeTurn[] {
+  if (!Array.isArray(raw)) return []
+  const turns: IntakeTurn[] = []
+  for (const t of raw) {
+    const o = t as { role?: unknown; content?: unknown }
+    const role = o?.role === 'assistant' ? 'assistant' : o?.role === 'user' ? 'user' : null
+    const content = typeof o?.content === 'string' ? o.content.trim() : ''
+    if (role && content) turns.push({ role, content: content.slice(0, 4000) })
+  }
+  return turns.slice(-20)
 }
 
 function withDates(template: string): string {
@@ -134,13 +170,20 @@ async function askGemini(prompt: string, maxOutputTokens: number): Promise<strin
   // demand" dropped the whole request to a keyword search. On an interactive
   // path that is a bad trade for two seconds — the finish pipeline already
   // retries this model (lib/transcription.ts), just on a slower schedule.
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  // A HUMAN IS WATCHING THIS. The first policy here was copied from the finish
+  // pipeline — 3 attempts at a 20s timeout — which on a bad Gemini day meant the
+  // founder sat in front of a "Thinking…" indicator for a full minute before the
+  // fallback ran (observed 2026-08-04: three consecutive timeouts, 27s+ per
+  // request). A background job can afford that; an interactive one cannot.
+  //
+  // So: a short timeout, ONE retry, then hand over to a model that is answering.
+  for (let attempt = 1; attempt <= GEMINI_ATTEMPTS; attempt++) {
     const { text, status } = await askGeminiOnce(prompt, maxOutputTokens)
     if (text) return text
     // Only transient classes are worth waiting for. A 400 will be a 400 again.
     const transient = status === 429 || (typeof status === 'number' && status >= 500)
-    if (!transient || attempt === 3) break
-    await new Promise((r) => setTimeout(r, attempt === 1 ? 700 : 1800))
+    if (!transient || attempt === GEMINI_ATTEMPTS) break
+    await new Promise((r) => setTimeout(r, 600))
   }
 
   // Gemini is out. GPT-4.1 backs up the chat the same way (api/chat/route.ts),
@@ -202,7 +245,7 @@ async function askGeminiOnce(
             thinkingConfig: { thinkingBudget: 0 },
           },
         }),
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
       }
     )
     if (!res.ok) {

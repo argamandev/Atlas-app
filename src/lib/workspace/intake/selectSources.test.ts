@@ -52,6 +52,40 @@ test('drops an id that is not in the corpus', () => {
   assert.deepEqual(s.dropped, ['INVENTED'])
 })
 
+// OBSERVED IN THE BROWSER, 2026-08-04: the model wrote raw ids into its Hebrew
+// sentence — "…של תיגבור (e231c676-23d6-4a86-8d02-…) ולשיחת המשקיעים
+// (PyuMxe88e8g_live)?". A uuid mid-sentence is exactly the machine-feel this
+// step exists to remove, so the prompt rule is backed by a scrub.
+test('strips internal ids out of the sentence, and the brackets around them', () => {
+  const s = parseSelection(
+    '{"reply":"רק מוודא — דוח הדירקטוריון (r1) והשיחה האחרונה (c1)?","status":"clarifying","selected":["r1","c1"]}',
+    // ids must be long enough to be worth removing; use realistic ones
+    [
+      { ...CORPUS[0], sourceId: 'e231c676-23d6-4a86-8d02-aaaaaaaaaaaa' },
+      { ...CORPUS[2], sourceId: 'PyuMxe88e8g_live' },
+    ]
+  )
+  assert.ok(s)
+  const s2 = parseSelection(
+    '{"reply":"מוודא — דוח (e231c676-23d6-4a86-8d02-aaaaaaaaaaaa) ושיחה (PyuMxe88e8g_live)?","status":"clarifying","selected":[]}',
+    [
+      { ...CORPUS[0], sourceId: 'e231c676-23d6-4a86-8d02-aaaaaaaaaaaa' },
+      { ...CORPUS[2], sourceId: 'PyuMxe88e8g_live' },
+    ]
+  )
+  assert.ok(s2)
+  assert.ok(!s2.reply.includes('e231c676'), s2.reply)
+  assert.ok(!s2.reply.includes('PyuMxe88e8g_live'), s2.reply)
+  assert.ok(!s2.reply.includes('()'), s2.reply)
+  assert.equal(s2.reply, 'מוודא — דוח ושיחה?')
+})
+
+test('leaves an ordinary sentence untouched', () => {
+  const s = parseSelection('{"reply":"מושך את שלושת הקבצים.","status":"ready","selected":["r1"]}', CORPUS)
+  assert.ok(s)
+  assert.equal(s.reply, 'מושך את שלושת הקבצים.')
+})
+
 test('de-duplicates repeated ids', () => {
   const s = parseSelection('{"reply":"ok","selected":["r1","r1","r2"]}', CORPUS)
   assert.ok(s)
@@ -106,11 +140,62 @@ test('orderBySelection keeps the model order and returns the rest', () => {
 })
 
 test('the prompt carries every file with its type, date and title', () => {
-  const p = buildSelectionPrompt(CORPUS, 'שני הדוחות של 2026 והשיחה האחרונה')
+  const p = buildSelectionPrompt(CORPUS, [{ role: 'user', content: 'שני הדוחות של 2026 והשיחה האחרונה' }])
   for (const s of CORPUS) assert.ok(p.includes(s.sourceId), `${s.sourceId} missing from the prompt`)
   // A call and a report must be distinguishable, or "the last call" is unanswerable.
   assert.ok(p.includes('type: call'))
   assert.ok(p.includes('type: report'))
   assert.ok(p.includes('2026-07-16'))
   assert.ok(p.includes('שני הדוחות של 2026 והשיחה האחרונה'))
+})
+
+test('the prompt carries the whole conversation, both sides', () => {
+  const p = buildSelectionPrompt(CORPUS, [
+    { role: 'user', content: 'תביא לי את הדוחות של תיגבור' },
+    { role: 'assistant', content: 'רק לוודא — שני דוחות הדירקטוריון של 2026?' },
+    { role: 'user', content: 'כן, ותוסיף גם את השיחה האחרונה' },
+  ])
+  assert.ok(p.includes('ANALYST: תביא לי את הדוחות של תיגבור'))
+  assert.ok(p.includes('YOU: רק לוודא — שני דוחות הדירקטוריון של 2026?'))
+  assert.ok(p.includes('ANALYST: כן, ותוסיף גם את השיחה האחרונה'))
+})
+
+// ── the confirmation gate ────────────────────────────────────────────────────
+// Founder, 2026-08-04: "once the user says, yeah, pull those files, then only
+// then Atlas goes, okay, I'm pulling them." Nothing may reach a shelf while the
+// status is anything other than an explicit `ready`.
+
+test('reads status ready', () => {
+  const s = parseSelection('{"reply":"מושך אותם עכשיו.","status":"ready","selected":["r1","c1"]}', CORPUS)
+  assert.ok(s)
+  assert.equal(s.status, 'ready')
+  assert.deepEqual(s.selectedIds, ['r1', 'c1'])
+})
+
+test('reads status clarifying', () => {
+  const s = parseSelection(
+    '{"reply":"רק לוודא — הדוח של Q1 והשיחה האחרונה?","status":"clarifying","selected":["r1","c1"]}',
+    CORPUS
+  )
+  assert.ok(s)
+  assert.equal(s.status, 'clarifying')
+  // It may still name what it is proposing — that is what it is confirming.
+  assert.deepEqual(s.selectedIds, ['r1', 'c1'])
+})
+
+test('ANY status that is not exactly "ready" keeps the conversation going', () => {
+  // A missing, misspelled or unexpected status must never be able to trigger a
+  // pull the user did not agree to. Erring towards one more message is cheap;
+  // erring the other way spends the user's trust.
+  for (const raw of [
+    '{"reply":"x","selected":["r1"]}',
+    '{"reply":"x","status":"READY","selected":["r1"]}',
+    '{"reply":"x","status":"done","selected":["r1"]}',
+    '{"reply":"x","status":true,"selected":["r1"]}',
+    '{"reply":"x","status":null,"selected":["r1"]}',
+  ]) {
+    const s = parseSelection(raw, CORPUS)
+    assert.ok(s, raw)
+    assert.equal(s.status, 'clarifying', raw)
+  }
 })

@@ -193,3 +193,62 @@ true: both documents are Q1 2026. Everything else is listed under "Also in Atlas
   `grep -c "__debug\|__intakeDebug\|__geminiDebug"` → **0**.
 
 Battery **294/294** · tsc clean.
+
+---
+
+# Addendum 2 — the intake is a CONVERSATION, not a form
+
+> Founder, 2026-08-04: *"when a user sends a message about what he wants, Atlas is just turning into
+> a weird loading screen. This is not the user experience we're aiming for… he needs to keep the
+> same chat interface, but only ask him back, okay, so just to clarify, you want this, this and
+> this. without the checkmarking, without the boxes. Just like him replying in words and texts…
+> and once the user says, yeah, pull those files, then only then Atlas goes, okay, I'm pulling
+> them."*
+
+What shipped was a **form wearing a chat's clothes**: send → full-screen spinner → a grid of
+tickboxes → a build button. Rebuilt as a real dialogue.
+
+**The thread never leaves the screen.** Thinking is an inline `• • • Thinking…` line under the
+user's message; pulling is an inline `Pulling the files in…`. No stage replaces the conversation,
+and the composer stays available throughout.
+
+**Atlas answers in prose and confirms before acting.** `status: 'clarifying' | 'ready'`, and
+`parseSelection` treats **anything that is not exactly `ready` as still talking** — a missing,
+misspelled or unexpected status can never trigger a pull the user did not ask for. Tested against
+five malformed shapes.
+
+Verified end to end in the browser, Hebrew, real corpus:
+
+| Turn | What happened |
+|---|---|
+| *"תביא לי את הדוח של תיגבור ואת השיחה האחרונה"* | *"רק מוודא – אתה מתכוון לדוח הדירקטוריון… ולשיחת המשקיעים האחרונה…? זה מה שאתה רוצה שאמשוך?"* — **nothing pulled** |
+| *"כן, אבל תוסיף גם את השיחה של רבעון רביעי 2025"* | re-confirmed all **three** files in one sentence — **nothing pulled** |
+| *"כן"* | pulled, and the workspace opened with **exactly 3 sources** |
+
+Shelf rows afterwards, in the agreed order: `0` דוח דירקטוריון Q1 2026 (document) · `1` שיחת
+משקיעים רבעון ראשון 2026 (transcript) · `2` שיחת משקיעים רבעון רביעי 2025 (transcript).
+
+## Two defects found while verifying this
+
+### The model printed raw ids at the user
+
+Observed on screen: *"…של תיגבור (e231c676-23d6-4a86-8d02-…) ולשיחת המשקיעים (PyuMxe88e8g_live)?"*
+A uuid in the middle of a Hebrew sentence is exactly the machine-feel this step exists to remove.
+Fixed in the prompt **and** backed by a deterministic scrub (`stripIds`) that removes known corpus
+ids and the brackets left holding nothing — an instruction alone is not a guarantee. Tested.
+
+### A 60-second spinner, from a retry policy written for a background job
+
+Gemini was timing out at **20s × 3 attempts** before the fallback model got its turn, so the
+founder sat on `Thinking…` for a full minute (three consecutive `[intake] Gemini call failed: The
+operation was aborted due to timeout` in the dev log, one request at **27,756ms**). The policy had
+been copied from the finish pipeline, which can afford it. Now **7s, two attempts, then GPT-4.1**.
+
+### And one the prompt had to fix
+
+With the first prompt, *"כן, תמשוך אותם"* ("yes, pull them") produced **another confirmation
+question** — a loop, and the precise thing the founder objected to. The prompt now carries an
+explicit anti-loop rule: if the previous message already named the files and the reply agrees, even
+a bare "כן", that IS agreement and the status must be `ready`. Verified: a bare `כן` pulls.
+
+Battery **300/300** · tsc clean.

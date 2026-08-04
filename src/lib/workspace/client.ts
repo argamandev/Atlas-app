@@ -1,6 +1,6 @@
 import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow, AttachableSource } from './data'
 import type { ItemCreate, BlockCreate } from './validate'
-import type { IntakeResponse } from './intake/types'
+import type { IntakeResponse, IntakeTurn } from './intake/types'
 import { handleResponse } from '@/lib/api/client'
 
 // The browser's only door to the workspace API. Every call surfaces its failure
@@ -42,14 +42,17 @@ export type WorkspaceFull = {
 export const fetchSources = () => call<{ sources: AttachableSource[] }>('/api/workspaces/sources')
 
 /**
- * The intake's search. Sends the user's sentence; gets back what the corpus has
- * for it AND why, when the answer is nothing. Never returns invented rows — see
- * the route's header for why the model is kept away from the result.
+ * One turn of the intake conversation. Sends the whole thread — the intake is a
+ * dialogue, and Atlas needs what was already agreed to answer the next message.
+ *
+ * `status: 'ready'` in the reply means the user has agreed IN WORDS and the
+ * files may now be pulled; anything else means keep talking. Never returns
+ * invented rows — see the route's header for why the model cannot conjure one.
  */
-export const intakeSearchReq = (workspaceId: string, text: string) =>
+export const intakeSearchReq = (workspaceId: string, messages: IntakeTurn[]) =>
   call<{ result: IntakeResponse }>(`/api/workspaces/${workspaceId}/intake`, {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ messages }),
   })
 
 export const fetchWorkspaces = () =>

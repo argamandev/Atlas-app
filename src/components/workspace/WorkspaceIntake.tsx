@@ -1,28 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { PillComposer } from '@/components/ds/PillComposer'
 import { ErrorLine } from '@/components/projects/ErrorLine'
-import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon, CheckIcon } from '@/components/ds/icons'
+import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon } from '@/components/ds/icons'
 import { intakeSearchReq, addItemReq } from '@/lib/workspace/client'
-import type { IntakeResponse } from '@/lib/workspace/intake/types'
+import type { IntakeTurn } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
 
 // The workspace intake (design lines 1339-1429) — what an EMPTY workspace shows.
 //
-// THIS PANEL IS THE FRONT DOOR, and it was unrouted for a day because nothing
-// backed it. It is backed now: `POST /api/workspaces/[id]/intake` interprets the
-// sentence and searches the REAL corpus, and every row below is a row that
-// exists. Nothing here is fabricated, which is why the demo banner is gone.
+// IT IS A CONVERSATION, not a form. Founder, 2026-08-04, after using the first
+// version: *"when a user sends a message about what he wants, Atlas is just
+// turning into a weird loading screen… he needs to keep the same chat interface,
+// but only ask him back, okay, so just to clarify, you want this, this and this.
+// without the checkmarking, without the boxes. Just like him replying in words…
+// and once the user says, yeah, pull those files, then only then Atlas goes,
+// okay, I'm pulling them."*
 //
-// One addition to the imported design, and it is the founder's (D5, 2026-08-04):
-// a confirm list inside the clarify conversation. The design went
-// intro -> clarify -> building with no chance to see what was coming. Nothing
-// lands on the shelf that the user did not look at.
+// So: the thread stays on screen the whole time, Atlas answers in prose, and
+// NOTHING is attached until the model reports `status: 'ready'`, which it may
+// only do because the user agreed in their own words. The previous version took
+// over the screen with a spinner and then presented a grid of tickboxes — a form
+// wearing a chat's clothes.
 
-type Stage = 'intro' | 'searching' | 'clarify' | 'building'
+type Stage = 'intro' | 'chat' | 'pulling'
 
 export function WorkspaceIntake({
   workspaceId,
@@ -35,79 +39,58 @@ export function WorkspaceIntake({
   const router = useRouter()
 
   const [stage, setStage] = useState<Stage>('intro')
-  const [request, setRequest] = useState('')
+  const [turns, setTurns] = useState<IntakeTurn[]>([])
   const [draft, setDraft] = useState('')
-  const [result, setResult] = useState<IntakeResponse | null>(null)
-  const [chosen, setChosen] = useState<Set<string>>(new Set())
-  const [searchError, setSearchError] = useState<unknown>(null)
+  const [thinking, setThinking] = useState(false)
+  const [error, setError] = useState<unknown>(null)
   const [failures, setFailures] = useState<{ title: string; error: string }[]>([])
 
-  /**
-   * Everything on screen, in the order it is shown. Atlas's picks come first
-   * when it understood; otherwise the deterministic result stands in.
-   */
-  const picked: AttachableSource[] = result
-    ? result.reply !== null
-      ? result.selected
-      : result.fallback
-        ? result.fallback.matched.length > 0
-          ? result.fallback.matched
-          : result.fallback.otherForCompany
-        : []
-    : []
-
-  /** Offered but NOT chosen — the user can still add these. Never pre-ticked. */
-  const rest: AttachableSource[] = result?.reply !== null ? (result?.others ?? []) : []
-
-  const offered: AttachableSource[] = [...picked, ...rest]
+  const endRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: 'end' })
+  }, [turns, thinking])
 
   async function send(text: string) {
     const q = text.trim()
-    if (!q) return
-    setRequest(q)
+    if (!q || thinking) return
+
+    const next: IntakeTurn[] = [...turns, { role: 'user', content: q }]
+    setTurns(next)
     setDraft('')
-    setSearchError(null)
-    setStage('searching')
+    setError(null)
+    setStage('chat')
+    setThinking(true)
+
     try {
-      const { result: r } = await intakeSearchReq(workspaceId, q)
-      setResult(r)
-      // What Atlas CHOSE is preselected — the user trims. Everything merely
-      // offered alongside it is not, and neither is what comes back after a
-      // period miss: they asked for something we do not have, so ticking a
-      // substitute would put files on the shelf they never asked for.
-      const pre = r.reply !== null ? r.selected : (r.fallback?.matched ?? [])
-      setChosen(new Set(pre.map((m) => m.sourceId)))
-      setStage('clarify')
+      const { result } = await intakeSearchReq(workspaceId, next)
+
+      // A model that could not be reached still gets a turn in the thread, so
+      // the conversation never just stops with nothing said.
+      const said = result.reply ?? dict.workspace.intakeNotInterpreted
+      setTurns([...next, { role: 'assistant', content: said }])
+      setThinking(false)
+
+      // THE ONLY PATH THAT TOUCHES THE SHELF, and it needs the user's own yes.
+      if (result.status === 'ready' && result.selected.length > 0) {
+        await pull(result.selected)
+      }
     } catch (e: unknown) {
-      // Back to intro, never to a clarify screen over a failed search — an empty
-      // list rendered after a 500 reads as "Atlas has nothing", which is a lie.
-      setSearchError(e)
-      setStage('intro')
+      // The user's message stays in the thread — losing what they typed because
+      // the network failed would be its own small betrayal.
+      setThinking(false)
+      setError(e)
     }
   }
 
-  function toggle(sourceId: string) {
-    setChosen((prev) => {
-      const next = new Set(prev)
-      if (next.has(sourceId)) next.delete(sourceId)
-      else next.add(sourceId)
-      return next
-    })
-  }
-
-  async function build() {
-    const picked = offered.filter((s) => chosen.has(s.sourceId))
-    if (picked.length === 0) return
-    setStage('building')
+  async function pull(files: AttachableSource[]) {
+    setStage('pulling')
     setFailures([])
 
     const failed: { title: string; error: string }[] = []
     // Sequential on purpose: `addItem` appends by reading the current maximum
     // `position`, so concurrent inserts would read the same maximum and land the
-    // shelf in a different order from the list the user just approved.
-    // (This comment used to claim the ordering worked already. It did not —
-    // `addItem` omitted `position` entirely and every row took the default 0.)
-    for (const s of picked) {
+    // shelf in a different order from the one just agreed.
+    for (const s of files) {
       try {
         await addItemReq(workspaceId, {
           kind: s.kind,
@@ -121,20 +104,16 @@ export function WorkspaceIntake({
 
     if (failed.length > 0) {
       // A PARTIAL FILL MUST BE VISIBLE. Refreshing here would drop the user into
-      // a workspace holding 3 of the 5 files they approved, with nothing on
+      // a workspace holding 3 of the 5 files they agreed to, with nothing on
       // screen having said so.
       setFailures(failed)
       return
     }
-    // The route is a Server Component; this is what re-reads the shelf and lands
-    // the user in the populated WorkspaceShell.
+    // The route is a Server Component; this re-reads the shelf and lands the
+    // user in the populated WorkspaceShell.
     router.refresh()
   }
 
-  // The bottom bar exists ONLY once the conversation has started. At the intro
-  // stage the big centred composer is the whole point of the screen, and a
-  // second bar underneath it was the founder's "two text panels" complaint
-  // (2026-08-01) — the design shows one composer at a time, never both.
   const composer = (
     <div className="px-8 pb-[26px]">
       <div className="mx-auto w-full max-w-[720px]">
@@ -146,43 +125,10 @@ export function WorkspaceIntake({
           sendLabel={dict.workspace.intakeSend}
           addLabel={dict.workspace.intakeAdd}
           micLabel={dict.workspace.intakeMic}
+          disabled={thinking}
         />
       </div>
     </div>
-  )
-
-  /**
-   * One offered source. Every mixed run gets its own <bdi> — the title is often
-   * Hebrew, the date is always Latin digits, and the company can be either. A
-   * single dir on this row would throw one of them to the wrong side, which is
-   * the defect .claude/rules/app.md has filed four times.
-   */
-  const row = (s: AttachableSource) => (
-    <label
-      key={s.sourceId}
-      className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-hairline bg-paper px-3 py-2.5 transition-colors hover:bg-subtle/60"
-    >
-      <input
-        type="checkbox"
-        checked={chosen.has(s.sourceId)}
-        onChange={() => toggle(s.sourceId)}
-        className="mt-[3px] h-[15px] w-[15px] flex-none accent-ink"
-      />
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[13px] font-medium text-ink">
-          <bdi>{s.title}</bdi>
-        </span>
-        <span className="truncate text-[11.5px] text-ink-ghost">
-          {s.company && <bdi>{s.company}</bdi>}
-          {s.company && s.when && ' · '}
-          {s.when && (
-            <bdi dir="ltr" className="font-mono-num">
-              {s.when.slice(0, 10)}
-            </bdi>
-          )}
-        </span>
-      </span>
-    </label>
   )
 
   return (
@@ -202,7 +148,7 @@ export function WorkspaceIntake({
       </div>
 
       <div className="atscroll flex min-h-0 flex-1 flex-col overflow-auto">
-        {stage === 'intro' && (
+        {stage === 'intro' ? (
           <div className="flex flex-1 flex-col items-center justify-center px-10 py-12">
             <div className="flex w-full max-w-[600px] flex-col items-center">
               <h1 className="mb-2 text-center font-display text-[34px] font-medium tracking-[-0.02em] text-ink">
@@ -211,18 +157,7 @@ export function WorkspaceIntake({
               <p className="mb-[26px] max-w-[460px] text-center text-[15px] leading-[1.55] text-ink-muted">
                 {dict.workspace.intakeSub}
               </p>
-              {searchError !== null && (
-                <div
-                  role="alert"
-                  className="mb-4 w-full rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-start text-[13px] text-ink"
-                >
-                  <ErrorLine
-                    template={dict.workspace.intakeSearchFailed}
-                    error={searchError}
-                    auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
-                  />
-                </div>
-              )}
+              {error !== null && <ErrorBanner error={error} />}
               <div className="w-full rounded-2xl border border-hairline bg-paper px-4 py-3.5 shadow-soft">
                 <input
                   autoFocus
@@ -235,8 +170,6 @@ export function WorkspaceIntake({
                   // ChatComposer and PillComposer already have. This input was
                   // the ONLY composer in the app missing it, which is why the
                   // defect only showed on the workspace's first message.
-                  // `dir="auto"` is exactly right here: a single authored run,
-                  // not the mixed line rules/app.md warns about.
                   dir="auto"
                   className="mb-3.5 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-ghost"
                 />
@@ -259,157 +192,111 @@ export function WorkspaceIntake({
               <div className="mt-3 text-[12px] text-ink-ghost">{dict.workspace.intakeHint}</div>
             </div>
           </div>
-        )}
-
-        {stage === 'searching' && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-10">
-            <div dir="auto" className="font-display text-[17px] text-ink-muted">
-              {dict.workspace.intakeSearching}
-            </div>
-            <div dir="auto" className="max-w-[520px] text-center text-[12.5px] text-ink-ghost">
-              <bdi>{request}</bdi>
-            </div>
-          </div>
-        )}
-
-        {stage === 'clarify' && result && (
+        ) : (
+          // THE THREAD. It stays on screen through thinking and through pulling —
+          // there is no stage that replaces it, which was the whole complaint.
           <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-8 pb-6 pt-[34px]">
-            <div
-              dir="auto"
-              className="max-w-[80%] self-end rounded-[14px_14px_4px_14px] bg-ink px-[15px] py-[11px] text-[14px] leading-[1.6] text-paper"
-            >
-              {request}
-            </div>
-
-            <div className="max-w-[98%] self-start text-[14.5px] leading-[1.7] text-ink">
-              {/* ATLAS ANSWERS IN ITS OWN WORDS when it understood the request.
-                  This replaced a bare "Found 6" count, which read as not
-                  listening when the founder had asked for three specific files
-                  (2026-08-04). The sentence comes from the model; the FILES come
-                  from the corpus, and never the other way round. */}
-              {result.reply !== null && (
-                <div dir="auto" className="whitespace-pre-wrap">
-                  {result.reply}
-                </div>
-              )}
-
-              {/* The deterministic fallback, only when the model could not answer.
-                  Each outcome is said in its own words — an empty list is never
-                  allowed to stand in for "I could not find it", which is the
-                  substitution that made the first version dishonest. */}
-              {result.reply === null && result.fallback && (
-                <>
-                  {result.fallback.reason === 'ok' && (
-                    <div dir="auto">
-                      {dict.workspace.intakeFound.replace('{n}', String(result.fallback.matched.length))}
-                    </div>
-                  )}
-                  {result.fallback.reason === 'company-has-nothing-in-period' && (
-                    <div dir="auto">
-                      {dict.workspace.intakeNothingInPeriod.split('{company}')[0]}
-                      <bdi>{result.fallback.company}</bdi>
-                      {dict.workspace.intakeNothingInPeriod.split('{company}')[1]}
-                    </div>
-                  )}
-                  {result.fallback.reason === 'nothing-matched' && (
-                    <div dir="auto">
-                      {dict.workspace.intakeNoMatch}
-                      <div className="mt-1.5 text-[12.5px] text-ink-ghost">
-                        {dict.workspace.intakeRephrase}
-                      </div>
-                    </div>
-                  )}
-                  {result.fallback.reason === 'empty-corpus' && (
-                    <div dir="auto">{dict.workspace.intakeEmptyCorpus}</div>
-                  )}
-
-                  {/* Said out loud rather than hidden: these are word matches, not
-                      an understood request. The user is entitled to know which
-                      one they got. */}
-                  {offered.length > 0 && (
-                    <div
-                      dir="auto"
-                      className="mt-2.5 rounded-lg bg-subtle px-2.5 py-2 text-[12px] leading-[1.5] text-ink-muted"
-                    >
-                      {dict.workspace.intakeNotInterpreted}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {offered.length > 0 && (
-                <>
-                  <div className="mt-4 flex flex-col gap-1.5">{picked.map(row)}</div>
-                  {/* Offered but not chosen. Kept visible so a near-miss is one
-                      click from fixed, and kept UNTICKED so nothing arrives that
-                      Atlas was not asked for. */}
-                  {rest.length > 0 && (
-                    <>
-                      <div className="mb-2 ms-0.5 mt-5 text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-ghost">
-                        {dict.workspace.intakeAlsoAvailable}
-                      </div>
-                      <div className="flex flex-col gap-1.5">{rest.map(row)}</div>
-                    </>
-                  )}
-                  <div className="mt-[22px] flex flex-wrap items-center gap-3.5">
-                    <button
-                      type="button"
-                      onClick={() => void build()}
-                      disabled={chosen.size === 0}
-                      className="flex items-center gap-2 rounded-full bg-ink px-[18px] py-[9px] text-[13px] font-medium text-paper disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <CheckIcon size={14} strokeWidth={2} />
-                      {dict.workspace.buildWithCount.replace('{n}', String(chosen.size))}
-                    </button>
-                    <span className="text-[12.5px] text-ink-ghost">{dict.workspace.orKeepDescribing}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {stage === 'building' && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-10">
-            {failures.length === 0 ? (
-              <div dir="auto" className="font-display text-[17px] text-ink-muted">
-                {dict.workspace.intakeAdding}
-              </div>
-            ) : (
-              <div className="flex w-[min(560px,94%)] flex-col items-center gap-3">
+            {turns.map((t, i) =>
+              t.role === 'user' ? (
                 <div
-                  role="alert"
+                  key={i}
                   dir="auto"
-                  className="w-full rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-start text-[13px] text-ink"
+                  className="max-w-[80%] self-end rounded-[14px_14px_4px_14px] bg-ink px-[15px] py-[11px] text-[14px] leading-[1.6] text-paper"
                 >
-                  {dict.workspace.intakeAttachFailed
-                    .replace('{n}', String(failures.length))
-                    .replace('{error}', failures[0].error)}
-                  <ul className="mt-1.5 flex flex-col gap-0.5 text-[12px] text-ink-ghost">
-                    {failures.map((f) => (
-                      <li key={f.title}>
-                        <bdi>{f.title}</bdi>
-                      </li>
-                    ))}
-                  </ul>
+                  {t.content}
                 </div>
+              ) : (
+                <div
+                  key={i}
+                  dir="auto"
+                  className="max-w-[98%] self-start whitespace-pre-wrap text-[14.5px] leading-[1.7] text-ink"
+                >
+                  {t.content}
+                </div>
+              )
+            )}
+
+            {thinking && <Dots label={dict.workspace.intakeThinking} />}
+
+            {stage === 'pulling' && failures.length === 0 && <Dots label={dict.workspace.intakeAdding} />}
+
+            {failures.length > 0 && (
+              <div
+                role="alert"
+                dir="auto"
+                className="self-start rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink"
+              >
+                {dict.workspace.intakeAttachFailed
+                  .replace('{n}', String(failures.length))
+                  .replace('{error}', failures[0].error)}
+                <ul className="mt-1.5 flex flex-col gap-0.5 text-[12px] text-ink-ghost">
+                  {failures.map((f) => (
+                    <li key={f.title}>
+                      <bdi>{f.title}</bdi>
+                    </li>
+                  ))}
+                </ul>
                 {/* The ones that DID land are already on the shelf, so the way
                     forward is into the workspace, not a retry that would
                     duplicate them. */}
                 <button
                   type="button"
                   onClick={() => router.refresh()}
-                  className="rounded-lg bg-ink px-3.5 py-2 text-[13px] font-medium text-paper"
+                  className="mt-2.5 rounded-lg bg-ink px-3.5 py-2 text-[13px] font-medium text-paper"
                 >
                   {dict.workspace.intakeContinueAnyway}
                 </button>
               </div>
             )}
+
+            {error !== null && <ErrorBanner error={error} />}
+            <div ref={endRef} />
           </div>
         )}
       </div>
 
-      {stage === 'clarify' && composer}
+      {/* The composer never leaves once the conversation starts — including
+          while Atlas is pulling, so the user is never stranded on a spinner. */}
+      {stage !== 'intro' && composer}
     </div>
+  )
+}
+
+function ErrorBanner({ error }: { error: unknown }) {
+  const { dict } = useI18n()
+  return (
+    <div
+      role="alert"
+      className="mb-4 w-full rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-start text-[13px] text-ink"
+    >
+      <ErrorLine
+        template={dict.workspace.intakeSearchFailed}
+        error={error}
+        auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+      />
+    </div>
+  )
+}
+
+/** A quiet inline "still here" — NOT a screen takeover. */
+function Dots({ label }: { label: string }) {
+  return (
+    <div dir="auto" className="flex items-center gap-2 self-start text-[13px] text-ink-ghost">
+      <span className="flex gap-1">
+        <Dot delay="0ms" />
+        <Dot delay="150ms" />
+        <Dot delay="300ms" />
+      </span>
+      {label}
+    </div>
+  )
+}
+
+function Dot({ delay }: { delay: string }) {
+  return (
+    <span
+      className="inline-block h-[5px] w-[5px] animate-pulse rounded-full bg-ink-ghost"
+      style={{ animationDelay: delay }}
+    />
   )
 }
