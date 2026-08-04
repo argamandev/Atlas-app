@@ -160,6 +160,27 @@ export async function addItem(
   workspaceId: string,
   input: ItemCreate
 ): Promise<WorkspaceItemRow> {
+  // APPEND TO THE END OF THE SHELF. Until 2026-08-04 this was omitted, so every
+  // row took the column default of 0 and the shelf had no order at all — six
+  // sources attached from the intake all landed at position 0, and the tab order
+  // then came from whatever the read happened to return. Caught in the browser
+  // by querying the rows after a real build, not by reading the code: the
+  // intake's own comment claimed sequential inserts preserved the user's order,
+  // which was a guarantee this function never made.
+  //
+  // A concurrent pair can tie. `position` carries no unique constraint, ties
+  // fall back to the read's secondary sort, and that is strictly better than
+  // every row sharing one value.
+  const { data: last, error: maxErr } = await supabase
+    .from('workspace_items')
+    .select('position')
+    .eq('workspace_id', workspaceId)
+    .order('position', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (maxErr) throw new Error(maxErr.message)
+  const position = last ? (last as { position: number }).position + 1 : 0
+
   // The composite key means an attempt to attach a source to someone else's
   // workspace fails in the DATABASE, not merely in a check we remembered to
   // write — referential-integrity checks bypass RLS, so a single-column key
@@ -171,6 +192,7 @@ export async function addItem(
       workspace_id: workspaceId,
       kind: input.kind,
       name: input.name,
+      position,
       transcript_id: input.transcript_id ?? null,
       document_id: input.document_id ?? null,
       storage_path: input.storage_path ?? null,

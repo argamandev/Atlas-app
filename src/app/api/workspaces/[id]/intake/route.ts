@@ -73,7 +73,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
  */
 async function interpret(text: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY
-  if (!key) return ''
+  if (!key) {
+    console.warn('[intake] GEMINI_API_KEY is not set — falling back to keyword search')
+    return ''
+  }
   const now = new Date()
   const system = SYSTEM.replace('{TODAY}', now.toISOString().slice(0, 10))
     .replace('{Y1}', String(now.getFullYear() - 1))
@@ -86,19 +89,46 @@ async function interpret(text: string): Promise<string> {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: `${system}\n\nRequest: ${text}` }] }],
-          // temperature 0: this is a parse, not a composition. Two identical
-          // requests must produce the same shelf.
-          generationConfig: { temperature: 0, maxOutputTokens: 300 },
+          generationConfig: {
+            // temperature 0: this is a parse, not a composition. Two identical
+            // requests must produce the same shelf.
+            temperature: 0,
+            maxOutputTokens: 400,
+            // Forces syntactically valid JSON out of the model rather than hoping
+            // the prompt holds — `unfence()` stays as belt and braces.
+            responseMimeType: 'application/json',
+            // MANDATORY, and this cost a verification round: thinking tokens are
+            // drawn from maxOutputTokens, so with the budget at 300 the answer
+            // came back TRUNCATED at 29 characters — `{"company":"תיגבור","fromYear`
+            // — which JSON.parse rejects, so every request silently degraded to a
+            // keyword search. Same root cause as the filed live-captions rule
+            // (.claude/rules/live.md: thinkingBudget 0 is mandatory).
+            thinkingConfig: { thinkingBudget: 0 },
+          },
         }),
         signal: AbortSignal.timeout(15_000),
       }
     )
-    if (!res.ok) return ''
-    const json = (await res.json()) as {
-      candidates?: Array<{ content: { parts: Array<{ text?: string }> } }>
+    if (!res.ok) {
+      console.warn(`[intake] Gemini ${res.status}: ${(await res.text()).slice(0, 400)}`)
+      return ''
     }
-    return (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('')
-  } catch {
+    const json = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>
+    }
+    const out = (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('')
+    // A silent empty answer is the failure mode worth naming in the log: the
+    // request still searches, but by keywords, and the panel says so. Without
+    // this line the difference is invisible from the server side.
+    if (!out) {
+      console.warn(
+        `[intake] Gemini returned no text (finishReason=${json.candidates?.[0]?.finishReason}): ` +
+          JSON.stringify(json).slice(0, 400)
+      )
+    }
+    return out
+  } catch (e) {
+    console.warn(`[intake] Gemini call failed: ${(e as Error).message}`)
     return ''
   }
 }

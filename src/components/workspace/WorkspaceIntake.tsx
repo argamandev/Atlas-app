@@ -88,9 +88,11 @@ export function WorkspaceIntake({
     setFailures([])
 
     const failed: { title: string; error: string }[] = []
-    // Sequential on purpose: `position` is assigned server-side per insert, so
-    // firing these in parallel would land the shelf in a different order from
-    // the list the user just approved.
+    // Sequential on purpose: `addItem` appends by reading the current maximum
+    // `position`, so concurrent inserts would read the same maximum and land the
+    // shelf in a different order from the list the user just approved.
+    // (This comment used to claim the ordering worked already. It did not —
+    // `addItem` omitted `position` entirely and every row took the default 0.)
     for (const s of picked) {
       try {
         await addItemReq(workspaceId, {

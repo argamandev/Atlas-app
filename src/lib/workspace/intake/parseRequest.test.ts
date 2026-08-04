@@ -62,6 +62,36 @@ test('refuses years outside a sane range', () => {
   assert.equal(r.toYear, null)
 })
 
+// OBSERVED IN THE BROWSER, 2026-08-04, against the real model: with
+// responseMimeType application/json, gemini-3.5-flash emitted a stray SECOND
+// closing brace — `{ ... "toYear": 2019 }\n}\n` — which JSON.parse rejects
+// outright. Every such request silently degraded to a keyword search. Trailing
+// junk after a complete object must not cost the user their interpretation.
+test('tolerates a stray trailing brace after a complete object', () => {
+  const r = parseModelRequest('{\n "company": "תיגבור",\n "fromYear": 2019,\n "toYear": 2019\n}\n}\n', 'raw')
+  assert.equal(r.interpreted, true)
+  assert.equal(r.company, 'תיגבור')
+  assert.equal(r.fromYear, 2019)
+  assert.equal(r.toYear, 2019)
+})
+
+test('tolerates prose after the object', () => {
+  const r = parseModelRequest('{"company":"Tigbur"}  Hope that helps!', 'raw')
+  assert.equal(r.interpreted, true)
+  assert.equal(r.company, 'Tigbur')
+})
+
+test('a brace inside a string value does not end the object early', () => {
+  const r = parseModelRequest('{"company":"Ti{gbur","fromYear":2024}', 'raw')
+  assert.equal(r.company, 'Ti{gbur')
+  assert.equal(r.fromYear, 2024)
+})
+
+test('an escaped quote inside a value does not end the string early', () => {
+  const r = parseModelRequest('{"company":"קבוצת תיגבור בע\\"מ"}', 'raw')
+  assert.equal(r.company, 'קבוצת תיגבור בע"מ')
+})
+
 test('a JSON array is not an object and must not be read as one', () => {
   const r = parseModelRequest('[{"company":"Tigbur"}]', 'raw')
   assert.equal(r.interpreted, false)

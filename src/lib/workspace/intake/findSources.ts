@@ -16,12 +16,41 @@ import type { FindResult, SourceRequest } from './types'
 
 const byNewestFirst = (a: AttachableSource, b: AttachableSource) => (b.when ?? '').localeCompare(a.when ?? '')
 
-/** Words worth matching on — single characters match everything and mean nothing. */
-const meaningfulWords = (text: string) =>
-  text
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 1)
+/**
+ * Words worth matching on.
+ *
+ * THE MINIMUM IS THREE CHARACTERS, and that number is load-bearing rather than a
+ * round guess. Hebrew's function words are two letters — של, את, עם, על, כל —
+ * and at two characters "של" (of) matched INSIDE "שלישי" (third), which put a
+ * different issuer's investor call into the confirm list already ticked. Found on
+ * real rows in the browser, 2026-08-04.
+ */
+const meaningfulWords = (text: string) => tokenize(text).filter((w) => w.length >= 3)
+
+/**
+ * The haystack, as tokens — matching happens per token, never across one.
+ *
+ * Splitting on an explicit separator class rather than `\P{L}`: this tsconfig
+ * targets below es6, where the regex `u` flag (and so unicode property escapes)
+ * is unavailable. Everything not listed here — crucially every Hebrew and Latin
+ * letter and every digit — survives as part of a token.
+ */
+const SEPARATORS = /[\s\-–—_()[\]{}<>,.;:!?"'`׳״/\\|+*=&%#@~]+/
+
+/**
+ * Hebrew's five final forms folded to their regular ones (ך ם ן ף ץ → כ מ נ פ צ).
+ *
+ * Not cosmetic — a letter changes shape when it stops ending the word, so
+ * "רבעון" (quarter) is spelled with a final nun while "רבעוני" (quarterly) is
+ * not. Without this fold, `startsWith` says the second does not begin with the
+ * first, and searching for a quarter misses every quarterly report. Latin text
+ * passes through untouched.
+ */
+const FINAL_FORMS: Record<string, string> = { ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' }
+
+const fold = (s: string) => s.replace(/[ךםןףץ]/g, (c) => FINAL_FORMS[c])
+
+const tokenize = (text: string) => fold(text.toLowerCase()).split(SEPARATORS).filter(Boolean)
 
 export function findSources(request: SourceRequest, corpus: AttachableSource[]): FindResult {
   if (corpus.length === 0) {
@@ -68,8 +97,10 @@ export function findSources(request: SourceRequest, corpus: AttachableSource[]):
     const words = meaningfulWords(request.text)
     if (words.length > 0) {
       const hit = (s: AttachableSource) => {
-        const hay = `${s.title} ${s.company ?? ''}`.toLowerCase()
-        return words.some((w) => hay.includes(w))
+        const tokens = tokenize(`${s.title} ${s.company ?? ''}`)
+        // A word matches a token, or the START of one ("רבעון" finds "רבעוני").
+        // It never matches mid-token — that is what let "של" find "שלישי".
+        return words.some((w) => tokens.some((t) => t === w || t.startsWith(w)))
       }
       // Narrowing to NOTHING is a real answer and is kept. Falling back to the
       // unnarrowed pool here would hand back the entire corpus as though it

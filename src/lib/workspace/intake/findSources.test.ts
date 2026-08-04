@@ -136,6 +136,44 @@ test('a source with no date IS excluded when a window was asked for', () => {
   assert.ok(!ids(r).includes('x1'))
 })
 
+// CAUGHT IN THE BROWSER, 2026-08-04, on real rows. The Hebrew word "של" (of) is
+// a substring of "שלישי" (third), so a call belonging to a DIFFERENT company
+// matched the sentence "…והשיחות של תיגבור" and arrived in the confirm list
+// already ticked. A user hitting build would have put another issuer's call in
+// their workspace. Function words must not match, and a word must not match
+// inside an unrelated word.
+test('a short Hebrew function word does not match inside a longer word', () => {
+  const doral: AttachableSource = {
+    sourceId: 'z1',
+    kind: 'transcript',
+    title: 'דוראל - שיחת משקיעים - רבעון שלישי לשנת 2025',
+    company: null,
+    when: '2026-05-19',
+  }
+  const r = findSources(req({ text: 'אני רוצה את הדוחות והשיחות של תיגבור', company: null }), [
+    ...CORPUS,
+    doral,
+  ])
+  assert.ok(!ids(r).includes('z1'), 'דוראל must not match on "של" inside "שלישי"')
+  // The real intent still lands: the Tigbur rows carry the word "תיגבור".
+  assert.ok(ids(r).length > 0, 'the Tigbur rows must still match')
+  assert.ok(r.matched.every((m) => m.company === 'קבוצת תיגבור בע"מ'))
+})
+
+test('a word matches a token prefix but never mid-token', () => {
+  const s: AttachableSource[] = [
+    { sourceId: 'p1', kind: 'document', title: 'דוח רבעוני', company: null, when: '2026-01-01' },
+    { sourceId: 'p2', kind: 'document', title: 'משהו אחר לגמרי', company: null, when: '2026-01-01' },
+  ]
+  // "רבעון" is a prefix of the token "רבעוני" — that is a real hit.
+  assert.deepEqual(
+    findSources(req({ text: 'רבעון', company: null }), s).matched.map((m) => m.sourceId),
+    ['p1']
+  )
+  // "מרי" sits inside "לגמרי" but starts no token — not a hit.
+  assert.deepEqual(findSources(req({ text: 'מרי', company: null }), s).matched, [])
+})
+
 test('an unresolved company with no match anywhere reads as nothing-matched', () => {
   const r = findSources(req({ text: 'zzzznothing', company: null }), CORPUS)
   assert.deepEqual(r.matched, [])
