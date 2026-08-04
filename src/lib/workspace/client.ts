@@ -1,5 +1,6 @@
 import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow, AttachableSource } from './data'
 import type { ItemCreate, BlockCreate } from './validate'
+import type { FindResult } from './intake/types'
 import { handleResponse } from '@/lib/api/client'
 
 // The browser's only door to the workspace API. Every call surfaces its failure
@@ -39,6 +40,17 @@ export type WorkspaceFull = {
 /** The corpus a user may put on a shelf. Static segment, so it does not collide
  *  with /api/workspaces/[id] — Next resolves `sources` before the dynamic one. */
 export const fetchSources = () => call<{ sources: AttachableSource[] }>('/api/workspaces/sources')
+
+/**
+ * The intake's search. Sends the user's sentence; gets back what the corpus has
+ * for it AND why, when the answer is nothing. Never returns invented rows — see
+ * the route's header for why the model is kept away from the result.
+ */
+export const intakeSearchReq = (workspaceId: string, text: string) =>
+  call<{ result: FindResult }>(`/api/workspaces/${workspaceId}/intake`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
 
 export const fetchWorkspaces = () =>
   call<{ workspaces: WorkspaceRow[]; items: WorkspaceItemRow[] }>('/api/workspaces')
