@@ -168,6 +168,42 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   }, [])
 
   /**
+   * A FILE THAT ARRIVES WHILE THE WORKSPACE IS OPEN MUST OPEN.
+   *
+   * Founder, 2026-08-04, of the Add-a-document panel: *"the files need to
+   * actually be pulled! currently they are not pulled."* They were being pulled —
+   * the rows were written, `is_open` was true, the shelf count went up. What did
+   * not happen is any of it reaching the screen, so from where he sat nothing had
+   * happened at all.
+   *
+   * The cause is a React rule rather than a workspace one, and it is worth naming
+   * because it will bite again: `useState(initialValue)` runs its initialiser
+   * ONCE. `router.refresh()` re-renders this component with new props, and every
+   * one of those `useState` calls below quietly ignores them. `openTabs` was
+   * still the list computed when the workspace first mounted.
+   *
+   * So arrival is tracked explicitly. `seen` starts as whatever was on the shelf
+   * at mount, and anything appearing later is genuinely new: it opens, it becomes
+   * active, and in multi-view it takes a pane. Files the user CLOSED are not
+   * reopened — they are in `seen` already, which is the difference between
+   * "arrived" and "present".
+   */
+  const seen = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    if (seen.current === null) {
+      seen.current = new Set(workspace.files.map((f) => f.id))
+      return
+    }
+    const arrived = workspace.files.filter((f) => !seen.current!.has(f.id)).map((f) => f.id)
+    if (arrived.length === 0) return
+    for (const id of arrived) seen.current.add(id)
+
+    setOpenTabs((t) => [...t, ...arrived.filter((id) => !t.includes(id))])
+    setActiveTab(arrived[arrived.length - 1])
+    if (split) setMulti((m) => [...m, ...arrived.filter((id) => !m.includes(id))])
+  }, [workspace.files, split])
+
+  /**
    * Persist one tab's open/closed state — the write half of "remember how I
    * left it". ONE row, not the whole workspace, and it deliberately does not
    * move `workspaces.updated_at`: opening a pane is not an edit.

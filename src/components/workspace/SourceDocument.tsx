@@ -132,7 +132,13 @@ export function SourceDocument({
   // viewer already solves that and hands back the page numbers too.
   if (content !== null && content.kind === 'document') {
     return (
-      <div className="h-full min-h-0 bg-paper">
+      // PdfViewer's own root is `flex flex-col gap-3` — it renders every page
+      // and lets its PARENT scroll, which is how FacetPanes hosts it. Handing it
+      // a plain `h-full` box with no overflow meant the pages beyond the first
+      // were laid out and simply unreachable (founder, 2026-08-04: *"i cant
+      // scroll through the pdf like i should be able to"*). Same wrapper as the
+      // live report pane, so lazy page loading behaves identically.
+      <div className="atscroll h-full min-h-0 overflow-auto bg-paper p-[22px]">
         <PdfViewer
           docId={content.documentId}
           pageCount={content.pageCount}
