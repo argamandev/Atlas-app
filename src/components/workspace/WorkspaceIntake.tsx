@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { PillComposer } from '@/components/ds/PillComposer'
+import { Typewriter } from '@/components/ds/Typewriter'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon } from '@/components/ds/icons'
 import { intakeSearchReq, addItemReq } from '@/lib/workspace/client'
@@ -44,11 +45,16 @@ export function WorkspaceIntake({
   const [thinking, setThinking] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const [failures, setFailures] = useState<{ title: string; error: string }[]>([])
+  /** index of the one turn currently revealing itself, or null */
+  const [animateAt, setAnimateAt] = useState<number | null>(null)
 
   const endRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
+  const stickToEnd = useCallback(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
-  }, [turns, thinking])
+  }, [])
+  useEffect(() => {
+    stickToEnd()
+  }, [turns, thinking, stickToEnd])
 
   async function send(text: string) {
     const q = text.trim()
@@ -67,26 +73,44 @@ export function WorkspaceIntake({
 
       const ready = result.status === 'ready' && result.selected.length > 0
 
-      if (result.reply !== null) {
-        // THE PROPOSED SET RIDES WITH THE SENTENCE. Atlas names files in prose;
-        // these are the same files as ids, so the next turn can act on what was
-        // agreed instead of asking a model to re-read its own words. Founder,
-        // 2026-08-04: he said yes to two files and one arrived.
-        setTurns([
-          ...next,
-          { role: 'assistant', content: result.reply, proposed: result.selected.map((s) => s.sourceId) },
-        ])
-      } else if (!ready) {
-        // A model that could not be reached still gets a turn in the thread, so
-        // the conversation never just stops with nothing said.
-        setTurns([...next, { role: 'assistant', content: dict.workspace.intakeNotInterpreted }])
+      // ATLAS ALWAYS SAYS SOMETHING BACK — there is no turn where the user
+      // speaks and nothing answers.
+      //
+      // This reverses a decision made yesterday and refused today. `reply: null`
+      // with `ready` was treated as a deliberate silence: the user had said
+      // "yes", so the server spent no model call composing a sentence, and the
+      // pulling dots were left to be the whole reply. Founder, 2026-08-04:
+      // *"more human. if the user says yes pull them -> he should respond
+      // 'great, im pulling them it can take a second…'"*. He is right, and the
+      // reasoning was wrong in a specific way: a progress indicator is the
+      // MACHINE acknowledging, and the thing being built here is a colleague
+      // answering. The sentence is written here rather than asked for, so it
+      // still costs nothing and still arrives instantly.
+      const spoken =
+        result.reply !== null
+          ? result.reply
+          : ready
+            ? dict.workspace.intakePullingNow
+            : dict.workspace.intakeNotInterpreted
+
+      // THE PROPOSED SET RIDES WITH THE SENTENCE. Atlas names files in prose;
+      // these are the same files as ids, so the next turn can act on what was
+      // agreed instead of asking a model to re-read its own words. Founder,
+      // 2026-08-04: he said yes to two files and one arrived.
+      const said: IntakeTurn = {
+        role: 'assistant',
+        content: spoken,
+        ...(result.selected.length > 0 ? { proposed: result.selected.map((s) => s.sourceId) } : {}),
       }
-      // `reply: null` WITH `ready` is the deliberate silent case: the user just
-      // said "yes" and the server did not spend a model call inventing a
-      // sentence to say so. The pulling indicator below is the whole answer —
-      // echoing "sure, pulling them" after "yes" is noise, not conversation.
+      setTurns([...next, said])
+      // Only THIS turn animates. Re-running the reveal over the whole thread on
+      // every render would replay the conversation from the top each time.
+      setAnimateAt(next.length)
 
       // THE ONLY PATH THAT TOUCHES THE SHELF, and it needs the user's own yes.
+      // Not awaited before the sentence is on screen: the reveal and the pull
+      // run together, which is what makes "it can take a second" true rather
+      // than something said after the wait it was warning about.
       if (ready) await pull(result.selected)
     } catch (e: unknown) {
       // The user's message stays in the thread — losing what they typed because
@@ -225,7 +249,13 @@ export function WorkspaceIntake({
                   dir="auto"
                   className="max-w-[98%] self-start whitespace-pre-wrap text-[14.5px] leading-[1.7] text-ink"
                 >
-                  {t.content}
+                  {i === animateAt ? (
+                    // The thread follows the words down as they land, so a long
+                    // answer does not reveal itself below the fold.
+                    <Typewriter text={t.content} onReveal={stickToEnd} />
+                  ) : (
+                    t.content
+                  )}
                 </div>
               )
             )}

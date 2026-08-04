@@ -82,6 +82,7 @@ export const he: Dictionary = {
     intakeMic: 'הכתבה',
     intakeThinking: 'חושב…',
     intakeAdding: 'מושך את הקבצים…',
+    intakePullingNow: 'מעולה — מושך אותם עכשיו. זה יכול לקחת רגע…',
     intakeNotInterpreted: 'לא הצלחתי להבין את זה כרגע — המודל לא ענה. לנסות שוב?',
     intakeSearchFailed: 'זה לא עבר: {error}',
     buildingTitle: 'מכינים את סביבת העבודה…',
@@ -156,6 +157,13 @@ export const he: Dictionary = {
     renameFailed: 'השם לא שונה — {error}',
 
     // ── הוספת מקור אמיתי למדף ──────────────────────────────────────────────
+    sourceLoading: 'פותח…',
+    sourceFailed: 'לא הצלחתי לפתוח את הקובץ: {error}',
+    sourceProcessing: 'השיחה הזו עדיין בתמלול. הטקסט שלה יופיע כאן ברגע שיהיה מוכן.',
+    sourceNoText: 'הקובץ הזה נמצא אצל אטלס, אבל עדיין לא הופק ממנו טקסט קריא.',
+    sourceGone: 'המקור שאליו הקובץ הזה היה מקושר כבר לא נמצא בארכיון.',
+    sourcePage: 'עמוד {n}',
+    sourceSelectHint: 'סמנו קטע כדי לצטט אותו, או כדי לשאול עליו את אטלס.',
     addSources: 'הוספת מקורות',
     addSourcesHint: 'הכניסו שיחות משקיעים ומסמכי חברה. כל מה שתוסיפו יישאר בסביבת העבודה הזו.',
     searchSources: 'חיפוש שיחות ומסמכים…',

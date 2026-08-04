@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isBareAgreement, reconcileSelection } from './agreement'
+import { isBareAgreement, reconcileSelection, resolveSelection } from './agreement'
 
 // ── the yes ──────────────────────────────────────────────────────────────────
 // THE EXACT MESSAGE THAT LOOPED. Founder, 2026-08-04: he answered a confirmation
@@ -117,4 +117,39 @@ test('the agreed order survives, and duplicates collapse', () => {
 
 test('with no proposal it is just the selection', () => {
   assert.deepEqual(reconcileSelection([], ['a', 'b']), ['a', 'b'])
+})
+
+// ── the set on the table, turn by turn ───────────────────────────────────────
+// THE SECOND HALF of "he agreed to three and one arrived". The first fix made
+// the agreed set durable; these are the cases proving it is also PRODUCED.
+
+test('a clarifying turn that names files but returns none keeps the standing set', () => {
+  // Atlas said "just to confirm — the Q1 report, the Q2 report and the last
+  // call?" and returned selected: []. Nobody emptied anything; the payload was
+  // simply not filled in. Three stay three.
+  assert.deepEqual(resolveSelection('clarifying', ['q1', 'q2', 'call'], []), ['q1', 'q2', 'call'])
+})
+
+test('a clarifying turn that returns its own set is taken as given, not merged', () => {
+  // "actually, just the Q1 one" — unioning here would silently put back the two
+  // files the analyst just asked to drop.
+  assert.deepEqual(resolveSelection('clarifying', ['q1', 'q2', 'call'], ['q1']), ['q1'])
+})
+
+test('an explicit removal empties out of the standing set too', () => {
+  assert.deepEqual(resolveSelection('clarifying', ['q1', 'q2'], [], ['q2']), ['q1'])
+})
+
+test('at ready, a proposal the model did not re-type still arrives in full', () => {
+  assert.deepEqual(resolveSelection('ready', ['q1', 'q2', 'call'], ['q1']), ['q1', 'q2', 'call'])
+})
+
+test('at ready, a newly added file joins the agreed ones', () => {
+  assert.deepEqual(resolveSelection('ready', ['q1'], ['q1', 'q3']), ['q1', 'q3'])
+})
+
+test('with no standing proposal, resolveSelection is just the model selection', () => {
+  assert.deepEqual(resolveSelection('clarifying', [], ['q1', 'q2']), ['q1', 'q2'])
+  assert.deepEqual(resolveSelection('ready', [], ['q1', 'q2']), ['q1', 'q2'])
+  assert.deepEqual(resolveSelection('clarifying', [], []), [])
 })

@@ -2,9 +2,9 @@
 
 import { useRef, useState, type ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { DemoInline } from '@/components/ds/DemoBanner'
 import { CloseIcon, PlusIcon, ColumnsIcon, SinglePaneIcon } from '@/components/ds/icons'
-import type { Workspace, WsFile } from '@/lib/workspace/data'
+import { SourceDocument } from './SourceDocument'
+import type { Workspace } from '@/lib/workspace/data'
 
 // The workspace main card: tab bar (design 1726-1756), single or split documents
 // with hairline drag gutters (1942-2008), and the no-tabs empty state (1934).
@@ -182,7 +182,11 @@ export function WorkspaceDocs({
           // could never sit beside a source.
           docsShown.map((id, i) => {
             const f = fileById(id)
-            const body = isSpecial(id) ? renderSpecial(id) : f ? <FilePreview file={f} /> : null
+            const body = isSpecial(id) ? (
+              renderSpecial(id)
+            ) : f ? (
+              <SourceDocument workspaceId={workspace.id} file={f} />
+            ) : null
             if (!body) return null
             const notLast = i < docsShown.length - 1
             const nextId = notLast ? docsShown[i + 1] : ''
@@ -219,31 +223,8 @@ export function WorkspaceDocs({
   )
 }
 
-// The design fakes a document preview with markup rather than rendering a real
-// PDF (there is no document backend in this chapter) — so it is demo-marked.
-function FilePreview({ file }: { file: WsFile }) {
-  const { dict } = useI18n()
-  return (
-    <div className="atscroll h-full min-h-0 overflow-auto bg-paper px-8 py-7">
-      <div className="mx-auto max-w-[760px]">
-        <div className="mb-3 flex items-center gap-2">
-          <span dir="ltr" className="font-mono-num text-[12px] text-ink-faint">
-            {file.name}
-          </span>
-          <DemoInline />
-        </div>
-        <div className="rounded-xl border border-hairline bg-canvas px-9 py-8" dir="rtl">
-          <div className="mb-1.5 font-display text-[21px] text-ink">דוח שנתי {file.year ?? ''}</div>
-          <div className="mb-[18px] text-[12.5px] text-ink-ghost">קבוצת תיגבור · מסחר ושירותים</div>
-          <p className="mb-3 text-[14px] leading-[1.95] text-ink">
-            בשנת {file.year ?? '2024'} המשיכה הקבוצה לצמוח. ההכנסות חצו את רף המיליארד וחצי שקל, והרווח
-            התפעולי השתפר בהתאם ליעדים שהציבה ההנהלה בתחילת השנה.
-          </p>
-          <p className="text-[14px] leading-[1.95] text-ink-muted">
-            סמנו טקסט כדי לצטט, לשתף, או לשאול את אטלס.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
+// FilePreview lived here until 2026-08-04: a hardcoded Hebrew "דוח שנתי" about
+// Tigbur, with invented revenue and margin, rendered for EVERY file whatever it
+// actually was. It is now components/workspace/SourceDocument.tsx, which reads
+// the row. Nothing about the old one is worth keeping — not even as a fallback,
+// which is exactly how fabricated figures end up on screen when a fetch fails.

@@ -1,6 +1,7 @@
 import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow, AttachableSource } from './data'
 import type { ItemCreate, BlockCreate } from './validate'
 import type { IntakeResponse, IntakeTurn } from './intake/types'
+import type { ItemContent } from './contentTypes'
 import { handleResponse } from '@/lib/api/client'
 
 // The browser's only door to the workspace API. Every call surfaces its failure
@@ -94,6 +95,11 @@ export const patchItemReq = (
     method: 'PATCH',
     body: JSON.stringify(patch),
   })
+
+/** What a shelf item actually says. Never cached — a re-processed transcript
+ *  keeps its id while its words change. */
+export const fetchItemContent = (workspaceId: string, itemId: string) =>
+  call<{ content: ItemContent }>(`/api/workspaces/${workspaceId}/items/${itemId}/content`)
 
 export const deleteItemReq = (workspaceId: string, itemId: string) =>
   call<{ deleted: true }>(`/api/workspaces/${workspaceId}/items/${itemId}`, { method: 'DELETE' })

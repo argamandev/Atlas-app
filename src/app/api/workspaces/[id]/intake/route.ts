@@ -13,7 +13,7 @@ import {
   orderBySelection,
   SELECTION_CANDIDATE_CAP,
 } from '@/lib/workspace/intake/selectSources'
-import { isBareAgreement, reconcileSelection } from '@/lib/workspace/intake/agreement'
+import { isBareAgreement, resolveSelection } from '@/lib/workspace/intake/agreement'
 import type { IntakeTurn } from '@/lib/workspace/intake/types'
 
 export const dynamic = 'force-dynamic'
@@ -144,15 +144,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // swallowed, because a model beginning to invent ids must not be silent.
         console.warn(`[intake] model returned unknown ids: ${selection.dropped.join(', ')}`)
       }
-      // OMISSION IS NOT REMOVAL. At `ready` the agreed proposal is restored
-      // under whatever the model re-typed, so a file that was named, agreed to
-      // and then simply left out of the payload still arrives. Only an explicit
-      // `removed` takes one out. While still clarifying the model is free to
-      // re-shape the set — that is what the conversation is for.
-      const ids =
-        selection.status === 'ready'
-          ? reconcileSelection(proposal, selection.selectedIds, selection.removedIds)
-          : selection.selectedIds
+      // OMISSION IS NOT REMOVAL, at both statuses — see resolveSelection. At
+      // `ready` the agreed proposal is restored under whatever the model
+      // re-typed; while clarifying a NAMED-BUT-UNRETURNED set survives, which is
+      // what stopped three agreed files arriving as one. Only an explicit
+      // `removed`, or a deliberate re-shape mid-conversation, takes one out.
+      const ids = resolveSelection(selection.status, proposal, selection.selectedIds, selection.removedIds)
       const { selected } = orderBySelection(candidates, ids)
       return json({ reply: selection.reply, status: selection.status, selected, fallback: null })
     }

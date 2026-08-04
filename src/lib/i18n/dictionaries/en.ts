@@ -89,6 +89,13 @@ export const en = {
     // what Atlas is doing, and what to say when it cannot answer at all.
     intakeThinking: 'Thinking…',
     intakeAdding: 'Pulling the files in…',
+    // ATLAS ANSWERS THE YES. Founder, 2026-08-04: *"more human. if the user says
+    // yes pull them -> he should respond 'great, im pulling them it can take a
+    // second…'"*. Said by the CLIENT, not the server: the whole point of the
+    // bare-agreement shortcut is that this turn costs no model call, and asking
+    // a model to compose "great, pulling them" would hand back the half-second
+    // it just saved.
+    intakePullingNow: 'Great — pulling them in now. It can take a second…',
     // Said as a turn in the thread, not as a banner. Honest about WHY there is
     // no answer, and it asks for the retry rather than silently offering
     // something worse — the previous copy claimed "keyword matches", which the
@@ -187,6 +194,16 @@ export const en = {
     renameFailed: 'The name was not changed — {error}',
 
     // ── Putting a real source on the shelf ─────────────────────────────────
+    // ── a source pane showing the REAL file ──────────────────────────────────
+    sourceLoading: 'Opening…',
+    sourceFailed: 'Could not open this file: {error}',
+    // Each of these is a real row with no words behind it. They say which,
+    // rather than rendering an empty page that reads like an empty filing.
+    sourceProcessing: 'This call is still being transcribed. Its text will appear here once it is ready.',
+    sourceNoText: 'Atlas holds this file, but no readable text has been extracted from it yet.',
+    sourceGone: 'The source this was attached to is no longer in the archive.',
+    sourcePage: 'Page {n}',
+    sourceSelectHint: 'Select any passage to quote it, or to ask Atlas about it.',
     addSources: 'Add sources',
     addSourcesHint:
       'Pull in investor calls and company documents. Everything you add stays in this workspace.',

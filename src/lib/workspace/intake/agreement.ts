@@ -203,3 +203,38 @@ export function reconcileSelection(proposal: string[], selected: string[], remov
   }
   return out
 }
+
+/**
+ * The set on the table after one turn, at EITHER status.
+ *
+ * Why the clarifying half exists — it is the whole of the founder's 2026-08-04
+ * report *"it still opened only 1 document even tho we agreed on 3"*, and the
+ * previous fix missed it. The set was made durable across turns, but the model
+ * was never asked to PRODUCE it before agreement: the prompt said to put ids in
+ * `selected` "only when their latest message agrees". So Atlas named three files
+ * in perfect Hebrew prose and returned `selected: []`, the client stored an empty
+ * proposal, the bare-yes shortcut had nothing to fire on, and the next turn asked
+ * a model to re-derive a set it had already decided — which is where files go
+ * missing. Every guard downstream was working on an empty list.
+ *
+ * The prompt now demands `selected` at both statuses. THIS is the part that does
+ * not depend on a model obeying it: a clarifying turn that names files while
+ * returning none cannot be a deliberate emptying — nobody re-shapes a set to
+ * nothing while still discussing it — so the standing proposal survives.
+ *
+ * A NON-EMPTY clarifying selection is taken as given, not merged. That is the
+ * difference from `ready`: while still talking, the model is entitled to re-shape
+ * the set ("actually, just the Q1 one"), and unioning would silently re-add what
+ * the analyst just asked to drop.
+ */
+export function resolveSelection(
+  status: 'ready' | 'clarifying',
+  proposal: string[],
+  selected: string[],
+  removed: string[] = []
+): string[] {
+  if (status === 'ready') return reconcileSelection(proposal, selected, removed)
+  if (selected.length > 0) return selected
+  const drop = new Set(removed)
+  return proposal.filter((id) => !drop.has(id))
+}
