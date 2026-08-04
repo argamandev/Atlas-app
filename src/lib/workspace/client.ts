@@ -1,6 +1,6 @@
 import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow, AttachableSource } from './data'
 import type { ItemCreate, BlockCreate } from './validate'
-import type { FindResult } from './intake/types'
+import type { IntakeResponse } from './intake/types'
 import { handleResponse } from '@/lib/api/client'
 
 // The browser's only door to the workspace API. Every call surfaces its failure
@@ -47,7 +47,7 @@ export const fetchSources = () => call<{ sources: AttachableSource[] }>('/api/wo
  * the route's header for why the model is kept away from the result.
  */
 export const intakeSearchReq = (workspaceId: string, text: string) =>
-  call<{ result: FindResult }>(`/api/workspaces/${workspaceId}/intake`, {
+  call<{ result: IntakeResponse }>(`/api/workspaces/${workspaceId}/intake`, {
     method: 'POST',
     body: JSON.stringify({ text }),
   })

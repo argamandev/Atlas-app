@@ -138,3 +138,58 @@ Found by **querying the rows after a real build**, not by reading the code.
   and `delete` SQL is hook-blocked. Invisible to the founder under RLS.
 - Everything slices 2–5 will fix is still visible in the populated workspace and is expected:
   the fabricated file preview, the session-only document, the demo counters, the legal panel.
+
+---
+
+# Addendum — the founder's two findings, same day
+
+> *"1. in the workspace first chat, when i am writing in hebrew the text needs to appear right to
+> left. 2. the responds of atlas to the files i am asking should be an llm response… i asked him to
+> bring me the two quarterly reports of 2026 (the first and the second) + to bring the last
+> transcribed investor call. he showed me 6 files -> that doesnt even make sense."*
+
+## 1. RTL while typing — fixed, one attribute
+
+The intro composer was **the only composer in the app without `dir="auto"`**. `ChatComposer` and
+`PillComposer` both have it, which is why the defect only bit on a workspace's FIRST message —
+the clarify-stage composer is a `PillComposer` and was already correct.
+
+Verified by computed style rather than by eye: `dir` attribute `auto` · empty box `ltr` · typing
+Hebrew → **`rtl`** · typing English → **`ltr`**.
+
+## 2. "Six files doesn't make sense" — the design was wrong, not the code
+
+The intake turned a sentence into a **filter** (company / year range / kinds). A filter cannot
+express *"the first and second quarter"*, *"the last one"*, or *"two of these and one of those"* —
+so it resolved Tigbur correctly and then returned everything it had. Behaving as specified, and
+still not listening.
+
+Replaced with a **selection** step (`lib/workspace/intake/selectSources.ts`): the model is handed
+the actual candidate files and picks, then answers in its own words.
+
+**The honesty invariant is unchanged and is enforced in code, not in the prompt** — `parseSelection`
+drops any id that was not in the list it was given, so no sentence the model writes can put a file
+on a shelf that does not exist. Tested, including the hallucinated-id case.
+
+Same request, Hebrew, real corpus (58 candidates), verified in the browser:
+
+> אני מוסיף את שני דוחות הדירקטוריון הרבעוניים של 2026 ואת שיחת המשקיעים האחרונה של קבוצת
+> תיגבור. אם דרוש דוח רבעון שני, הוא לא קיים במערכת – יש רק דוחות רבעון ראשון.
+
+**Three files ticked, not six**, and it volunteered that the Q2 report does not exist — which is
+true: both documents are Q1 2026. Everything else is listed under "Also in Atlas", unticked.
+
+## What this pass also found
+
+- **The corpus is 58 rows, not the dozen assumed.** `loadCorpus` returns every transcript that has
+  been processed, most without a company. Under the 80-row selection cap, so no narrowing runs
+  today — but the narrowing stage exists for when Maya changes that.
+- **Gemini returned a bare `503` "experiencing high demand"** and the whole request dropped to a
+  keyword search. Correct degradation, wrong trade for an interactive path. Now: up to 3 attempts
+  on 429/5xx with short backoff, then the **GPT-4.1 fallback the chat route already uses** — the
+  key is already paid for and the workspace should not degrade while a working model sits idle.
+  Non-transient statuses are not retried.
+- The temporary debug scaffolding was removed and the revert proved:
+  `grep -c "__debug\|__intakeDebug\|__geminiDebug"` → **0**.
+
+Battery **294/294** · tsc clean.

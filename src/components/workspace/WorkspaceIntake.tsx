@@ -7,7 +7,7 @@ import { PillComposer } from '@/components/ds/PillComposer'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon, CheckIcon } from '@/components/ds/icons'
 import { intakeSearchReq, addItemReq } from '@/lib/workspace/client'
-import type { FindResult } from '@/lib/workspace/intake/types'
+import type { IntakeResponse } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
 
 // The workspace intake (design lines 1339-1429) — what an EMPTY workspace shows.
@@ -37,17 +37,29 @@ export function WorkspaceIntake({
   const [stage, setStage] = useState<Stage>('intro')
   const [request, setRequest] = useState('')
   const [draft, setDraft] = useState('')
-  const [result, setResult] = useState<FindResult | null>(null)
+  const [result, setResult] = useState<IntakeResponse | null>(null)
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [searchError, setSearchError] = useState<unknown>(null)
   const [failures, setFailures] = useState<{ title: string; error: string }[]>([])
 
-  /** Everything this result put in front of the user — matched, or offered instead. */
-  const offered: AttachableSource[] = result
-    ? result.matched.length > 0
-      ? result.matched
-      : result.otherForCompany
+  /**
+   * Everything on screen, in the order it is shown. Atlas's picks come first
+   * when it understood; otherwise the deterministic result stands in.
+   */
+  const picked: AttachableSource[] = result
+    ? result.reply !== null
+      ? result.selected
+      : result.fallback
+        ? result.fallback.matched.length > 0
+          ? result.fallback.matched
+          : result.fallback.otherForCompany
+        : []
     : []
+
+  /** Offered but NOT chosen — the user can still add these. Never pre-ticked. */
+  const rest: AttachableSource[] = result?.reply !== null ? (result?.others ?? []) : []
+
+  const offered: AttachableSource[] = [...picked, ...rest]
 
   async function send(text: string) {
     const q = text.trim()
@@ -59,10 +71,12 @@ export function WorkspaceIntake({
     try {
       const { result: r } = await intakeSearchReq(workspaceId, q)
       setResult(r)
-      // Matches are preselected — the user trims. What is merely OFFERED after a
-      // miss is NOT: they asked for a period we do not have, so silently ticking
-      // a different period would put files on the shelf they never asked for.
-      setChosen(new Set(r.matched.map((m) => m.sourceId)))
+      // What Atlas CHOSE is preselected — the user trims. Everything merely
+      // offered alongside it is not, and neither is what comes back after a
+      // period miss: they asked for something we do not have, so ticking a
+      // substitute would put files on the shelf they never asked for.
+      const pre = r.reply !== null ? r.selected : (r.fallback?.matched ?? [])
+      setChosen(new Set(pre.map((m) => m.sourceId)))
       setStage('clarify')
     } catch (e: unknown) {
       // Back to intro, never to a clarify screen over a failed search — an empty
@@ -216,6 +230,14 @@ export function WorkspaceIntake({
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && void send(draft)}
                   placeholder={dict.workspace.intakePlaceholder}
+                  // Hebrew must read RTL as it is typed, without the user
+                  // switching the interface language — the same behaviour
+                  // ChatComposer and PillComposer already have. This input was
+                  // the ONLY composer in the app missing it, which is why the
+                  // defect only showed on the workspace's first message.
+                  // `dir="auto"` is exactly right here: a single authored run,
+                  // not the mixed line rules/app.md warns about.
+                  dir="auto"
                   className="mb-3.5 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-ghost"
                 />
                 <div className="flex items-center gap-3.5 text-ink-ghost">
@@ -260,43 +282,75 @@ export function WorkspaceIntake({
             </div>
 
             <div className="max-w-[98%] self-start text-[14.5px] leading-[1.7] text-ink">
-              {/* The four outcomes, each said in its own words. An empty list is
-                  never allowed to stand in for "I could not find it" — that
-                  substitution is what made the shipped version dishonest. */}
-              {result.reason === 'ok' && (
-                <div dir="auto">
-                  {dict.workspace.intakeFound.replace('{n}', String(result.matched.length))}
+              {/* ATLAS ANSWERS IN ITS OWN WORDS when it understood the request.
+                  This replaced a bare "Found 6" count, which read as not
+                  listening when the founder had asked for three specific files
+                  (2026-08-04). The sentence comes from the model; the FILES come
+                  from the corpus, and never the other way round. */}
+              {result.reply !== null && (
+                <div dir="auto" className="whitespace-pre-wrap">
+                  {result.reply}
                 </div>
               )}
-              {result.reason === 'company-has-nothing-in-period' && (
-                <div dir="auto">
-                  {dict.workspace.intakeNothingInPeriod.split('{company}')[0]}
-                  <bdi>{result.company}</bdi>
-                  {dict.workspace.intakeNothingInPeriod.split('{company}')[1]}
-                </div>
-              )}
-              {result.reason === 'nothing-matched' && (
-                <div dir="auto">
-                  {dict.workspace.intakeNoMatch}
-                  <div className="mt-1.5 text-[12.5px] text-ink-ghost">{dict.workspace.intakeRephrase}</div>
-                </div>
-              )}
-              {result.reason === 'empty-corpus' && <div dir="auto">{dict.workspace.intakeEmptyCorpus}</div>}
 
-              {/* Said out loud rather than hidden: these are word matches, not an
-                  understood request. The user is entitled to know which they got. */}
-              {!result.request.interpreted && offered.length > 0 && (
-                <div
-                  dir="auto"
-                  className="mt-2.5 rounded-lg bg-subtle px-2.5 py-2 text-[12px] leading-[1.5] text-ink-muted"
-                >
-                  {dict.workspace.intakeNotInterpreted}
-                </div>
+              {/* The deterministic fallback, only when the model could not answer.
+                  Each outcome is said in its own words — an empty list is never
+                  allowed to stand in for "I could not find it", which is the
+                  substitution that made the first version dishonest. */}
+              {result.reply === null && result.fallback && (
+                <>
+                  {result.fallback.reason === 'ok' && (
+                    <div dir="auto">
+                      {dict.workspace.intakeFound.replace('{n}', String(result.fallback.matched.length))}
+                    </div>
+                  )}
+                  {result.fallback.reason === 'company-has-nothing-in-period' && (
+                    <div dir="auto">
+                      {dict.workspace.intakeNothingInPeriod.split('{company}')[0]}
+                      <bdi>{result.fallback.company}</bdi>
+                      {dict.workspace.intakeNothingInPeriod.split('{company}')[1]}
+                    </div>
+                  )}
+                  {result.fallback.reason === 'nothing-matched' && (
+                    <div dir="auto">
+                      {dict.workspace.intakeNoMatch}
+                      <div className="mt-1.5 text-[12.5px] text-ink-ghost">
+                        {dict.workspace.intakeRephrase}
+                      </div>
+                    </div>
+                  )}
+                  {result.fallback.reason === 'empty-corpus' && (
+                    <div dir="auto">{dict.workspace.intakeEmptyCorpus}</div>
+                  )}
+
+                  {/* Said out loud rather than hidden: these are word matches, not
+                      an understood request. The user is entitled to know which
+                      one they got. */}
+                  {offered.length > 0 && (
+                    <div
+                      dir="auto"
+                      className="mt-2.5 rounded-lg bg-subtle px-2.5 py-2 text-[12px] leading-[1.5] text-ink-muted"
+                    >
+                      {dict.workspace.intakeNotInterpreted}
+                    </div>
+                  )}
+                </>
               )}
 
               {offered.length > 0 && (
                 <>
-                  <div className="mt-4 flex flex-col gap-1.5">{offered.map(row)}</div>
+                  <div className="mt-4 flex flex-col gap-1.5">{picked.map(row)}</div>
+                  {/* Offered but not chosen. Kept visible so a near-miss is one
+                      click from fixed, and kept UNTICKED so nothing arrives that
+                      Atlas was not asked for. */}
+                  {rest.length > 0 && (
+                    <>
+                      <div className="mb-2 ms-0.5 mt-5 text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-ghost">
+                        {dict.workspace.intakeAlsoAvailable}
+                      </div>
+                      <div className="flex flex-col gap-1.5">{rest.map(row)}</div>
+                    </>
+                  )}
                   <div className="mt-[22px] flex flex-wrap items-center gap-3.5">
                     <button
                       type="button"

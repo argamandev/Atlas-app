@@ -33,6 +33,20 @@ export type SourceRequest = {
  */
 export type FindReason = 'ok' | 'company-has-nothing-in-period' | 'nothing-matched' | 'empty-corpus'
 
+/**
+ * The reasoning step's answer: Atlas's own sentence, plus the files it chose.
+ *
+ * `selectedIds` is already filtered to ids that EXIST in the corpus it was shown
+ * — see parseSelection. `dropped` records anything the model returned that did
+ * not, which should always be empty and is kept so that a model starting to
+ * invent ids is visible rather than silent.
+ */
+export type IntakeSelection = {
+  reply: string
+  selectedIds: string[]
+  dropped: string[]
+}
+
 export type FindResult = {
   request: SourceRequest
   /** the resolved company name, exactly as the corpus row spells it */
@@ -41,4 +55,21 @@ export type FindResult = {
   /** material for the resolved company that fell OUTSIDE the asked-for window */
   otherForCompany: AttachableSource[]
   reason: FindReason
+}
+
+/**
+ * What the intake route answers with.
+ *
+ * TWO SHAPES IN ONE, and which one arrived is decided by `reply`:
+ *  - `reply` is a string → Atlas understood and chose. `selected` is pre-ticked,
+ *    `others` is the rest of the corpus, offered untouched.
+ *  - `reply` is null → the model was unavailable or unusable. `fallback` carries
+ *    the deterministic keyword result, and the panel MUST say so rather than
+ *    presenting it as comprehension.
+ */
+export type IntakeResponse = {
+  reply: string | null
+  selected: AttachableSource[]
+  others: AttachableSource[]
+  fallback: FindResult | null
 }

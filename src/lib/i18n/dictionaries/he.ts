@@ -87,6 +87,7 @@ export const he: Dictionary = {
     intakeEmptyCorpus: 'אין עדיין מה לחפש באטלס.',
     intakeNotInterpreted: 'לא הצלחתי לקרוא את זה כחיפוש, אז אלו התאמות למילים שכתבתם.',
     intakeSearchFailed: 'החיפוש נכשל: {error}',
+    intakeAlsoAvailable: 'יש גם באטלס',
     intakeRephrase: 'נסו לציין את שם החברה אחרת, או לתאר את זה בדרך אחרת.',
     buildWithCount: 'הוספת {n} ופתיחת סביבת העבודה',
     orKeepDescribing: 'או המשיכו לתאר למטה',

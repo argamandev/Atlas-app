@@ -93,6 +93,7 @@ export const en = {
     intakeEmptyCorpus: 'There is nothing in Atlas to search yet.',
     intakeNotInterpreted: 'I could not read that as a search, so these are keyword matches on your words.',
     intakeSearchFailed: 'The search failed: {error}',
+    intakeAlsoAvailable: 'Also in Atlas',
     intakeRephrase: 'Try naming the company another way, or describe it differently.',
     buildWithCount: 'Add {n} and open the workspace',
     orKeepDescribing: 'or keep describing below',
