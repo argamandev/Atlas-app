@@ -157,6 +157,8 @@ export const en = {
     // The toggle names the state it takes you TO. "Split view" named neither
     // state, on a control whose icon named nothing at all.
     untitledDocument: 'Untitled document',
+    docTitleLabel: 'Document title',
+    docTitleFailed: 'The document title did not save: {error}',
     multiView: 'Multi-view — all open files side by side',
     singleView: 'Single view — one file at a time',
     addToSplit: 'Show in multi-view',
@@ -204,6 +206,20 @@ export const en = {
     sourceGone: 'The source this was attached to is no longer in the archive.',
     sourcePage: 'Page {n}',
     sourceSelectHint: 'Select any passage to quote it, or to ask Atlas about it.',
+    // "Add a document", singular and conversational — the same asking that
+    // filled the workspace, not a second browse-and-tick surface beside it.
+    // ── workspace chat, which is also Ask Atlas ──────────────────────────────
+    chatHead: 'Ask about this workspace',
+    chatHint: 'Questions, comparisons, figures across the files here — or ask me to bring another one in.',
+    chatPlaceholder: 'Ask Atlas…',
+    chatNoAnswer: 'I could not answer that just now — my model did not come back. Try again?',
+    chatFailed: 'That did not go through: {error}',
+    // Never omitted when it applies: an answer drawn from part of a long
+    // transcript reads exactly like one drawn from all of it.
+    chatPartial: 'I could only read part of these, so this answer may be incomplete:',
+    askAtlas: 'Ask Atlas',
+    addDocument: 'Add a document',
+    addDocumentHint: 'Describe what you need and I will pull it in — a call, a report, a quarter.',
     addSources: 'Add sources',
     addSourcesHint:
       'Pull in investor calls and company documents. Everything you add stays in this workspace.',

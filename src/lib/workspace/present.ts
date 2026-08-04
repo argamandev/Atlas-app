@@ -78,6 +78,21 @@ export function deriveSub(count: number, dict: Dictionary): string {
   return dict.workspace.sourceMany.replace('{n}', String(count))
 }
 
+/**
+ * What to CALL the working document.
+ *
+ * `doc_title` is `text not null default ''`, so an unnamed document is the
+ * normal state of a new workspace rather than an edge case. It showed as a blank
+ * line in the panel and — once the document could join multi-view — as a tab chip
+ * containing nothing but a close button. A thing you can open needs a name.
+ *
+ * Separate from the stored value on purpose: this is the label, `docTitle` is the
+ * fact, and the editor must bind to the fact.
+ */
+export function documentTitle(raw: string, dict: Dictionary): string {
+  return raw.trim() || dict.workspace.untitledDocument
+}
+
 export function presentWorkspace(
   row: WorkspaceRow,
   items: WorkspaceItemRow[],
@@ -112,10 +127,11 @@ export function presentWorkspace(
     // that came out of the database would put invented findings on a real page.
     agents: [],
     actions: [],
-    // `doc_title` defaults to '' in the schema and nothing sets it yet, so every
-    // real workspace showed a NAMELESS document — a blank line in the panel, and
-    // once the document could join multi-view (2026-08-04), a blank tab chip
-    // with only a close button in it. A thing you can open needs a name.
-    docTitle: row.doc_title.trim() || dict.workspace.untitledDocument,
+    // THE STORED STRING, verbatim — see documentTitle() for the display name.
+    // It stopped being substituted here on 2026-08-04, when the title became
+    // editable: an editor has to show what is actually saved, or clicking into
+    // a field labelled "Untitled document" would make that placeholder the
+    // user's real title the moment they typed one character after it.
+    docTitle: row.doc_title,
   }
 }

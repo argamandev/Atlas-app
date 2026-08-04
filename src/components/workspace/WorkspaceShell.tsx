@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { DemoBanner } from '@/components/ds/DemoBanner'
@@ -18,8 +18,10 @@ import { WorkingDocument } from './WorkingDocument'
 import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
 import { WorkspaceDocs } from './WorkspaceDocs'
 import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
+import { documentTitle } from '@/lib/workspace/present'
 import { patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
-import { WorkspaceSourcePicker } from './WorkspaceSourcePicker'
+import { WorkspaceIntake } from './WorkspaceIntake'
+import { WorkspaceChat, type AskContext } from './WorkspaceChat'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 
 // The populated control layout (design lines 1433-2084): a floating workspace
@@ -28,16 +30,12 @@ import { ErrorLine } from '@/components/projects/ErrorLine'
 
 const DOC_TAB = '__doc'
 const LEGAL_TAB = '__legal'
+// The chat is a SIDE PANEL as of 2026-08-04, so nothing opens this tab any more.
+// The id survives only so `persistOpen` still refuses to PATCH it if an older
+// session's layout ever hands one back — it is not a row and has nothing to save.
 const CHAT_TAB = '__chat'
 
-export function WorkspaceShell({
-  workspace,
-  attachedSourceIds,
-}: {
-  workspace: Workspace
-  /** corpus ids already on the shelf, so the picker offers no duplicate Add */
-  attachedSourceIds: string[]
-}) {
+export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   const { dict } = useI18n()
   const router = useRouter()
 
@@ -65,10 +63,32 @@ export function WorkspaceShell({
   const [multi, setMulti] = useState<string[]>([])
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(workspace.name)
+  // THE DOCUMENT'S TITLE LIVES HERE, not inside WorkingDocument, because three
+  // places show it: the document's own header, its tab chip, and the panel row.
+  // Held raw ('' is a real value) and given a display name only at each of those.
+  const [docTitleRaw, setDocTitleRaw] = useState(workspace.docTitle)
+  const [docTitleError, setDocTitleError] = useState<unknown>(null)
+  const docTitleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [legalStage, setLegalStage] = useState<LegalStage>('idle')
   const [legalStep, setLegalStep] = useState(0)
   const [legalAreas, setLegalAreas] = useState<string[]>([])
+
+  // ASK ATLAS. A passage marked in any source pane opens the chat carrying it.
+  // The chat is a TAB, not a separate surface, so it can also sit beside the
+  // document it is about in multi-view — which is the point of asking about a
+  // passage rather than about a workspace.
+  //
+  // A SIDE PANEL, not a tab. Founder, 2026-08-04: *"when we mark text we need to
+  // be able to ask atlas about it and let it open from the side pannel and be
+  // able to communicate with us."* As a tab it REPLACED the document — you asked
+  // about a paragraph and the paragraph disappeared, which defeats the point of
+  // asking about it. The design already anticipated this: the tab bar's height
+  // is fixed so its seam lines up with a side-chat header.
+  const [chatOpen, setChatOpen] = useState(false)
+  const [askSeed, setAskSeed] = useState<AskContext | null>(null)
+  /** a request the chat could not act on itself — handed to the intake flow */
+  const [addRequest, setAddRequest] = useState<string | null>(null)
 
   const [layoutError, setLayoutError] = useState<unknown>(null)
   const [renameError, setRenameError] = useState<unknown>(null)
@@ -111,6 +131,41 @@ export function WorkspaceShell({
     },
     [name, workspace.id, router]
   )
+
+  /**
+   * Rename the working document, debounced.
+   *
+   * DEBOUNCED-AND-KEPT rather than optimistic-and-reverted, which is the
+   * opposite of `commitRename` above and deliberately so. That one is a discrete
+   * act the user has finished, so putting the old name back on refusal is
+   * honest. This one fires while they are still typing, and yanking a title out
+   * from under a caret mid-word would destroy work to report a failure. So the
+   * text stays and the BANNER carries the bad news — which keeps the rule the
+   * rename comment states (nothing on screen may quietly become untrue) without
+   * paying for it in the user's own characters.
+   */
+  const renameDocument = useCallback(
+    (next: string) => {
+      setDocTitleRaw(next)
+      setDocTitleError(null)
+      if (docTitleTimer.current) clearTimeout(docTitleTimer.current)
+      docTitleTimer.current = setTimeout(() => {
+        patchWorkspaceReq(workspace.id, { doc_title: next }).catch((e: unknown) => {
+          setDocTitleError(e)
+        })
+      }, 600)
+    },
+    [workspace.id]
+  )
+
+  // A title typed and then navigated away from within the debounce window would
+  // otherwise never be sent at all.
+  useEffect(() => {
+    const timer = docTitleTimer
+    return () => {
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [])
 
   /**
    * Persist one tab's open/closed state — the write half of "remember how I
@@ -180,6 +235,10 @@ export function WorkspaceShell({
     [persistOpen]
   )
 
+  // '' is a real stored title — a document nobody has named yet — so the label
+  // is derived at every display site rather than substituted into the fact.
+  const shownDocTitle = documentTitle(docTitleRaw, dict)
+
   const sections: { key: DetailKey; label: string; count: number }[] = [
     { key: 'files', label: dict.workspace.sectionFiles, count: workspace.files.length },
     { key: 'agents', label: dict.workspace.sectionAgents, count: workspace.agents.length },
@@ -205,7 +264,7 @@ export function WorkspaceShell({
       {/* A layout change that failed to persist still moved on screen, so
           without this the workspace would silently forget on the next reload —
           the very thing this chapter set out to fix. */}
-      {(layoutError !== null || renameError !== null) && (
+      {(layoutError !== null || renameError !== null || docTitleError !== null) && (
         <div
           role="alert"
           className="mx-3 mt-3 flex flex-col gap-1 rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink"
@@ -224,6 +283,17 @@ export function WorkspaceShell({
             <ErrorLine
               template={dict.workspace.renameFailed}
               error={renameError}
+              auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+            />
+          )}
+          {/* The typed title is deliberately LEFT on screen when this fires, so
+              this line is the only thing standing between the user and a title
+              they believe is saved. It renders alongside the others, never
+              instead of one. */}
+          {docTitleError !== null && (
+            <ErrorLine
+              template={dict.workspace.docTitleFailed}
+              error={docTitleError}
               auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
             />
           )}
@@ -326,14 +396,15 @@ export function WorkspaceShell({
                 <div className="atscroll min-h-0 flex-1 overflow-auto px-3.5 pb-4">
                   <button
                     type="button"
-                    onClick={() => openTab(CHAT_TAB)}
+                    onClick={() => setChatOpen(true)}
                     className="flex w-full items-center gap-2.5 rounded-[11px] bg-ink px-3 py-[11px] text-start text-paper"
                   >
                     <SparkleIcon size={21} className="flex-none" />
-                    <span className="flex-1 text-[13px] font-semibold">
-                      {dict.workspace.newWorkspaceChat}
-                    </span>
-                    <PlusIcon size={14} strokeWidth={2} className="flex-none opacity-50" />
+                    {/* "Workspace chat", not "New workspace chat" — founder,
+                        2026-08-04. There is one conversation about this
+                        workspace, so a "+" promising a fresh one was offering
+                        something that does not exist. */}
+                    <span className="flex-1 text-[13px] font-semibold">{dict.workspace.workspaceChat}</span>
                   </button>
 
                   {/* The shelf had no add affordance before migration 016,
@@ -344,7 +415,7 @@ export function WorkspaceShell({
                     className="mt-2 flex w-full items-center gap-2.5 rounded-[11px] border border-hairline px-3 py-[10px] text-start text-ink transition-colors hover:bg-subtle"
                   >
                     <PlusIcon size={15} strokeWidth={1.9} className="flex-none opacity-60" />
-                    <span className="flex-1 text-[13px] font-medium">{dict.workspace.addSources}</span>
+                    <span className="flex-1 text-[13px] font-medium">{dict.workspace.addDocument}</span>
                   </button>
 
                   <div className="mb-2 ms-0.5 mt-5 text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-ghost">
@@ -366,7 +437,7 @@ export function WorkspaceShell({
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       {/* Also user input — same reasoning as the workspace name. */}
                       <span className="truncate text-[13px] font-semibold text-ink">
-                        <bdi>{docTitle(workspace)}</bdi>
+                        <bdi>{shownDocTitle}</bdi>
                       </span>
                       {/* "Draft", not "saved just now" — nothing saves, and the
                           timestamp was static anyway. */}
@@ -447,19 +518,59 @@ export function WorkspaceShell({
           onToggleMulti={(id) => setMulti((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]))}
           renderSpecial={(id) =>
             id === DOC_TAB ? (
-              <WorkingDocument workspaceId={workspace.id} title={docTitle(workspace)} />
+              <WorkingDocument
+                workspaceId={workspace.id}
+                title={docTitleRaw}
+                onRenameDocument={renameDocument}
+              />
             ) : id === LEGAL_TAB ? (
               <LegalAgentChat areas={legalAreas} />
             ) : null
           }
           specialLabel={(id) =>
             id === DOC_TAB
-              ? docTitle(workspace)
+              ? shownDocTitle
               : id === LEGAL_TAB
                 ? dict.workspace.legalReviewTab
                 : dict.workspace.workspaceChat
           }
+          onAskAtlas={(passage) => {
+            setAskSeed(passage)
+            setChatOpen(true)
+          }}
         />
+
+        {chatOpen && (
+          <div className="flex w-[340px] flex-none flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
+            <div className="flex h-[46px] flex-none items-center justify-between gap-2 border-b border-hairline px-3.5">
+              <span className="truncate text-[13px] font-semibold text-ink">
+                {dict.workspace.workspaceChat}
+              </span>
+              <button
+                type="button"
+                onClick={() => setChatOpen(false)}
+                aria-label={dict.common.close}
+                className={iconBtn}
+              >
+                <CloseIcon size={14} strokeWidth={2} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1">
+              <WorkspaceChat
+                workspaceId={workspace.id}
+                seed={askSeed}
+                onClearSeed={() => setAskSeed(null)}
+                // The chat never attaches a file. It hands the request to the
+                // add-a-document conversation — the one path that names files
+                // and waits for a yes — with the request already typed in.
+                onRequestDocuments={(request) => {
+                  setAddRequest(request)
+                  setAddOpen(true)
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {addOpen && (
@@ -467,39 +578,46 @@ export function WorkspaceShell({
           className="absolute inset-0 z-30 flex items-start justify-center bg-ink/20 p-8"
           role="dialog"
           aria-modal="true"
-          aria-label={dict.workspace.addSources}
+          aria-label={dict.workspace.addDocument}
           onMouseDown={(e) => {
             // Backdrop only — a mousedown that started inside the panel must not
             // close it when the pointer is released over the backdrop.
             if (e.target === e.currentTarget) setAddOpen(false)
           }}
         >
-          <div className="flex max-h-full w-full max-w-[560px] flex-col gap-3 overflow-hidden rounded-win border border-float-line bg-canvas p-5 shadow-pane">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-[15px] font-semibold text-ink">{dict.workspace.addSources}</div>
-                <p className="mt-1 text-[12.5px] leading-[1.5] text-ink-muted">
-                  {dict.workspace.addSourcesHint}
-                </p>
-              </div>
+          <div className="flex h-[520px] max-h-full w-full max-w-[560px] flex-col gap-2 overflow-hidden rounded-win border border-float-line bg-canvas p-5 shadow-pane">
+            <div className="flex flex-none items-start justify-between gap-4">
+              <div className="text-[15px] font-semibold text-ink">{dict.workspace.addDocument}</div>
               <button
                 type="button"
                 onClick={() => setAddOpen(false)}
-                className="flex-none rounded-[7px] bg-ink px-3 py-1.5 text-[12.5px] text-paper"
+                aria-label={dict.common.close}
+                className="flex-none rounded-[7px] px-2 py-1 text-ink-ghost hover:bg-subtle hover:text-ink"
               >
-                {dict.workspace.doneAdding}
+                <CloseIcon size={14} strokeWidth={2} />
               </button>
             </div>
-            <WorkspaceSourcePicker workspaceId={workspace.id} attachedSourceIds={attachedSourceIds} />
+            {/* THE SAME CONVERSATION THAT FILLED THE WORKSPACE, not a grid of
+                checkboxes. WorkspaceSourcePicker used to live here and is gone
+                — see WorkspaceRoute for why it was deleted rather than kept
+                around unreachable. */}
+            <div className="min-h-0 flex-1">
+              <WorkspaceIntake
+                workspaceId={workspace.id}
+                workspaceName={name}
+                variant="panel"
+                initialRequest={addRequest}
+                onDone={() => {
+                  setAddOpen(false)
+                  setAddRequest(null)
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
     </div>
   )
-}
-
-function docTitle(w: Workspace) {
-  return w.docTitle
 }
 
 function DocGlyph() {

@@ -19,7 +19,16 @@ import { ChevronDownIcon } from '@/components/ds/icons'
 // touching the quote block — it is the most dangerous element in this chapter and
 // its marker has already cost two review rounds.
 
-export function WorkingDocument({ workspaceId, title }: { workspaceId: string; title: string }) {
+export function WorkingDocument({
+  workspaceId,
+  title,
+  onRenameDocument,
+}: {
+  workspaceId: string
+  /** the STORED title, which may be '' — the placeholder shows the display name */
+  title: string
+  onRenameDocument: (next: string) => void
+}) {
   const { dict } = useI18n()
   const { docHtml, setDocHtml } = useDemoState()
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -193,9 +202,30 @@ export function WorkingDocument({ workspaceId, title }: { workspaceId: string; t
 
       <div className="atscroll min-h-0 flex-1 overflow-auto px-10 py-9">
         <div className="mx-auto max-w-[720px]">
-          <h1 dir="auto" className="mb-2 font-display text-[34px] font-medium tracking-[-0.02em] text-ink">
-            {title}
-          </h1>
+          {/* THE TITLE IS THE DOCUMENT'S, so it is typed here rather than
+              somewhere else. Founder, 2026-08-04: *"the header is just stuck
+              i can[t] change it, thats not good."* It was a plain <h1> fed a
+              prop — the one piece of a page that is entirely the user's work,
+              and the only text on it they could not touch.
+
+              An <input>, not contentEditable: a title is one line, an input
+              cannot accept pasted markup, and it will not fight React over the
+              caret when the pane re-renders mid-edit (the body below has to
+              seed through a ref for exactly that reason). It also gets a real
+              placeholder, which is how an unnamed document can read as unnamed
+              without "Untitled document" becoming its actual stored title. */}
+          <input
+            value={title}
+            onChange={(e) => onRenameDocument(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter leaves the field; a document title has no second line.
+              if (e.key === 'Enter') e.currentTarget.blur()
+            }}
+            placeholder={dict.workspace.untitledDocument}
+            aria-label={dict.workspace.docTitleLabel}
+            dir="auto"
+            className="mb-2 w-full bg-transparent font-display text-[34px] font-medium tracking-[-0.02em] text-ink outline-none placeholder:text-ink-ghost"
+          />
           <div className="mb-2 flex items-center gap-2 font-mono-num text-[11.5px] text-ink-ghost">
             <span dir="ltr">{dict.workspace.docCitations.replace('{n}', '3')}</span>
             <DemoInline />

@@ -48,14 +48,6 @@ export function WorkspaceRoute({
     [workspace, items, companies, nowIso, locale, dict]
   )
 
-  // What is already on the shelf, in CORPUS ids rather than item ids — the
-  // picker compares against these so an attached source shows as added instead
-  // of offering an Add that the unique index would refuse.
-  const attachedSourceIds = useMemo(
-    () => items.map((i) => i.transcript_id ?? i.document_id).filter((v): v is string => !!v),
-    [items]
-  )
-
   const backButton = (
     <button
       type="button"
@@ -112,12 +104,16 @@ export function WorkspaceRoute({
   // corpus now through `findSources` (lib/workspace/intake), so it delivers what
   // Atlas has and says plainly what it does not.
   //
-  // The picker did not disappear — it is the "add more sources" path inside a
-  // populated workspace (WorkspaceShell's addOpen overlay), which is the job it
-  // was always right for.
+  // An empty workspace IS the intake conversation; a populated one keeps the
+  // same conversation behind "Add a document". WorkspaceSourcePicker — the
+  // browse-and-tick grid that used to serve the second case — was deleted on
+  // 2026-08-04 rather than left orphaned, because the founder replaced the idea
+  // and not just the button: *"add source should change into add a document and
+  // there is a little text pannel where you again describe in words what you
+  // want."*
   if (presented.files.length === 0) {
     return <WorkspaceIntake workspaceId={presented.id} workspaceName={presented.name} />
   }
 
-  return <WorkspaceShell workspace={presented} attachedSourceIds={attachedSourceIds} />
+  return <WorkspaceShell workspace={presented} />
 }

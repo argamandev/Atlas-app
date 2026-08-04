@@ -2,7 +2,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { en } from '@/lib/i18n/dictionaries/en'
 import { he } from '@/lib/i18n/dictionaries/he'
-import { citationState, workspaceInitial, deriveCompany, deriveSub, presentWorkspace } from './present'
+import {
+  citationState,
+  workspaceInitial,
+  deriveCompany,
+  deriveSub,
+  presentWorkspace,
+  documentTitle,
+} from './present'
 import type { WorkspaceRow, WorkspaceItemRow } from './data'
 
 const block = (over: Partial<{ source_item_id: string | null; source_quote: string | null }> = {}) => ({
@@ -156,4 +163,29 @@ test('both locales carry every key this module reads', () => {
     assert.equal(typeof en.workspace[k], 'string', `en.workspace.${k}`)
     assert.equal(typeof he.workspace[k], 'string', `he.workspace.${k}`)
   }
+})
+
+// ── the document's name ──────────────────────────────────────────────────────
+// The fallback moved OUT of presentWorkspace on 2026-08-04 so the title could
+// become editable: an editor binds to the stored fact, labels bind to this.
+
+test('an unnamed document still has something to be called', () => {
+  assert.equal(documentTitle('', en), 'Untitled document')
+  assert.equal(documentTitle('   ', en), 'Untitled document')
+  assert.equal(documentTitle('', he), 'מסמך ללא שם')
+})
+
+test('a named document is called exactly what it is called', () => {
+  assert.equal(documentTitle('תיגבור — מה אנחנו יודעים', en), 'תיגבור — מה אנחנו יודעים')
+  // The LABEL is trimmed — stray spaces in a tab chip read as a broken chip.
+  // What is STORED is not: presentWorkspace passes doc_title through verbatim,
+  // so the editor shows the user their own spaces back while they type.
+  assert.equal(documentTitle(' Tigbur ', en), 'Tigbur')
+})
+
+test('presentWorkspace passes the stored title through untouched', () => {
+  // The editor must see '' as '', or the placeholder becomes the real title the
+  // moment the user types one character after it.
+  const w = presentWorkspace(row({ doc_title: '' }), [], [], new Date(), 'en', en)
+  assert.equal(w.docTitle, '')
 })

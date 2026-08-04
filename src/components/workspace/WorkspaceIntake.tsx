@@ -29,17 +29,40 @@ import type { AttachableSource } from '@/lib/workspace/data'
 
 type Stage = 'intro' | 'chat' | 'pulling'
 
+/**
+ * `page` fills an empty workspace; `panel` is the same conversation inside the
+ * Add-a-document dialog of a workspace that already has files.
+ *
+ * ONE COMPONENT, TWO PLACES, on purpose. Founder, 2026-08-04: *"add source
+ * should change into add a document and there is a little text pannel where you
+ * again describe in words what do you want and he pulls it inside."* — "again"
+ * is the requirement. Adding a fourth file should behave exactly like asking for
+ * the first three did, and the surest way to guarantee that is for it to BE the
+ * same code rather than a second implementation that drifts.
+ */
+export type IntakeVariant = 'page' | 'panel'
+
 export function WorkspaceIntake({
   workspaceId,
   workspaceName,
+  variant = 'page',
+  initialRequest,
+  onDone,
 }: {
   workspaceId: string
   workspaceName: string
+  variant?: IntakeVariant
+  /** a request the workspace chat handed over — sent as the opening message */
+  initialRequest?: string | null
+  /** panel only: the files landed, so the dialog can close itself */
+  onDone?: () => void
 }) {
   const { dict } = useI18n()
   const router = useRouter()
 
-  const [stage, setStage] = useState<Stage>('intro')
+  // The panel opens straight into the conversation — its dialog header already
+  // said what this is, so the big centred hero would be saying it twice.
+  const [stage, setStage] = useState<Stage>(variant === 'panel' ? 'chat' : 'intro')
   const [turns, setTurns] = useState<IntakeTurn[]>([])
   const [draft, setDraft] = useState('')
   const [thinking, setThinking] = useState(false)
@@ -55,6 +78,23 @@ export function WorkspaceIntake({
   useEffect(() => {
     stickToEnd()
   }, [turns, thinking, stickToEnd])
+
+  // A request handed over by the workspace chat opens this panel already asking.
+  //
+  // SENT, not just typed into the box: the analyst has already said what they
+  // want, in the chat, and making them press send on Atlas's paraphrase of their
+  // own sentence would be the second confirmation this whole chapter has been
+  // about removing. The confirmation that DOES happen is the one that matters —
+  // Atlas naming the actual files and waiting for a yes.
+  const fired = useRef(false)
+  useEffect(() => {
+    if (fired.current || !initialRequest?.trim()) return
+    fired.current = true
+    void send(initialRequest)
+    // `send` is redefined every render and is not a dependency by design — the
+    // ref is what makes this fire exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRequest])
 
   async function send(text: string) {
     const q = text.trim()
@@ -148,8 +188,11 @@ export function WorkspaceIntake({
       return
     }
     // The route is a Server Component; this re-reads the shelf and lands the
-    // user in the populated WorkspaceShell.
+    // user in the populated WorkspaceShell. In the panel the workspace is
+    // already on screen behind the dialog, so the same refresh puts the new
+    // files on the shelf and `onDone` gets out of the way.
     router.refresh()
+    onDone?.()
   }
 
   const composer = (
@@ -171,19 +214,23 @@ export function WorkspaceIntake({
 
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-col bg-canvas">
-      <div className="flex flex-none items-center justify-between gap-3 border-b border-hairline px-[22px] py-3.5">
-        <button
-          type="button"
-          onClick={() => router.push('/app/workspace')}
-          className="flex items-center gap-1.5 text-[12px] text-ink-faint hover:text-ink"
-        >
-          <ChevronLeftIcon size={14} strokeWidth={1.7} className="rtl:rotate-180" />
-          {dict.workspace.backToWorkspaces}
-        </button>
-        <span dir="auto" className="truncate text-[12px] text-ink-ghost">
-          {workspaceName}
-        </span>
-      </div>
+      {/* The dialog has its own title and close button; a second "all
+          workspaces" link inside it would offer to navigate away mid-sentence. */}
+      {variant === 'page' && (
+        <div className="flex flex-none items-center justify-between gap-3 border-b border-hairline px-[22px] py-3.5">
+          <button
+            type="button"
+            onClick={() => router.push('/app/workspace')}
+            className="flex items-center gap-1.5 text-[12px] text-ink-faint hover:text-ink"
+          >
+            <ChevronLeftIcon size={14} strokeWidth={1.7} className="rtl:rotate-180" />
+            {dict.workspace.backToWorkspaces}
+          </button>
+          <span dir="auto" className="truncate text-[12px] text-ink-ghost">
+            {workspaceName}
+          </span>
+        </div>
+      )}
 
       <div className="atscroll flex min-h-0 flex-1 flex-col overflow-auto">
         {stage === 'intro' ? (
@@ -233,7 +280,17 @@ export function WorkspaceIntake({
         ) : (
           // THE THREAD. It stays on screen through thinking and through pulling —
           // there is no stage that replaces it, which was the whole complaint.
-          <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-8 pb-6 pt-[34px]">
+          <div
+            className={`mx-auto flex w-full max-w-[720px] flex-col gap-5 pb-6 ${
+              variant === 'panel' ? 'px-1 pt-1' : 'px-8 pt-[34px]'
+            }`}
+          >
+            {/* The panel opens with nothing said yet, so it says what to do. */}
+            {variant === 'panel' && turns.length === 0 && (
+              <p dir="auto" className="text-[13px] leading-[1.6] text-ink-muted">
+                {dict.workspace.addDocumentHint}
+              </p>
+            )}
             {turns.map((t, i) =>
               t.role === 'user' ? (
                 <div

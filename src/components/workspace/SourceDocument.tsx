@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { fetchItemContent } from '@/lib/workspace/client'
@@ -21,10 +21,21 @@ import type { WsFile } from '@/lib/workspace/data'
 // `unavailable` branch, which exists precisely so a still-processing call cannot
 // fall through to something that looks like content.
 
-export function SourceDocument({ workspaceId, file }: { workspaceId: string; file: WsFile }) {
+export function SourceDocument({
+  workspaceId,
+  file,
+  onAskAtlas,
+}: {
+  workspaceId: string
+  file: WsFile
+  /** marking a passage offers this; absent means the pane is read-only */
+  onAskAtlas?: (passage: { itemId: string; title: string; text: string }) => void
+}) {
   const { dict } = useI18n()
   const [content, setContent] = useState<ItemContent | null>(null)
   const [error, setError] = useState<unknown>(null)
+  const [mark, setMark] = useState<{ text: string; x: number; y: number } | null>(null)
+  const paneRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     // Guards the async setState against a pane the user closed mid-flight, and
@@ -44,8 +55,65 @@ export function SourceDocument({ workspaceId, file }: { workspaceId: string; fil
     }
   }, [workspaceId, file.id])
 
+  // THE SELECTION, read on pointer-up rather than on `selectionchange`.
+  //
+  // selectionchange fires continuously during a drag, so the button would appear
+  // under the moving cursor and jump with every pixel. Pointer-up is the moment
+  // the user has actually chosen something. Positioned from the selection's own
+  // rectangle so it lands on the passage in BOTH directions — a fixed corner
+  // would sit on the wrong side of an RTL column.
+  const readSelection = useCallback(() => {
+    if (!onAskAtlas) return
+    const sel = window.getSelection()
+    const text = sel?.toString().trim() ?? ''
+    if (!sel || sel.rangeCount === 0 || text.length < 2) {
+      setMark(null)
+      return
+    }
+    // Only a selection INSIDE this pane belongs to this file — with several
+    // panes open, marking in one must not offer to quote another.
+    const pane = paneRef.current
+    if (!pane || !pane.contains(sel.anchorNode) || !pane.contains(sel.focusNode)) {
+      setMark(null)
+      return
+    }
+    const rect = sel.getRangeAt(0).getBoundingClientRect()
+    const box = pane.getBoundingClientRect()
+    setMark({
+      text,
+      // Relative to the pane, and clamped inside it so a selection at the very
+      // edge cannot push the button out of view.
+      x: Math.min(Math.max(rect.left - box.left + rect.width / 2, 60), box.width - 60),
+      y: Math.max(rect.top - box.top - 8, 8),
+    })
+  }, [onAskAtlas])
+
+  const title = content && content.kind !== 'unavailable' ? content.title : file.name
+
   return (
-    <div className="atscroll h-full min-h-0 overflow-auto bg-paper px-8 py-7">
+    <div
+      ref={paneRef}
+      onPointerUp={readSelection}
+      onScroll={() => setMark(null)}
+      className="atscroll relative h-full min-h-0 overflow-auto bg-paper px-8 py-7"
+    >
+      {mark && onAskAtlas && (
+        <button
+          type="button"
+          // onMouseDown, not onClick: a click first collapses the selection, and
+          // the passage would be gone by the time the handler ran.
+          onMouseDown={(e) => {
+            e.preventDefault()
+            onAskAtlas({ itemId: file.id, title, text: mark.text })
+            setMark(null)
+            window.getSelection()?.removeAllRanges()
+          }}
+          style={{ left: mark.x, top: mark.y }}
+          className="absolute z-20 -translate-x-1/2 -translate-y-full rounded-lg bg-ink px-3 py-1.5 text-[12px] font-medium text-paper shadow-menu"
+        >
+          ✦ {dict.workspace.askAtlas}
+        </button>
+      )}
       <div className="mx-auto max-w-[760px]">
         {error !== null ? (
           <div

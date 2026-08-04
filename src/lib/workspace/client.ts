@@ -2,6 +2,7 @@ import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow, AttachableSourc
 import type { ItemCreate, BlockCreate } from './validate'
 import type { IntakeResponse, IntakeTurn } from './intake/types'
 import type { ItemContent } from './contentTypes'
+import type { ChatTurn } from './chat/prompt'
 import { handleResponse } from '@/lib/api/client'
 
 // The browser's only door to the workspace API. Every call surfaces its failure
@@ -54,6 +55,31 @@ export const intakeSearchReq = (workspaceId: string, messages: IntakeTurn[]) =>
   call<{ result: IntakeResponse }>(`/api/workspaces/${workspaceId}/intake`, {
     method: 'POST',
     body: JSON.stringify({ messages }),
+  })
+
+/**
+ * One turn of the workspace chat, grounded in the shelf's own text.
+ *
+ * `wantsDocuments` comes back when the analyst asked Atlas to BRING a file
+ * rather than asking about one — the caller hands that to the intake
+ * conversation. This endpoint never attaches anything itself.
+ */
+export const workspaceChatReq = (
+  workspaceId: string,
+  messages: ChatTurn[],
+  selection?: { title: string; text: string } | null
+) =>
+  call<{
+    result: {
+      reply: string | null
+      wantsDocuments: string | null
+      /** files the answer could see only part of, or not at all */
+      partial: string[]
+      unreadable: string[]
+    }
+  }>(`/api/workspaces/${workspaceId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ messages, ...(selection ? { selection } : {}) }),
   })
 
 export const fetchWorkspaces = () =>

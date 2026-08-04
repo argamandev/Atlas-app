@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import OpenAI from 'openai'
 import { createServerSupabase } from '@/lib/supabase'
+import { askModel as ask } from '@/lib/workspace/askModel'
 import { resolveUser } from '@/lib/auth/verifyUser'
 import { unauthorized } from '@/lib/auth'
 import { loadCorpus } from '@/lib/workspace/intake/corpus'
@@ -17,14 +17,6 @@ import { isBareAgreement, resolveSelection } from '@/lib/workspace/intake/agreem
 import type { IntakeTurn } from '@/lib/workspace/intake/types'
 
 export const dynamic = 'force-dynamic'
-
-const MODEL = 'gemini-3.5-flash'
-
-// Budget for a request someone is waiting on: worst case is roughly
-// 7s + 0.6s + 7s before the fallback model gets its turn.
-const GEMINI_TIMEOUT_MS = 7_000
-/** How long Gemini gets alone before a second model is started alongside it. */
-const HEDGE_MS = 1_200
 
 const FILTER_SYSTEM = `You turn an investor-research request into a search filter.
 Reply with ONLY a JSON object, no prose, with these optional keys:
@@ -211,165 +203,8 @@ function withDates(template: string): string {
     .replace('{Y0}', String(now.getFullYear()))
 }
 
-/**
- * The model's raw text, or ''. NEVER throws: an unusable answer is a DEGRADED
- * request, not a failed one — the user's own words still search, and the panel
- * says that is what happened. Failing here would turn a missing API key into
- * "the workspace is broken".
- */
-/**
- * An answer from whichever model answers first.
- *
- * WHY THIS IS A HEDGE AND NOT A CHAIN. Founder, 2026-08-04: *"it responds very
- * slow, it needs to be a lot faster."* The dev log said why — Gemini was
- * returning 503 "high demand" and timing out, and the fallback only started once
- * Gemini had exhausted itself: 12s, 17s, 19s, 27s, 32s, one turn at 68s. Every
- * one of those seconds was spent waiting for a model that was never going to
- * answer, while a working model sat idle.
- *
- * So OpenAI no longer waits its turn. Gemini starts; if it has not answered
- * within HEDGE_MS — or has already failed — OpenAI starts alongside it, and the
- * first usable answer wins. Latency stops being the SUM of a bad provider's
- * retries and becomes the MINIMUM of two independent attempts. The extra call is
- * only made when the first one is late, and these prompts are a few hundred
- * tokens over a dozen files.
- */
+/** The interactive budget. A human is watching this one, so it gets far less
+ *  patience than a long grounded read — see lib/workspace/askModel. */
 async function askModel(prompt: string, maxOutputTokens: number): Promise<string> {
-  const gemini = askGemini(prompt, maxOutputTokens)
-
-  const hedged = (async () => {
-    // Whichever comes first: Gemini finishing, or the patience running out.
-    const early = await Promise.race([gemini, sleep(HEDGE_MS).then(() => null)])
-    // Gemini already answered — nothing to hedge against, and no second bill.
-    if (typeof early === 'string' && early) return ''
-    return askOpenAi(prompt, maxOutputTokens)
-  })()
-
-  return firstUsable([gemini, hedged])
-}
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-/**
- * The first non-empty string among the promises, or '' once all are exhausted.
- *
- * Not `Promise.race`: that resolves on the first SETTLED promise, which here is
- * usually the fast failure — the losing provider's empty string would win the
- * race and discard a good answer that was still in flight.
- */
-function firstUsable(promises: Promise<string>[]): Promise<string> {
-  return new Promise((resolve) => {
-    let outstanding = promises.length
-    for (const p of promises) {
-      p.then(
-        (text) => {
-          // resolve() after the first call is a no-op, so the loser is ignored.
-          if (text) resolve(text)
-          else if (--outstanding === 0) resolve('')
-        },
-        () => {
-          if (--outstanding === 0) resolve('')
-        }
-      )
-    }
-  })
-}
-
-async function askGemini(prompt: string, maxOutputTokens: number): Promise<string> {
-  // OBSERVED 2026-08-04: a plain 503 "This model is currently experiencing high
-  // demand" dropped the whole request to a keyword search. On an interactive
-  // path that is a bad trade for two seconds — the finish pipeline already
-  // retries this model (lib/transcription.ts), just on a slower schedule.
-  // A HUMAN IS WATCHING THIS. The first policy here was copied from the finish
-  // pipeline — 3 attempts at a 20s timeout — which on a bad Gemini day meant the
-  // founder sat in front of a "Thinking…" indicator for a full minute before the
-  // fallback ran (observed 2026-08-04: three consecutive timeouts, 27s+ per
-  // request). A background job can afford that; an interactive one cannot.
-  //
-  // ONE ATTEMPT, and no retry — because the hedge in `askModel` IS the retry,
-  // and a different provider is a better second attempt than asking a model
-  // that is shedding load to shed it again. Removing the retry also makes the
-  // hedge react faster: a 503 comes back in a few hundred milliseconds, this
-  // resolves empty immediately, and OpenAI starts then instead of after a
-  // backoff and a second 7-second timeout. Measured on this branch, the founder's
-  // first turn went 12.5s → 5.4s.
-  const { text } = await askGeminiOnce(prompt, maxOutputTokens)
-  return text
-}
-
-async function askOpenAi(prompt: string, maxTokens: number): Promise<string> {
-  const key = process.env.OPENAI_API_KEY
-  if (!key) return ''
-  try {
-    const openai = new OpenAI({ apiKey: key })
-    const res = await openai.chat.completions.create({
-      model: process.env.OPENAI_CHAT_MODEL || 'gpt-4.1',
-      temperature: 0,
-      max_tokens: maxTokens,
-      response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: prompt }],
-    })
-    return res.choices[0]?.message?.content ?? ''
-  } catch (e) {
-    console.warn(`[intake] OpenAI fallback failed: ${(e as Error).message}`)
-    return ''
-  }
-}
-
-/** `status` is kept in the shape because the failure classes read very
- *  differently in the log (503 high-demand vs a 400 on the prompt); nothing
- *  branches on it any more, since the hedge answers every class the same way. */
-async function askGeminiOnce(
-  prompt: string,
-  maxOutputTokens: number
-): Promise<{ text: string; status: number | null }> {
-  const key = process.env.GEMINI_API_KEY
-  if (!key) {
-    console.warn('[intake] GEMINI_API_KEY is not set — falling back to keyword search')
-    return { text: '', status: null }
-  }
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            // temperature 0: this is a parse and a selection, not a composition.
-            // Two identical requests must produce the same shelf.
-            temperature: 0,
-            maxOutputTokens,
-            responseMimeType: 'application/json',
-            // MANDATORY, and this cost a verification round: thinking tokens are
-            // drawn from maxOutputTokens, so at 300 the answer came back
-            // TRUNCATED at 29 characters — `{"company":"תיגבור","fromYear` —
-            // which JSON.parse rejects, so every request silently degraded to a
-            // keyword search. Same root cause as the filed live-captions rule
-            // (.claude/rules/live.md: thinkingBudget 0 is mandatory).
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
-        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-      }
-    )
-    if (!res.ok) {
-      console.warn(`[intake] Gemini ${res.status}: ${(await res.text()).slice(0, 400)}`)
-      return { text: '', status: res.status }
-    }
-    const body = (await res.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>
-    }
-    const out = (body.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('')
-    if (!out) {
-      console.warn(`[intake] Gemini returned no text (finishReason=${body.candidates?.[0]?.finishReason})`)
-    }
-    // 200 with no text is not retryable — the model answered, just emptily.
-    return { text: out, status: res.status }
-  } catch (e) {
-    console.warn(`[intake] Gemini call failed: ${(e as Error).message}`)
-    // A network error or a timeout IS worth one more try.
-    return { text: '', status: 503 }
-  }
+  return ask(prompt, { maxOutputTokens, timeoutMs: 7_000 })
 }
