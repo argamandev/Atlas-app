@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { WorkspaceShell } from './WorkspaceShell'
-import { WorkspaceSourcePicker } from './WorkspaceSourcePicker'
+import { WorkspaceIntake } from './WorkspaceIntake'
 import { presentWorkspace } from '@/lib/workspace/present'
 import type { WorkspaceRow, WorkspaceItemRow } from '@/lib/workspace/data'
 
@@ -103,28 +103,20 @@ export function WorkspaceRoute({
     )
   }
 
-  // An EMPTY workspace offers the real way to fill it.
+  // An EMPTY workspace shows THE DESIGNED INTAKE PANEL — the front door.
   //
-  // It used to show WorkspaceIntake — the designed "describe it and an agent
-  // gathers the files" flow, which carries its own demo marker because nothing
-  // gathers anything. That flow needs agent execution, which needs the deploy,
-  // which comes after this chapter. Until then the honest empty state is the
-  // one that actually works: pick from the corpus that exists. WorkspaceIntake
-  // is still in the repo, unrouted, waiting for the engine it describes.
+  // For one day it showed the source picker instead, because this file argued
+  // that a panel promising files nothing could gather was dishonest. The founder
+  // overruled that on 2026-08-04, and was right: the honesty rule is about not
+  // lying, not a licence to delete the product. The panel searches the REAL
+  // corpus now through `findSources` (lib/workspace/intake), so it delivers what
+  // Atlas has and says plainly what it does not.
+  //
+  // The picker did not disappear — it is the "add more sources" path inside a
+  // populated workspace (WorkspaceShell's addOpen overlay), which is the job it
+  // was always right for.
   if (presented.files.length === 0) {
-    return (
-      <div className="atscroll flex h-full min-h-0 flex-col overflow-y-auto px-10 py-10">
-        <div className="mx-auto flex w-full max-w-[620px] flex-1 flex-col">
-          <h1 className="font-display text-[26px] font-medium tracking-[-0.02em] text-ink">
-            <bdi>{presented.name}</bdi>
-          </h1>
-          <p className="mb-6 mt-2 text-[14px] leading-[1.55] text-ink-muted">
-            {dict.workspace.addSourcesHint}
-          </p>
-          <WorkspaceSourcePicker workspaceId={presented.id} attachedSourceIds={attachedSourceIds} />
-        </div>
-      </div>
-    )
+    return <WorkspaceIntake workspaceId={presented.id} workspaceName={presented.name} />
   }
 
   return <WorkspaceShell workspace={presented} attachedSourceIds={attachedSourceIds} />

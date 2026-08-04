@@ -75,24 +75,33 @@ export const en = {
     backToWorkspaces: 'Back to workspaces',
     backToFiles: 'Back to files',
     intakeHead: 'What are we working on today?',
-    intakeSub:
-      'Describe the company or material — your workspace agent will gather the files and set everything up.',
+    intakeSub: 'Describe the company or material you want — Atlas will search what it has.',
     intakePlaceholder: 'Describe the files or material you want to work on…',
-    intakeHint: 'Type / for skills, @ to mention a company.',
+    // Was "Type / for skills, @ to mention a company" — neither existed. A hint
+    // that teaches a gesture the app does not have is the same class of untruth
+    // as a fabricated result, just quieter.
+    intakeHint: 'Hebrew or English. Name a company, a period, or both.',
     intakeSend: 'Send',
     intakeAdd: 'Attach',
     intakeMic: 'Dictate',
-    clarifyLead: 'Got it. Before I pull everything in, a few quick checks so the workspace lands right:',
-    clarifyPeriod: 'Which period should I cover?',
-    clarifyElse: 'Anything else to include?',
-    clarifyDeck: 'Latest investor deck',
-    clarifyReport: 'Annual reports',
-    approveBuild: 'Approve & build workspace',
+    intakeSearching: 'Looking through what Atlas has…',
+    intakeFound: 'Found {n}. Untick anything you don’t want.',
+    // The company exists, the period does not — a different sentence from
+    // "nothing matched", and it offers what DOES exist rather than an empty list.
+    intakeNothingInPeriod: 'I have nothing for {company} from that period. Here is what I do have:',
+    intakeNoMatch: 'I could not find anything matching that in Atlas yet.',
+    intakeEmptyCorpus: 'There is nothing in Atlas to search yet.',
+    intakeNotInterpreted: 'I could not read that as a search, so these are keyword matches on your words.',
+    intakeSearchFailed: 'The search failed: {error}',
+    intakeRephrase: 'Try naming the company another way, or describe it differently.',
+    buildWithCount: 'Add {n} and open the workspace',
     orKeepDescribing: 'or keep describing below',
     buildingTitle: 'Setting up the workspace…',
-    buildingSteps: 'Gathering files · indexing financials.xlsx · deploying agents',
-    // The build is not real — no backend gathers anything this chapter.
-    buildingDemoNote: 'Nothing is actually being fetched — this is the designed flow only.',
+    intakeAdding: 'Adding to the workspace…',
+    // A partial fill must be visible. Silently landing 3 of 5 files is exactly
+    // the failure this chapter exists to remove.
+    intakeAttachFailed: 'Could not add {n} of them: {error}',
+    intakeContinueAnyway: 'Open the workspace',
     notFound: 'This workspace is no longer here.',
     // Was "workspaces live for the session only — a page reload clears them",
     // which stopped being true at migration 016. Workspaces persist now, so the
