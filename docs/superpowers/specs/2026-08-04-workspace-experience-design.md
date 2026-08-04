@@ -356,3 +356,36 @@ the document → reload and find everything exactly as left → export the `.doc
 2. **Audio in the workspace** (slice 2) — free or dropped, decided by what the global player
    actually costs here. Reported either way.
 3. **Hebrew embedding quality** — measured before the next chapter trusts retrieval.
+
+---
+
+## AMENDMENT 1 (2026-08-04, same day) — the intake SELECTS, it does not filter
+
+**D10.** §6 slice 1 described the clarify stage as *"a model turns the sentence into a structured
+search — company, period, material types"*. **That design was wrong and is superseded.**
+
+Founder, after using it: *"i asked him to bring me the two quarterly reports of 2026 (the first and
+the second) + to bring the last transcribed investor call. he showed me 6 files -> that doesn't even
+make sense. we need to create here a real reasoning and logic that understands the users needs!"*
+
+A filter cannot express a count, an ordering, or a specific quarter, so it resolved the company
+correctly and returned everything it had — behaving exactly as specified, and still not listening.
+
+**The replacement:** the model is handed the actual candidate files (id, type, company, date, title)
+and returns the ones asked for **plus a sentence to the user in their own language**, saying what it
+is adding and what it could not find. `lib/workspace/intake/selectSources.ts`.
+
+**What does NOT change, and is the reason this is safe:** the model still never produces a file. It
+returns ids from a list we gave it, and `parseSelection` drops anything that was not on that list
+before it can reach a shelf. The invariant is enforced in code, not requested in the prompt.
+
+The structured filter survives as the **narrowing stage** for when the corpus outgrows one prompt
+(`SELECTION_CANDIDATE_CAP = 80`) — which is the Maya era. Below the cap it is skipped entirely.
+
+`findSources` remains the deterministic fallback when the model is unavailable, and the panel still
+states plainly that a fallback result is keyword matching rather than comprehension.
+
+**Also corrected:** the intake's intro composer was the only composer in the app without
+`dir="auto"`, so Hebrew typed left-to-right on a workspace's first message. And a transient Gemini
+`503` was dropping whole requests to keyword search; the intake now retries 429/5xx up to three
+times with backoff, then falls back to the GPT-4.1 model `api/chat` already uses.
