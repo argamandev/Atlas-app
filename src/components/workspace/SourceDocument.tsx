@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { fetchItemContent } from '@/lib/workspace/client'
+import { detectDir } from '@/lib/utils'
+import { PdfViewer } from '@/components/live/PdfViewer'
 import type { ItemContent, UnavailableReason } from '@/lib/workspace/contentTypes'
 import type { WsFile } from '@/lib/workspace/data'
 
@@ -90,6 +92,73 @@ export function SourceDocument({
 
   const title = content && content.kind !== 'unavailable' ? content.title : file.name
 
+  // WHICH WAY THE DOCUMENT READS. Founder, 2026-08-04: *"documents that are open
+  // in the platform should be rtl."*
+  //
+  // Taken from the document's OWN words rather than hardcoded, using the same
+  // `detectDir` the chat composer and the transcript reference already use — it
+  // is Hebrew-native (an empty or neutral sample returns 'rtl') and weighs
+  // Hebrew against Latin, so his corpus reads right-to-left as asked while the
+  // English webinars sitting in the same archive are not forced backwards.
+  //
+  // The container carries it; the paragraphs keep their own `dir="auto"`, so a
+  // single English quote inside a Hebrew call still sets itself the right way.
+  const sample =
+    content === null || content.kind === 'unavailable'
+      ? file.name
+      : content.kind === 'transcript'
+        ? content.sections
+            .flatMap((s) => s.lines)
+            .slice(0, 12)
+            .map((l) => l.text)
+            .join(' ')
+        : content.pages
+            .slice(0, 2)
+            .map((p) => p.text)
+            .join(' ')
+  const docDir = detectDir(sample)
+
+  // A REAL PDF GETS THE REAL VIEWER — the same one the live investor call uses
+  // (components/live/PdfViewer: pdf.js canvas per page, a selectable text layer
+  // with pdf.js's own bidi positioning, lazy pages, re-fits on gutter drag).
+  //
+  // Founder, 2026-08-04: *"we have a demo pdf for tigbur lets use it when a user
+  // is asking for a report to check if the ux on the pdf (as we built in a live
+  // investor call) works!"* It already worked; nothing here reimplements it.
+  //
+  // Its own `onAskSelection` replaces the pointer-up handler below: selecting
+  // inside a pdf.js text layer is not ordinary DOM selection (the spans are
+  // absolutely positioned, so a naive `toString()` runs words together), and the
+  // viewer already solves that and hands back the page numbers too.
+  if (content !== null && content.kind === 'document') {
+    return (
+      <div className="h-full min-h-0 bg-paper">
+        <PdfViewer
+          docId={content.documentId}
+          pageCount={content.pageCount}
+          onAskSelection={
+            onAskAtlas
+              ? (text, pages) =>
+                  onAskAtlas({
+                    itemId: file.id,
+                    // The page is part of the citation, exactly as the in-call
+                    // panel labels a report passage.
+                    title:
+                      pages.length > 0
+                        ? `${content.title} · ${dict.workspace.sourcePage.replace(
+                            '{n}',
+                            pages.length > 1 ? `${pages[0]}–${pages[pages.length - 1]}` : String(pages[0])
+                          )}`
+                        : content.title,
+                    text,
+                  })
+              : undefined
+          }
+        />
+      </div>
+    )
+  }
+
   return (
     <div
       ref={paneRef}
@@ -114,7 +183,7 @@ export function SourceDocument({
           ✦ {dict.workspace.askAtlas}
         </button>
       )}
-      <div className="mx-auto max-w-[760px]">
+      <div dir={docDir} className="mx-auto max-w-[760px]">
         {error !== null ? (
           <div
             role="alert"

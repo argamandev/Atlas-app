@@ -543,8 +543,11 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
         {chatOpen && (
           <div className="flex w-[340px] flex-none flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
             <div className="flex h-[46px] flex-none items-center justify-between gap-2 border-b border-hairline px-3.5">
-              <span className="truncate text-[13px] font-semibold text-ink">
-                {dict.workspace.workspaceChat}
+              {/* SparkleIcon + "Ask Atlas", the same identity the in-call panel
+                  carries — it is one feature, so it is named once. */}
+              <span className="flex items-center gap-[9px] truncate text-[14px] font-semibold tracking-[-0.01em] text-ink">
+                <SparkleIcon size={20} className="flex-none" />
+                {dict.live.askAtlas}
               </span>
               <button
                 type="button"

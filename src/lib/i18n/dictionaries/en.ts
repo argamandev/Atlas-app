@@ -209,6 +209,10 @@ export const en = {
     // "Add a document", singular and conversational — the same asking that
     // filled the workspace, not a second browse-and-tick surface beside it.
     // ── workspace chat, which is also Ask Atlas ──────────────────────────────
+    // Second line of the serif hero — the first line is shared with the in-call
+    // Ask Atlas (`live.askHeroLine1`), so the two greetings read as one feature.
+    chatHeroLine2: 'about this workspace',
+    chatConnected: 'Atlas is reading the files on this shelf.',
     chatHead: 'Ask about this workspace',
     chatHint: 'Questions, comparisons, figures across the files here — or ask me to bring another one in.',
     chatPlaceholder: 'Ask Atlas…',

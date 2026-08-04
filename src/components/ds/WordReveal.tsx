@@ -38,7 +38,7 @@ function prefersReducedMotion(): boolean {
   )
 }
 
-export function Typewriter({
+export function WordReveal({
   text,
   speedMs = DEFAULT_SPEED_MS,
   onReveal,

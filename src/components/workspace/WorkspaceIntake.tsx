@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { PillComposer } from '@/components/ds/PillComposer'
-import { Typewriter } from '@/components/ds/Typewriter'
+import { WordReveal } from '@/components/ds/WordReveal'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon } from '@/components/ds/icons'
 import { intakeSearchReq, addItemReq } from '@/lib/workspace/client'
@@ -309,7 +309,7 @@ export function WorkspaceIntake({
                   {i === animateAt ? (
                     // The thread follows the words down as they land, so a long
                     // answer does not reveal itself below the fold.
-                    <Typewriter text={t.content} onReveal={stickToEnd} />
+                    <WordReveal text={t.content} onReveal={stickToEnd} />
                   ) : (
                     t.content
                   )}

@@ -97,8 +97,12 @@ export function WorkspaceDocs({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-win border border-float-line bg-canvas shadow-pane">
-      {/* tab bar — fixed height so the seam aligns with the side-chat header */}
-      <div className="flex h-[46px] flex-none items-center gap-1 border-b border-hairline px-2">
+      {/* tab bar — fixed height so the seam aligns with the side-chat header.
+          RTL, per the founder 2026-08-04: tabs start at the right edge and head
+          left, which is also what moves the view toggle to the top LEFT. The
+          workspace holds Hebrew filings and calls, so this is the direction the
+          shelf reads in even when the interface language is English. */}
+      <div dir="rtl" className="flex h-[46px] flex-none items-center gap-1 border-b border-hairline px-2">
         <div className="atscroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {openTabs.map((id) => {
             const f = fileById(id)
@@ -114,13 +118,14 @@ export function WorkspaceDocs({
                     : 'border-transparent text-ink-faint hover:bg-subtle/60'
                 }`}
               >
-                <button
-                  type="button"
-                  onClick={() => onSelect(id)}
-                  dir={f ? 'ltr' : 'auto'}
-                  className="max-w-[190px] truncate"
-                >
-                  {label}
+                <button type="button" onClick={() => onSelect(id)} className="max-w-[190px] truncate">
+                  {/* <bdi>, not dir="ltr". A file name is user-visible content
+                      that can be Hebrew, Latin, or both ("תיגבור Q1 2026"), and
+                      forcing LTR put the truncation ellipsis on the wrong end of
+                      every Hebrew title — the name was clipped at its BEGINNING,
+                      which is why the tabs read as gibberish. <bdi> resolves each
+                      name on its own without leaking direction into the bar. */}
+                  <bdi>{label}</bdi>
                 </button>
                 {/* No `&& f`: the working document may join multi-view too. */}
                 {split && (

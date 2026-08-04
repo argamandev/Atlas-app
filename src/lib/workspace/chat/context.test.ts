@@ -90,10 +90,28 @@ test('a document flattens to page-marked text', () => {
     title: 'דוח',
     docType: 'annual',
     quarter: 'Q1 2026',
+    documentId: 'doc-1',
+    pageCount: 31,
     pages: [{ pageNo: 4, text: 'ההכנסות' }],
   })
   assert.ok(text.includes('[p.4]'))
   assert.ok(text.includes('ההכנסות'))
+})
+
+test('a PDF with no extracted text contributes nothing but is still a document', () => {
+  // It renders — PdfViewer reads the file itself — so `loadDocument` no longer
+  // refuses it. It just cannot be ASKED about, and the chat route reports that
+  // rather than the pane hiding a file the user can see.
+  const text = contentToText({
+    kind: 'document',
+    title: 'scanned filing',
+    docType: 'report',
+    quarter: 'Q1 2026',
+    documentId: 'doc-2',
+    pageCount: 12,
+    pages: [],
+  })
+  assert.equal(text, '')
 })
 
 test('an unavailable item contributes nothing', () => {

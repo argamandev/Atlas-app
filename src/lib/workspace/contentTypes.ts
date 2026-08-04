@@ -29,6 +29,12 @@ export type ItemContent =
       title: string
       docType: string | null
       quarter: string | null
+      /** company_documents.id — what PdfViewer streams the real file by */
+      documentId: string
+      pageCount: number
+      /** extracted per-page text. MAY BE EMPTY while the PDF still renders: the
+       *  viewer reads the file, the chat reads these, and a PDF that was stored
+       *  without extraction can be looked at even though it cannot be asked about. */
       pages: { pageNo: number; text: string }[]
     }
   | { kind: 'unavailable'; title: string; reason: UnavailableReason }

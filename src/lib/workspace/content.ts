@@ -123,7 +123,7 @@ async function loadDocument(
 ): Promise<ItemContent> {
   const { data: doc, error } = await supabase
     .from('company_documents')
-    .select('id, title, doc_type, quarter')
+    .select('id, title, doc_type, quarter, page_count')
     .eq('id', documentId)
     .maybeSingle()
   if (error) throw new Error(error.message)
@@ -140,15 +140,25 @@ async function loadDocument(
     .map((p) => ({ pageNo: p.page_no as number, text: (p.text as string) ?? '' }))
     .filter((p) => p.text.trim().length > 0)
 
-  // A PDF that was stored but never text-extracted. Rendering zero pages inside
-  // a document frame would look like an empty filing rather than a missing one.
-  if (real.length === 0) return { kind: 'unavailable', title: doc.title ?? title, reason: 'no-text' }
+  // NO 'no-text' GUARD HERE ANY MORE, and the reason is worth stating: the pane
+  // renders the actual PDF (components/live/PdfViewer), so a document whose text
+  // was never extracted is still perfectly readable — you just cannot ask about
+  // it. Refusing it would hide a file the user can see with their own eyes.
+  // `pages` may therefore be empty; the chat route counts that as unreadable and
+  // says so, which is where that fact belongs.
+  const pageCount = (doc.page_count as number) ?? real.length
+
+  if (pageCount === 0 && real.length === 0) {
+    return { kind: 'unavailable', title: (doc.title as string) || title, reason: 'no-text' }
+  }
 
   return {
     kind: 'document',
     title: (doc.title as string) || title,
     docType: (doc.doc_type as string) ?? null,
     quarter: (doc.quarter as string) ?? null,
+    documentId: doc.id as string,
+    pageCount,
     pages: real,
   }
 }
