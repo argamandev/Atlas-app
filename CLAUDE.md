@@ -46,6 +46,8 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
 - `docs/VISION.md` — product vision, V1 description, roadmap
 - `docs/product/` — founder briefs. The Projects · Workspace · Agents brief is HALF spent:
   frontend shipped 2026-08-01, **backends are the open half**.
+- `docs/MAYA-API.md` — the TASE Data Hub / MAYA feed: key, endpoints, and the PENDING
+  subscription that is the actual blocker (checked live 2026-08-05)
 - `docs/ENVIRONMENT.md` — how this smart environment works + the dev↔product mapping
 - `docs/LAUNCH-KIT.md` — fleet setup: worktrees + the 3 lane opening prompts
 - `PROGRESS.md` — decision log (append at ship time; old eras → `docs/archive/`)

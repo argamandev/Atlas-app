@@ -175,6 +175,7 @@ export const en = {
     singleView: 'Single view — one file at a time',
     addToSplit: 'Show in multi-view',
     removeFromSplit: 'Hide from multi-view',
+    hidePane: 'Hide from multi-view — the tab stays open',
     resetSplit: 'Reset widths',
     workspaceChat: 'Workspace chat',
 

@@ -659,12 +659,13 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
           onClose={closeTab}
           onToggleSplit={toggleSplit}
           onToggleMulti={(id) => setMulti((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]))}
-          renderSpecial={(id) =>
+          renderSpecial={(id, paneCtl) =>
             id === DOC_TAB ? (
               <WorkingDocument
                 workspaceId={workspace.id}
                 title={docTitleRaw}
                 onRenameDocument={renameDocument}
+                onHidePane={paneCtl.onHidePane}
                 connect={connectReq}
                 onConnected={() => setConnectReq(null)}
                 clip={clipReq}

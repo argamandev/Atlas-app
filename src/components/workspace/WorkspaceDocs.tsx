@@ -44,7 +44,8 @@ export function WorkspaceDocs({
   onClose: (id: string) => void
   onToggleSplit: () => void
   onToggleMulti: (id: string) => void
-  renderSpecial: (id: string) => ReactNode
+  /** `paneCtl.onHidePane` is present only while several panes are on screen */
+  renderSpecial: (id: string, paneCtl: { onHidePane?: () => void }) => ReactNode
   specialLabel: (id: string) => string
   onAskAtlas: (passage: { itemId: string; title: string; text: string }) => void
   onConnect: (passage: { itemId: string; title: string; text: string }) => void
@@ -285,8 +286,20 @@ export function WorkspaceDocs({
           // could never sit beside a source.
           docsShown.map((id, i) => {
             const f = fileById(id)
+            // THE PANE'S OWN ✕ — founder, 2026-08-05: *"we can add an x button on
+            // the top left of each header of a document that is open in Multiview
+            // … it will make that specific document not shown in the multiview,
+            // but it will still be in the tab section."*
+            //
+            // Offered only while there is more than one pane, and only in
+            // multi-view. Removing the LAST pane cannot take the screen down to
+            // nothing — `docsShown` falls back to the active tab, so the ✕ would
+            // have looked broken rather than dangerous, which is worse: a control
+            // that appears to do nothing teaches you to distrust the ones that
+            // work. With one pane there is no multi-view to remove it from.
+            const onHidePane = split && docsShown.length > 1 ? () => onToggleMulti(id) : undefined
             const body = isSpecial(id) ? (
-              renderSpecial(id)
+              renderSpecial(id, { onHidePane })
             ) : f ? (
               <SourceDocument
                 workspaceId={workspace.id}
@@ -297,6 +310,7 @@ export function WorkspaceDocs({
                 onSnip={onSnip}
                 onSnipEnd={onSnipEnd}
                 onSnippable={onSnippable}
+                onHidePane={onHidePane}
               />
             ) : null
             if (!body) return null

@@ -7,6 +7,7 @@ import { ChevronDownIcon, SparkleIcon, ArrowUpIcon, CloseIcon } from '@/componen
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { composeReq } from '@/lib/workspace/client'
 import { clipFigureHtml } from '@/lib/workspace/clip'
+import { HidePaneButton } from './SourceDocument'
 
 // The working document (design lines 1802-1887) — the workspace's deliverable.
 //
@@ -47,6 +48,7 @@ export function WorkingDocument({
   onConnected,
   clip,
   onClipped,
+  onHidePane,
 }: {
   workspaceId: string
   /** the STORED title, which may be '' — the placeholder shows the display name */
@@ -56,6 +58,8 @@ export function WorkingDocument({
   onConnected?: () => void
   clip?: ClipRequest | null
   onClipped?: (ok: boolean) => void
+  /** take this pane off the multi-view — present only while several are on screen */
+  onHidePane?: () => void
 }) {
   const { dict } = useI18n()
   const { docHtml, setDocHtml } = useDemoState()
@@ -246,74 +250,80 @@ export function WorkingDocument({
   return (
     <div className="flex h-full min-h-0 flex-col bg-canvas">
       <div className="flex flex-none items-center gap-1 border-b border-hairline px-4 py-2">
-        <button
-          type="button"
-          title={dict.workspace.docToolHeading}
-          onClick={() => exec('formatBlock', '<h2>')}
-          className={`${tool} font-semibold`}
-        >
-          H
-        </button>
-        <button
-          type="button"
-          title={dict.workspace.docToolBold}
-          onClick={() => exec('bold')}
-          className={`${tool} font-bold`}
-        >
-          B
-        </button>
-        <button
-          type="button"
-          title={dict.workspace.docToolItalic}
-          onClick={() => exec('italic')}
-          className={`${tool} italic`}
-        >
-          I
-        </button>
-        <button
-          type="button"
-          title={dict.workspace.docToolBullet}
-          onClick={() => exec('insertUnorderedList')}
-          className={`${tool} text-[17px]`}
-        >
-          •
-        </button>
-        <button
-          type="button"
-          title={dict.workspace.docToolQuote}
-          onClick={() => exec('formatBlock', '<blockquote>')}
-          className={`${tool} text-[20px] leading-none`}
-        >
-          “
-        </button>
-        {/* The ⤷ "cite" button is gone with the fabricated seed it belonged to:
+        {/* THE TOOLS SCROLL; EXPORT AND THE PANE ✕ DO NOT. In a four-pane
+            multi-view this pane is ~280px wide, and a single flat row pushed
+            whatever sat at its end straight out of the pane — which is where
+            the ✕ landed the first time it was added. The controls that must
+            stay reachable are the ones that are flex-none. */}
+        <div className="atscroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+          <button
+            type="button"
+            title={dict.workspace.docToolHeading}
+            onClick={() => exec('formatBlock', '<h2>')}
+            className={`${tool} font-semibold`}
+          >
+            H
+          </button>
+          <button
+            type="button"
+            title={dict.workspace.docToolBold}
+            onClick={() => exec('bold')}
+            className={`${tool} font-bold`}
+          >
+            B
+          </button>
+          <button
+            type="button"
+            title={dict.workspace.docToolItalic}
+            onClick={() => exec('italic')}
+            className={`${tool} italic`}
+          >
+            I
+          </button>
+          <button
+            type="button"
+            title={dict.workspace.docToolBullet}
+            onClick={() => exec('insertUnorderedList')}
+            className={`${tool} text-[17px]`}
+          >
+            •
+          </button>
+          <button
+            type="button"
+            title={dict.workspace.docToolQuote}
+            onClick={() => exec('formatBlock', '<blockquote>')}
+            className={`${tool} text-[20px] leading-none`}
+          >
+            “
+          </button>
+          {/* The ⤷ "cite" button is gone with the fabricated seed it belonged to:
             it inserted a blockquote pre-filled with the demo marker text, which
             is not a citation, and real citations arrive with the passage now
             ("connect to document"). */}
 
-        {/* "Let Atlas write", replacing "Continue this section" — founder,
+          {/* "Let Atlas write", replacing "Continue this section" — founder,
             2026-08-04. The old button inserted a fixed italic sentence saying no
             model had written it, which was honest and useless. This one opens a
             line and asks what to write. */}
-        <button
-          type="button"
-          onClick={() => setWriteOpen((o) => !o)}
-          aria-expanded={writeOpen}
-          className={`ms-2 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12.5px] font-medium transition-colors ${
-            writeOpen ? 'border-transparent bg-ink text-paper' : 'border-hairline text-ink hover:bg-subtle'
-          }`}
-        >
-          <SparkleIcon size={14} className="flex-none" />
-          {dict.workspace.docLetAtlasWrite}
-        </button>
+          <button
+            type="button"
+            onClick={() => setWriteOpen((o) => !o)}
+            aria-expanded={writeOpen}
+            className={`ms-2 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+              writeOpen ? 'border-transparent bg-ink text-paper' : 'border-hairline text-ink hover:bg-subtle'
+            }`}
+          >
+            <SparkleIcon size={14} className="flex-none" />
+            {dict.workspace.docLetAtlasWrite}
+          </button>
+        </div>
 
-        <span className="flex-1" />
         {/* NO "saved" confirmation here. Nothing saves — edits live in session
             state and are gone on reload. A tick that says otherwise is the
             fake-success class rules/app.md exists to stop. The banner at the top
             of the page already states what is true about this document. */}
 
-        <div ref={exportRef} className="relative">
+        <div ref={exportRef} className="relative flex-none">
           <button
             type="button"
             onClick={() => setExportOpen((o) => !o)}
@@ -348,6 +358,10 @@ export function WorkingDocument({
             </div>
           )}
         </div>
+        {/* The document is a pane like any other in multi-view, so it takes the
+            pane ✕ at the far end of its own header row — the same control, the
+            same meaning: off the screen, still a tab. */}
+        {onHidePane && <HidePaneButton onClick={onHidePane} label={dict.workspace.hidePane} />}
       </div>
 
       {/* THE LINE WHERE YOU TELL ATLAS WHAT TO WRITE. Founder, 2026-08-04:

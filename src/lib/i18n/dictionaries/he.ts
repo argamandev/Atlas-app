@@ -147,6 +147,7 @@ export const he: Dictionary = {
     singleView: 'תצוגה יחידה — קובץ אחד בכל פעם',
     addToSplit: 'הצגה בתצוגה המרובה',
     removeFromSplit: 'הסתרה מהתצוגה המרובה',
+    hidePane: 'הסתרה מהתצוגה המרובה — הלשונית נשארת פתוחה',
     resetSplit: 'איפוס רוחב',
     workspaceChat: 'שיחת סביבת העבודה',
 

@@ -11,7 +11,7 @@ import { usePlayer, usePlayerTime, useViewingCall } from '@/lib/player/PlayerPro
 import { activeWordIndex, flattenWords } from '@/lib/live/syncEngine'
 import type { WordTimedTranscript } from '@/lib/live/syncEngine'
 import { transcriptSync, playbackStarted } from '@/lib/live/syncMode'
-import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon, PlayIcon } from '@/components/ds/icons'
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ScissorsIcon, PlayIcon } from '@/components/ds/icons'
 import type { ChatSnip } from '@/lib/api/chat'
 import type { ItemContent, UnavailableReason } from '@/lib/workspace/contentTypes'
 import type { WsFile } from '@/lib/workspace/data'
@@ -39,9 +39,16 @@ export function SourceDocument({
   onSnip,
   onSnipEnd,
   onSnippable,
+  onHidePane,
 }: {
   workspaceId: string
   file: WsFile
+  /**
+   * Take this pane off the multi-view. Present ONLY while several panes are on
+   * screen — see WorkspaceDocs, which decides that and is the only place that
+   * can, since a pane cannot know what else is beside it.
+   */
+  onHidePane?: () => void
   /** marking a passage offers this; absent means the pane is read-only */
   onAskAtlas?: (passage: { itemId: string; title: string; text: string }) => void
   /** work the marked passage into the working document */
@@ -265,7 +272,7 @@ export function SourceDocument({
     const total = content.pageCount
     return (
       <div className="flex h-full min-h-0 flex-col bg-paper">
-        <PaneBar title={content.title}>
+        <PaneBar title={content.title} onHide={onHidePane}>
           {onSnip && (
             <button
               type="button"
@@ -476,7 +483,7 @@ export function SourceDocument({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-paper">
-      <PaneBar title={title} />
+      <PaneBar title={title} onHide={onHidePane} />
       <div
         ref={paneRef}
         onPointerUp={readSelection}
@@ -573,7 +580,8 @@ export function SourceDocument({
  * It also gives the PDF controls somewhere to live, which is why it is here and
  * not in WorkspaceDocs — the toolbar belongs to the document, not to the frame.
  */
-function PaneBar({ title, children }: { title: string; children?: ReactNode }) {
+function PaneBar({ title, onHide, children }: { title: string; onHide?: () => void; children?: ReactNode }) {
+  const { dict } = useI18n()
   return (
     <div className="flex h-[34px] flex-none items-center justify-between gap-3 border-b border-hairline px-3">
       {/* <bdi>, not dir: a file name mixes scripts ("תיגבור Q1 2026") and this
@@ -581,8 +589,42 @@ function PaneBar({ title, children }: { title: string; children?: ReactNode }) {
       <span className="min-w-0 truncate text-[11.5px] font-semibold text-ink-faint">
         <bdi>{title}</bdi>
       </span>
-      {children && <span className="flex flex-none items-center gap-2.5">{children}</span>}
+      {(children || onHide) && (
+        <span className="flex flex-none items-center gap-2.5">
+          {children}
+          {/* THE FAR END OF THE ROW, which is the physical LEFT because the pane
+              row is RTL — founder, 2026-08-05: *"an x button on the top left of
+              each header of a document that is open in Multiview … it will make
+              that specific document not shown in the multiview, but it will
+              still be in the tab section."* A member of the flex row rather
+              than an overlay, so it cannot land on top of the PDF toolbar that
+              already lives at this end. */}
+          {onHide && <HidePaneButton onClick={onHide} label={dict.workspace.hidePane} />}
+        </span>
+      )}
     </div>
+  )
+}
+
+/**
+ * ONE ✕ PER MEANING, and this one means "off the screen, still a tab".
+ *
+ * The tab bar's ✕ closes the tab (the file stays on the shelf); this one only
+ * takes the pane down. They are never adjacent — that was the confusion the
+ * founder reported on 2026-08-05 about two ✕s side by side inside one tab chip
+ * — and each says which it is on hover.
+ */
+export function HidePaneButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md text-ink-ghost transition-colors hover:bg-subtle hover:text-ink"
+    >
+      <CloseIcon size={12} strokeWidth={2.2} />
+    </button>
   )
 }
 
