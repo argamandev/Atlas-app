@@ -108,6 +108,20 @@
   a >2MB Pinge snip renders as a chip client-side but is silently stripped server-side, model
   answers without the image (FINDING 2026-07-23). Recurring class: degradation must be VISIBLE
   — never render success UI for content the server dropped.
+- **`player.load()` does not give the `<audio>` its source until the NEXT render — so `load()`
+  then `play()` in one handler plays NOTHING.** `load()` only sets React state; an effect points
+  the element at the URL and calls `a.load()` a render later, which rejects (and then aborts) a
+  `play()` issued in the same tick. Every surface that loads and plays together — the workspace's
+  "Play the recording", clicking a word to hear it — therefore started nothing until it was
+  pressed a SECOND time. It hid because the pane lit its karaoke up on the press regardless: the
+  only tell was silence, and the errors were swallowed by a `.catch(() => {})`. Fixed 2026-08-05
+  with `pendingPlayRef` in `lib/player/PlayerProvider.tsx` — the twin of the `pendingSeekRef`
+  that already existed for the same reason — replayed once on `canplay` and cleared by any
+  pause/close, so a remembered press can never restart audio the user has since stopped.
+  **The general lesson: state set through React is not state the DOM has yet, so an intent that
+  must reach a media element inside one gesture has to be REMEMBERED, not fired and hoped.** It
+  was found only because gating the karaoke on real playback (`lib/live/syncMode.ts`) removed the
+  false feedback that had been standing in for the audio.
 - **pdf.js (Report pane) gotchas:** browser imports the COMMITTED `public/pdf.min.mjs` +
   `pdf.worker.min.mjs` natively (Next 14 webpack mangles the pdfjs ESM bundle) — re-sync both
   on any pdfjs-dist bump. `getDocument({data})` DETACHES the passed Uint8Array — hand it a

@@ -31,6 +31,7 @@ import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
 import { usePlayer, usePlayerTimeDerived, useViewingCall } from '@/lib/player/PlayerProvider'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
+import { transcriptSync, playbackStarted } from '@/lib/live/syncMode'
 import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
 import type { ChatSnip } from '@/lib/api/chat'
@@ -63,6 +64,15 @@ export function LiveTranscriptView({
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = usePlayerTimeDerived((t) => (isActiveCall ? activeWordIndex(flat, t) : -1))
   const clockSec = usePlayerTimeDerived((t) => (isActiveCall ? Math.floor(t) : 0))
+  // Karaoke and its follow chip are ONE mode, entered by STARTING the recording — see
+  // lib/live/syncMode. Note this page loads the call into the player on mount (below),
+  // so "is the player's track" is true on arrival and would not have gated anything.
+  // clockSec, not the raw 60fps clock: a whole-second tick is enough to know we left zero.
+  const sync = transcriptSync({
+    hasWordTimings: call.transcript.hasWordTimings,
+    isActiveTrack: isActiveCall,
+    started: playbackStarted({ playing, positionSec: clockSec }),
+  })
   // remember the last playhead so the "Open audio bar" chip can resume where the user closed it
   // (second granularity is plenty — clockSec keeps this off the 60fps tick)
   const lastPosRef = useRef(0)
@@ -728,9 +738,9 @@ export function LiveTranscriptView({
                   <TranscriptBody
                     transcript={call.transcript}
                     activeIndex={activeIndex}
-                    autoScroll={autoScroll}
+                    autoScroll={autoScroll && sync.follow}
                     onWordClick={seek}
-                    karaoke={call.transcript.hasWordTimings && isActiveCall}
+                    karaoke={sync.karaoke}
                     onRenameSpeaker={renameSpeaker}
                     searchMatches={matches}
                     activeMatch={matches[matchPos] ?? -1}

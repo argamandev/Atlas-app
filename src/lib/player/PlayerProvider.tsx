@@ -153,6 +153,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const listeners = useRef(new Set<() => void>())
   const rafRef = useRef(0)
   const pendingSeekRef = useRef<number | null>(null)
+  /**
+   * A PRESS OF PLAY CAN ARRIVE BEFORE THE <audio> HAS A SOURCE.
+   *
+   * `load()` only sets React state; the element is pointed at the new URL in an
+   * effect one render LATER. A surface that loads and plays in the same handler
+   * — the workspace's "Play the recording", and clicking a word to hear it —
+   * therefore called `play()` on a source-less element, which rejects, and then
+   * the effect ran `a.load()`, which would have aborted it anyway. Nothing
+   * played until the button was pressed a SECOND time.
+   *
+   * It survived because it was invisible: the pane lit up its karaoke on the
+   * press regardless, so the only tell was silence. Gating the karaoke on real
+   * playback (lib/live/syncMode) is what exposed it.
+   *
+   * So the intent is remembered and replayed on `canplay` — the same shape as
+   * `pendingSeekRef` above, for the same reason. ONE SHOT: the flag is cleared
+   * before the retry, and by any pause/close, so a remembered press can never
+   * become a standing order that starts audio the user has since stopped.
+   */
+  const pendingPlayRef = useRef(false)
   const notify = useCallback(() => listeners.current.forEach((l) => l()), [])
   const subscribeTime = useCallback((cb: () => void) => {
     listeners.current.add(cb)
@@ -210,14 +230,35 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const hideBar = useCallback(() => setBarHidden(true), [])
   const showBar = useCallback(() => setBarHidden(false), [])
   const play = useCallback(() => {
-    void audioRef.current?.play().catch(() => {})
+    pendingPlayRef.current = true
+    const a = audioRef.current
+    if (!a) return
+    void a
+      .play()
+      .then(() => {
+        pendingPlayRef.current = false
+      })
+      .catch(() => {}) // left pending on purpose — onCanPlay retries once
   }, [])
-  const pause = useCallback(() => audioRef.current?.pause(), [])
+  const pause = useCallback(() => {
+    pendingPlayRef.current = false
+    audioRef.current?.pause()
+  }, [])
   const toggle = useCallback(() => {
     const a = audioRef.current
     if (!a) return
-    if (a.paused) void a.play().catch(() => {})
-    else a.pause()
+    if (a.paused) {
+      pendingPlayRef.current = true
+      void a
+        .play()
+        .then(() => {
+          pendingPlayRef.current = false
+        })
+        .catch(() => {})
+    } else {
+      pendingPlayRef.current = false
+      a.pause()
+    }
   }, [])
   const seek = useCallback(
     (t: number) => {
@@ -246,6 +287,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const addViewing = useCallback((id: string) => setViewingIds(addViewer(viewerCounts.current, id)), [])
   const removeViewing = useCallback((id: string) => setViewingIds(removeViewer(viewerCounts.current, id)), [])
   const close = useCallback(() => {
+    pendingPlayRef.current = false
     audioRef.current?.pause()
     setCall(null)
     setPlaying(false)
@@ -296,6 +338,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             pendingSeekRef.current = null
             notify()
           }
+        }}
+        onCanPlay={(e) => {
+          if (!pendingPlayRef.current) return
+          pendingPlayRef.current = false // one shot, before the retry
+          void e.currentTarget.play().catch(() => {})
         }}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}

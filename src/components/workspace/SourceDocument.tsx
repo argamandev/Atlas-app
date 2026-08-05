@@ -10,6 +10,7 @@ import { TranscriptBody } from '@/components/live/TranscriptBody'
 import { usePlayer, usePlayerTime, useViewingCall } from '@/lib/player/PlayerProvider'
 import { activeWordIndex, flattenWords } from '@/lib/live/syncEngine'
 import type { WordTimedTranscript } from '@/lib/live/syncEngine'
+import { transcriptSync, playbackStarted } from '@/lib/live/syncMode'
 import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon, PlayIcon } from '@/components/ds/icons'
 import type { ChatSnip } from '@/lib/api/chat'
 import type { ItemContent, UnavailableReason } from '@/lib/workspace/contentTypes'
@@ -659,6 +660,16 @@ function KaraokeTranscript({
   // light up a highlight in a transcript it has nothing to do with.
   const isActive = player.call?.id === content.transcriptId
   const activeIndex = isActive ? activeWordIndex(flat, t) : -1
+  // READING IS THE COMMON CASE. Until the recording is started this pane is a plain,
+  // fully-black transcript — karaoke with nothing playing fades every word at once
+  // (active index -1 ⇒ all "upcoming"), which is the state the founder saw.
+  // hasWordTimings is true by construction — this component renders only behind the
+  // `content.wordTimed && content.audioUrl` guard above.
+  const sync = transcriptSync({
+    hasWordTimings: true,
+    isActiveTrack: isActive,
+    started: playbackStarted({ playing: player.playing, positionSec: t }),
+  })
 
   const asCall = useCallback(
     (startAt?: number) => ({
@@ -713,8 +724,8 @@ function KaraokeTranscript({
       <TranscriptBody
         transcript={content.wordTimed}
         activeIndex={activeIndex}
-        autoScroll
-        karaoke
+        autoScroll={sync.follow}
+        karaoke={sync.karaoke}
         followLabel={dict.live.backToPlaying}
         // Click a word to hear it. If the call is not the active track yet, load
         // it AT that word rather than at zero — the click already said where.
