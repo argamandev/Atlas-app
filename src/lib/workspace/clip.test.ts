@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { clipFigureHtml, escapeHtml } from './clip'
+import { clipFigureHtml, clipDerivedHtml, escapeHtml } from './clip'
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo='
 
@@ -59,4 +59,30 @@ test('an unnamed source still gets a caption, not an empty one', () => {
 
 test('escapeHtml covers the five characters that matter', () => {
   assert.equal(escapeHtml(`<a href="x">&'`), '&lt;a href=&quot;x&quot;&gt;&amp;&#39;')
+})
+
+test('what Atlas made of a clip keeps the source line under it', () => {
+  const html = clipDerivedHtml({
+    html: '<table><tr><td>1,204</td></tr></table>',
+    title: 'דוח דירקטוריון Q1 2026',
+    pageLabel: 'page 4',
+  })!
+  assert.ok(html.includes('<table><tr><td>1,204</td></tr></table>'))
+  // Provenance, per run, so the Hebrew title cannot flip the Latin page label.
+  assert.ok(html.includes('<bdi>דוח דירקטוריון Q1 2026</bdi> · <bdi>page 4</bdi>'))
+  assert.ok(html.includes('class="atlas-clip-cite"'))
+})
+
+test('a derived clip with nothing in it is refused, not inserted empty', () => {
+  assert.equal(clipDerivedHtml({ html: '   ', title: 't', pageLabel: 'p' }), null)
+})
+
+test('markup in a derived clip TITLE cannot become markup', () => {
+  const html = clipDerivedHtml({
+    html: '<p>ok</p>',
+    title: '<img src=x onerror=alert(1)>',
+    pageLabel: 'page 1',
+  })!
+  assert.equal(html.match(/<img /g), null)
+  assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'))
 })

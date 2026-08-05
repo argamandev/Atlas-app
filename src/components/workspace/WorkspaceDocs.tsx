@@ -6,6 +6,7 @@ import { useViewingCalls } from '@/lib/player/PlayerProvider'
 import { CloseIcon, ColumnsIcon, SinglePaneIcon, SparkleIcon } from '@/components/ds/icons'
 import { SourceDocument } from './SourceDocument'
 import { tabLabel } from '@/lib/workspace/tabLabel'
+import { shownPanes } from '@/lib/workspace/panes'
 import type { ChatSnip } from '@/lib/api/chat'
 import type { Workspace } from '@/lib/workspace/data'
 
@@ -95,8 +96,10 @@ export function WorkspaceDocs({
   // `multi` still empty, every pane vanished, and the user got "Nothing open" —
   // so multi-view looked like it did not exist. The screen must never blank as a
   // RESULT of a view control.
-  const paneTabs = split ? openTabs.filter((id) => multi.includes(id)) : activeTab ? [activeTab] : []
-  const docsShown = paneTabs.length > 0 ? paneTabs : activeTab ? [activeTab] : []
+  // lib/workspace/panes — the shell asks the SAME function whether the working
+  // document is on screen, because it now composes into it either way and has to
+  // know whether there is a live DOM to splice into.
+  const docsShown = shownPanes({ split, openTabs, multi, activeTab })
 
   function onGutterDown(e: React.PointerEvent, id: string, nextId: string) {
     // Guard the capture call — an unguarded setPointerCapture was a real bug in

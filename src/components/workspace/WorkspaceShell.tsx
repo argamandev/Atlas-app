@@ -14,13 +14,17 @@ import {
   ChevronRightIcon,
 } from '@/components/ds/icons'
 import { WorkspaceDetailColumn, type DetailKey } from './WorkspaceDetailColumn'
-import { WorkingDocument, type ClipRequest, type ConnectRequest } from './WorkingDocument'
+import { WorkingDocument } from './WorkingDocument'
 import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
 import { WorkspaceDocs } from './WorkspaceDocs'
 import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
 import { documentTitle } from '@/lib/workspace/present'
 import { detectDir } from '@/lib/utils'
-import { patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
+import { composeReq, patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
+import { useDemoState } from '@/lib/demo/DemoStateProvider'
+import { shownPanes } from '@/lib/workspace/panes'
+import { clipDerivedHtml, clipFigureHtml } from '@/lib/workspace/clip'
+import { htmlHeadings, htmlToText, spliceHtml } from '@/lib/workspace/docInsert'
 import { WorkspaceIntake } from './WorkspaceIntake'
 import { WorkspaceChat, type AskContext } from './WorkspaceChat'
 import { ErrorLine } from '@/components/projects/ErrorLine'
@@ -125,13 +129,140 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   // costs the chat path one click, which is the price of the destination being
   // visible instead of assumed.
   const [clipDraft, setClipDraft] = useState<{ snip: ChatSnip; title: string } | null>(null)
-  const [clipReq, setClipReq] = useState<ClipRequest | null>(null)
-  const [clipDone, setClipDone] = useState<'added' | 'failed' | null>(null)
-  const clipNonce = useRef(0)
+  const [clipNote, setClipNote] = useState('')
+
+  /**
+   * ═══ EVERYTHING THAT GOES INTO THE WORKING DOCUMENT GOES THROUGH HERE ═══
+   *
+   * Founder, 2026-08-05: *"when you are marking a text or the snipping tool and
+   * you're pressing connect to document, it needs to happen in the back … you
+   * don't need to be sent into the document automatically as a user."*
+   *
+   * That one sentence moved the work. It used to live inside WorkingDocument,
+   * which meant the composition could only run while that pane was mounted — so
+   * the old code had to yank the analyst into the document tab to do anything,
+   * which is exactly what he is asking us to stop doing. The shell can compose
+   * with the pane closed because the document's text lives in the store, not in
+   * the DOM.
+   *
+   * `insertReq` is for when the pane IS mounted: the fragment lands in the live
+   * body the analyst may be typing into, rather than through a re-seed that
+   * would take their caret with it. When it is not mounted the same fragment is
+   * spliced into the stored HTML, and the pane shows it at its next mount.
+   */
+  const [insertReq, setInsertReq] = useState<{
+    nonce: number
+    html: string
+    afterHeading: string | null
+  } | null>(null)
+  const insertNonce = useRef(0)
+  /** what Atlas is composing for the document right now, if anything */
+  const [docBusy, setDocBusy] = useState<'passage' | 'clip' | null>(null)
+  const [docDone, setDocDone] = useState<'added' | 'failed' | 'nothing' | null>(null)
+  const docDoneTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { docHtml, setDocHtml } = useDemoState()
+
+  const flashDone = useCallback((state: 'added' | 'failed' | 'nothing') => {
+    setDocDone(state)
+    if (docDoneTimer.current) clearTimeout(docDoneTimer.current)
+    docDoneTimer.current = setTimeout(() => setDocDone(null), 4000)
+  }, [])
+  useEffect(
+    () => () => {
+      if (docDoneTimer.current) clearTimeout(docDoneTimer.current)
+    },
+    []
+  )
+
+  /** Is the working document a pane on screen right now? `shownPanes` is the
+   *  renderer's own rule — asking it here is what keeps the two from drifting. */
+  const docPaneShown = () => shownPanes({ split, openTabs, multi, activeTab }).includes(DOC_TAB)
+
+  /**
+   * Put a ready fragment in the document, mounted or not, and say so.
+   *
+   * The fragment is already sanitised — either built here (clipFigureHtml) or
+   * scrubbed by parseCompose on the way out of the model. Nothing unsanitised
+   * may reach this function; it goes straight into a contentEditable.
+   */
+  const putInDocument = useCallback(
+    (html: string, afterHeading: string | null, _kind: 'passage' | 'clip') => {
+      if (docPaneShown()) {
+        insertNonce.current += 1
+        setInsertReq({ nonce: insertNonce.current, html, afterHeading })
+      } else {
+        setDocHtml(workspace.id, spliceHtml(docHtml[workspace.id] ?? '', html, afterHeading))
+      }
+      flashDone('added')
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [split, openTabs, multi, activeTab, docHtml, setDocHtml, workspace.id, flashDone]
+  )
+
+  /**
+   * Ask Atlas to write something into the document, from wherever the analyst is.
+   *
+   * The document it reasons about is the STORED html — which is why the editor
+   * persists while you type and not only on blur. Same call for a marked passage
+   * and for a clipping; the clip variant sends the image too.
+   */
+  const composeIntoDocument = useCallback(
+    async (input: {
+      instruction: string
+      kind: 'passage' | 'clip'
+      passage?: { title: string; text: string }
+      clip?: { image: ChatSnip; title: string; pageLabel: string }
+    }) => {
+      const html = docHtml[workspace.id] ?? ''
+      setDocBusy(input.kind)
+      try {
+        const { result } = await composeReq(workspace.id, {
+          instruction: input.instruction,
+          document: htmlToText(html),
+          headings: htmlHeadings(html),
+          passage: input.passage ?? null,
+          clip: input.clip
+            ? { image: input.clip.image, title: input.clip.title, pageLabel: input.clip.pageLabel }
+            : null,
+        })
+        setDocBusy(null)
+        if (!result) {
+          // NOT a silent no-op: a card that closes over a document which gained
+          // nothing is indistinguishable from success (rules/app.md).
+          flashDone('nothing')
+          return
+        }
+        // A clipping's answer keeps the provenance the image would have carried —
+        // a table typed out of a filing looks like a table somebody invented.
+        const fragment = input.clip
+          ? clipDerivedHtml({
+              html: result.html,
+              title: input.clip.title,
+              pageLabel: input.clip.pageLabel,
+            })
+          : result.html
+        if (!fragment) {
+          flashDone('nothing')
+          return
+        }
+        putInDocument(fragment, result.afterHeading, input.kind)
+      } catch {
+        setDocBusy(null)
+        flashDone('failed')
+      }
+    },
+    [docHtml, workspace.id, putInDocument, flashDone]
+  )
 
   const takeSnip = useCallback((snip: ChatSnip, source: { itemId: string; title: string }) => {
     setSnipArm(0) // one clip per arming, as in the call
     setClipDraft({ snip, title: source.title })
+    // A FRESH CLIP IS A FRESH QUESTION. Without this the next clipping arrives
+    // carrying the last one's instruction — the card opens reading "Extract the
+    // data as text" with its button already saying "Let Atlas do it", so someone
+    // who wanted a plain screenshot gets a model call they never asked for.
+    // Caught in the browser on the second clip of the session, not by a test.
+    setClipNote('')
   }, [])
 
   // NOTHING WITH A SIDE EFFECT GOES INSIDE A STATE UPDATER. React 18 invokes
@@ -159,13 +290,22 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   // 2026-08-04: *"he again gives a short description on where to put this text
   // in the document and how, and atlas adds it to the document."*
   //
-  // Two states, because they are two different moments: `connectDraft` is the
-  // passage waiting for that sentence, `connectReq` is the whole thing handed to
-  // the document. The nonce is what lets the same passage be sent twice.
+  // `connectDraft` is the passage waiting for that sentence. What used to follow
+  // it — a request object handed to the document pane — is gone: the composition
+  // runs here now (see composeIntoDocument), so the analyst stays where they are.
   const [connectDraft, setConnectDraft] = useState<{ title: string; text: string } | null>(null)
   const [connectNote, setConnectNote] = useState('')
-  const [connectReq, setConnectReq] = useState<ConnectRequest | null>(null)
-  const connectNonce = useRef(0)
+
+  const connectToDocument = useCallback(() => {
+    if (!connectDraft || !connectNote.trim()) return
+    const passage = { title: connectDraft.title, text: connectDraft.text }
+    const instruction = connectNote.trim()
+    // Close the card FIRST: the analyst is done with it, and it must not sit
+    // there looking like it is still waiting for something.
+    setConnectDraft(null)
+    setConnectNote('')
+    void composeIntoDocument({ instruction, passage, kind: 'passage' })
+  }, [connectDraft, connectNote, composeIntoDocument])
 
   const [layoutError, setLayoutError] = useState<unknown>(null)
   const [renameError, setRenameError] = useState<unknown>(null)
@@ -326,23 +466,38 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [clipDraft])
 
-  /** The other destination: into the document, as evidence, with its source named. */
-  const clipToDocument = useCallback(() => {
-    if (!clipDraft) return
-    const { snip, title } = clipDraft
-    setClipDraft(null)
-    clipNonce.current += 1
-    setClipReq({
-      nonce: clipNonce.current,
-      dataUrl: snip.dataUrl,
-      title,
-      pageLabel: dict.workspace.clipPage.replace('{page}', String(snip.page)),
-    })
-    // Insert where the analyst can see it happen — same rule as connecting a
-    // marked passage. A figure appearing in a pane nobody is looking at is
-    // indistinguishable from nothing happening.
-    openTab(DOC_TAB)
-  }, [clipDraft, dict.workspace.clipPage, openTab])
+  /**
+   * THE OTHER DESTINATION: into the document, as evidence, with its source named.
+   *
+   * With no instruction the clipping goes in exactly as it was cut — no model,
+   * instant. With one, Atlas is asked what to make of the picture (founder,
+   * 2026-08-05: *"do I want to add it as a screenshot, do I want to extract the
+   * data from that screenshot and only present it as text, do I want to create
+   * my own table from it"*) and what lands is its answer, under the same source
+   * line the image would have carried.
+   */
+  const clipToDocument = useCallback(
+    (instruction: string) => {
+      if (!clipDraft) return
+      const { snip, title } = clipDraft
+      const pageLabel = dict.workspace.clipPage.replace('{page}', String(snip.page))
+      setClipDraft(null)
+      const note = instruction.trim()
+      if (!note) {
+        const html = clipFigureHtml({ dataUrl: snip.dataUrl, title, pageLabel })
+        if (html) putInDocument(html, null, 'clip')
+        else setDocDone('failed')
+        return
+      }
+      void composeIntoDocument({
+        instruction: note,
+        clip: { image: snip, title, pageLabel },
+        kind: 'clip',
+      })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clipDraft, dict.workspace.clipPage]
+  )
 
   /**
    * Multi-view, ON: every open tab becomes a pane.
@@ -666,18 +821,9 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                 title={docTitleRaw}
                 onRenameDocument={renameDocument}
                 onHidePane={paneCtl.onHidePane}
-                connect={connectReq}
-                onConnected={() => setConnectReq(null)}
-                clip={clipReq}
-                onClipped={(ok) => {
-                  setClipReq(null)
-                  // Say what happened, either way. The figure lands at the end of
-                  // the document, which may be below the fold, so a silent insert
-                  // is indistinguishable from a click that did nothing — and a
-                  // silent FAILURE is the worse half of that (rules/app.md).
-                  setClipDone(ok ? 'added' : 'failed')
-                  setTimeout(() => setClipDone(null), 2600)
-                }}
+                insert={insertReq}
+                onInserted={() => setInsertReq(null)}
+                incoming={docBusy !== null}
               />
             ) : id === LEGAL_TAB ? (
               <LegalAgentChat areas={legalAreas} />
@@ -759,66 +905,163 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
           and of the hidden-bar pill below it. */}
       {clipDraft && (
         <div className="pointer-events-none absolute inset-x-0 bottom-24 z-40 flex justify-center px-4">
-          <div className="pointer-events-auto flex max-w-[520px] items-center gap-3 rounded-win border border-float-line bg-canvas p-3 shadow-pane">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={clipDraft.snip.dataUrl}
-              alt=""
-              className="h-14 w-20 flex-none rounded-md border border-hairline object-cover"
-            />
-            <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-ink">{dict.workspace.clipWhere}</div>
-              {/* Each run its own <bdi>: a Hebrew filing title beside a Latin page run. */}
-              <div className="truncate text-[11.5px] text-ink-ghost">
-                <bdi>{clipDraft.title}</bdi> ·{' '}
-                <bdi>{dict.workspace.clipPage.replace('{page}', String(clipDraft.snip.page))}</bdi>
+          <div className="pointer-events-auto flex w-full max-w-[560px] flex-col gap-2.5 rounded-win border border-float-line bg-canvas p-3 shadow-pane">
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={clipDraft.snip.dataUrl}
+                alt=""
+                className="h-14 w-20 flex-none rounded-md border border-hairline object-cover"
+              />
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold text-ink">{dict.workspace.clipWhere}</div>
+                {/* Each run its own <bdi>: a Hebrew filing title beside a Latin page run. */}
+                <div className="truncate text-[11.5px] text-ink-ghost">
+                  <bdi>{clipDraft.title}</bdi> ·{' '}
+                  <bdi>{dict.workspace.clipPage.replace('{page}', String(clipDraft.snip.page))}</bdi>
+                </div>
+              </div>
+              <div className="ms-auto flex flex-none items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={clipToChat}
+                  className="flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-subtle"
+                >
+                  <SparkleIcon size={14} className="flex-none" />
+                  {dict.workspace.clipToChat}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => clipToDocument(clipNote)}
+                  className="rounded-lg bg-ink px-2.5 py-1.5 text-[12.5px] font-medium text-paper transition-opacity hover:opacity-90"
+                >
+                  {clipNote.trim() ? dict.workspace.clipDoIt : dict.workspace.clipToDocument}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClipDraft(null)}
+                  title={dict.workspace.clipDiscard}
+                  aria-label={dict.workspace.clipDiscard}
+                  className={iconBtn}
+                >
+                  <CloseIcon size={14} strokeWidth={2} />
+                </button>
               </div>
             </div>
-            <div className="ms-auto flex flex-none items-center gap-1.5">
-              <button
-                type="button"
-                onClick={clipToChat}
-                className="flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-subtle"
-              >
-                <SparkleIcon size={14} className="flex-none" />
-                {dict.workspace.clipToChat}
-              </button>
-              <button
-                type="button"
-                onClick={clipToDocument}
-                className="rounded-lg bg-ink px-2.5 py-1.5 text-[12.5px] font-medium text-paper transition-opacity hover:opacity-90"
-              >
-                {dict.workspace.clipToDocument}
-              </button>
-              <button
-                type="button"
-                onClick={() => setClipDraft(null)}
-                title={dict.workspace.clipDiscard}
-                aria-label={dict.workspace.clipDiscard}
-                className={iconBtn}
-              >
-                <CloseIcon size={14} strokeWidth={2} />
-              </button>
+
+            {/* ═══ WHAT SHOULD ATLAS DO WITH IT ═══
+                Founder, 2026-08-05: *"when you are connecting a snipping tool
+                into the document, you can also dictate Atlas what to do with it —
+                do I want to add it as a screenshot, do I want to extract the data
+                from that screenshot and only present it as text, do I want to
+                create my own table from it."*
+
+                EMPTY IS THE FAST PATH and stays the default: no instruction, no
+                model, the image goes in exactly as it was cut. The three chips
+                are the answers he named, written into the same box so a fourth
+                one can be typed — they fill the field rather than firing, so what
+                is about to happen is always readable before it happens. */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[dict.workspace.clipAsImage, dict.workspace.clipAsText, dict.workspace.clipAsTable].map(
+                (preset, i) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    // The first chip is "as it is": it CLEARS the instruction
+                    // rather than describing it, because no instruction is what
+                    // makes that path instant.
+                    onClick={() => setClipNote(i === 0 ? '' : preset)}
+                    className={`rounded-full border px-2.5 py-1 text-[12px] transition-colors ${
+                      (i === 0 && !clipNote.trim()) || clipNote === preset
+                        ? 'border-transparent bg-ink text-paper'
+                        : 'border-hairline text-ink-muted hover:bg-subtle'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                )
+              )}
             </div>
+            <input
+              value={clipNote}
+              onChange={(e) => setClipNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') clipToDocument(clipNote)
+              }}
+              placeholder={dict.workspace.clipNotePlaceholder}
+              dir="auto"
+              aria-label={dict.workspace.clipNotePlaceholder}
+              className="w-full rounded-lg border border-hairline bg-paper px-2.5 py-1.5 text-[12.5px] text-ink outline-none placeholder:text-ink-ghost focus:border-ink-ghost"
+            />
           </div>
         </div>
       )}
 
-      {/* It landed — or it did not. Both are said out loud. */}
-      {clipDone && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-40 flex justify-center px-4">
+      {/* ═══ ATLAS, WORKING, WITHOUT TAKING THE SCREEN ═══
+          Founder, 2026-08-05: *"it needs to happen in the back … I'll suggest
+          adding it to the document, and that's pretty much it."*
+
+          One quiet line at the bottom instead of the old behaviour, which was to
+          throw the analyst into the document tab and open an empty "tell Atlas
+          what to write" input on top of a request they had just dictated. It
+          reports the two things a background job owes you: that it is running,
+          and how it ended — with the way IN to what it made, rather than a jump
+          you did not ask for. */}
+      {(docBusy || docDone) && !clipDraft && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-40 flex justify-center px-4">
           <div
             role="status"
-            className="rounded-full bg-ink px-3.5 py-2 text-[12.5px] font-medium text-paper shadow-popover"
+            aria-live="polite"
+            className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-float-line bg-canvas py-2 ps-3.5 pe-2 text-[12.5px] text-ink shadow-pane"
           >
-            {clipDone === 'added' ? dict.workspace.clipAdded : dict.workspace.snipFailed}
+            {docBusy ? (
+              <>
+                <SparkleIcon size={14} className="flex-none animate-pulse text-ink-faint" />
+                {/* nowrap: this pill can sit under a card that is 280px wide in a
+                    four-pane split, and a status broken across three lines is the
+                    opposite of quiet. */}
+                <span className="whitespace-nowrap">
+                  {docBusy === 'clip' ? dict.workspace.docWorkingClip : dict.workspace.docWorking}
+                </span>
+                <span className="atlas-writing-line w-16 flex-none" aria-hidden />
+              </>
+            ) : (
+              <>
+                <span>
+                  {docDone === 'added'
+                    ? dict.workspace.docAdded
+                    : docDone === 'nothing'
+                      ? dict.workspace.docWriteNoAnswer
+                      : dict.workspace.docFailed}
+                </span>
+                {docDone === 'added' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocDone(null)
+                      openTab(DOC_TAB)
+                    }}
+                    className="rounded-full bg-ink px-2.5 py-1 text-[12px] font-medium text-paper"
+                  >
+                    {dict.workspace.docOpen}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDocDone(null)}
+                  aria-label={dict.common.close}
+                  className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-ink-ghost hover:bg-subtle hover:text-ink"
+                >
+                  <CloseIcon size={12} strokeWidth={2.2} />
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
 
       {/* "Where should this go, and how?" — the one sentence that turns a marked
-          passage into a paragraph in the document. It opens the document tab
-          itself, so the insertion happens somewhere the user is looking. */}
+          passage into a paragraph in the document. */}
       {connectDraft && (
         <div
           className="absolute inset-0 z-40 flex items-start justify-center bg-ink/20 p-8"
@@ -855,16 +1098,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
               value={connectNote}
               onChange={(e) => setConnectNote(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key !== 'Enter' || !connectNote.trim()) return
-                connectNonce.current += 1
-                setConnectReq({
-                  nonce: connectNonce.current,
-                  title: connectDraft.title,
-                  text: connectDraft.text,
-                  instruction: connectNote.trim(),
-                })
-                setConnectDraft(null)
-                openTab(DOC_TAB)
+                if (e.key === 'Enter') connectToDocument()
               }}
               placeholder={dict.workspace.connectPlaceholder}
               dir="auto"
@@ -873,17 +1107,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
             <button
               type="button"
               disabled={!connectNote.trim()}
-              onClick={() => {
-                connectNonce.current += 1
-                setConnectReq({
-                  nonce: connectNonce.current,
-                  title: connectDraft.title,
-                  text: connectDraft.text,
-                  instruction: connectNote.trim(),
-                })
-                setConnectDraft(null)
-                openTab(DOC_TAB)
-              }}
+              onClick={connectToDocument}
               className="self-end rounded-lg bg-ink px-3.5 py-2 text-[13px] font-medium text-paper disabled:opacity-40"
             >
               {dict.workspace.connectTo}

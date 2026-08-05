@@ -6,7 +6,7 @@ import { useDemoState } from '@/lib/demo/DemoStateProvider'
 import { ChevronDownIcon, SparkleIcon, ArrowUpIcon, CloseIcon } from '@/components/ds/icons'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { composeReq } from '@/lib/workspace/client'
-import { clipFigureHtml } from '@/lib/workspace/clip'
+import { insertIntoBody } from '@/lib/workspace/docInsert'
 import { HidePaneButton } from './SourceDocument'
 
 // The working document (design lines 1802-1887) — the workspace's deliverable.
@@ -44,20 +44,28 @@ export function WorkingDocument({
   workspaceId,
   title,
   onRenameDocument,
-  connect,
-  onConnected,
-  clip,
-  onClipped,
+  insert,
+  onInserted,
+  incoming = false,
   onHidePane,
 }: {
   workspaceId: string
   /** the STORED title, which may be '' — the placeholder shows the display name */
   title: string
   onRenameDocument: (next: string) => void
-  connect?: ConnectRequest | null
-  onConnected?: () => void
-  clip?: ClipRequest | null
-  onClipped?: (ok: boolean) => void
+  /**
+   * A fragment the SHELL prepared — a composed passage, a clipping, whatever the
+   * analyst connected. The shell owns that work now (founder, 2026-08-05: *"it
+   * needs to happen in the back … you don't need to be sent into the document"*),
+   * because it has to happen whether or not this pane is mounted. When it is,
+   * the shell hands the fragment here so it lands in the LIVE body — the DOM the
+   * analyst may be typing into — rather than through a re-seed that would eat
+   * their caret.
+   */
+  insert?: { nonce: number; html: string; afterHeading: string | null } | null
+  onInserted?: () => void
+  /** the shell is composing something for this document right now */
+  incoming?: boolean
   /** take this pane off the multi-view — present only while several are on screen */
   onHidePane?: () => void
 }) {
@@ -74,6 +82,14 @@ export function WorkingDocument({
   const [writing, setWriting] = useState(false)
   const [writeError, setWriteError] = useState<unknown>(null)
   const writeRef = useRef<HTMLInputElement>(null)
+  /** debounce for persist-while-typing (see the body's onInput) */
+  const typeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (typeTimer.current) clearTimeout(typeTimer.current)
+    },
+    []
+  )
 
   /**
    * Splice a passage in WITHOUT touching what is already there.
@@ -89,43 +105,13 @@ export function WorkingDocument({
     (fragment: string, afterHeading: string | null) => {
       const body = bodyRef.current
       if (!body) return
-      const holder = document.createElement('div')
-      holder.innerHTML = fragment
-      const nodes = Array.from(holder.childNodes)
-      if (nodes.length === 0) return
-
-      const isHeading = (n: Node): boolean => n.nodeType === 1 && /^H[1-3]$/.test((n as Element).tagName)
-
-      let anchor: Node | null = null
-      if (afterHeading) {
-        anchor =
-          Array.from(body.querySelectorAll('h1,h2,h3')).find(
-            (h) => (h.textContent ?? '').trim() === afterHeading
-          ) ?? null
-        // Walk to the end of that section, so the passage joins it rather than
-        // wedging between the heading and its own first paragraph.
-        if (anchor) {
-          let next = anchor.nextSibling
-          while (next && !isHeading(next)) {
-            anchor = next
-            next = next.nextSibling
-          }
-        }
-      }
-
-      if (anchor && anchor.parentNode) {
-        let after: Node = anchor
-        for (const node of nodes) {
-          after.parentNode!.insertBefore(node, after.nextSibling)
-          after = node
-        }
-      } else {
-        for (const node of nodes) body.appendChild(node)
-      }
-
+      // The placement rule lives in lib/workspace/docInsert, because the shell
+      // runs the same one on the stored HTML when this pane is not mounted.
+      const first = insertIntoBody(body, fragment, afterHeading)
+      if (!first) return
       setDocHtml(workspaceId, body.innerHTML)
       setEmpty(!body.innerText.trim())
-      ;(nodes[0] as HTMLElement).scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      first.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
     },
     [setDocHtml, workspaceId]
   )
@@ -167,31 +153,21 @@ export function WorkingDocument({
     [workspaceId, writing, insertFragment, dict.workspace.docWriteNoAnswer]
   )
 
-  // A "connect to document" request from any pane arrives here already carrying
-  // the marked passage and the analyst's instruction for where it goes.
-  const lastConnect = useRef(0)
+  /**
+   * WHAT THE SHELL PREPARED, LANDING IN THE LIVE BODY.
+   *
+   * Every connected passage and every clipping now arrives this way — already
+   * composed, already sanitised — because the work happens whether or not this
+   * pane exists. When it does not, the shell splices the same fragment into the
+   * stored HTML and this pane picks it up at its next mount.
+   */
+  const lastInsert = useRef(0)
   useEffect(() => {
-    if (!connect || connect.nonce === lastConnect.current) return
-    lastConnect.current = connect.nonce
-    void runCompose(connect.instruction, { title: connect.title, text: connect.text })
-    onConnected?.()
-  }, [connect, runCompose, onConnected])
-
-  // A CLIPPING GOES IN AS IT WAS CUT — no model, no rewriting. Founder,
-  // 2026-08-05: *"we can snip things from the report and actually connect them
-  // to the document."* It lands at the end, under a caption naming the source,
-  // and `insertFragment` scrolls it into view so the analyst sees it arrive.
-  const lastClip = useRef(0)
-  useEffect(() => {
-    if (!clip || clip.nonce === lastClip.current) return
-    lastClip.current = clip.nonce
-    const html = clipFigureHtml({ dataUrl: clip.dataUrl, title: clip.title, pageLabel: clip.pageLabel })
-    // null means the capture was not our own PNG. It cannot happen from the
-    // clipping tool, and if it ever does the caller says so out loud rather than
-    // closing a card over a document that gained nothing.
-    if (html) insertFragment(html, null)
-    onClipped?.(!!html)
-  }, [clip, insertFragment, onClipped])
+    if (!insert || insert.nonce === lastInsert.current) return
+    lastInsert.current = insert.nonce
+    insertFragment(insert.html, insert.afterHeading)
+    onInserted?.()
+  }, [insert, insertFragment, onInserted])
 
   useEffect(() => {
     if (writeOpen) writeRef.current?.focus({ preventScroll: true })
@@ -483,10 +459,37 @@ export function WorkingDocument({
               contentEditable
               suppressContentEditableWarning
               onBlur={persist}
-              onInput={() => setEmpty(!bodyRef.current?.innerText.trim())}
+              onInput={() => {
+                setEmpty(!bodyRef.current?.innerText.trim())
+                // PERSIST WHILE TYPING, not only on blur. The shell now composes
+                // from the STORED html — it has to, because the document may not
+                // be mounted — so a paragraph typed and not yet blurred would be
+                // a paragraph Atlas cannot see. Debounced: this is React state,
+                // and a setState per keystroke re-renders every consumer of the
+                // demo store.
+                if (typeTimer.current) clearTimeout(typeTimer.current)
+                typeTimer.current = setTimeout(persist, 400)
+              }}
               dir="auto"
               className="atlas-doc min-h-[240px] text-[15px] leading-[1.75] text-ink outline-none"
             />
+            {/* ATLAS WORKING, IN THE DOCUMENT'S OWN VOICE. Founder, 2026-08-05:
+                *"make the design that shows Atlas is writing the document with
+                your dictations more appealing, more smooth, and more in the
+                background — not something that's on the screen and you have to
+                see it."* What used to happen was the "tell Atlas what to write"
+                PANEL opening with an empty input, on a request the analyst had
+                already dictated: a form asking for something it had been given.
+                This is a line where the passage will land, and nothing else. */}
+            {incoming && (
+              <div className="mt-4 flex items-center gap-2.5" aria-live="polite">
+                <SparkleIcon size={14} className="flex-none animate-pulse text-ink-ghost" />
+                <span className="whitespace-nowrap text-[13px] text-ink-ghost">
+                  {dict.workspace.docIncoming}
+                </span>
+                <span className="atlas-writing-line" aria-hidden />
+              </div>
+            )}
           </div>
         </div>
       </div>

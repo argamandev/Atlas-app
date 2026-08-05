@@ -869,3 +869,62 @@
   font-size: 11px;
   color: #9c9c9c;
 }
+
+/* What Atlas made OF a clipping — the numbers read out of it, the table built
+   from it — carrying the same source line the image would have carried. */
+.atlas-doc .atlas-clip-derived {
+  margin: 18px 0;
+}
+.atlas-doc .atlas-clip-cite {
+  margin-top: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #9c9c9c;
+}
+/* Tables became insertable on 2026-08-05 ("create my own table from it"), so the
+   document has to know how to draw one. Hairlines only — this is a research
+   document, not a dashboard. */
+.atlas-doc table {
+  width: 100%;
+  margin: 12px 0;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.atlas-doc th,
+.atlas-doc td {
+  border: 1px solid #ebebeb;
+  padding: 6px 9px;
+  text-align: start;
+  vertical-align: top;
+}
+.atlas-doc th {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+/* ATLAS WORKING, QUIETLY. Founder, 2026-08-05: the writing state must be
+   "more smooth, more in the background" — so it is a line that breathes, not a
+   panel that opens. */
+.atlas-writing-line {
+  display: block;
+  height: 2px;
+  width: 100%;
+  min-width: 40px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ebebeb 0%, #c9c9c9 50%, #ebebeb 100%);
+  background-size: 200% 100%;
+  animation: atwriting 1.4s ease-in-out infinite;
+}
+@keyframes atwriting {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-writing-line {
+    animation: none;
+  }
+}

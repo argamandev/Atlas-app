@@ -151,6 +151,14 @@ export const en = {
     docWriting: 'Atlas is writing…',
     docWriteFailed: 'Atlas could not write that: {error}',
     docWriteNoAnswer: 'Atlas could not draft that just now. Try again?',
+    // The background write — reported where the analyst already is, never by
+    // moving them into the document (founder, 2026-08-05).
+    docWorking: 'Atlas is writing it into your document',
+    docWorkingClip: 'Atlas is reading the clipping',
+    docIncoming: 'Atlas is adding to this document',
+    docAdded: 'Added to your document',
+    docFailed: 'Atlas could not add that. Try again?',
+    docOpen: 'Open',
     docEmptyHint: 'Write here — or tell Atlas what to draft, and edit what it gives you.',
     // Marked text anywhere in the workspace can be worked into the document.
     connectToDocument: 'Connect to document',
@@ -265,6 +273,13 @@ export const en = {
     clipDiscard: 'Discard the clipping',
     clipPage: 'page {page}',
     clipAdded: 'Added to your document',
+    // The three answers the founder named, written as INSTRUCTIONS because a
+    // chip fills the box rather than firing — what will happen stays readable.
+    clipAsImage: 'As an image',
+    clipAsText: 'Extract the data as text',
+    clipAsTable: 'Make a table from it',
+    clipNotePlaceholder: 'Or tell Atlas what to do with it…',
+    clipDoIt: 'Let Atlas do it',
   },
   agents: {
     ready: 'Ready when you are.',

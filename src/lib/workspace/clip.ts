@@ -6,11 +6,19 @@
 // a signed line — is evidence, and evidence belongs in the analysis, not only in
 // a question to Atlas.
 //
-// NO MODEL IS INVOLVED, and that is the difference from connecting a marked
-// PASSAGE (lib/workspace/chat/compose): a passage is prose that has to be woven
-// into prose, so Atlas writes around it. An image is already the content. It
-// goes in as it was cut, under a caption that says where it came from, and
-// nothing rewrites it.
+// TWO WAYS IN, and the analyst chooses which. Left alone, no model is involved:
+// an image is already the content, so it goes in as it was cut, under a caption
+// that says where it came from. That is the difference from connecting a marked
+// PASSAGE (lib/workspace/chat/compose), which is prose that has to be woven into
+// prose.
+//
+// Founder, 2026-08-05: *"when you are connecting a snipping tool into the
+// document, you can also dictate Atlas what to do with it — do I want to add it
+// as a screenshot, do I want to extract the data from that screenshot and only
+// present it as text, do I want to create my own table from it."* So an
+// instruction turns the clip into a question about a picture, and what lands in
+// the document is what Atlas made of it — with the source line kept either way,
+// because a table read out of a filing still has to say which filing.
 //
 // Pure so the escaping is tested: the caption carries a filing's title, which is
 // user-facing text from the corpus, and it is being interpolated into HTML that
@@ -60,4 +68,24 @@ export function clipFigureHtml(opts: {
     `<figcaption>${caption}</figcaption>` +
     `</figure>`
   )
+}
+
+/**
+ * What Atlas made OF a clipping — the transcribed numbers, the table it built —
+ * carrying the same source line the image would have carried.
+ *
+ * The provenance is the whole point. A table typed out of a filing looks exactly
+ * like a table somebody made up, and the analyst reading this document a week
+ * later cannot tell which unless the page it came from is sitting under it.
+ *
+ * `html` is the model's, already sanitised by parseCompose — this only wraps it,
+ * so it must not be handed anything unsanitised.
+ */
+export function clipDerivedHtml(opts: { html: string; title: string; pageLabel: string }): string | null {
+  const body = opts.html.trim()
+  if (!body) return null
+  const title = escapeHtml(opts.title.trim())
+  const page = escapeHtml(opts.pageLabel.trim())
+  const cite = title ? `<bdi>${title}</bdi> · <bdi>${page}</bdi>` : `<bdi>${page}</bdi>`
+  return `<div class="atlas-clip-derived">${body}<p class="atlas-clip-cite">${cite}</p></div>`
 }

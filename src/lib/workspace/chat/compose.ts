@@ -42,12 +42,42 @@ export type ComposeInput = {
   truncated: string[]
   /** "connect to document": the passage the analyst marked */
   passage?: { title: string; text: string } | null
+  /**
+   * A CLIPPING travelling with the instruction — the image itself is attached to
+   * the model call; this is what it is OF, so the prompt can name the source and
+   * the model knows the numbers it is reading were cut out of that page.
+   */
+  clip?: { title: string; pageLabel: string } | null
   /** headings already in the document, so `afterHeading` can only name a real one */
   headings: string[]
 }
 
-/** Tags the document editor understands. Anything else is stripped client-side. */
-const ALLOWED = ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'em', 'blockquote', 'br']
+/**
+ * Tags the document editor understands. Anything else is stripped client-side.
+ *
+ * The table family joined on 2026-08-05 for the clipping instructions — founder:
+ * *"do I want to create my own table from it"*. Safe to widen because the
+ * sanitiser strips EVERY attribute regardless of the tag, so a `<td onclick=…>`
+ * arrives as a bare `<td>`.
+ */
+const ALLOWED = [
+  'h2',
+  'h3',
+  'p',
+  'ul',
+  'ol',
+  'li',
+  'strong',
+  'em',
+  'blockquote',
+  'br',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
+]
 
 export function buildComposePrompt(input: ComposeInput): string {
   const marked = input.passage
@@ -58,6 +88,15 @@ ${input.passage.text}
 Their instruction below says where it should go and how it should read. Quote it
 where quoting is right, or work it into your own sentence — but do not change
 what it says, and attribute it to "${input.passage.title}".
+`
+    : ''
+
+  const clipped = input.clip
+    ? `\nTHE ANALYST CUT THE ATTACHED IMAGE out of "${input.clip.title}" (${input.clip.pageLabel}) and wants it worked into the document. Their instruction below says how.
+READ ONLY WHAT IS IN THE IMAGE. Every figure you write must be legible in it — if a
+cell is cut off or unreadable, leave it out and say so in one short sentence rather
+than completing it from anything else you know. Keep the numbers exactly as printed,
+including their units, signs and thousands separators.
 `
     : ''
 
@@ -87,7 +126,7 @@ Do not write anything that depends on a part you cannot see.
 
 THE FILES ON THEIR SHELF:
 ${input.context || '(no readable text is available yet)'}
-${partial}${shape}${marked}
+${partial}${shape}${marked}${clipped}
 WHAT THEY ASKED YOU TO WRITE:
 ${input.instruction}
 
@@ -106,6 +145,7 @@ Rules:
 - NEVER invent a number, a date, a name or a quote. This is going into a document an analyst will act on.
 - Use only these tags: ${ALLOWED.join(', ')}. No attributes, no styles, no ids, no classes.
 - If they asked for several parts ("open with X, then Y, then why Z"), write them as separate paragraphs under short <h2> headings, in the order they asked.
+- A table is <table><tr><th>…</th></tr><tr><td>…</td></tr></table> — no attributes, and only when they asked for one or the material is genuinely tabular.
 - Write the way a good analyst writes: plain, specific, no filler, no marketing language, no "in conclusion".
 - "afterHeading" must be null or EXACTLY one of the headings listed above. Never invent one.`
 }

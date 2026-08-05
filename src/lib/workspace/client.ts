@@ -104,6 +104,12 @@ export const composeReq = (
     document: string
     headings: string[]
     passage?: { title: string; text: string } | null
+    /** a clipping the instruction is about: the PNG plus where it was cut from */
+    clip?: {
+      image: { dataUrl: string; page: number; documentId: string }
+      title: string
+      pageLabel: string
+    } | null
   }
 ) =>
   call<{
