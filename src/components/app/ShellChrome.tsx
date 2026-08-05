@@ -7,6 +7,7 @@ import { GlobalPlayer } from './GlobalPlayer'
 import { GlobalLiveBar } from './GlobalLiveBar'
 import { ReturnToTranscriptChip } from './ReturnToTranscriptChip'
 import { ReturnToLiveChip } from './ReturnToLiveChip'
+import { PlayerHiddenChip } from './PlayerHiddenChip'
 
 // The app content area + the global player overlays. Two global bars can float over the bottom:
 // the recorded player (Feature 4) and the LIVE bar (Global Live Call). The live bar shows only
@@ -27,6 +28,9 @@ export function ShellChrome({ children }: { children: React.ReactNode }) {
       {children}
       {dockOpen && <GlobalPlayer />}
       {liveDockOpen && <GlobalLiveBar />}
+      {/* The bar's own ✕ only hides it, so the way back has to live at the same
+          level as the bar — not inside one page's transcript view. */}
+      <PlayerHiddenChip />
       <ReturnToTranscriptChip />
       <ReturnToLiveChip />
     </div>

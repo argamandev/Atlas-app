@@ -428,8 +428,8 @@ export function WorkspaceChat({
                 "open a report and I work". */}
             <button
               type="button"
-              title={dict.live.snip}
-              aria-label={dict.live.snip}
+              title={dict.workspace.snipTool}
+              aria-label={dict.workspace.snipTool}
               onClick={() => onArmSnip?.()}
               disabled={!snipAvailable || !onArmSnip}
               className="grid h-[28px] w-[28px] place-items-center rounded-[8px] text-ink-ghost transition-colors enabled:hover:text-ink disabled:opacity-35"

@@ -849,3 +849,23 @@
 .atlas-doc [data-demo] {
   color: #8a6a2f;
 }
+/* A CLIPPING CUT FROM A SOURCE (founder 2026-08-05). The image is evidence, so
+   it is framed like the blockquote above — same hairline vocabulary — and its
+   caption says where it came from. max-width, because a clip of a wide table can
+   be far wider than the 720px column and must not push the document sideways. */
+.atlas-doc figure.atlas-clip {
+  margin: 18px 0;
+}
+.atlas-doc figure.atlas-clip img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ebebeb;
+  border-radius: 8px;
+}
+.atlas-doc figure.atlas-clip figcaption {
+  margin-top: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #9c9c9c;
+}

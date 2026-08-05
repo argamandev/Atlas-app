@@ -14,7 +14,7 @@ import {
   ChevronRightIcon,
 } from '@/components/ds/icons'
 import { WorkspaceDetailColumn, type DetailKey } from './WorkspaceDetailColumn'
-import { WorkingDocument, type ConnectRequest } from './WorkingDocument'
+import { WorkingDocument, type ClipRequest, type ConnectRequest } from './WorkingDocument'
 import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
 import { WorkspaceDocs } from './WorkspaceDocs'
 import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
@@ -112,8 +112,36 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
     setSnippable((s) => (can ? (s.includes(itemId) ? s : [...s, itemId]) : s.filter((x) => x !== itemId)))
   }, [])
 
-  const takeSnip = useCallback((snip: ChatSnip) => {
+  // A CLIPPING NOW HAS TWO DESTINATIONS, so it is asked where it is going.
+  //
+  // Founder, 2026-08-05: *"we can snip things from the report and actually
+  // connect them, the snippets, to the document."* Until now every clip was a
+  // question to Atlas. A clip of a table or a chart is just as often EVIDENCE,
+  // and evidence belongs in the analysis.
+  //
+  // The choice is offered the same way marked TEXT offers it — Ask Atlas, or
+  // connect to the document — so the workspace has one answer to "I took
+  // something out of a source", whether that something is words or pixels. It
+  // costs the chat path one click, which is the price of the destination being
+  // visible instead of assumed.
+  const [clipDraft, setClipDraft] = useState<{ snip: ChatSnip; title: string } | null>(null)
+  const [clipReq, setClipReq] = useState<ClipRequest | null>(null)
+  const [clipDone, setClipDone] = useState<'added' | 'failed' | null>(null)
+  const clipNonce = useRef(0)
+
+  const takeSnip = useCallback((snip: ChatSnip, source: { itemId: string; title: string }) => {
     setSnipArm(0) // one clip per arming, as in the call
+    setClipDraft({ snip, title: source.title })
+  }, [])
+
+  // NOTHING WITH A SIDE EFFECT GOES INSIDE A STATE UPDATER. React 18 invokes
+  // updaters TWICE in development, so a `setSnips` call from inside one queues
+  // two appends and the clip lands in the composer twice — which is exactly what
+  // it did, once, before this comment existed. Read the draft from the closure.
+  const clipToChat = useCallback(() => {
+    if (!clipDraft) return
+    const { snip } = clipDraft
+    setClipDraft(null)
     setSnips((prev) => {
       const r = appendSnip(prev, snip)
       if (r.dropped) {
@@ -124,7 +152,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
     })
     // The clip is a question, so it has to land somewhere it can be asked.
     setChatOpen(true)
-  }, [])
+  }, [clipDraft])
 
   // CONNECT TO DOCUMENT. A passage marked anywhere — a source pane, a PDF, an
   // answer Atlas gave — plus one sentence about where it should go. Founder,
@@ -285,6 +313,36 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
     },
     [persistOpen, split]
   )
+
+  // Escape discards the clipping, like every other transient surface here. It is
+  // one drag to cut another, so discarding is cheap; being stuck with a card you
+  // cannot dismiss from the keyboard is not.
+  useEffect(() => {
+    if (!clipDraft) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setClipDraft(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [clipDraft])
+
+  /** The other destination: into the document, as evidence, with its source named. */
+  const clipToDocument = useCallback(() => {
+    if (!clipDraft) return
+    const { snip, title } = clipDraft
+    setClipDraft(null)
+    clipNonce.current += 1
+    setClipReq({
+      nonce: clipNonce.current,
+      dataUrl: snip.dataUrl,
+      title,
+      pageLabel: dict.workspace.clipPage.replace('{page}', String(snip.page)),
+    })
+    // Insert where the analyst can see it happen — same rule as connecting a
+    // marked passage. A figure appearing in a pane nobody is looking at is
+    // indistinguishable from nothing happening.
+    openTab(DOC_TAB)
+  }, [clipDraft, dict.workspace.clipPage, openTab])
 
   /**
    * Multi-view, ON: every open tab becomes a pane.
@@ -609,6 +667,16 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                 onRenameDocument={renameDocument}
                 connect={connectReq}
                 onConnected={() => setConnectReq(null)}
+                clip={clipReq}
+                onClipped={(ok) => {
+                  setClipReq(null)
+                  // Say what happened, either way. The figure lands at the end of
+                  // the document, which may be below the fold, so a silent insert
+                  // is indistinguishable from a click that did nothing — and a
+                  // silent FAILURE is the worse half of that (rules/app.md).
+                  setClipDone(ok ? 'added' : 'failed')
+                  setTimeout(() => setClipDone(null), 2600)
+                }}
               />
             ) : id === LEGAL_TAB ? (
               <LegalAgentChat areas={legalAreas} />
@@ -681,6 +749,71 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
           </div>
         )}
       </div>
+
+      {/* THE CLIPPING, ASKING WHERE IT GOES.
+          Not a modal: the clip was cut from a page the analyst is still reading,
+          and covering that page to ask about it would hide the thing being
+          decided. It sits at bottom-24, which is the offset the transcript's
+          own "back to current word" chip uses — clear of the docked audio bar
+          and of the hidden-bar pill below it. */}
+      {clipDraft && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-40 flex justify-center px-4">
+          <div className="pointer-events-auto flex max-w-[520px] items-center gap-3 rounded-win border border-float-line bg-canvas p-3 shadow-pane">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={clipDraft.snip.dataUrl}
+              alt=""
+              className="h-14 w-20 flex-none rounded-md border border-hairline object-cover"
+            />
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold text-ink">{dict.workspace.clipWhere}</div>
+              {/* Each run its own <bdi>: a Hebrew filing title beside a Latin page run. */}
+              <div className="truncate text-[11.5px] text-ink-ghost">
+                <bdi>{clipDraft.title}</bdi> ·{' '}
+                <bdi>{dict.workspace.clipPage.replace('{page}', String(clipDraft.snip.page))}</bdi>
+              </div>
+            </div>
+            <div className="ms-auto flex flex-none items-center gap-1.5">
+              <button
+                type="button"
+                onClick={clipToChat}
+                className="flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-subtle"
+              >
+                <SparkleIcon size={14} className="flex-none" />
+                {dict.workspace.clipToChat}
+              </button>
+              <button
+                type="button"
+                onClick={clipToDocument}
+                className="rounded-lg bg-ink px-2.5 py-1.5 text-[12.5px] font-medium text-paper transition-opacity hover:opacity-90"
+              >
+                {dict.workspace.clipToDocument}
+              </button>
+              <button
+                type="button"
+                onClick={() => setClipDraft(null)}
+                title={dict.workspace.clipDiscard}
+                aria-label={dict.workspace.clipDiscard}
+                className={iconBtn}
+              >
+                <CloseIcon size={14} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* It landed — or it did not. Both are said out loud. */}
+      {clipDone && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-40 flex justify-center px-4">
+          <div
+            role="status"
+            className="rounded-full bg-ink px-3.5 py-2 text-[12.5px] font-medium text-paper shadow-popover"
+          >
+            {clipDone === 'added' ? dict.workspace.clipAdded : dict.workspace.snipFailed}
+          </div>
+        </div>
+      )}
 
       {/* "Where should this go, and how?" — the one sentence that turns a marked
           passage into a paragraph in the document. It opens the document tab

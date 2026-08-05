@@ -55,7 +55,8 @@ export function SourceDocument({
    * Props say which panes exist without any of that bookkeeping.
    */
   snipArm?: number
-  onSnip?: (snip: ChatSnip) => void
+  /** the clip, plus the pane it was cut from — the caption needs the name, not the id */
+  onSnip?: (snip: ChatSnip, source: { itemId: string; title: string }) => void
   /** the arming ended without a clip (cancel, or a failed capture) */
   onSnipEnd?: () => void
   /** this pane is (or is no longer) a real PDF that can be clipped */
@@ -267,8 +268,8 @@ export function SourceDocument({
           {onSnip && (
             <button
               type="button"
-              title={dict.live.snip}
-              aria-label={dict.live.snip}
+              title={dict.workspace.snipTool}
+              aria-label={dict.workspace.snipTool}
               aria-pressed={snipArmed}
               onClick={() => {
                 const next = !snipArmed
@@ -387,7 +388,10 @@ export function SourceDocument({
             snipArmed={snipArmed}
             onSnip={(s) => {
               setSnipArmed(false) // one clip per arming, as in the call
-              onSnip?.(s)
+              // WITH ITS SOURCE. The clip's own payload carries a corpus
+              // document id, which is the right key for the model and useless as
+              // a caption — only this pane knows the name on the tab.
+              onSnip?.(s, { itemId: file.id, title })
             }}
             onSnipCancel={() => {
               setSnipArmed(false)

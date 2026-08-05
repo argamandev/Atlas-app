@@ -250,6 +250,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setCall(null)
     setPlaying(false)
     setDuration(0)
+    // Ending the call ends the HIDDEN state with it. Leaving it set would carry
+    // "the bar is dismissed" across to a call the user has not started yet.
+    setBarHidden(false)
   }, [])
 
   const api: PlayerApi = {

@@ -6,6 +6,7 @@ import { useDemoState } from '@/lib/demo/DemoStateProvider'
 import { ChevronDownIcon, SparkleIcon, ArrowUpIcon, CloseIcon } from '@/components/ds/icons'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { composeReq } from '@/lib/workspace/client'
+import { clipFigureHtml } from '@/lib/workspace/clip'
 
 // The working document (design lines 1802-1887) — the workspace's deliverable.
 //
@@ -27,12 +28,25 @@ export type ConnectRequest = {
   instruction: string
 }
 
+/** A clipping cut from a source pane, on its way into the body. Same nonce
+ *  discipline as {@link ConnectRequest}: the same clip may be added twice. */
+export type ClipRequest = {
+  nonce: number
+  dataUrl: string
+  /** the source's name, for the caption */
+  title: string
+  /** already-localised page run, e.g. "page 12" */
+  pageLabel: string
+}
+
 export function WorkingDocument({
   workspaceId,
   title,
   onRenameDocument,
   connect,
   onConnected,
+  clip,
+  onClipped,
 }: {
   workspaceId: string
   /** the STORED title, which may be '' — the placeholder shows the display name */
@@ -40,6 +54,8 @@ export function WorkingDocument({
   onRenameDocument: (next: string) => void
   connect?: ConnectRequest | null
   onConnected?: () => void
+  clip?: ClipRequest | null
+  onClipped?: (ok: boolean) => void
 }) {
   const { dict } = useI18n()
   const { docHtml, setDocHtml } = useDemoState()
@@ -157,6 +173,22 @@ export function WorkingDocument({
     onConnected?.()
   }, [connect, runCompose, onConnected])
 
+  // A CLIPPING GOES IN AS IT WAS CUT — no model, no rewriting. Founder,
+  // 2026-08-05: *"we can snip things from the report and actually connect them
+  // to the document."* It lands at the end, under a caption naming the source,
+  // and `insertFragment` scrolls it into view so the analyst sees it arrive.
+  const lastClip = useRef(0)
+  useEffect(() => {
+    if (!clip || clip.nonce === lastClip.current) return
+    lastClip.current = clip.nonce
+    const html = clipFigureHtml({ dataUrl: clip.dataUrl, title: clip.title, pageLabel: clip.pageLabel })
+    // null means the capture was not our own PNG. It cannot happen from the
+    // clipping tool, and if it ever does the caller says so out loud rather than
+    // closing a card over a document that gained nothing.
+    if (html) insertFragment(html, null)
+    onClipped?.(!!html)
+  }, [clip, insertFragment, onClipped])
+
   useEffect(() => {
     if (writeOpen) writeRef.current?.focus({ preventScroll: true })
   }, [writeOpen])
@@ -207,8 +239,6 @@ export function WorkingDocument({
     document.execCommand(command, false, value)
     persist()
   }
-
-
 
   const tool =
     'flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-ink-muted transition-colors hover:bg-subtle hover:text-ink'

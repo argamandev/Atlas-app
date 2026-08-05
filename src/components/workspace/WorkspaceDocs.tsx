@@ -51,7 +51,7 @@ export function WorkspaceDocs({
   /** the star at the tab bar's right edge — opens Ask Atlas with nothing marked */
   onStar: () => void
   snipArm: number
-  onSnip: (snip: ChatSnip) => void
+  onSnip: (snip: ChatSnip, source: { itemId: string; title: string }) => void
   onSnipEnd: () => void
   onSnippable: (itemId: string, can: boolean) => void
 }) {

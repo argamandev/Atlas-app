@@ -254,6 +254,16 @@ export const en = {
     playRecording: 'Play the recording',
     snipTooLarge: 'That clipping is too large to send — try a smaller area.',
     snipFailed: 'That clipping could not be captured. Try again.',
+    // NOT `live.snip` ("Snip to chat"), which stays true in a live call: here a
+    // clipping is asked where it goes, so the tool cannot name one destination.
+    snipTool: 'Clip an area',
+    // Where a fresh clipping goes: a question to Atlas, or evidence in the document.
+    clipWhere: 'Where should this clipping go?',
+    clipToChat: 'Ask Atlas',
+    clipToDocument: 'Put in the document',
+    clipDiscard: 'Discard the clipping',
+    clipPage: 'page {page}',
+    clipAdded: 'Added to your document',
   },
   agents: {
     ready: 'Ready when you are.',
@@ -492,6 +502,7 @@ export const en = {
     backToLive: 'Back to live',
     backToPlaying: 'Back to current word',
     openAudioBar: 'Open audio bar',
+    stopPlayback: 'Stop the audio',
     slidesEmpty: 'Slides will appear here when linked to this call.',
     reportEmpty: 'The quarterly report will appear here when linked.',
     reportFreely: 'PDF · read freely',
