@@ -78,6 +78,25 @@ export function clipFigureHtml(opts: {
 }
 
 /**
+ * A passage quoted VERBATIM out of a source, with the line that says where.
+ *
+ * Escaped, not sanitised: this is the analyst's own selection from a document
+ * Atlas rendered, so it is text and it goes in as text. Running it through a
+ * markup path would be the wrong shape — a quotation that silently gained
+ * formatting is no longer the thing that was quoted.
+ *
+ * `<bdi>` per run, because a source label mixes scripts constantly
+ * ("תיגבור Q1 2026 · page 4") and .claude/rules/app.md has filed that five
+ * times: direction on the container, each mixed run in its own element.
+ */
+export function quoteBlockHtml(opts: { text: string; label: string }): string {
+  const text = escapeHtml(opts.text.trim())
+  const label = escapeHtml(opts.label.trim())
+  if (!text) return ''
+  return `${text}<span class="atlas-quote-cite"><bdi>${label}</bdi></span>`
+}
+
+/**
  * What Atlas made OF a clipping — the transcribed numbers, the table it built —
  * carrying the same source line the image would have carried.
  *

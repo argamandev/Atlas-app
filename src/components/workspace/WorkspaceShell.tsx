@@ -17,15 +17,33 @@ import { WorkspaceDetailColumn, type DetailKey } from './WorkspaceDetailColumn'
 import { WorkingDocument } from './WorkingDocument'
 import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
 import { WorkspaceDocs } from './WorkspaceDocs'
-import { LEGAL_STEPS, WS_THREADS, workspaceSessions, type Workspace } from '@/lib/workspace/data'
+import {
+  LEGAL_STEPS,
+  WS_THREADS,
+  workspaceSessions,
+  type Workspace,
+  type WorkspaceBlockRow,
+} from '@/lib/workspace/data'
+import {
+  blankBlock,
+  blockHeadings,
+  blocksToText,
+  diffBlocks,
+  fragmentToDrafts,
+  insertIndexFor,
+  toDocBlock,
+  type BlockOp,
+  type Citation,
+  type DocBlock,
+  type DraftBlock,
+} from '@/lib/workspace/blocks'
+import { addBlockReq, deleteBlockReq, patchBlockReq } from '@/lib/workspace/client'
 import { documentTitle } from '@/lib/workspace/present'
 import { detectDir } from '@/lib/utils'
 import { composeReq, patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
-import { useDemoState } from '@/lib/demo/DemoStateProvider'
 import { usePlayer } from '@/lib/player/PlayerProvider'
 import { shownPanes } from '@/lib/workspace/panes'
-import { clipDerivedHtml, clipFigureHtml } from '@/lib/workspace/clip'
-import { htmlHeadings, htmlToText, spliceHtml } from '@/lib/workspace/docInsert'
+import { clipDerivedHtml, clipFigureHtml, quoteBlockHtml } from '@/lib/workspace/clip'
 import { WorkspaceIntake } from './WorkspaceIntake'
 import { WorkspaceChat, type AskContext } from './WorkspaceChat'
 import { ErrorLine } from '@/components/projects/ErrorLine'
@@ -43,7 +61,14 @@ const LEGAL_TAB = '__legal'
 // session's layout ever hands one back — it is not a row and has nothing to save.
 const CHAT_TAB = '__chat'
 
-export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
+export function WorkspaceShell({
+  workspace,
+  blocks: initialBlocks = [],
+}: {
+  workspace: Workspace
+  /** the working document as the server read it — see the block engine below */
+  blocks?: WorkspaceBlockRow[]
+}) {
   const { dict } = useI18n()
   const router = useRouter()
 
@@ -171,7 +196,45 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   /** files Atlas could only read part of — the same caveat the chat already shows */
   const [docPartial, setDocPartial] = useState<string[]>([])
   const docDoneTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const { docHtml, setDocHtml } = useDemoState()
+
+  // ── THE WORKING DOCUMENT, AS ROWS ──────────────────────────────────────────
+  //
+  // Until 2026-08-05 this was `docHtml[workspaceId]` in a React store: one HTML
+  // string, in memory, gone on reload. Everything the analyst wrote — and every
+  // passage Atlas wrote for them — lasted exactly as long as the tab did. The
+  // tables to hold it (`workspace_doc_blocks`), their RLS, their integrity
+  // constraints and the whole API over them had been built on 2026-08-03 and
+  // then never called by anything.
+  //
+  // The shell owns the rows and the pane owns the caret. That split is the
+  // point: composition has to work with the document pane CLOSED (founder,
+  // 2026-08-05: *"it needs to happen in the back"*), so the authoritative copy
+  // cannot live in a contentEditable that may not be mounted.
+  const [docBlocks, setDocBlocks] = useState<DocBlock[]>(() =>
+    [...initialBlocks].sort((a, b) => a.position - b.position).map(toDocBlock)
+  )
+  const docBlocksRef = useRef(docBlocks)
+  docBlocksRef.current = docBlocks
+  const [docSaveError, setDocSaveError] = useState<unknown>(null)
+
+  /**
+   * Document writes happen ONE AT A TIME, in the order they were asked for.
+   *
+   * Every writer goes through here — the editor's debounced save, a quoted
+   * passage, a clipping, a composed paragraph. Serialising rather than refusing
+   * is what makes "nothing is ever silently dropped" true: two overlapping
+   * saves would otherwise both see a new paragraph with no id yet and create a
+   * row each, and a refused save had nowhere to put the work it was holding.
+   */
+  const chainRef = useRef<Promise<unknown>>(Promise.resolve())
+  const runExclusive = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
+    const next = chainRef.current.then(fn, fn)
+    chainRef.current = next.then(
+      () => undefined,
+      () => undefined
+    )
+    return next
+  }, [])
   // The pill has to clear the docked player, which owns the bottom of the screen
   // and paints after it — otherwise a workspace playing a call covers the status
   // and its "Open" button entirely.
@@ -228,12 +291,113 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
    */
   const paneStateRef = useRef({ split, openTabs, multi, activeTab })
   paneStateRef.current = { split, openTabs, multi, activeTab }
-  const docHtmlRef = useRef(docHtml)
-  docHtmlRef.current = docHtml
 
   /** Is the working document a pane on screen right now? `shownPanes` is the
    *  renderer's own rule — asking it here is what keeps the two from drifting. */
   const docPaneShown = () => shownPanes(paneStateRef.current).includes(DOC_TAB)
+
+  /**
+   * Apply one round of block operations, and answer with the ids that were
+   * created so the caller can put them on the elements they came from.
+   *
+   * SINGLE FILE, ALWAYS. Two overlapping saves would both see a new paragraph
+   * with no id yet and both create a row for it — the document would grow a
+   * duplicate every time the analyst typed faster than the network. A second
+   * save while one is running sets a flag and runs after, which is also what
+   * makes "the last thing I typed is saved" true rather than likely.
+   */
+  const applyOps = useCallback(
+    async (ops: BlockOp[]): Promise<{ draftIndex: number; row: DocBlock }[]> => {
+      const created: { draftIndex: number; row: DocBlock }[] = []
+      // Deletes and updates can go together; creates are sequential so their
+      // positions land in the order the analyst sees them.
+      await Promise.all(
+        ops
+          .filter((o) => o.op !== 'create')
+          .map((o) =>
+            o.op === 'delete'
+              ? deleteBlockReq(workspace.id, o.id)
+              : patchBlockReq(workspace.id, o.id, { body: o.body, position: o.position })
+          )
+      )
+      for (const o of ops) {
+        if (o.op !== 'create') continue
+        const c = o.citation
+        const { block } = await addBlockReq(workspace.id, {
+          kind: o.kind,
+          body: o.body,
+          position: o.position,
+          ...(c
+            ? {
+                source_item_id: c.source_item_id,
+                source_label: c.source_label,
+                source_quote: c.source_quote,
+                ...(c.source_page != null ? { source_page: c.source_page } : {}),
+                ...(c.source_line_id ? { source_line_id: c.source_line_id } : {}),
+              }
+            : {}),
+        })
+        created.push({ draftIndex: o.draftIndex, row: toDocBlock(block) })
+      }
+      return created
+    },
+    [workspace.id]
+  )
+
+  /**
+   * The screen, saved.
+   *
+   * The pane hands over what the DOM currently says; the difference against the
+   * last known rows is the work. Returns the ids of anything created so the
+   * pane can write them back onto its elements — without that, the next save
+   * would see the same element with no id and create it a second time.
+   */
+  const saveDocument = useCallback(
+    (drafts: DraftBlock[]): Promise<{ draftIndex: number; id: string }[] | null> =>
+      // ONE WRITER AT A TIME, AND NOTHING IS EVER DROPPED.
+      //
+      // This used to refuse a save that arrived while another was running,
+      // setting a flag so the EDITOR would re-read the DOM afterwards. That is
+      // right for a keystroke and silently wrong for everything else: a
+      // programmatic write — a quoted passage, a clipping, a composed paragraph
+      // — is not in the DOM, so "read the DOM again later" threw it away. With
+      // the document pane closed there was not even an editor to re-read, so
+      // the write vanished with no error and the pill said "added".
+      //
+      // A promise chain serialises instead of refusing, so every caller's work
+      // happens, in order.
+      runExclusive(async () => {
+        const ops = diffBlocks(docBlocksRef.current, drafts)
+        if (ops.length === 0) return []
+        try {
+          const created = await applyOps(ops)
+          // Rebuild from the drafts rather than patching the old list: the drafts
+          // ARE the document now, and positions come from their order.
+          const byId = new Map(docBlocksRef.current.map((b) => [b.id, b]))
+          const createdAt = new Map(created.map((c) => [c.draftIndex, c.row]))
+          const next: DocBlock[] = drafts.map((d, i) => {
+            const made = createdAt.get(i)
+            if (made) return { ...made, position: i }
+            const old = d.id ? byId.get(d.id) : undefined
+            return old
+              ? { ...old, kind: d.kind, body: d.body, position: i }
+              : { ...blankBlock(), id: d.id ?? '', kind: d.kind, body: d.body, position: i }
+          })
+          docBlocksRef.current = next
+          setDocBlocks(next)
+          setDocSaveError(null)
+          return created.map((c) => ({ draftIndex: c.draftIndex, id: c.row.id }))
+        } catch (e) {
+          // NOT SWALLOWED, and NOT reported as an empty success. An editor that
+          // fails to save in silence is the worst shape this repo files: the
+          // analyst keeps typing into something that is no longer keeping any of
+          // it. `null` is distinguishable from "saved, created nothing".
+          setDocSaveError(e)
+          return null
+        }
+      }),
+    [applyOps, runExclusive]
+  )
 
   /**
    * Put a ready fragment in the document, mounted or not, and say so.
@@ -241,24 +405,52 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
    * The fragment is already sanitised — either built here (clipFigureHtml) or
    * scrubbed by parseCompose on the way out of the model. Nothing unsanitised
    * may reach this function; it goes straight into a contentEditable.
+   *
+   * Mounted, it goes through the pane so it lands beside the caret and is saved
+   * by the same diff as everything else. Not mounted, it is written straight to
+   * the database — which is the whole reason the rows live here.
    */
   const putInDocument = useCallback(
-    (html: string, afterHeading: string | null, _kind: 'passage' | 'clip') => {
+    (html: string, afterHeading: string | null, _kind: 'passage' | 'clip', citation?: Citation | null) => {
       if (docPaneShown()) {
         insertNonce.current += 1
-        setInsertQueue((q) => [...q, { nonce: insertNonce.current, html, afterHeading }])
-      } else {
-        const next = spliceHtml(docHtmlRef.current[workspace.id] ?? '', html, afterHeading)
-        // The ref moves FIRST: a second fragment arriving before React has
-        // re-rendered must splice into a document that already contains the
-        // first, or it silently replaces it.
-        docHtmlRef.current = { ...docHtmlRef.current, [workspace.id]: next }
-        setDocHtml(workspace.id, next)
+        setInsertQueue((q) => [
+          ...q,
+          { nonce: insertNonce.current, html, afterHeading, citation: citation ?? null },
+        ])
+        doneWhenIdle('added')
+        return
       }
-      doneWhenIdle('added')
+      const at = insertIndexFor(docBlocksRef.current, afterHeading)
+      const drafts = fragmentToDrafts(html, at)
+      const ordered = [...docBlocksRef.current].sort((a, b) => a.position - b.position)
+      const next: DraftBlock[] = [
+        ...ordered.slice(0, at).map((b, i) => ({ id: b.id, kind: b.kind, body: b.body, position: i })),
+        // THE CITATION TRAVELS WITH THE DRAFT. It used to set `kind: 'quote'`
+        // and nothing else, so the create call carried no source — and the
+        // database refuses a quote with no quoted text, which meant the
+        // citation the analyst had just asked for vanished on its way in.
+        ...drafts.map((d, i) => ({
+          ...d,
+          ...(citation ? { kind: 'quote' as const, citation } : {}),
+          position: at + i,
+        })),
+        ...ordered.slice(at).map((b, i) => ({
+          id: b.id,
+          kind: b.kind,
+          body: b.body,
+          position: at + drafts.length + i,
+        })),
+      ]
+      // ONLY SAY "ADDED" IF IT WAS. `saveDocument` answers null when the write
+      // failed; reporting success off the back of a promise that merely
+      // RESOLVED is the exact shape of lie this surface keeps being reviewed
+      // for — and with the pane closed there is no editor on screen to show the
+      // error instead.
+      void saveDocument(next).then((r) => doneWhenIdle(r === null ? 'failed' : 'added'))
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setDocHtml, workspace.id, doneWhenIdle]
+    [workspace.id, doneWhenIdle, saveDocument]
   )
 
   /**
@@ -275,14 +467,18 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
       passage?: { title: string; text: string }
       clip?: { image: ChatSnip; title: string; pageLabel: string }
     }) => {
-      const html = docHtmlRef.current[workspace.id] ?? ''
+      // THE ROWS ARE THE DOCUMENT. Reading the saved blocks rather than a
+      // contentEditable is what lets Atlas write into a document whose pane is
+      // not on screen — and it means the model reasons about what is actually
+      // stored, not about a DOM that may hold unsaved keystrokes.
+      const saved = docBlocksRef.current
       docJobs.current += 1
       setDocBusy(input.kind)
       try {
         const { result } = await composeReq(workspace.id, {
           instruction: input.instruction,
-          document: htmlToText(html),
-          headings: htmlHeadings(html),
+          document: blocksToText(saved),
+          headings: blockHeadings(saved),
           passage: input.passage ?? null,
           clip: input.clip
             ? { image: input.clip.image, title: input.clip.title, pageLabel: input.clip.pageLabel }
@@ -359,8 +555,40 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   // `connectDraft` is the passage waiting for that sentence. What used to follow
   // it — a request object handed to the document pane — is gone: the composition
   // runs here now (see composeIntoDocument), so the analyst stays where they are.
-  const [connectDraft, setConnectDraft] = useState<{ title: string; text: string } | null>(null)
+  const [connectDraft, setConnectDraft] = useState<{
+    title: string
+    text: string
+    itemId?: string
+    lineId?: string | null
+    page?: number | null
+  } | null>(null)
   const [connectNote, setConnectNote] = useState('')
+
+  /**
+   * THE PASSAGE ITSELF, QUOTED, WITH WHERE IT CAME FROM.
+   *
+   * The other button on this card asks Atlas to WRITE something from the
+   * passage — that produces Atlas's words, which is a different thing from
+   * evidence. This one puts the analyst's chosen words in the document
+   * verbatim, as a `quote` block carrying the item, the label, the anchor and a
+   * snapshot of the words themselves.
+   *
+   * It costs no model call, which is the point: quoting a source is not a task
+   * that needs a language model, and making it one would mean a paraphrase
+   * arriving where an exact quotation was asked for.
+   */
+  const quoteIntoDocument = useCallback(() => {
+    if (!connectDraft?.itemId) return
+    const { text, title, itemId, lineId, page } = connectDraft
+    setConnectDraft(null)
+    setConnectNote('')
+    putInDocument(quoteBlockHtml({ text, label: title }), null, 'passage', {
+      source_item_id: itemId,
+      source_label: title,
+      source_quote: text,
+      ...(lineId ? { source_line_id: lineId } : page != null ? { source_page: page } : {}),
+    })
+  }, [connectDraft, putInDocument])
 
   const connectToDocument = useCallback(() => {
     if (!connectDraft || !connectNote.trim()) return
@@ -896,6 +1124,9 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                 insert={insertQueue}
                 onInserted={(nonce) => setInsertQueue((q) => q.filter((i) => i.nonce > nonce))}
                 incoming={docBusy !== null}
+                blocks={docBlocks}
+                onSave={saveDocument}
+                saveError={docSaveError}
               />
             ) : id === LEGAL_TAB ? (
               <LegalAgentChat areas={legalAreas} />
@@ -913,7 +1144,9 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
             setChatOpen(true)
           }}
           onConnect={(passage) => {
-            setConnectDraft({ title: passage.title, text: passage.text })
+            // The anchor travels WITH the passage — without it the card can
+            // offer to write about the words but not to cite them.
+            setConnectDraft(passage)
             setConnectNote('')
           }}
           onStar={() => setChatOpen(true)}
@@ -1189,14 +1422,32 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
               dir="auto"
               className="w-full rounded-[10px] border border-hairline bg-paper px-3 py-2.5 text-[13.5px] text-ink outline-none placeholder:text-ink-ghost"
             />
-            <button
-              type="button"
-              disabled={!connectNote.trim()}
-              onClick={connectToDocument}
-              className="self-end rounded-lg bg-ink px-3.5 py-2 text-[13px] font-medium text-paper disabled:opacity-40"
-            >
-              {dict.workspace.connectTo}
-            </button>
+            {/* TWO DIFFERENT THINGS, SIDE BY SIDE, AND THE DIFFERENCE IS THE
+                POINT. "Quote it" puts the analyst's own selected words in the
+                document, exactly, with the file and the line they came from —
+                no model, so no paraphrase can arrive where a quotation was
+                asked for. The other asks Atlas to WRITE from the passage, which
+                produces Atlas's words. Evidence and prose are not the same act,
+                so they are not the same button. */}
+            <div className="flex items-center justify-end gap-2">
+              {connectDraft.itemId && (
+                <button
+                  type="button"
+                  onClick={quoteIntoDocument}
+                  className="rounded-lg border border-hairline px-3.5 py-2 text-[13px] font-medium text-ink hover:bg-subtle"
+                >
+                  {dict.workspace.connectQuote}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={!connectNote.trim()}
+                onClick={connectToDocument}
+                className="rounded-lg bg-ink px-3.5 py-2 text-[13px] font-medium text-paper disabled:opacity-40"
+              >
+                {dict.workspace.connectTo}
+              </button>
+            </div>
           </div>
         </div>
       )}

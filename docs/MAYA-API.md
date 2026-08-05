@@ -48,7 +48,50 @@ have never had one): `https://openapigw.tase.co.il/tase/prod` + the path above.
 Rate limits, from the guide: **10 requests / 2 seconds**, burst the same; over it
 you get HTTP 429.
 
-## The probe, and why its result proves nothing about the key
+## RE-CHECKED 2026-08-05 AFTER THE FOUNDER REPORTED THE KEY APPROVED — still no call reaches TASE, and the reason is now NARROWER
+
+Founder, 2026-08-05: *"the api key was approved so check it!"* Re-ran the probe
+against all five endpoints of the product, both plausible bases, with the `apikey`
+header and a browser user-agent. Result, unchanged and uniform:
+
+| Host | Result |
+|---|---|
+| `openapigw.tase.co.il/tase/prod` + any of the 5 paths | **503, Imperva/Incapsula bot page**, every time |
+| `datahubapi.tase.co.il` + the same paths | **404 with real JSON** (`{"message":"Cannot GET …"}`) |
+
+The second row matters: TASE is reachable from here and that host is a working
+app server — it is simply the PORTAL, not the gateway, so the product paths are
+not on it. Only `openapigw.tase.co.il` is refusing.
+
+**The hypothesis this file carried — "the WAF refuses non-browser clients from
+here" — is now REFUTED.** Navigating the founder's own Chrome, on his own
+machine and network, to
+`https://openapigw.tase.co.il/tase/prod/api/v2/market-announcements/financial-report-schedule/event-types`
+returns the SAME Incapsula 503, and a same-origin `fetch()` from that page
+returns `{status: 503, waf: true}`. A real browser is refused exactly like a
+script, so the client was never the variable.
+
+What is left, and neither can be settled from this machine:
+
+1. **The base URL is not the one this product sits behind.** `openapigw.tase.co.il/tase/prod`
+   is TASE's published base for its OTHER products; nothing has ever confirmed it
+   for Market Announcements. This is the likeliest answer and the cheapest to
+   settle — the portal's "Try it out" prints the exact host it calls.
+2. **TASE's WAF blocks this network or region outright**, in which case a deployed
+   Atlas may be fine and only local development is blind.
+
+**Blocked on the founder, and it is a 2-minute job:** the portal session has
+expired (`datahubapi.tase.co.il/my-apps` redirects to `Continue with SSO`), and
+signing in is not something an assistant session may do. Sign in, open the
+**Atlas** app, and report two things: whether *Market Announcements feed - MAYA
+2.0.0* still says **PENDING**, and what host the **Try it out** console actually
+calls. Either answer unblocks this immediately.
+
+⇒ **Still true, and now for a sharper reason: nothing about the key has been
+tested.** Not one request has reached the API, so "approved" and "working" remain
+different claims. The request count in the portal is the arbiter.
+
+## The original probe, and why its result proves nothing about the key
 
 Node and curl both get **HTTP 503 with an Imperva/Incapsula bot-mitigation page**
 from `openapigw.tase.co.il` — identically **with the real key, with a deliberately

@@ -2,11 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { useDemoState } from '@/lib/demo/DemoStateProvider'
 import { ChevronDownIcon, SparkleIcon, ArrowUpIcon, CloseIcon } from '@/components/ds/icons'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { composeReq } from '@/lib/workspace/client'
 import { insertIntoBody } from '@/lib/workspace/docInsert'
+import {
+  BLOCK_TAGS,
+  blockElements,
+  blocksToHtml,
+  domToBlocks,
+  type Citation,
+  type DocBlock,
+} from '@/lib/workspace/blocks'
 import { HidePaneButton } from './SourceDocument'
 
 // The working document (design lines 1802-1887) — the workspace's deliverable.
@@ -40,6 +47,68 @@ export type ClipRequest = {
   pageLabel: string
 }
 
+/**
+ * EVERY TOP-LEVEL RUN BECOMES A BLOCK ELEMENT, so the document can be read.
+ *
+ * The first characters typed into an empty contentEditable are a bare TEXT
+ * NODE, not a paragraph — Chrome only starts making `<p>`s once Enter is
+ * pressed. `domToBlocks` walks `children`, which is elements only, so an
+ * analyst's opening sentence read as ZERO blocks and the whole document saved
+ * as nothing. It failed in the quietest possible way: the text was on screen,
+ * no error anywhere, and the rows simply never appeared. Found by querying the
+ * API after typing, not by looking at the page.
+ *
+ * The caret is preserved by re-selecting the SAME text node after it moves:
+ * appending a node to a new parent does not destroy it, so the saved Range
+ * still points at the right characters.
+ */
+function wrapLooseContent(body: HTMLElement) {
+  const sel = window.getSelection()
+  const saved =
+    sel && sel.rangeCount > 0 && body.contains(sel.anchorNode)
+      ? { node: sel.anchorNode, offset: sel.anchorOffset }
+      : null
+
+  let changed = false
+  let node = body.firstChild
+  while (node) {
+    const isBlock = node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName)
+    if (isBlock) {
+      node = node.nextSibling
+      continue
+    }
+    // An empty text node between two blocks is whitespace, not content.
+    if (node.nodeType === Node.TEXT_NODE && !(node.textContent ?? '').trim()) {
+      const next = node.nextSibling
+      node.parentNode?.removeChild(node)
+      node = next
+      continue
+    }
+    const p = document.createElement('p')
+    body.insertBefore(p, node)
+    let run: ChildNode | null = node
+    while (run && !(run.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((run as Element).tagName))) {
+      const after: ChildNode | null = run.nextSibling
+      p.appendChild(run)
+      run = after
+    }
+    changed = true
+    node = run
+  }
+
+  if (changed && saved?.node && body.contains(saved.node)) {
+    try {
+      const range = document.createRange()
+      range.setStart(saved.node, Math.min(saved.offset, (saved.node.textContent ?? '').length))
+      range.collapse(true)
+      sel?.removeAllRanges()
+      sel?.addRange(range)
+    } catch {
+      /* the caret is a nicety here; losing it must never lose the save */
+    }
+  }
+}
+
 export function WorkingDocument({
   workspaceId,
   title,
@@ -48,6 +117,9 @@ export function WorkingDocument({
   onInserted,
   incoming = false,
   onHidePane,
+  blocks,
+  onSave,
+  saveError,
 }: {
   workspaceId: string
   /** the STORED title, which may be '' — the placeholder shows the display name */
@@ -62,19 +134,34 @@ export function WorkingDocument({
    * analyst may be typing into — rather than through a re-seed that would eat
    * their caret.
    */
-  insert?: { nonce: number; html: string; afterHeading: string | null }[]
+  insert?: {
+    nonce: number
+    html: string
+    afterHeading: string | null
+    citation?: Citation | null
+  }[]
   onInserted?: (nonce: number) => void
   /** the shell is composing something for this document right now */
   incoming?: boolean
   /** take this pane off the multi-view — present only while several are on screen */
   onHidePane?: () => void
+  /** the document as the database has it — the shell owns these rows */
+  blocks: DocBlock[]
+  /**
+   * Hand the screen to the shell to be saved, and get back the ids of anything
+   * it created so they can be written onto the elements they came from. Without
+   * that write-back the next save sees the same element with no id and creates
+   * it a second time.
+   */
+  onSave: (drafts: ReturnType<typeof domToBlocks>) => Promise<{ draftIndex: number; id: string }[] | null>
+  /** the last save failed — the pane says so rather than looking saved */
+  saveError?: unknown
 }) {
   const { dict } = useI18n()
-  const { docHtml, setDocHtml } = useDemoState()
   const bodyRef = useRef<HTMLDivElement>(null)
-  /** the stored document, readable from a callback that runs before the seed */
-  const storedRef = useRef('')
-  storedRef.current = docHtml[workspaceId] ?? ''
+  /** the rows, readable from a callback that runs before the seed effect */
+  const blocksRef = useRef(blocks)
+  blocksRef.current = blocks
   const [exportOpen, setExportOpen] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -105,7 +192,7 @@ export function WorkingDocument({
    * a person. With no anchor it goes at the end.
    */
   const insertFragment = useCallback(
-    (fragment: string, afterHeading: string | null) => {
+    (fragment: string, afterHeading: string | null, citation?: Citation | null) => {
       const body = bodyRef.current
       if (!body) return
       // SEED BEFORE SPLICING, OR THE SPLICE *IS* THE DOCUMENT.
@@ -122,16 +209,30 @@ export function WorkingDocument({
       // Restoring here rather than reordering the effects: this is the function
       // that must never write into a body it has not filled, so the guarantee
       // belongs to it and not to the order two hooks happen to sit in.
-      if (!body.innerHTML.trim() && storedRef.current) body.innerHTML = storedRef.current
+      if (!body.innerHTML.trim() && blocksRef.current.length) {
+        body.innerHTML = blocksToHtml(blocksRef.current)
+      }
       // The placement rule lives in lib/workspace/docInsert, because the shell
-      // runs the same one on the stored HTML when this pane is not mounted.
+      // runs the same one on the stored rows when this pane is not mounted.
       const first = insertIntoBody(body, fragment, afterHeading)
       if (!first) return
-      setDocHtml(workspaceId, body.innerHTML)
+      // A CITED INSERT IS MARKED ON THE ELEMENT, because that attribute is what
+      // makes the diff read the block back as `quote` rather than as an ordinary
+      // paragraph — and `quote` is what the database requires a source for.
+      if (citation) {
+        for (const el of blockElements(body)) {
+          if (el === first || el.contains(first)) {
+            el.setAttribute('data-source-item', citation.source_item_id)
+            break
+          }
+        }
+      }
       setEmpty(!body.innerText.trim())
       first.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      requestSave()
     },
-    [setDocHtml, workspaceId]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   )
 
   /** Headings Atlas is allowed to aim at — read from the live DOM, never guessed. */
@@ -190,7 +291,7 @@ export function WorkingDocument({
     const fresh = insert.filter((i) => i.nonce > lastInsert.current)
     if (!fresh.length) return
     lastInsert.current = fresh[fresh.length - 1].nonce
-    for (const i of fresh) insertFragment(i.html, i.afterHeading)
+    for (const i of fresh) insertFragment(i.html, i.afterHeading, i.citation)
     onInserted?.(lastInsert.current)
   }, [insert, insertFragment, onInserted])
 
@@ -225,7 +326,7 @@ export function WorkingDocument({
   // (2026-08-04) that content stops being a placeholder and starts being
   // something a real draft gets mixed into. An analyst's document opens blank,
   // like every document does.
-  const html = docHtml[workspaceId] ?? ''
+  const html = blocksToHtml(blocks)
 
   // Seed once; afterwards the DOM is the source of truth while editing, so we do
   // NOT rewrite innerHTML on every keystroke (that would reset the caret).
@@ -241,18 +342,62 @@ export function WorkingDocument({
       bodyRef.current.innerHTML = html
       setEmpty(!bodyRef.current.innerText.trim())
     }
-  }, [html])
+    // The REASON a citation is struck through, in the reader's language. The
+    // marker itself is set by blocksToHtml, which is locale-free on purpose;
+    // the words belong here.
+    bodyRef.current
+      ?.querySelectorAll('[data-citation="missing"] .atlas-quote-cite')
+      .forEach((el) => el.setAttribute('data-absent', dict.workspace.citationAbsent))
+  }, [html, dict.workspace.citationAbsent])
 
-  function persist() {
-    if (!bodyRef.current) return
-    setDocHtml(workspaceId, bodyRef.current.innerHTML)
-    setEmpty(!bodyRef.current.innerText.trim())
-  }
+  /**
+   * SAVE WHAT IS ON SCREEN.
+   *
+   * The DOM is the source of truth while the analyst is typing — that is what
+   * keeps the caret still — so saving means reading it back as blocks and
+   * handing them up. The ids that come back are written onto the elements they
+   * were created from; skipping that write-back would make every later save
+   * create the same paragraph again.
+   */
+  const saveNow = useCallback(async () => {
+    const body = bodyRef.current
+    if (!body) return
+    wrapLooseContent(body)
+    setEmpty(!body.innerText.trim())
+    const drafts = domToBlocks(body)
+    const assigned = await onSave(drafts)
+    if (!assigned || !assigned.length) return
+    const els = blockElements(body)
+    for (const { draftIndex, id } of assigned) els[draftIndex]?.setAttribute('data-block-id', id)
+  }, [onSave])
+
+  const saveNowRef = useRef(saveNow)
+  saveNowRef.current = saveNow
+  const requestSave = useCallback(() => {
+    if (typeTimer.current) clearTimeout(typeTimer.current)
+    // 700ms: long enough that a sentence is one save rather than forty, short
+    // enough that "I typed it and switched tabs" is not a gamble.
+    typeTimer.current = setTimeout(() => void saveNowRef.current(), 700)
+  }, [])
+
+  // LEAVING THE PANE SAVES IT. The debounce is cleared on unmount, so without
+  // this a pane switch inside the last 700ms of typing threw those keystrokes
+  // away — and a pane switch is exactly what an analyst does after writing a
+  // sentence about the thing they were reading.
+  useEffect(
+    () => () => {
+      if (typeTimer.current) {
+        clearTimeout(typeTimer.current)
+        void saveNowRef.current()
+      }
+    },
+    []
+  )
 
   function exec(command: string, value?: string) {
     bodyRef.current?.focus()
     document.execCommand(command, false, value)
-    persist()
+    requestSave()
   }
 
   const tool =
@@ -446,6 +591,24 @@ export function WorkingDocument({
         </div>
       )}
 
+      {/* A DOCUMENT THAT IS NOT SAVING MUST SAY SO WHILE YOU ARE STILL TYPING.
+          The worst version of this failure is the silent one: the analyst keeps
+          writing into something that stopped keeping any of it, and finds out
+          on the next reload. It sits above the page rather than in a corner,
+          because it is not a status — it is a reason to stop. */}
+      {saveError != null && (
+        <div
+          role="alert"
+          className="flex-none border-b border-hairline bg-[rgba(180,60,60,.08)] px-10 py-2 text-[12px] text-ink"
+        >
+          <ErrorLine
+            template={dict.workspace.docSaveFailed}
+            error={saveError}
+            auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+          />
+        </div>
+      )}
+
       <div className="atscroll min-h-0 flex-1 overflow-auto px-10 py-9">
         <div className="mx-auto max-w-[720px]">
           {/* THE TITLE IS THE DOCUMENT'S, so it is typed here rather than
@@ -493,17 +656,15 @@ export function WorkingDocument({
               ref={bodyRef}
               contentEditable
               suppressContentEditableWarning
-              onBlur={persist}
+              onBlur={() => void saveNow()}
               onInput={() => {
                 setEmpty(!bodyRef.current?.innerText.trim())
-                // PERSIST WHILE TYPING, not only on blur. The shell now composes
-                // from the STORED html — it has to, because the document may not
-                // be mounted — so a paragraph typed and not yet blurred would be
-                // a paragraph Atlas cannot see. Debounced: this is React state,
-                // and a setState per keystroke re-renders every consumer of the
-                // demo store.
-                if (typeTimer.current) clearTimeout(typeTimer.current)
-                typeTimer.current = setTimeout(persist, 400)
+                // SAVE WHILE TYPING, not only on blur. The shell composes from
+                // the SAVED rows — it has to, because the document may not be
+                // mounted — so a paragraph typed and not yet blurred would be a
+                // paragraph Atlas cannot see. Debounced, because this is a
+                // network write and not a state update.
+                requestSave()
               }}
               dir="auto"
               className="atlas-doc min-h-[240px] text-[15px] leading-[1.75] text-ink outline-none"

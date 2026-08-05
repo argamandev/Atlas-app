@@ -150,6 +150,12 @@ export const en = {
       'Tell Atlas what to write — "open with the industry, then the board, then why this is a good investment"',
     docWriting: 'Atlas is writing…',
     docWriteFailed: 'Atlas could not write that: {error}',
+    // The loudest string in the workspace, on purpose: everything typed after
+    // this point is not being kept, and silence would be the worst possible
+    // answer to that.
+    docSaveFailed: 'Your document is NOT being saved: {error}',
+    docSaved: 'Saved',
+    connectQuote: 'Quote it',
     docWriteNoAnswer: 'Atlas could not draft that just now. Try again?',
     // The background write — reported where the analyst already is, never by
     // moving them into the document (founder, 2026-08-05).

@@ -5,7 +5,8 @@ import { resolveUser } from '@/lib/auth/verifyUser'
 import { unauthorized } from '@/lib/auth'
 import { askModel } from '@/lib/workspace/askModel'
 import { loadItemContent } from '@/lib/workspace/content'
-import { buildContext, contentToText, type SourceText } from '@/lib/workspace/chat/context'
+import { contentToText, type SourceText } from '@/lib/workspace/chat/context'
+import { estimateTokens, fitHistory, planContext, splitBudget } from '@/lib/workspace/chat/plan'
 import { buildChatPrompt, parseChatAnswer, type ChatTurn } from '@/lib/workspace/chat/prompt'
 import { parseAttachments, snipCaption } from '@/lib/chat/attachments'
 
@@ -14,6 +15,20 @@ export const dynamic = 'force-dynamic'
 /** A grounded read over several documents is not an interactive one-liner. */
 const CHAT_TIMEOUT_MS = 25_000
 const MAX_TURNS = 24
+
+/**
+ * THE WHOLE PROMPT'S CEILING, in tokens, measured against the real limit.
+ *
+ * The account is rated 30,000 tokens per minute for gpt-4.1, and that ceiling
+ * covers the request AND the answer. 18,000 for everything sent leaves room for
+ * a 1,400-token reply and for the analyst to ask a second question inside the
+ * same minute without the first one having eaten the allowance.
+ */
+const PROMPT_BUDGET_TOKENS = 18_000
+/** The instructions, the shelf listing and the JSON contract around the parts we measure. */
+const PROMPT_OVERHEAD_TOKENS = 900
+/** A clipped page, priced the way vision models charge for a detailed image. */
+const IMAGE_TOKENS = 800
 
 /**
  * Talk to Atlas about this workspace.
@@ -115,7 +130,26 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const order = new Map((items ?? []).map((i, n) => [i.id as string, n]))
     sources.sort((a, b) => (order.get(a.itemId) ?? 0) - (order.get(b.itemId) ?? 0))
 
-    const context = buildContext(sources)
+    // ── READ WHAT THE QUESTION NEEDS ─────────────────────────────────────────
+    //
+    // Founder, 2026-08-05: *"we need to build a smart token efficient workflow
+    // inside the workspace."* What this replaces sent the first N characters of
+    // EVERY file on EVERY turn, so a question about the end of a call was
+    // answered out of its beginning, at full price, every time.
+    //
+    // ONE BUDGET, split. The history and the sources used to be capped
+    // independently — 24 turns of up to 4,000 characters each, plus a 40,000
+    // character context — so both could be inside their own limit while the
+    // prompt was twice the account's per-minute allowance.
+    const question = messages[messages.length - 1]?.content ?? ''
+    const overhead =
+      estimateTokens(question) +
+      estimateTokens(selection?.text ?? '') +
+      PROMPT_OVERHEAD_TOKENS +
+      attachments.length * IMAGE_TOKENS
+    const budget = splitBudget({ totalTokens: PROMPT_BUDGET_TOKENS, overheadTokens: overhead })
+    const history = fitHistory(messages, budget.history)
+    const context = planContext({ question, sources, budgetTokens: budget.sources })
 
     const raw = await askModel(
       buildChatPrompt({
@@ -123,7 +157,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         shelf,
         context: context.text,
         truncated: context.truncated,
-        conversation: messages,
+        conversation: history.kept,
         selection,
         snipCount: attachments.length,
       }),

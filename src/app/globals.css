@@ -849,6 +849,36 @@
 .atlas-doc [data-demo] {
   color: #8a6a2f;
 }
+/* THE SOURCE LINE UNDER A QUOTED PASSAGE. Same vocabulary as <cite> above; a
+   separate class because the quote's words and its provenance live in ONE block
+   body, so a copy-paste takes the attribution with it. */
+.atlas-doc .atlas-quote-cite {
+  display: block;
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #9c9c9c;
+}
+/* A CITATION WHOSE SOURCE WAS REMOVED FROM THE SHELF.
+   `source_item_id` is `on delete set null`, so the writing survives its source
+   and this is what that looks like: the words and the label stay, and the block
+   stops presenting itself as something you can go and check. Struck-through
+   accent rather than a hidden or deleted block — founder decision 2026-08-01,
+   "a citation cannot quietly become a lie", and an absent one you can see beats
+   a live-looking one that resolves to nothing. */
+.atlas-doc blockquote[data-citation='missing'] {
+  border-inline-start-style: dashed;
+  border-inline-start-color: #b4a08c;
+  background: #faf8f5;
+}
+.atlas-doc blockquote[data-citation='missing'] .atlas-quote-cite {
+  color: #8a6a2f;
+  text-decoration: line-through;
+}
+.atlas-doc blockquote[data-citation='missing'] .atlas-quote-cite::after {
+  content: ' · ' attr(data-absent);
+  text-decoration: none;
+}
 /* A CLIPPING CUT FROM A SOURCE (founder 2026-08-05). The image is evidence, so
    it is framed like the blockquote above — same hairline vocabulary — and its
    caption says where it came from. max-width, because a clip of a wide table can

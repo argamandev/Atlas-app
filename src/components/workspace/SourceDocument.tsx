@@ -52,7 +52,18 @@ export function SourceDocument({
   /** marking a passage offers this; absent means the pane is read-only */
   onAskAtlas?: (passage: { itemId: string; title: string; text: string }) => void
   /** work the marked passage into the working document */
-  onConnect?: (passage: { itemId: string; title: string; text: string }) => void
+  /**
+   * A marked passage, on its way to the working document — with WHERE IT CAME
+   * FROM, because that is what a quote block stores. `lineId` for a transcript,
+   * `page` for a document; the database allows one anchor, never both.
+   */
+  onConnect?: (passage: {
+    itemId: string
+    title: string
+    text: string
+    lineId?: string | null
+    page?: number | null
+  }) => void
   /**
    * SNIP MODE, ARMED FROM OUTSIDE — the Ask Atlas composer's scissors, exactly
    * as the in-call composer arms the report pane. A rising nonce arms; 0
@@ -73,12 +84,20 @@ export function SourceDocument({
   const { dict } = useI18n()
   const [content, setContent] = useState<ItemContent | null>(null)
   const [error, setError] = useState<unknown>(null)
-  const [mark, setMark] = useState<{ text: string; x: number; y: number } | null>(null)
+  const [mark, setMark] = useState<{
+    text: string
+    /** the transcript line the selection starts in — a citation's anchor */
+    lineId: string | null
+    x: number
+    y: number
+  } | null>(null)
   /** the same menu for a PDF selection — positioned in VIEWPORT coords, which is
    *  what PdfViewer's anchor is (a getBoundingClientRect on the range). */
   const [pdfMark, setPdfMark] = useState<{
     text: string
     title: string
+    /** the page the selection starts on — the citation anchor for a document */
+    page: number | null
     top: number
     left: number
   } | null>(null)
@@ -217,10 +236,24 @@ export function SourceDocument({
       setMark(null)
       return
     }
+    // WHICH LINE THE QUOTE CAME FROM. `data-line-id` is on every transcript
+    // line for exactly this: a citation that stores the line id can be checked
+    // later against what that line says today, which is the difference between
+    // "this source moved" and a confident, wrong quote.
+    let node: Node | null = sel.anchorNode
+    let lineId: string | null = null
+    while (node && node !== pane) {
+      if (node instanceof Element && node.hasAttribute('data-line-id')) {
+        lineId = node.getAttribute('data-line-id')
+        break
+      }
+      node = node.parentNode
+    }
     const rect = sel.getRangeAt(0).getBoundingClientRect()
     const box = pane.getBoundingClientRect()
     setMark({
       text,
+      lineId,
       // Relative to the pane, and clamped inside it so a selection at the very
       // edge cannot push the button out of view.
       x: Math.min(Math.max(rect.left - box.left + rect.width / 2, 60), box.width - 60),
@@ -417,6 +450,11 @@ export function SourceDocument({
                 ? (text, pages, _docId, anchor) =>
                     setPdfMark({
                       text,
+                      // The FIRST page the selection touches is the anchor a
+                      // citation stores; the label below can name a range, but
+                      // `source_page` is one number and has to be the one a
+                      // reader would turn to.
+                      page: pages.length > 0 ? pages[0] : null,
                       // The page is part of the citation, exactly as the in-call
                       // panel labels a report passage.
                       title:
@@ -467,7 +505,7 @@ export function SourceDocument({
                 type="button"
                 onMouseDown={(e) => {
                   e.preventDefault()
-                  onConnect({ itemId: file.id, title: pdfMark.title, text: pdfMark.text })
+                  onConnect({ itemId: file.id, title: pdfMark.title, text: pdfMark.text, page: pdfMark.page })
                   setPdfMark(null)
                 }}
                 className="px-3 py-1.5 hover:bg-white/15"
@@ -521,7 +559,7 @@ export function SourceDocument({
                 type="button"
                 onMouseDown={(e) => {
                   e.preventDefault()
-                  onConnect({ itemId: file.id, title, text: mark.text })
+                  onConnect({ itemId: file.id, title, text: mark.text, lineId: mark.lineId })
                   setMark(null)
                   window.getSelection()?.removeAllRanges()
                 }}

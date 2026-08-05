@@ -4,7 +4,7 @@ import { WorkspaceRoute } from '@/components/workspace/WorkspaceRoute'
 import { createServerSupabase } from '@/lib/supabase'
 import { resolveUser } from '@/lib/auth/verifyUser'
 import { getWorkspaceFull, companyNamesByItem } from '@/lib/db/workspaces'
-import type { WorkspaceItemRow, WorkspaceRow } from '@/lib/workspace/data'
+import type { WorkspaceBlockRow, WorkspaceItemRow, WorkspaceRow } from '@/lib/workspace/data'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +26,7 @@ export default async function WorkspaceByIdRoute({ params }: { params: { id: str
 
   let workspace: WorkspaceRow | null = null
   let items: WorkspaceItemRow[] = []
+  let blocks: WorkspaceBlockRow[] = []
   let companies: Record<string, string> = {}
   let loadError: string | null = null
 
@@ -35,10 +36,11 @@ export default async function WorkspaceByIdRoute({ params }: { params: { id: str
       if (full) {
         workspace = full.workspace
         items = full.items
-        // full.blocks is deliberately not forwarded YET — the working document
-        // is still the stub's, so passing real blocks nothing renders would be
-        // worse than not passing them. It is the next piece, and the warm read
-        // already returns them.
+        // THE DOCUMENT, ON THE FIRST PAINT. Forwarded since 2026-08-05: the
+        // working document is real blocks now, so the warm read finally means
+        // the writing too and not only the shelf. Until then it stopped at the
+        // route, which is why a reload lost everything the analyst had written.
+        blocks = full.blocks
         companies = await companyNamesByItem(supabase, full.items)
       }
       // full === null means RLS made it NOT THERE — either it never existed or
@@ -54,6 +56,7 @@ export default async function WorkspaceByIdRoute({ params }: { params: { id: str
       <WorkspaceRoute
         workspace={workspace}
         items={items}
+        blocks={blocks}
         companies={companies}
         loadError={loadError}
         nowIso={new Date().toISOString()}

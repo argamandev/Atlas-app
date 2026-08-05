@@ -7,7 +7,7 @@ import { ErrorLine } from '@/components/projects/ErrorLine'
 import { WorkspaceShell } from './WorkspaceShell'
 import { WorkspaceIntake } from './WorkspaceIntake'
 import { presentWorkspace } from '@/lib/workspace/present'
-import type { WorkspaceRow, WorkspaceItemRow } from '@/lib/workspace/data'
+import type { WorkspaceRow, WorkspaceItemRow, WorkspaceBlockRow } from '@/lib/workspace/data'
 
 // Resolves a workspace from REAL rows read on the server (migration 016). It
 // used to resolve against session demo state, which is exactly why a reload
@@ -18,12 +18,15 @@ import type { WorkspaceRow, WorkspaceItemRow } from '@/lib/workspace/data'
 export function WorkspaceRoute({
   workspace,
   items,
+  blocks = [],
   companies,
   loadError,
   nowIso,
 }: {
   workspace: WorkspaceRow | null
   items: WorkspaceItemRow[]
+  /** the working document, as the server read it — the warm read includes the writing */
+  blocks?: WorkspaceBlockRow[]
   /** itemId -> company name; the workspace's company is derived from these */
   companies: Record<string, string>
   loadError: string | null
@@ -115,5 +118,5 @@ export function WorkspaceRoute({
     return <WorkspaceIntake workspaceId={presented.id} workspaceName={presented.name} />
   }
 
-  return <WorkspaceShell workspace={presented} />
+  return <WorkspaceShell workspace={presented} blocks={blocks} />
 }

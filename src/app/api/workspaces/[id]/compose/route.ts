@@ -5,13 +5,21 @@ import { resolveUser } from '@/lib/auth/verifyUser'
 import { unauthorized } from '@/lib/auth'
 import { askModel } from '@/lib/workspace/askModel'
 import { loadItemContent } from '@/lib/workspace/content'
-import { buildContext, contentToText, type SourceText } from '@/lib/workspace/chat/context'
+import { contentToText, type SourceText } from '@/lib/workspace/chat/context'
+import { estimateTokens, planContext, splitBudget } from '@/lib/workspace/chat/plan'
 import { buildComposePrompt, parseCompose } from '@/lib/workspace/chat/compose'
 import { parseAttachments } from '@/lib/chat/attachments'
 
 export const dynamic = 'force-dynamic'
 
 const COMPOSE_TIMEOUT_MS = 30_000
+
+/** Same ceiling as the chat, for the same reason — see that route's note. */
+const PROMPT_BUDGET_TOKENS = 18_000
+/** The drafting instructions and the JSON contract around the measured parts. */
+const COMPOSE_OVERHEAD_TOKENS = 1_100
+/** A clipped page, priced the way vision models charge for a detailed image. */
+const IMAGE_TOKENS = 800
 
 /**
  * Atlas drafts a passage for the analyst's own document.
@@ -107,7 +115,26 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     )
     const order = new Map((items ?? []).map((i, n) => [i.id as string, n]))
     sources.sort((a, b) => (order.get(a.itemId) ?? 0) - (order.get(b.itemId) ?? 0))
-    const context = buildContext(sources)
+    // THE SAME RATIONING THE CHAT USES. A draft is written from the passages
+    // that answer the instruction, not from the opening pages of everything on
+    // the shelf — and the document being written is itself part of the prompt,
+    // so it is charged for before the sources are.
+    const overhead =
+      estimateTokens(instruction) +
+      estimateTokens(document) +
+      estimateTokens(passage?.text ?? '') +
+      COMPOSE_OVERHEAD_TOKENS +
+      (clip ? IMAGE_TOKENS : 0)
+    const budget = splitBudget({
+      totalTokens: PROMPT_BUDGET_TOKENS,
+      overheadTokens: overhead,
+      historyShare: 0,
+    })
+    const context = planContext({
+      question: [instruction, passage?.text ?? ''].join(' '),
+      sources,
+      budgetTokens: budget.sources,
+    })
 
     const raw = await askModel(
       buildComposePrompt({
