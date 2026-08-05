@@ -29,7 +29,7 @@ import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Fac
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
-import { usePlayer, usePlayerTimeDerived } from '@/lib/player/PlayerProvider'
+import { usePlayer, usePlayerTimeDerived, useViewingCall } from '@/lib/player/PlayerProvider'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
@@ -72,10 +72,7 @@ export function LiveTranscriptView({
 
   // Tell the player this call is being displayed (URL-independent) so the Return-to-transcript chip
   // hides while we're on it — including the inline live→finished swap, where the URL stays /app/live/live.
-  useEffect(() => {
-    player.setViewing(call.id)
-    return () => player.setViewing(null)
-  }, [call.id, player.setViewing])
+  useViewingCall(call.id)
 
   const [tab, setTab] = useState('transcript')
   // V2 (Claude Design): call view is dark-first with a Light toggle; Single|Multi facets.

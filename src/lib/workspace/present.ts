@@ -117,6 +117,9 @@ export function presentWorkspace(
       id: i.id,
       name: i.name,
       kind: i.kind,
+      // undefined, not null, for a document or an uploaded file — the field is
+      // "which call is this", and only a transcript item is one.
+      ...(i.transcript_id ? { transcriptId: i.transcript_id } : {}),
       // The persisted "how I left it" flag reaching the UI, which initialises
       // its open tabs from exactly this rather than defaulting to the first
       // source every time.

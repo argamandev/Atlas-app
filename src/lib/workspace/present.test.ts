@@ -158,6 +158,30 @@ test('an open item survives into the display shape as `live`', () => {
   )
 })
 
+test('a transcript item carries its CALL id to the UI; a document carries none', () => {
+  // The tab bar uses this to tell the shell which recorded calls this workspace
+  // already holds, so the floating "Return to transcript" chip never offers to
+  // navigate out of a workspace to reach a call that is a tab away.
+  const w = presentWorkspace(
+    row(),
+    [
+      item({ id: 'a', transcript_id: 'PyuMxe88e8g_live' }),
+      item({ id: 'b', kind: 'document', transcript_id: null, document_id: 'd1' }),
+    ],
+    [],
+    new Date(),
+    'en',
+    en
+  )
+  assert.deepEqual(
+    w.files.map((f) => [f.id, f.transcriptId]),
+    [
+      ['a', 'PyuMxe88e8g_live'],
+      ['b', undefined],
+    ]
+  )
+})
+
 test('both locales carry every key this module reads', () => {
   for (const k of ['companyNone', 'companyMany', 'sourceOne', 'sourceMany'] as const) {
     assert.equal(typeof en.workspace[k], 'string', `en.workspace.${k}`)

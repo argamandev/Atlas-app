@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { addViewer, removeViewer, type ViewerCounts } from './viewers'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global audio player (Feature 4). Lifts the recorded-call player out of the
@@ -56,8 +57,10 @@ interface PlayerApi {
   showBar: () => void
   getCurrentTime: () => number
   subscribeTime: (cb: () => void) => () => void
-  viewingId: string | null
-  setViewing: (id: string | null) => void
+  /** call ids some surface is currently DISPLAYING — see `useViewingCall` */
+  viewingIds: string[]
+  addViewing: (id: string) => void
+  removeViewing: (id: string) => void
   /** the in-transcript side chat is open → the docked bar narrows to sit left of it */
   chatOpen: boolean
   setChatOpen: (v: boolean) => void
@@ -90,13 +93,58 @@ export function usePlayerTimeDerived<T extends number | string | boolean>(comput
   )
 }
 
+/**
+ * "This component is SHOWING that call's words right now."
+ *
+ * Registers on mount, releases on unmount, so the floating "Return to transcript"
+ * chip never offers to carry you somewhere you already are. Founder, 2026-08-05:
+ * playing a call from a workspace pane raised that chip — and following it would
+ * have thrown away the panes he had arranged, to reach a transcript already open
+ * in front of him.
+ *
+ * Pass `null` when there is nothing to declare (a pane with no recording).
+ */
+export function useViewingCall(callId: string | null) {
+  const { addViewing, removeViewing } = usePlayer()
+  useEffect(() => {
+    if (!callId) return
+    addViewing(callId)
+    return () => removeViewing(callId)
+  }, [callId, addViewing, removeViewing])
+}
+
+/**
+ * The list form: "all of these calls are reachable HERE, without navigating."
+ *
+ * A workspace holding a call as a labelled tab is the case this exists for. The
+ * analyst switches from the transcript to the report while the audio keeps
+ * playing; the chip has no business appearing then, because its offer — go to
+ * the call page — would empty the workspace he built to reach words that are one
+ * visible tab away.
+ *
+ * Keyed on the joined ids so a re-render with an equal list does not re-register.
+ * Call ids never contain the separator (uuids and YouTube ids).
+ */
+export function useViewingCalls(callIds: string[]) {
+  const { addViewing, removeViewing } = usePlayer()
+  const key = callIds.join('|')
+  useEffect(() => {
+    const ids = key ? key.split('|') : []
+    ids.forEach(addViewing)
+    return () => ids.forEach(removeViewing)
+  }, [key, addViewing, removeViewing])
+}
+
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [call, setCall] = useState<PlayerCall | null>(null)
   const [playing, setPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(1)
-  const [viewingId, setViewingId] = useState<string | null>(null) // call a LiveTranscriptView is displaying (URL-independent)
+  // Calls some surface is DISPLAYING right now (URL-independent) — a workspace pane
+  // or a LiveTranscriptView. Counted, not flagged: see lib/player/viewers.ts.
+  const [viewingIds, setViewingIds] = useState<string[]>([])
+  const viewerCounts = useRef<ViewerCounts>(new Map())
   const [chatOpen, setChatOpen] = useState(false) // in-transcript side chat open → narrow the docked bar
   const [barHidden, setBarHidden] = useState(false) // bar UI dismissed while audio keeps playing
 
@@ -195,7 +243,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (a) a.volume = v
     setVolumeState(v)
   }, [])
-  const setViewing = useCallback((id: string | null) => setViewingId(id), [])
+  const addViewing = useCallback((id: string) => setViewingIds(addViewer(viewerCounts.current, id)), [])
+  const removeViewing = useCallback((id: string) => setViewingIds(removeViewer(viewerCounts.current, id)), [])
   const close = useCallback(() => {
     audioRef.current?.pause()
     setCall(null)
@@ -221,8 +270,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     showBar,
     getCurrentTime,
     subscribeTime,
-    viewingId,
-    setViewing,
+    viewingIds,
+    addViewing,
+    removeViewing,
     chatOpen,
     setChatOpen,
   }

@@ -1,7 +1,8 @@
 'use client'
 
-import { useRef, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
+import { useViewingCalls } from '@/lib/player/PlayerProvider'
 import { CloseIcon, ColumnsIcon, SinglePaneIcon, SparkleIcon } from '@/components/ds/icons'
 import { SourceDocument } from './SourceDocument'
 import { tabLabel } from '@/lib/workspace/tabLabel'
@@ -60,6 +61,25 @@ export function WorkspaceDocs({
   const dragging = useRef<{ id: string; nextId: string; startX: number; a: number; b: number } | null>(null)
 
   const fileById = (id: string) => workspace.files.find((f) => f.id === id)
+
+  // THE CALLS THIS WORKSPACE ALREADY HOLDS.
+  //
+  // Founder, 2026-08-05: *"if we hear a transcript in sync in a workspace, we
+  // don't need to have a return to transcript button."* The shell's floating
+  // "Return to transcript" chip exists for someone who wandered away from a call
+  // — but here the call is a labelled tab at the top of the screen, so the chip
+  // is not a shortcut back, it is a door OUT of the workspace, and it takes the
+  // arranged panes with it. Declaring the tabs suppresses it for exactly the
+  // calls that are reachable here, and leaves it working for every other call.
+  const openTranscriptIds = useMemo(
+    () =>
+      openTabs
+        .map((id) => fileById(id)?.transcriptId)
+        .filter((t): t is string => typeof t === 'string' && t.length > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [openTabs, workspace.files]
+  )
+  useViewingCalls(openTranscriptIds)
 
   // WHAT IS ON SCREEN.
   //

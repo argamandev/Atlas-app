@@ -26,6 +26,14 @@ export type WsFile = {
   name: string
   kind: WsFileKind
   year?: string
+  /**
+   * The CORPUS transcript id this shelf item points at, when it points at one.
+   * Carried to the UI for a single reason: the tab bar has to be able to say
+   * which recorded calls this workspace already holds, so the shell's floating
+   * "Return to transcript" chip does not offer to navigate out of a workspace
+   * to reach a call that is a tab away (see PlayerProvider.useViewingCalls).
+   */
+  transcriptId?: string
   /** open in the side-by-side view — persisted as workspace_items.is_open */
   live?: boolean
 }

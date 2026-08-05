@@ -7,7 +7,7 @@ import { fetchItemContent } from '@/lib/workspace/client'
 import { detectDir } from '@/lib/utils'
 import { PdfViewer } from '@/components/live/PdfViewer'
 import { TranscriptBody } from '@/components/live/TranscriptBody'
-import { usePlayer, usePlayerTime } from '@/lib/player/PlayerProvider'
+import { usePlayer, usePlayerTime, useViewingCall } from '@/lib/player/PlayerProvider'
 import { activeWordIndex, flattenWords } from '@/lib/live/syncEngine'
 import type { WordTimedTranscript } from '@/lib/live/syncEngine'
 import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon, PlayIcon } from '@/components/ds/icons'
@@ -642,6 +642,13 @@ function KaraokeTranscript({
   const { dict } = useI18n()
   const player = usePlayer()
   const t = usePlayerTime()
+
+  // THE WORDS ARE ALREADY ON SCREEN, so the shell's floating "Return to transcript"
+  // chip must not appear over this pane. Founder, 2026-08-05: *"we don't need to
+  // return to the live investor call"* — and the chip is worse than redundant here,
+  // because following it navigates out of the workspace and takes the panes he
+  // arranged with it. Declared while this pane is mounted, released when it closes.
+  useViewingCall(content.transcriptId)
 
   const flat = useMemo(() => flattenWords(content.wordTimed), [content.wordTimed])
   // Only THIS call's words move. Another call playing in the shell must not
