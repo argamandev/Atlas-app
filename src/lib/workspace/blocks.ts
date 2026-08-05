@@ -126,6 +126,9 @@ export function toDocBlock(row: {
 
 const HEADING_TAGS = new Set(['H1', 'H2', 'H3', 'H4', 'H5', 'H6'])
 
+/** A body that is itself block-level markup — a list, a table, a clipped figure. */
+const STRUCTURAL = /^\s*<(ul|ol|table|figure|pre|hr|blockquote)\b/i
+
 /**
  * Tags that ARE a block when they sit at the top level of the editor.
  *
@@ -167,7 +170,17 @@ export const BLOCK_TAGS = new Set([
 export function domToBlocks(root: { children: ArrayLike<Element> }): DraftBlock[] {
   return blockElements(root).map((el, i) => {
     const id = el.getAttribute('data-block-id')
-    const cited = Boolean(el.getAttribute('data-source-item'))
+    // A QUOTE WHOSE SOURCE WAS REMOVED IS STILL A QUOTE.
+    //
+    // `source_item_id` is `on delete set null`, so an orphaned citation has no
+    // `data-source-item` to read — and treating that as an ordinary paragraph
+    // made the diff see a KIND CHANGE, which is a delete plus a create. The
+    // re-created row carried no `source_label` and no `source_quote`, so the
+    // first autosave after removing a file destroyed the very evidence that
+    // `on delete set null` exists to preserve, and the citation then rendered
+    // unmarked. `data-citation` is the other half of the same fact.
+    const cited =
+      Boolean(el.getAttribute('data-source-item')) || el.getAttribute('data-citation') === 'missing'
     const tag = el.tagName.toUpperCase()
     const kind: BlockKind = cited ? 'quote' : HEADING_TAGS.has(tag) ? 'heading' : 'text'
     return { id: id || null, kind, body: (el.innerHTML ?? '').trim(), position: i }
@@ -255,27 +268,23 @@ export function diffBlocks(prev: DocBlock[], next: DraftBlock[]): BlockOp[] {
  * pointing at nothing is still readable evidence of what it used to point at,
  * where a link that still LOOKS live is a lie.
  *
- * `drifted` is the third state and the reason `source_quote` exists. A
- * transcript re-processed through Gemini can renumber its lines, so an anchor
- * can still RESOLVE — to different words. Comparing the snapshot against what
- * the anchor resolves to today is what lets the UI say "this moved" instead of
- * showing a confident, wrong quote.
+ * WHAT IS ACTUALLY IMPLEMENTED, AND WHAT IS NOT — stated here rather than in a
+ * function nothing calls.
+ *
+ * `missing` IS implemented: `blocksToHtml` marks a block that kept its label
+ * and lost its item with `data-citation="missing"`, `domToBlocks` reads that
+ * back as a quote so an autosave cannot quietly destroy it, and the CSS strikes
+ * the source line through.
+ *
+ * `drifted` IS NOT. It needs the anchor resolved against the source AS IT READS
+ * TODAY and compared with `source_quote`, which means loading the cited item on
+ * render — real work, not a helper. A `citationState()` function covering all
+ * four states was written here first and deleted the same day: nothing called
+ * it, and a tested function that no surface uses reads as a feature that exists.
+ * `lib/workspace/present.ts` already carries an older two-state version with a
+ * different vocabulary (`absent` rather than `missing`); when drift is built,
+ * that is the one to extend, so there is one answer and not three.
  */
-export type CitationState = 'live' | 'missing' | 'drifted' | 'none'
-
-export function citationState(
-  block: Pick<DocBlock, 'source_item_id' | 'source_label' | 'source_quote'>,
-  opts: { itemExists: boolean; resolvesTo?: string | null }
-): CitationState {
-  if (!block.source_label && !block.source_item_id) return 'none'
-  if (!block.source_item_id) return 'missing'
-  if (!opts.itemExists) return 'missing'
-  const now = opts.resolvesTo
-  if (typeof now === 'string' && block.source_quote) {
-    if (normalise(now) !== normalise(block.source_quote)) return 'drifted'
-  }
-  return 'live'
-}
 
 const normalise = (s: string) => s.replace(/\s+/g, ' ').trim()
 
@@ -302,6 +311,16 @@ export function blocksToHtml(blocks: DocBlock[]): string {
         (orphaned ? ' data-citation="missing"' : '')
       if (b.kind === 'heading') return `<h2${attrs}>${b.body}</h2>`
       if (b.kind === 'quote') return `<blockquote${attrs}>${b.body}</blockquote>`
+      // A BODY THAT IS ALREADY A BLOCK GETS A NEUTRAL WRAPPER, NOT A <p>.
+      //
+      // `<p><ul>…</ul></p>` is not what it looks like: the HTML parser CLOSES an
+      // open <p> the moment it meets another block-level start tag, so the seed
+      // produced an empty `<p data-block-id>` plus orphaned content with no id —
+      // and the next save then deleted that row and created a new one, every
+      // time. A <div> may legally contain them, and DIV is in BLOCK_TAGS, so
+      // `domToBlocks` reads its innerHTML straight back and the round trip is
+      // stable. Verified by round-tripping every kind (see blocks.test).
+      if (STRUCTURAL.test(b.body)) return `<div${attrs}>${b.body}</div>`
       return `<p${attrs}>${b.body}</p>`
     })
     .join('')
@@ -379,7 +398,15 @@ export function fragmentToDrafts(html: string, startPosition: number): DraftBloc
     if (loose) out.push(draft(loose, 'text'))
     const tag = m[1].toLowerCase()
     const kind: BlockKind = tag === 'h2' || tag === 'h3' ? 'heading' : 'text'
-    const body = tag === 'h2' || tag === 'h3' ? inner(m[0]) : m[0]
+    // BODY IS WHAT IS INSIDE THE BLOCK, matching what `domToBlocks` reads back
+    // (`el.innerHTML`) and what `blocksToHtml` expects to wrap. Storing the
+    // OUTER element here meant a composed paragraph seeded as `<p><p>one</p></p>`,
+    // which the parser splits into an empty block and an orphan — so the row was
+    // deleted and re-created on the very next keystroke.
+    //
+    // A list or a table keeps its outer markup, because there is no wrapper that
+    // could carry it: `blocksToHtml` gives those a <div> instead of a <p>.
+    const body = tag === 'p' || tag === 'h2' || tag === 'h3' || tag === 'blockquote' ? inner(m[0]) : m[0]
     out.push(draft(body, kind))
     last = m.index + m[0].length
   }

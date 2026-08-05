@@ -151,13 +151,34 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const history = fitHistory(messages, budget.history)
     const context = planContext({ question, sources, budgetTokens: budget.sources })
 
+    // TURNS THAT DID NOT FIT ARE SAID OUT LOUD, to the model at least.
+    //
+    // Dropping the oldest turns is right — a conversation is understood
+    // backwards — but dropping them SILENTLY is how a model answers as though
+    // it remembers something it was never shown, and the analyst reads a
+    // confident non-sequitur with no way to know why. The count was being
+    // computed and thrown away.
+    const conversation =
+      history.dropped > 0
+        ? [
+            {
+              // 'assistant', because the prompt renders only these two roles —
+              // a note in Atlas's own voice is the honest place for "I cannot
+              // see the start of this".
+              role: 'assistant' as const,
+              content: `[${history.dropped} earlier turn${history.dropped === 1 ? '' : 's'} of this conversation are not shown to me — they did not fit. If the analyst refers to something from before that, say you cannot see it rather than guessing.]`,
+            },
+            ...history.kept,
+          ]
+        : history.kept
+
     const raw = await askModel(
       buildChatPrompt({
         workspaceName: (ws.name as string) ?? '',
         shelf,
         context: context.text,
         truncated: context.truncated,
-        conversation: history.kept,
+        conversation,
         selection,
         snipCount: attachments.length,
       }),

@@ -131,6 +131,39 @@ report whether the product still says PENDING and what host "Try it out" actuall
 **Still true: nothing about the key has been tested.** Not one request has reached the API, so
 "approved" and "working" remain different claims.
 
+## 4. The cold review of this commit, and the five row-deleting paths it found
+
+A fourth `atlas-reviewer` was run on `da01ae3` alone. Verdict **FIX FIRST**, five confirmed
+blockers — all of them in the editor, all invisible to a green battery, and two of them proven by
+running the module's own functions.
+
+| What was broken | Why it deleted rows | Fixed by |
+|---|---|---|
+| **The round trip did not round-trip.** `fragmentToDrafts` stored the OUTER element as the body while `blocksToHtml` supplied its own wrapper — `blocksToHtml(fragmentToDrafts('<p>one</p>'))` produced `<p data-block-id="x"><p>one</p></p>`, printed here from the real functions. | The HTML parser CLOSES an open `<p>` at the next block tag, so the seed became an empty block with the id plus an orphan without one. Every composed paragraph and every clipping was therefore deleted and re-created on the next keystroke — and a clip lost its `<figure class="atlas-clip">` wrapper permanently. | body is now the block's CONTENTS, matching what `domToBlocks` reads; a body that is itself block-level (a list, a table, a figure) gets a neutral `<div>` wrapper instead of a `<p>`. A **round-trip test** now asserts rows → html → rows is identity for every kind, and that the diff has nothing to do. |
+| **An orphaned citation read back as a paragraph.** A quote whose source was removed has no `data-source-item` (that is what `on delete set null` means), so `domToBlocks` called it `text`. | A kind change is a delete plus a create, and the new row carried no `source_label` and no `source_quote` — so **the first autosave after removing a file destroyed the very evidence `on delete set null` exists to preserve**, and the citation then rendered unmarked, looking live. | `data-citation="missing"` is now read as "still a quote". Tested both ways round. |
+| **"Quote it" saved no citation at all when the document pane was OPEN.** `quoteBlockHtml` returned bare text, so the insert path handed back a TEXT node and the code that marks the new block with its source compares against ELEMENTS — nothing matched. | A plain paragraph was saved with every citation column null, under a pill reading "Added to your document". The same button worked correctly with the pane closed: **the bug depended on which tab you were looking at.** | `quoteBlockHtml` returns a real `<blockquote>`. |
+| **Two quick writes raced.** `putInDocument` built its draft list from `docBlocksRef.current` OUTSIDE the mutex. | The second write's diff deleted the row the first had just created, and both said "added". Serialising the WRITES while racing the READS fixes nothing. | `saveDocument` now accepts a producer function and evaluates it inside the lock. |
+| **A half-failed round wedged the document.** Deletes and updates go out before creates, and the created list was discarded on any create failure. | Our row list then claimed rows the database did not have: every later save re-issued a delete that 404s (failing that round too) and re-created paragraphs that already existed. Permanent save failure, growing duplicates. | On failure the shell re-reads the workspace and resets its list to what the server actually holds. |
+
+Also fixed from the same review: the unmount flush read `bodyRef` **after React had nulled it**, so
+"leaving the pane saves it" saved nothing; the mounted-pane branch claimed "added" at QUEUE time,
+before anything was applied or written (the pane now reports the outcome of its own save); the id
+write-back could land a new row's id on the wrong paragraph if the DOM moved in flight (it now
+checks the element still matches the draft it came from); a file whose single section had to be
+trimmed reported "1 of 1 read" and stayed out of `truncated`, so the prompt admitted the gap and
+the analyst was not told; `estimateTokens` measured the Hebrew share over ALL characters including
+spaces, pricing real Hebrew prose at ~2.7 chars/token against the 2.1 this module measured — an
+18,000-token budget was really nearer 23,000, eating the margin it was chosen to leave; and
+`fitHistory`'s `dropped` count was computed and thrown away, so turns vanished with neither the
+model nor the analyst told (the model is now given a note in its own voice).
+
+**Removed rather than kept:** a `citationState()` helper covering live/missing/drifted/none, written
+the same day, tested, and called by nothing. `missing` is genuinely implemented through the round
+trip; `drifted` is not, because it needs the anchor resolved against the source as it reads today.
+A tested function no surface uses reads as a feature that exists. The header of `blocks.ts` now
+says which of the two is real, and `present.ts` already holds the older vocabulary to extend when
+drift is built.
+
 ## Gates
 
 `npm test` → **451 pass / 0 fail** (410 before this round; +41: 24 in `blocks.test.ts`, 17 in

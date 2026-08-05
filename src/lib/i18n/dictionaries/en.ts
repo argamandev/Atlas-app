@@ -154,7 +154,6 @@ export const en = {
     // this point is not being kept, and silence would be the worst possible
     // answer to that.
     docSaveFailed: 'Your document is NOT being saved: {error}',
-    docSaved: 'Saved',
     connectQuote: 'Quote it',
     docWriteNoAnswer: 'Atlas could not draft that just now. Try again?',
     // The background write — reported where the analyst already is, never by

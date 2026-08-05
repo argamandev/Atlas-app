@@ -93,7 +93,16 @@ export function quoteBlockHtml(opts: { text: string; label: string }): string {
   const text = escapeHtml(opts.text.trim())
   const label = escapeHtml(opts.label.trim())
   if (!text) return ''
-  return `${text}<span class="atlas-quote-cite"><bdi>${label}</bdi></span>`
+  // A REAL <blockquote>, not a loose run of text.
+  //
+  // Returning bare text made the pane's insert path hand back a TEXT NODE, and
+  // the code that marks the new block with its source compares against
+  // ELEMENTS — so nothing matched, no `data-source-item` was written, and
+  // "Quote it" saved a plain paragraph with every citation column empty while
+  // the pill said "Added to your document". The same button worked correctly
+  // with the document pane closed, which is the worst kind of bug: it depends
+  // on which tab you happen to be looking at.
+  return `<blockquote>${text}<span class="atlas-quote-cite"><bdi>${label}</bdi></span></blockquote>`
 }
 
 /**

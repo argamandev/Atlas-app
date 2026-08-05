@@ -2,7 +2,6 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   diffBlocks,
-  citationState,
   blocksToHtml,
   blocksToText,
   blockHeadings,
@@ -88,32 +87,36 @@ test('changing a block’s kind replaces it instead of silently keeping the cita
   ])
 })
 
-// ── citation state ───────────────────────────────────────────────────────────
+// ── a citation that lost its source ──────────────────────────────────────────
+//
+// The rule is enforced by the round trip, not by a helper: a block that kept
+// its label and lost its item is marked `data-citation="missing"` on the way
+// out and read back as a QUOTE on the way in, so the first autosave after
+// removing a file cannot quietly turn the evidence into an ordinary paragraph.
+// See the round-trip test below, which covers exactly that row.
 
-test('a citation whose source is still on the shelf is live', () => {
-  const b = block({ id: 'a', source_item_id: 'i1', source_label: 'Q3', source_quote: 'the words' })
-  assert.equal(citationState(b, { itemExists: true, resolvesTo: 'the words' }), 'live')
-})
-
-test('REMOVING THE FILE LEAVES THE WRITING AND SHOWS THE CITATION AS MISSING', () => {
-  // on delete set null: the row keeps its label and its quoted words.
-  const released = block({ id: 'a', source_item_id: null, source_label: 'Q3', source_quote: 'the words' })
-  assert.equal(citationState(released, { itemExists: false }), 'missing')
-  // and a source that is gone while the id lingers is the same answer
-  const stale = block({ id: 'a', source_item_id: 'i1', source_label: 'Q3', source_quote: 'w' })
-  assert.equal(citationState(stale, { itemExists: false }), 'missing')
-})
-
-// The reason source_quote is stored at all.
-test('an anchor that now resolves to DIFFERENT words is drifted, never shown as live', () => {
-  const b = block({ id: 'a', source_item_id: 'i1', source_label: 'Q3', source_quote: 'the words' })
-  assert.equal(citationState(b, { itemExists: true, resolvesTo: 'other words' }), 'drifted')
-  // whitespace is not drift
-  assert.equal(citationState(b, { itemExists: true, resolvesTo: '  the   words ' }), 'live')
-})
-
-test('an ordinary paragraph has no citation state to render', () => {
-  assert.equal(citationState(block({ id: 'a' }), { itemExists: false }), 'none')
+test('a released citation survives a save as a quote, keeping its words', () => {
+  const orphan = block({
+    id: 'o',
+    kind: 'quote',
+    body: 'orphaned words',
+    source_item_id: null,
+    source_label: 'Q3 2025',
+    source_quote: 'orphaned words',
+  })
+  const html = blocksToHtml([orphan])
+  assert.match(html, /data-citation="missing"/)
+  // …and reading that element back must NOT call it a paragraph, because a kind
+  // change is a delete plus a create, and the new row would carry no source.
+  const el = {
+    tagName: 'BLOCKQUOTE',
+    innerHTML: 'orphaned words',
+    textContent: 'orphaned words',
+    getAttribute: (k: string) => (k === 'data-block-id' ? 'o' : k === 'data-citation' ? 'missing' : null),
+  }
+  const back = domToBlocks({ children: [el] as unknown as ArrayLike<Element> })
+  assert.equal(back[0].kind, 'quote')
+  assert.deepEqual(diffBlocks([orphan], back), [])
 })
 
 // ── rendering ────────────────────────────────────────────────────────────────
@@ -128,7 +131,14 @@ test('blocks render in position order, carrying their ids', () => {
 
 test('a block whose source was REMOVED is marked, so the citation cannot look live', () => {
   const html = blocksToHtml([
-    block({ id: 'q', kind: 'quote', body: 'words', source_item_id: null, source_label: 'Q3 2025', source_quote: 'words' }),
+    block({
+      id: 'q',
+      kind: 'quote',
+      body: 'words',
+      source_item_id: null,
+      source_label: 'Q3 2025',
+      source_quote: 'words',
+    }),
   ])
   assert.equal(html, '<blockquote data-block-id=\"q\" data-citation=\"missing\">words</blockquote>')
 })
@@ -151,15 +161,70 @@ test('text and headings are read back out for the model', () => {
 
 // ── a composed fragment becomes several blocks ───────────────────────────────
 
+// BODY IS THE BLOCK'S CONTENTS, not the block. `domToBlocks` reads
+// `el.innerHTML` and `blocksToHtml` supplies the wrapper, so a body that
+// carried its own `<p>` produced `<p><p>one</p></p>` — which the parser splits
+// into an empty block plus an orphan, and the next save deleted the row.
 test('an answer of several paragraphs is several blocks, not one lump', () => {
   const ds = fragmentToDrafts('<p>one</p><p>two</p>', 0)
   assert.deepEqual(
     ds.map((d) => [d.kind, d.body, d.position]),
     [
-      ['text', '<p>one</p>', 0],
-      ['text', '<p>two</p>', 1],
+      ['text', 'one', 0],
+      ['text', 'two', 1],
     ]
   )
+})
+
+// The property that all of this exists to guarantee: what the seed writes into
+// the editor must read back as the SAME blocks, or every save churns rows.
+test('ROUND TRIP: rows → html → rows is stable for every kind', () => {
+  const rows = [
+    block({ id: 'h', kind: 'heading', body: 'Findings', position: 0 }),
+    block({ id: 'p', kind: 'text', body: 'a <strong>bold</strong> claim', position: 1 }),
+    block({ id: 'l', kind: 'text', body: '<ul><li>one</li></ul>', position: 2 }),
+    block({ id: 't', kind: 'text', body: '<table><tr><td>1</td></tr></table>', position: 3 }),
+    block({
+      id: 'q',
+      kind: 'quote',
+      body: 'the words',
+      position: 4,
+      source_item_id: 'i1',
+      source_quote: 'the words',
+    }),
+    block({
+      id: 'o',
+      kind: 'quote',
+      body: 'orphaned words',
+      position: 5,
+      source_item_id: null,
+      source_label: 'Q3 2025',
+      source_quote: 'orphaned words',
+    }),
+  ]
+  const html = blocksToHtml(rows)
+  // Parse it the way the browser would, using the element shim these tests use.
+  const parsed = html.match(/<(\w+)([^>]*)>([\s\S]*?)<\/\1>/g) ?? []
+  assert.equal(parsed.length, rows.length, `expected ${rows.length} top-level blocks, got ${parsed.length}`)
+  const children = parsed.map((el) => {
+    const tag = /^<(\w+)/.exec(el)![1].toUpperCase()
+    const attrs: Record<string, string> = {}
+    for (const m of el.slice(0, el.indexOf('>')).matchAll(/([\w-]+)="([^"]*)"/g)) attrs[m[1]] = m[2]
+    const body = el.slice(el.indexOf('>') + 1, el.lastIndexOf('</'))
+    return {
+      tagName: tag,
+      innerHTML: body,
+      textContent: body.replace(/<[^>]*>/g, ''),
+      getAttribute: (k: string) => attrs[k] ?? null,
+    }
+  })
+  const back = domToBlocks({ children: children as unknown as ArrayLike<Element> })
+  assert.deepEqual(
+    back.map((b) => [b.id, b.kind, b.body]),
+    rows.map((b) => [b.id, b.kind, b.body])
+  )
+  // …and therefore the diff has nothing to do, which is the whole point.
+  assert.deepEqual(diffBlocks(rows, back), [])
 })
 
 test('a heading in the answer becomes a heading block, unwrapped', () => {
@@ -168,7 +233,7 @@ test('a heading in the answer becomes a heading block, unwrapped', () => {
     ds.map((d) => [d.kind, d.body, d.position]),
     [
       ['heading', 'Summary', 3],
-      ['text', '<p>body</p>', 4],
+      ['text', 'body', 4],
     ]
   )
 })
@@ -184,7 +249,7 @@ test('loose text between blocks is kept rather than dropped', () => {
   const ds = fragmentToDrafts('stray<p>one</p>tail', 0)
   assert.deepEqual(
     ds.map((d) => d.body),
-    ['stray', '<p>one</p>', 'tail']
+    ['stray', 'one', 'tail']
   )
 })
 
@@ -257,10 +322,7 @@ test('a quote draft carries its source through the diff into the create op', () 
     source_quote: 'the words as spoken',
     source_line_id: 'L0004',
   }
-  const ops = diffBlocks(
-    [],
-    [dr({ kind: 'quote', body: 'the words as spoken', citation })]
-  )
+  const ops = diffBlocks([], [dr({ kind: 'quote', body: 'the words as spoken', citation })])
   assert.deepEqual(ops, [
     {
       op: 'create',

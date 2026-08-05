@@ -57,11 +57,23 @@ const LATIN_CHARS_PER_TOKEN = 3.9
  */
 const MIN_SLICE_TOKENS = 150
 
+/** Marks a window the budget forced us to cut — named in the prompt AND counted as partial. */
+const TRIMMED_SUFFIX = ' — first part only'
+
 /** A cheap, deliberately pessimistic token estimate for mixed Hebrew/Latin text. */
 export function estimateTokens(text: string): number {
   if (!text) return 0
+  // THE SHARE IS MEASURED OVER LETTERS, NOT OVER EVERY CHARACTER.
+  //
+  // Counting spaces and punctuation as "not Hebrew" made real Hebrew prose look
+  // about 40% Latin, which priced it at ~2.7 characters per token against the
+  // 2.1 this module measured — so an 18,000-token budget was really nearer
+  // 23,000, eating exactly the margin the number was chosen to leave under a
+  // 30,000-per-minute ceiling. An estimate used as a ceiling must err high.
   const hebrew = (text.match(/[֐-׿]/g) ?? []).length
-  const share = hebrew / text.length
+  const latin = (text.match(/[A-Za-z0-9]/g) ?? []).length
+  const letters = hebrew + latin
+  const share = letters === 0 ? 0 : hebrew / letters
   const perToken = share * HEBREW_CHARS_PER_TOKEN + (1 - share) * LATIN_CHARS_PER_TOKEN
   return Math.ceil(text.length / perToken)
 }
@@ -273,7 +285,7 @@ export function planContext(opts: {
         ...s.window,
         // Named as partial IN THE PROMPT, so the model cannot mistake a slice
         // for the whole section.
-        label: `${s.window.label} — first part only`,
+        label: `${s.window.label}${TRIMMED_SUFFIX}`,
         text: s.window.text.slice(0, chars),
       }
     }
@@ -301,7 +313,14 @@ export function planContext(opts: {
       omitted.push(source.title)
       continue
     }
-    if (picked.length < windows.length) truncated.push(source.title)
+    // TRIMMED COUNTS AS PARTIAL, even when the count of windows matches.
+    //
+    // A file with ONE window that had to be cut down reported "1 of 1 read" and
+    // stayed out of `truncated` — so the prompt said "first part only" while the
+    // analyst was told nothing at all. Comparing window counts is not the same
+    // question as "did the model see this whole file".
+    const trimmed = picked.some((w) => w.label.endsWith(TRIMMED_SUFFIX))
+    if (picked.length < windows.length || trimmed) truncated.push(source.title)
     const skipped = windows.length - picked.length
     // The header states the read/unread split IN THE PROMPT, so the model knows
     // the shape of its own ignorance rather than assuming it saw the file.

@@ -140,7 +140,8 @@ export function WorkingDocument({
     afterHeading: string | null
     citation?: Citation | null
   }[]
-  onInserted?: (nonce: number) => void
+  /** applied AND saved — `ok` is false when the save that carried it failed */
+  onInserted?: (nonce: number, ok: boolean) => void
   /** the shell is composing something for this document right now */
   incoming?: boolean
   /** take this pane off the multi-view — present only while several are on screen */
@@ -158,7 +159,9 @@ export function WorkingDocument({
   saveError?: unknown
 }) {
   const { dict } = useI18n()
-  const bodyRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+  /** the same element, kept for the unmount flush — React nulls bodyRef first */
+  const liveBodyRef = useRef<HTMLDivElement | null>(null)
   /** the rows, readable from a callback that runs before the seed effect */
   const blocksRef = useRef(blocks)
   blocksRef.current = blocks
@@ -292,7 +295,10 @@ export function WorkingDocument({
     if (!fresh.length) return
     lastInsert.current = fresh[fresh.length - 1].nonce
     for (const i of fresh) insertFragment(i.html, i.afterHeading, i.citation)
-    onInserted?.(lastInsert.current)
+    // SAVED NOW, NOT IN 700ms, AND THE OUTCOME IS REPORTED. The shell used to
+    // announce "added to your document" the moment it queued this, which is
+    // before the pane had applied anything and long before a row existed.
+    void saveNowRef.current().then((ok) => onInserted?.(lastInsert.current, ok))
   }, [insert, insertFragment, onInserted])
 
   useEffect(() => {
@@ -359,16 +365,30 @@ export function WorkingDocument({
    * were created from; skipping that write-back would make every later save
    * create the same paragraph again.
    */
-  const saveNow = useCallback(async () => {
-    const body = bodyRef.current
-    if (!body) return
+  const saveNow = useCallback(async (): Promise<boolean> => {
+    // The element, not the ref: on unmount React has already nulled `bodyRef`
+    // by the time a cleanup runs, so the flush that was meant to catch the last
+    // 700ms of typing was reading null and saving nothing at all.
+    const body = bodyRef.current ?? liveBodyRef.current
+    if (!body) return false
     wrapLooseContent(body)
     setEmpty(!body.innerText.trim())
     const drafts = domToBlocks(body)
     const assigned = await onSave(drafts)
-    if (!assigned || !assigned.length) return
+    if (!assigned) return false
+    if (!assigned.length) return true
+    // THE ELEMENTS ARE RE-READ HERE, and that is deliberate: the analyst may
+    // have typed while the request was in flight. Matching by the draft's own
+    // body rather than trusting the index means a DOM that moved cannot put a
+    // new row's id on somebody else's paragraph.
     const els = blockElements(body)
-    for (const { draftIndex, id } of assigned) els[draftIndex]?.setAttribute('data-block-id', id)
+    for (const { draftIndex, id } of assigned) {
+      const el = els[draftIndex]
+      if (!el || el.getAttribute('data-block-id')) continue
+      if ((el.innerHTML ?? '').trim() !== drafts[draftIndex]?.body) continue
+      el.setAttribute('data-block-id', id)
+    }
+    return true
   }, [onSave])
 
   const saveNowRef = useRef(saveNow)
@@ -653,7 +673,11 @@ export function WorkingDocument({
               </p>
             )}
             <div
-              ref={bodyRef}
+              ref={(el) => {
+                bodyRef.current = el
+                // Kept past unmount on purpose — the flush below needs it.
+                if (el) liveBodyRef.current = el
+              }}
               contentEditable
               suppressContentEditableWarning
               onBlur={() => void saveNow()}

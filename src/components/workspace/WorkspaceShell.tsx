@@ -37,7 +37,7 @@ import {
   type DocBlock,
   type DraftBlock,
 } from '@/lib/workspace/blocks'
-import { addBlockReq, deleteBlockReq, patchBlockReq } from '@/lib/workspace/client'
+import { addBlockReq, deleteBlockReq, fetchWorkspace, patchBlockReq } from '@/lib/workspace/client'
 import { documentTitle } from '@/lib/workspace/present'
 import { detectDir } from '@/lib/utils'
 import { composeReq, patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
@@ -187,7 +187,7 @@ export function WorkspaceShell({
    * applied it — an insert reported as "added" that no document ever received.
    */
   const [insertQueue, setInsertQueue] = useState<
-    { nonce: number; html: string; afterHeading: string | null }[]
+    { nonce: number; html: string; afterHeading: string | null; citation: Citation | null }[]
   >([])
   const insertNonce = useRef(0)
   /** what Atlas is composing for the document right now, if anything */
@@ -353,7 +353,20 @@ export function WorkspaceShell({
    * would see the same element with no id and create it a second time.
    */
   const saveDocument = useCallback(
-    (drafts: DraftBlock[]): Promise<{ draftIndex: number; id: string }[] | null> =>
+    (
+      /**
+       * The drafts, or a FUNCTION that produces them.
+       *
+       * A function is what a programmatic write must pass. `putInDocument` builds
+       * its list by splicing into the rows it can see, and building that list
+       * OUTSIDE the lock meant two quick writes both started from the same
+       * pre-save picture: the second one's diff then deleted the row the first
+       * had just created, and both reported "added". Producing the drafts inside
+       * the lock is what makes "one writer at a time" actually mean anything —
+       * serialising the WRITES while racing the READS fixes nothing.
+       */
+      source: DraftBlock[] | (() => DraftBlock[])
+    ): Promise<{ draftIndex: number; id: string }[] | null> =>
       // ONE WRITER AT A TIME, AND NOTHING IS EVER DROPPED.
       //
       // This used to refuse a save that arrived while another was running,
@@ -367,6 +380,8 @@ export function WorkspaceShell({
       // A promise chain serialises instead of refusing, so every caller's work
       // happens, in order.
       runExclusive(async () => {
+        // Read the rows and build the drafts INSIDE the lock, in that order.
+        const drafts = typeof source === 'function' ? source() : source
         const ops = diffBlocks(docBlocksRef.current, drafts)
         if (ops.length === 0) return []
         try {
@@ -393,6 +408,24 @@ export function WorkspaceShell({
           // analyst keeps typing into something that is no longer keeping any of
           // it. `null` is distinguishable from "saved, created nothing".
           setDocSaveError(e)
+          // AND RE-READ THE TRUTH, because a round can fail HALFWAY.
+          //
+          // The deletes and updates go out before the creates, so one failed
+          // POST leaves the database holding some of this round and our own
+          // list claiming all of it. Every later save then diffs against a
+          // fiction: it re-issues a delete for a row that is already gone
+          // (which 404s, failing the next round too) and re-creates paragraphs
+          // that already exist. The document wedges into permanent failure and
+          // grows duplicates on the way. Asking the server what is actually
+          // there is the only honest recovery.
+          try {
+            const fresh = await fetchWorkspace(workspace.id)
+            const rows = [...fresh.blocks].sort((a, b) => a.position - b.position).map(toDocBlock)
+            docBlocksRef.current = rows
+            setDocBlocks(rows)
+          } catch {
+            /* the resync is best-effort; the error above is what the analyst acts on */
+          }
           return null
         }
       }),
@@ -414,34 +447,43 @@ export function WorkspaceShell({
     (html: string, afterHeading: string | null, _kind: 'passage' | 'clip', citation?: Citation | null) => {
       if (docPaneShown()) {
         insertNonce.current += 1
+        // NOT "added" YET. The pane has to apply this and save it first, and it
+        // answers through onInserted — the closed-pane branch below awaits its
+        // save, so claiming success here made one button tell two different
+        // stories depending on which tab happened to be showing.
         setInsertQueue((q) => [
           ...q,
           { nonce: insertNonce.current, html, afterHeading, citation: citation ?? null },
         ])
-        doneWhenIdle('added')
         return
       }
-      const at = insertIndexFor(docBlocksRef.current, afterHeading)
-      const drafts = fragmentToDrafts(html, at)
-      const ordered = [...docBlocksRef.current].sort((a, b) => a.position - b.position)
-      const next: DraftBlock[] = [
-        ...ordered.slice(0, at).map((b, i) => ({ id: b.id, kind: b.kind, body: b.body, position: i })),
-        // THE CITATION TRAVELS WITH THE DRAFT. It used to set `kind: 'quote'`
-        // and nothing else, so the create call carried no source — and the
-        // database refuses a quote with no quoted text, which meant the
-        // citation the analyst had just asked for vanished on its way in.
-        ...drafts.map((d, i) => ({
-          ...d,
-          ...(citation ? { kind: 'quote' as const, citation } : {}),
-          position: at + i,
-        })),
-        ...ordered.slice(at).map((b, i) => ({
-          id: b.id,
-          kind: b.kind,
-          body: b.body,
-          position: at + drafts.length + i,
-        })),
-      ]
+      // COMPUTED INSIDE THE LOCK. Splicing against `docBlocksRef.current` out
+      // here meant two quick writes both started from the same picture, and the
+      // second one's diff deleted the row the first had just created.
+      const makeDrafts = (): DraftBlock[] => {
+        const at = insertIndexFor(docBlocksRef.current, afterHeading)
+        const drafts = fragmentToDrafts(html, at)
+        const ordered = [...docBlocksRef.current].sort((a, b) => a.position - b.position)
+        return [
+          ...ordered.slice(0, at).map((b, i) => ({ id: b.id, kind: b.kind, body: b.body, position: i })),
+          // THE CITATION TRAVELS WITH THE DRAFT. It used to set `kind: 'quote'`
+          // and nothing else, so the create call carried no source — and the
+          // database refuses a quote with no quoted text, which meant the
+          // citation the analyst had just asked for vanished on its way in.
+          ...drafts.map((d, i) => ({
+            ...d,
+            ...(citation ? { kind: 'quote' as const, citation } : {}),
+            position: at + i,
+          })),
+          ...ordered.slice(at).map((b, i) => ({
+            id: b.id,
+            kind: b.kind,
+            body: b.body,
+            position: at + drafts.length + i,
+          })),
+        ]
+      }
+      const next = makeDrafts
       // ONLY SAY "ADDED" IF IT WAS. `saveDocument` answers null when the write
       // failed; reporting success off the back of a promise that merely
       // RESOLVED is the exact shape of lie this surface keeps being reviewed
@@ -1122,7 +1164,12 @@ export function WorkspaceShell({
                 onRenameDocument={renameDocument}
                 onHidePane={paneCtl.onHidePane}
                 insert={insertQueue}
-                onInserted={(nonce) => setInsertQueue((q) => q.filter((i) => i.nonce > nonce))}
+                onInserted={(nonce, ok) => {
+                  setInsertQueue((q) => q.filter((i) => i.nonce > nonce))
+                  // The pane applied it AND saved it — or did not. Either way
+                  // the claim comes from the write, not from the queueing.
+                  doneWhenIdle(ok ? 'added' : 'failed')
+                }}
                 incoming={docBusy !== null}
                 blocks={docBlocks}
                 onSave={saveDocument}

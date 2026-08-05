@@ -127,7 +127,6 @@ export const he: Dictionary = {
     docWriting: 'אטלס כותב…',
     docWriteFailed: 'אטלס לא הצליח לכתוב את זה: {error}',
     docSaveFailed: 'המסמך שלכם לא נשמר: {error}',
-    docSaved: 'נשמר',
     connectQuote: 'ציטוט',
     docWriteNoAnswer: 'אטלס לא הצליח לנסח את זה כרגע. לנסות שוב?',
     docWorking: 'אטלס כותב את זה לתוך המסמך שלכם',
