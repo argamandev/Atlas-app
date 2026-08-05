@@ -519,6 +519,10 @@ export const en = {
     backToPlaying: 'Back to current word',
     openAudioBar: 'Open audio bar',
     stopPlayback: 'Stop the audio',
+    // A source that will never load has to SAY so. Without it the bar sits
+    // mute, the play button does nothing, and there is no way to tell a broken
+    // recording from one that is still fetching.
+    playbackFailed: 'This recording could not be loaded',
     slidesEmpty: 'Slides will appear here when linked to this call.',
     reportEmpty: 'The quarterly report will appear here when linked.',
     reportFreely: 'PDF · read freely',

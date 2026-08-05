@@ -3,8 +3,17 @@ import { cookies } from 'next/headers'
 import { createServerSupabase } from '@/lib/supabase'
 import { resolveUser } from '@/lib/auth/verifyUser'
 import { unauthorized } from '@/lib/auth'
-import { patchItem, deleteItem } from '@/lib/db/workspaces'
+import { patchItem, deleteItem, RowNotFound } from '@/lib/db/workspaces'
 import { parseItemPatch } from '@/lib/workspace/validate'
+
+/** RLS makes another account's row NOT THERE, so 404 is the honest rendering. */
+function fail(e: unknown) {
+  const notFound = e instanceof RowNotFound
+  return NextResponse.json(
+    { error: notFound ? 'not found' : (e as Error).message },
+    { status: notFound ? 404 : 500 }
+  )
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -25,10 +34,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
   try {
-    const item = await patchItem(supabase, params.itemId, parsed.value)
+    const item = await patchItem(supabase, params.id, params.itemId, parsed.value)
     return NextResponse.json({ item })
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+    return fail(e)
   }
 }
 
@@ -44,6 +53,6 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     await deleteItem(supabase, params.id, params.itemId)
     return NextResponse.json({ deleted: true })
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+    return fail(e)
   }
 }

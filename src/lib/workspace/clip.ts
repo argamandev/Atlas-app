@@ -62,9 +62,16 @@ export function clipFigureHtml(opts: {
   const page = escapeHtml(opts.pageLabel.trim())
   const alt = escapeHtml(`${opts.title.trim()} · ${opts.pageLabel.trim()}`)
   const caption = title ? `<bdi>${title}</bdi> · <bdi>${page}</bdi>` : `<bdi>${page}</bdi>`
+  // ESCAPED LIKE EVERY OTHER INTERPOLATION HERE. The prefix check above proves
+  // it STARTS as a PNG data URL; it says nothing about the rest, so a value
+  // ending `…" onerror="…` would close the attribute and open one this function
+  // never wrote. It is machine-generated today (canvas.toDataURL), which is
+  // exactly the argument that stops being true the first time a clipping
+  // arrives from anywhere else.
+  const src = escapeHtml(opts.dataUrl)
   return (
     `<figure class="atlas-clip">` +
-    `<img src="${opts.dataUrl}" alt="${alt}" />` +
+    `<img src="${src}" alt="${alt}" />` +
     `<figcaption>${caption}</figcaption>` +
     `</figure>`
   )

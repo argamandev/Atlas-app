@@ -22,6 +22,7 @@ import { documentTitle } from '@/lib/workspace/present'
 import { detectDir } from '@/lib/utils'
 import { composeReq, patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
 import { useDemoState } from '@/lib/demo/DemoStateProvider'
+import { usePlayer } from '@/lib/player/PlayerProvider'
 import { shownPanes } from '@/lib/workspace/panes'
 import { clipDerivedHtml, clipFigureHtml } from '@/lib/workspace/clip'
 import { htmlHeadings, htmlToText, spliceHtml } from '@/lib/workspace/docInsert'
@@ -96,6 +97,11 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
   const [askSeed, setAskSeed] = useState<AskContext | null>(null)
   /** a request the chat could not act on itself — handed to the intake flow */
   const [addRequest, setAddRequest] = useState<string | null>(null)
+  /** the dialog and the request it was opened with close together — always */
+  const closeAddDialog = useCallback(() => {
+    setAddOpen(false)
+    setAddRequest(null)
+  }, [])
 
   // ── PINGE, the clipping tool, held HERE ────────────────────────────────────
   // Founder, 2026-08-05: *"we need to have the same UX as we have on the viewing
@@ -145,28 +151,54 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
    * with the pane closed because the document's text lives in the store, not in
    * the DOM.
    *
-   * `insertReq` is for when the pane IS mounted: the fragment lands in the live
-   * body the analyst may be typing into, rather than through a re-seed that
+   * `insertQueue` is for when the pane IS mounted: the fragment lands in the
+   * live body the analyst may be typing into, rather than through a re-seed that
    * would take their caret with it. When it is not mounted the same fragment is
    * spliced into the stored HTML, and the pane shows it at its next mount.
+   *
+   * A QUEUE, not one slot. Two passages can be in flight at once (nothing stops
+   * an analyst marking a second one while the first composes), and a single slot
+   * meant the later arrival overwrote the earlier one before the pane had
+   * applied it — an insert reported as "added" that no document ever received.
    */
-  const [insertReq, setInsertReq] = useState<{
-    nonce: number
-    html: string
-    afterHeading: string | null
-  } | null>(null)
+  const [insertQueue, setInsertQueue] = useState<
+    { nonce: number; html: string; afterHeading: string | null }[]
+  >([])
   const insertNonce = useRef(0)
   /** what Atlas is composing for the document right now, if anything */
   const [docBusy, setDocBusy] = useState<'passage' | 'clip' | null>(null)
   const [docDone, setDocDone] = useState<'added' | 'failed' | 'nothing' | null>(null)
+  /** files Atlas could only read part of — the same caveat the chat already shows */
+  const [docPartial, setDocPartial] = useState<string[]>([])
   const docDoneTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { docHtml, setDocHtml } = useDemoState()
+  // The pill has to clear the docked player, which owns the bottom of the screen
+  // and paints after it — otherwise a workspace playing a call covers the status
+  // and its "Open" button entirely.
+  const { call: playerCall, barHidden: playerBarHidden } = usePlayer()
+  const barIsUp = Boolean(playerCall) && !playerBarHidden
 
   const flashDone = useCallback((state: 'added' | 'failed' | 'nothing') => {
     setDocDone(state)
     if (docDoneTimer.current) clearTimeout(docDoneTimer.current)
     docDoneTimer.current = setTimeout(() => setDocDone(null), 4000)
   }, [])
+
+  /**
+   * HOW MANY COMPOSES ARE STILL RUNNING — because "done" is a claim about all of
+   * them, not about the one that happened to finish first. With a single flag,
+   * marking a second passage while the first was still composing produced
+   * "Added to your document" while the second was mid-flight, which reads as
+   * everything having landed.
+   */
+  const docJobs = useRef(0)
+  const doneWhenIdle = useCallback(
+    (state: 'added' | 'failed' | 'nothing') => {
+      if (docJobs.current > 0) return
+      flashDone(state)
+    },
+    [flashDone]
+  )
   useEffect(
     () => () => {
       if (docDoneTimer.current) clearTimeout(docDoneTimer.current)
@@ -174,9 +206,34 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
     []
   )
 
+  /**
+   * WHAT IS ON SCREEN *NOW*, AND WHAT THE DOCUMENT SAYS *NOW*.
+   *
+   * These have to be read at the moment the fragment is ready, which is seconds
+   * after the analyst asked — a model call, not a keystroke. Reading them from a
+   * `useCallback` closure meant reading the layout as it stood when the question
+   * was asked, and both directions of that mistake lost work silently:
+   *
+   *   · captured "pane open", closed by the time it landed → the fragment went
+   *     to a pane that no longer existed, and the pending insert then applied at
+   *     the pane's NEXT mount into a body that had not been seeded yet, which
+   *     replaced the analyst's whole document with the new paragraph;
+   *   · captured "pane closed", opened by the time it landed → the fragment was
+   *     spliced into the stored HTML, the mounted pane refuses to re-seed over a
+   *     body that already has words in it, and the next keystroke persisted the
+   *     DOM back over the store and took the paragraph with it.
+   *
+   * Both said "Added to your document". Refs, updated every render, are what
+   * make the question answerable at the time it is actually asked.
+   */
+  const paneStateRef = useRef({ split, openTabs, multi, activeTab })
+  paneStateRef.current = { split, openTabs, multi, activeTab }
+  const docHtmlRef = useRef(docHtml)
+  docHtmlRef.current = docHtml
+
   /** Is the working document a pane on screen right now? `shownPanes` is the
    *  renderer's own rule — asking it here is what keeps the two from drifting. */
-  const docPaneShown = () => shownPanes({ split, openTabs, multi, activeTab }).includes(DOC_TAB)
+  const docPaneShown = () => shownPanes(paneStateRef.current).includes(DOC_TAB)
 
   /**
    * Put a ready fragment in the document, mounted or not, and say so.
@@ -189,14 +246,19 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
     (html: string, afterHeading: string | null, _kind: 'passage' | 'clip') => {
       if (docPaneShown()) {
         insertNonce.current += 1
-        setInsertReq({ nonce: insertNonce.current, html, afterHeading })
+        setInsertQueue((q) => [...q, { nonce: insertNonce.current, html, afterHeading }])
       } else {
-        setDocHtml(workspace.id, spliceHtml(docHtml[workspace.id] ?? '', html, afterHeading))
+        const next = spliceHtml(docHtmlRef.current[workspace.id] ?? '', html, afterHeading)
+        // The ref moves FIRST: a second fragment arriving before React has
+        // re-rendered must splice into a document that already contains the
+        // first, or it silently replaces it.
+        docHtmlRef.current = { ...docHtmlRef.current, [workspace.id]: next }
+        setDocHtml(workspace.id, next)
       }
-      flashDone('added')
+      doneWhenIdle('added')
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [split, openTabs, multi, activeTab, docHtml, setDocHtml, workspace.id, flashDone]
+    [setDocHtml, workspace.id, doneWhenIdle]
   )
 
   /**
@@ -213,7 +275,8 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
       passage?: { title: string; text: string }
       clip?: { image: ChatSnip; title: string; pageLabel: string }
     }) => {
-      const html = docHtml[workspace.id] ?? ''
+      const html = docHtmlRef.current[workspace.id] ?? ''
+      docJobs.current += 1
       setDocBusy(input.kind)
       try {
         const { result } = await composeReq(workspace.id, {
@@ -225,11 +288,12 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
             ? { image: input.clip.image, title: input.clip.title, pageLabel: input.clip.pageLabel }
             : null,
         })
-        setDocBusy(null)
+        docJobs.current -= 1
+        if (docJobs.current === 0) setDocBusy(null)
         if (!result) {
           // NOT a silent no-op: a card that closes over a document which gained
           // nothing is indistinguishable from success (rules/app.md).
-          flashDone('nothing')
+          doneWhenIdle('nothing')
           return
         }
         // A clipping's answer keeps the provenance the image would have carried —
@@ -242,16 +306,18 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
             })
           : result.html
         if (!fragment) {
-          flashDone('nothing')
+          doneWhenIdle('nothing')
           return
         }
+        setDocPartial(result.partial ?? [])
         putInDocument(fragment, result.afterHeading, input.kind)
       } catch {
-        setDocBusy(null)
-        flashDone('failed')
+        docJobs.current -= 1
+        if (docJobs.current === 0) setDocBusy(null)
+        doneWhenIdle('failed')
       }
     },
-    [docHtml, workspace.id, putInDocument, flashDone]
+    [workspace.id, putInDocument, doneWhenIdle]
   )
 
   const takeSnip = useCallback((snip: ChatSnip, source: { itemId: string; title: string }) => {
@@ -486,7 +552,11 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
       if (!note) {
         const html = clipFigureHtml({ dataUrl: snip.dataUrl, title, pageLabel })
         if (html) putInDocument(html, null, 'clip')
-        else setDocDone('failed')
+        // flashDone, not setDocDone: a pill set directly never gets a dismissal
+        // timer, so this one sat on screen until something else replaced it —
+        // and an older timer could clear it early, which is the same bug from
+        // the other side.
+        else flashDone('failed')
         return
       }
       void composeIntoDocument({
@@ -495,8 +565,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
         kind: 'clip',
       })
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [clipDraft, dict.workspace.clipPage]
+    [clipDraft, dict.workspace.clipPage, putInDocument, composeIntoDocument, flashDone]
   )
 
   /**
@@ -522,15 +591,18 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
 
   const closeTab = useCallback(
     (id: string) => {
-      setOpenTabs((t) => {
-        const next = t.filter((x) => x !== id)
-        setActiveTab((a) => (a === id ? (next[next.length - 1] ?? '') : a))
-        return next
-      })
+      // NO setState INSIDE A setState UPDATER — this file's own rule, four
+      // hundred lines up, and this was the one place still breaking it. React 18
+      // double-invokes updaters in development, so the nested call ran twice;
+      // harmless here only because choosing the same next tab twice is
+      // idempotent. Both updates are computed from the same list instead.
+      const next = openTabs.filter((x) => x !== id)
+      setOpenTabs(next)
+      setActiveTab((a) => (a === id ? (next[next.length - 1] ?? '') : a))
       setMulti((m) => m.filter((x) => x !== id))
       persistOpen(id, false)
     },
-    [persistOpen]
+    [openTabs, persistOpen]
   )
 
   // '' is a real stored title — a document nobody has named yet — so the label
@@ -821,8 +893,8 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                 title={docTitleRaw}
                 onRenameDocument={renameDocument}
                 onHidePane={paneCtl.onHidePane}
-                insert={insertReq}
-                onInserted={() => setInsertReq(null)}
+                insert={insertQueue}
+                onInserted={(nonce) => setInsertQueue((q) => q.filter((i) => i.nonce > nonce))}
                 incoming={docBusy !== null}
               />
             ) : id === LEGAL_TAB ? (
@@ -1008,11 +1080,15 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
           and how it ended — with the way IN to what it made, rather than a jump
           you did not ask for. */}
       {(docBusy || docDone) && !clipDraft && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-40 flex justify-center px-4">
+        <div
+          className={`pointer-events-none absolute inset-x-0 z-40 flex justify-center px-4 ${
+            barIsUp ? 'bottom-28' : 'bottom-6'
+          }`}
+        >
           <div
             role="status"
             aria-live="polite"
-            className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-float-line bg-canvas py-2 ps-3.5 pe-2 text-[12.5px] text-ink shadow-pane"
+            className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-full border border-float-line bg-canvas py-2 ps-3.5 pe-2 text-[12.5px] text-ink shadow-pane"
           >
             {docBusy ? (
               <>
@@ -1034,6 +1110,15 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                       ? dict.workspace.docWriteNoAnswer
                       : dict.workspace.docFailed}
                 </span>
+                {/* A DRAFT BUILT FROM PART OF A FILE SAYS SO — the chat already
+                    renders this exact signal for the same answer (chatPartial),
+                    and the document surface was throwing it away, which is the
+                    silent-degradation class rules/app.md keeps filing. */}
+                {docDone === 'added' && docPartial.length > 0 && (
+                  <span className="max-w-[18rem] truncate text-ink-muted" title={docPartial.join(' · ')}>
+                    {dict.workspace.chatPartial}
+                  </span>
+                )}
                 {docDone === 'added' && (
                   <button
                     type="button"
@@ -1125,7 +1210,11 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
           onMouseDown={(e) => {
             // Backdrop only — a mousedown that started inside the panel must not
             // close it when the pointer is released over the backdrop.
-            if (e.target === e.currentTarget) setAddOpen(false)
+            // CLOSING CLEARS THE REQUEST IT WAS OPENED WITH. Leaving it set made
+            // the NEXT "Add a document" — the manual one, from the shelf — open
+            // already carrying the previous chat's sentence and send it as a
+            // message the analyst never typed.
+            if (e.target === e.currentTarget) closeAddDialog()
           }}
         >
           <div className="flex h-[520px] max-h-full w-full max-w-[560px] flex-col gap-2 overflow-hidden rounded-win border border-float-line bg-canvas p-5 shadow-pane">
@@ -1133,7 +1222,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
               <div className="text-[15px] font-semibold text-ink">{dict.workspace.addDocument}</div>
               <button
                 type="button"
-                onClick={() => setAddOpen(false)}
+                onClick={closeAddDialog}
                 aria-label={dict.common.close}
                 className="flex-none rounded-[7px] px-2 py-1 text-ink-ghost hover:bg-subtle hover:text-ink"
               >
@@ -1150,10 +1239,7 @@ export function WorkspaceShell({ workspace }: { workspace: Workspace }) {
                 workspaceName={name}
                 variant="panel"
                 initialRequest={addRequest}
-                onDone={() => {
-                  setAddOpen(false)
-                  setAddRequest(null)
-                }}
+                onDone={closeAddDialog}
               />
             </div>
           </div>

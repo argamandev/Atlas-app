@@ -454,6 +454,7 @@ export const he: Dictionary = {
     backToPlaying: 'חזרה למילה הנוכחית',
     openAudioBar: 'פתחו את נגן השמע',
     stopPlayback: 'עצירת ההשמעה',
+    playbackFailed: 'לא ניתן לטעון את ההקלטה הזאת',
     slidesEmpty: 'המצגת תופיע כאן כשתקושר לשיחה.',
     reportEmpty: 'הדוח הרבעוני יופיע כאן כשיקושר.',
     reportFreely: 'PDF · קריאה חופשית',

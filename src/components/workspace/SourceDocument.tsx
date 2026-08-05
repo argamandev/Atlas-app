@@ -590,8 +590,13 @@ function PaneBar({ title, onHide, children }: { title: string; onHide?: () => vo
         <bdi>{title}</bdi>
       </span>
       {(children || onHide) && (
-        <span className="flex flex-none items-center gap-2.5">
-          {children}
+        <span className="flex min-w-0 items-center gap-2.5">
+          {/* THE TOOLS SCROLL, THE ✕ DOES NOT — the same treatment the working
+              document's toolbar already got. A PDF pane's controls need ~276px
+              (more once the pan pair appears above 100% zoom), which is wider
+              than a pane in a three- or four-way split, and a `flex-none`
+              cluster with nowhere to go pushes the ✕ out of its own pane. */}
+          <span className="atscroll flex min-w-0 items-center gap-2.5 overflow-x-auto">{children}</span>
           {/* THE FAR END OF THE ROW, which is the physical LEFT because the pane
               row is RTL — founder, 2026-08-05: *"an x button on the top left of
               each header of a document that is open in Multiview … it will make
@@ -599,7 +604,11 @@ function PaneBar({ title, onHide, children }: { title: string; onHide?: () => vo
               still be in the tab section."* A member of the flex row rather
               than an overlay, so it cannot land on top of the PDF toolbar that
               already lives at this end. */}
-          {onHide && <HidePaneButton onClick={onHide} label={dict.workspace.hidePane} />}
+          {onHide && (
+            <span className="flex-none">
+              <HidePaneButton onClick={onHide} label={dict.workspace.hidePane} />
+            </span>
+          )}
         </span>
       )}
     </div>

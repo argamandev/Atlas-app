@@ -9,8 +9,18 @@ import {
   patchWorkspace,
   deleteWorkspace,
   countWorkspaceContents,
+  RowNotFound,
 } from '@/lib/db/workspaces'
 import { parseWorkspacePatch } from '@/lib/workspace/validate'
+
+/** RLS makes another account's row NOT THERE, so 404 is the honest rendering. */
+function fail(e: unknown) {
+  const notFound = e instanceof RowNotFound
+  return NextResponse.json(
+    { error: notFound ? 'not found' : (e as Error).message },
+    { status: notFound ? 404 : 500 }
+  )
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -51,7 +61,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const workspace = await patchWorkspace(supabase, params.id, parsed.value)
     return NextResponse.json({ workspace })
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+    return fail(e)
   }
 }
 
@@ -70,6 +80,6 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     await deleteWorkspace(supabase, params.id)
     return NextResponse.json({ deleted: true, counts })
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+    return fail(e)
   }
 }

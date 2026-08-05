@@ -62,8 +62,8 @@ export function WorkingDocument({
    * analyst may be typing into — rather than through a re-seed that would eat
    * their caret.
    */
-  insert?: { nonce: number; html: string; afterHeading: string | null } | null
-  onInserted?: () => void
+  insert?: { nonce: number; html: string; afterHeading: string | null }[]
+  onInserted?: (nonce: number) => void
   /** the shell is composing something for this document right now */
   incoming?: boolean
   /** take this pane off the multi-view — present only while several are on screen */
@@ -72,6 +72,9 @@ export function WorkingDocument({
   const { dict } = useI18n()
   const { docHtml, setDocHtml } = useDemoState()
   const bodyRef = useRef<HTMLDivElement>(null)
+  /** the stored document, readable from a callback that runs before the seed */
+  const storedRef = useRef('')
+  storedRef.current = docHtml[workspaceId] ?? ''
   const [exportOpen, setExportOpen] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -105,6 +108,21 @@ export function WorkingDocument({
     (fragment: string, afterHeading: string | null) => {
       const body = bodyRef.current
       if (!body) return
+      // SEED BEFORE SPLICING, OR THE SPLICE *IS* THE DOCUMENT.
+      //
+      // A fragment can be waiting at the moment this pane mounts — the analyst
+      // connected a passage, closed the pane while Atlas wrote, then came back
+      // through the pill's own "Open". The effect that applies it is declared
+      // above the one that seeds the body from the store, and effects run in
+      // declaration order, so the splice landed in an EMPTY body and then
+      // persisted that body as the whole document; the seed, finding words in
+      // the body, then skipped. One paragraph replaced everything the analyst
+      // had written, under a pill reading "Added to your document".
+      //
+      // Restoring here rather than reordering the effects: this is the function
+      // that must never write into a body it has not filled, so the guarantee
+      // belongs to it and not to the order two hooks happen to sit in.
+      if (!body.innerHTML.trim() && storedRef.current) body.innerHTML = storedRef.current
       // The placement rule lives in lib/workspace/docInsert, because the shell
       // runs the same one on the stored HTML when this pane is not mounted.
       const first = insertIntoBody(body, fragment, afterHeading)
@@ -160,13 +178,20 @@ export function WorkingDocument({
    * composed, already sanitised — because the work happens whether or not this
    * pane exists. When it does not, the shell splices the same fragment into the
    * stored HTML and this pane picks it up at its next mount.
+   *
+   * A LIST, applied in order, each one at most once. `lastInsert` is the high-
+   * water mark rather than a flag, so React 18's double-invoked effects cannot
+   * apply the same fragment twice and a second passage arriving while the first
+   * is still queued cannot displace it.
    */
   const lastInsert = useRef(0)
   useEffect(() => {
-    if (!insert || insert.nonce === lastInsert.current) return
-    lastInsert.current = insert.nonce
-    insertFragment(insert.html, insert.afterHeading)
-    onInserted?.()
+    if (!insert?.length) return
+    const fresh = insert.filter((i) => i.nonce > lastInsert.current)
+    if (!fresh.length) return
+    lastInsert.current = fresh[fresh.length - 1].nonce
+    for (const i of fresh) insertFragment(i.html, i.afterHeading)
+    onInserted?.(lastInsert.current)
   }, [insert, insertFragment, onInserted])
 
   useEffect(() => {
@@ -204,8 +229,18 @@ export function WorkingDocument({
 
   // Seed once; afterwards the DOM is the source of truth while editing, so we do
   // NOT rewrite innerHTML on every keystroke (that would reset the caret).
+  //
+  // SEEDING ALSO ENDS THE EMPTY STATE. `empty` starts true and was only ever
+  // cleared by typing or by an insert, so a document that already had words in
+  // it came back from a tab switch with the placeholder — "Write here — or tell
+  // Atlas what to draft" — painted straight through the analyst's own first
+  // paragraph. Caught in the browser, in the screenshot that was proving
+  // something else.
   useEffect(() => {
-    if (bodyRef.current && !bodyRef.current.innerHTML.trim() && html) bodyRef.current.innerHTML = html
+    if (bodyRef.current && !bodyRef.current.innerHTML.trim() && html) {
+      bodyRef.current.innerHTML = html
+      setEmpty(!bodyRef.current.innerText.trim())
+    }
   }, [html])
 
   function persist() {

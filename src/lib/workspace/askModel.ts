@@ -38,8 +38,23 @@ const OPENAI_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4.1'
 
 /** Budget for a request someone is watching. */
 const DEFAULT_TIMEOUT_MS = 20_000
-/** How long the primary gets alone before the other is started alongside it. */
-const HEDGE_MS = 1_200
+/**
+ * How long the primary gets alone before the other is started alongside it.
+ *
+ * 1200ms, which is what this shipped with, was shorter than ANY grounded
+ * completion this pipeline makes — the prompt carries up to 40k characters of
+ * shelf — so the hedge did not fire "when the primary is slow", it fired every
+ * single time, and the comment above claiming it "costs nothing on a healthy
+ * turn" described behaviour that never happened once. Nothing aborted the
+ * loser either, so every workspace question, every compose, every intake search
+ * was billed twice, in full, at both vendors.
+ *
+ * 6s is past the normal answer and still well inside the 20s budget, so the
+ * hedge does what it was built for — covering a vendor that has gone quiet —
+ * without paying for a second opinion nobody reads. The loser is now aborted as
+ * well; the two together are what make the fallback cheap enough to keep.
+ */
+const HEDGE_MS = 6_000
 
 export type AskOptions = {
   maxOutputTokens: number
@@ -64,20 +79,38 @@ export type AskOptions = {
  * Failing here would turn a missing API key into "the workspace is broken".
  */
 export async function askModel(prompt: string, opts: AskOptions): Promise<string> {
-  const primary = askOpenAi(prompt, opts)
+  // WHOEVER LOSES STOPS. A hedge that leaves the other request running pays for
+  // an answer nobody will read, at both vendors, on every turn.
+  const done = new AbortController()
+  const primary = askOpenAi(prompt, opts, done.signal)
 
   const hedged = (async () => {
     // Whichever comes first: the primary finishing, or the patience running out.
     const early = await Promise.race([primary, sleep(HEDGE_MS).then(() => null)])
     // It already answered — nothing to hedge against, and no second bill.
     if (typeof early === 'string' && early) return ''
-    return askGemini(prompt, opts)
+    if (done.signal.aborted) return ''
+    return askGemini(prompt, opts, done.signal)
   })()
 
-  return firstUsable([primary, hedged])
+  const answer = await firstUsable([primary, hedged])
+  done.abort()
+  return answer
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * The caller's time budget, plus "we already have an answer".
+ *
+ * Both reasons to stop are real and independent, so they are combined rather
+ * than chosen between: the timeout still bounds a request nobody is racing, and
+ * the abort still cancels a loser that had plenty of time left.
+ */
+function withAbort(opts: AskOptions, abort?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+  return abort ? AbortSignal.any([timeout, abort]) : timeout
+}
 
 /**
  * The first non-empty string among the promises, or '' once all are exhausted.
@@ -104,7 +137,7 @@ function firstUsable(promises: Promise<string>[]): Promise<string> {
   })
 }
 
-async function askGemini(prompt: string, opts: AskOptions): Promise<string> {
+async function askGemini(prompt: string, opts: AskOptions, abort?: AbortSignal): Promise<string> {
   const key = process.env.GEMINI_API_KEY
   if (!key) {
     console.warn('[workspace] GEMINI_API_KEY is not set')
@@ -139,7 +172,7 @@ async function askGemini(prompt: string, opts: AskOptions): Promise<string> {
             thinkingConfig: { thinkingBudget: 0 },
           },
         }),
-        signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+        signal: withAbort(opts, abort),
       }
     )
     if (!res.ok) {
@@ -160,7 +193,7 @@ async function askGemini(prompt: string, opts: AskOptions): Promise<string> {
   }
 }
 
-async function askOpenAi(prompt: string, opts: AskOptions): Promise<string> {
+async function askOpenAi(prompt: string, opts: AskOptions, abort?: AbortSignal): Promise<string> {
   const key = process.env.OPENAI_API_KEY
   if (!key) {
     console.warn('[workspace] OPENAI_API_KEY is not set')
@@ -191,7 +224,7 @@ async function askOpenAi(prompt: string, opts: AskOptions): Promise<string> {
       // The SDK retries internally and its default timeout is 10 minutes, so
       // without this the primary could still be waiting long after the hedge
       // gave up — and the caller's own budget would mean nothing.
-      { signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS) }
+      { signal: withAbort(opts, abort) }
     )
     const out = res.choices[0]?.message?.content ?? ''
     if (!out) {

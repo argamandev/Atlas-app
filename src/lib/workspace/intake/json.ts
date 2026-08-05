@@ -62,14 +62,28 @@ export function modelObject(raw: string): Record<string, unknown> | null {
   const unfenced = unfence(raw)
   if (unfenced.startsWith('[')) return null
 
-  const objectText = firstJsonObject(unfenced)
-  if (objectText === null) return null
-
-  try {
-    const parsed: unknown = JSON.parse(objectText)
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-    return parsed as Record<string, unknown>
-  } catch {
-    return null
+  // EVERY CANDIDATE, NOT ONLY THE FIRST BRACE.
+  //
+  // `firstJsonObject` commits to the first `{` it sees, so a preamble that
+  // happens to contain braces — "Here's the object {as asked}: {"reply":…}",
+  // which is exactly how a chatty turn reads — made the whole answer
+  // unparseable, and an unparseable answer degrades the analyst's request to a
+  // keyword search without saying so. Scanning on past a candidate that does not
+  // parse costs nothing and turns a silent downgrade into a normal answer.
+  let from = 0
+  for (;;) {
+    const next = unfenced.indexOf('{', from)
+    if (next === -1) return null
+    const objectText = firstJsonObject(unfenced.slice(next))
+    if (objectText === null) return null
+    try {
+      const parsed: unknown = JSON.parse(objectText)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>
+      }
+    } catch {
+      /* not this one — keep looking */
+    }
+    from = next + 1
   }
 }

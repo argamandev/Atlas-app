@@ -55,6 +55,18 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   // without the picture is a prompt about an image the model cannot see.
   const clip = clipImage && clipMeta ? { image: clipImage, meta: clipMeta } : null
 
+  // A CLIPPING THAT DID NOT SURVIVE VALIDATION MUST NOT BECOME A COMPOSE WITHOUT
+  // ONE. The client wraps whatever comes back in the clipping's own source line
+  // — "דוח דירקטוריון Q1 2026 · page 1" — so if the image were dropped here and
+  // the model answered anyway, it would answer from the shelf's text and the
+  // analyst would receive a table attributed to a page nobody read. That is the
+  // exact shape of the defect filed in rules/app.md ("a >2MB snip rendered as a
+  // chip client-side but was silently stripped server-side"), and the answer
+  // there is the same as here: degradation must be VISIBLE. Refuse instead.
+  if (body?.clip && !clip) {
+    return NextResponse.json({ error: 'the clipping did not arrive intact' }, { status: 400 })
+  }
+
   try {
     const { data: ws, error: wErr } = await supabase
       .from('workspaces')

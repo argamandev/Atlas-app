@@ -120,6 +120,32 @@ export async function getWorkspaceFull(
   }
 }
 
+/**
+ * THE ROW WAS NOT THERE — WHICH IS NOT AN ERROR, AND IS NOT A SUCCESS EITHER.
+ *
+ * Every write below runs through the user's own client, so RLS answers "not
+ * yours" by simply not matching the row. PostgREST reports that as zero rows
+ * affected and no error, and the two habits this module had for it were both
+ * wrong in the same direction:
+ *
+ *   · a delete with no `.select()` could not tell "removed it" from "matched
+ *     nothing", and the route answered `{deleted:true}` either way — Atlas
+ *     reporting a workspace destroyed that it never touched;
+ *   · an update ending in `.single()` turned zero rows into PGRST116, which the
+ *     routes' catch-all rendered as a 500 carrying the raw string "JSON object
+ *     requested, multiple (or no) rows returned" — shown to the analyst, in
+ *     English, inside a right-to-left Hebrew banner.
+ *
+ * So it gets its own type, and the routes turn it into a 404. Same reasoning as
+ * `ItemNotFound` in lib/workspace/content: 404 is the whole answer to both
+ * "never existed" and "belongs to someone else".
+ */
+export class RowNotFound extends Error {
+  constructor(what: string) {
+    super(`${what} not found`)
+  }
+}
+
 export async function createWorkspace(supabase: Db, userId: string, name: string): Promise<WorkspaceRow> {
   const { data, error } = await supabase
     .from('workspaces')
@@ -142,14 +168,18 @@ export async function patchWorkspace(
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select(WS_COLS)
-    .single()
+    .maybeSingle()
   if (error) throw new Error(error.message)
+  if (!data) throw new RowNotFound('workspace')
   return data as WorkspaceRow
 }
 
 export async function deleteWorkspace(supabase: Db, id: string): Promise<void> {
-  const { error } = await supabase.from('workspaces').delete().eq('id', id)
+  // `.select()` is what makes the answer true: without it a delete that matched
+  // nothing is indistinguishable from one that removed the row.
+  const { data, error } = await supabase.from('workspaces').delete().eq('id', id).select('id')
   if (error) throw new Error(error.message)
+  if (!data?.length) throw new RowNotFound('workspace')
 }
 
 // ── Shelf items ──────────────────────────────────────────────────────────────
@@ -218,9 +248,18 @@ export async function addItem(
   return data as WorkspaceItemRow
 }
 
-/** LAYOUT ONLY — deliberately does not touch the workspace's updated_at. */
+/**
+ * LAYOUT ONLY — deliberately does not touch the workspace's updated_at.
+ *
+ * BOUND TO THE WORKSPACE IN THE URL, not only to the row id. RLS keeps this
+ * inside one account, so the id alone is not a security hole — but it let
+ * `/workspaces/A/items/<an item that lives in B>` edit B's row while `touch()`
+ * stamped A, and "edited 2h ago" then named a room nothing had happened in.
+ * `lib/workspace/content.ts` binds both ids and is the pattern being copied.
+ */
 export async function patchItem(
   supabase: Db,
+  workspaceId: string,
   id: string,
   patch: Partial<Pick<WorkspaceItemRow, 'is_open' | 'position'>>
 ): Promise<WorkspaceItemRow> {
@@ -228,9 +267,11 @@ export async function patchItem(
     .from('workspace_items')
     .update(patch)
     .eq('id', id)
+    .eq('workspace_id', workspaceId)
     .select(ITEM_COLS)
-    .single()
+    .maybeSingle()
   if (error) throw new Error(error.message)
+  if (!data) throw new RowNotFound('item')
   return data as WorkspaceItemRow
 }
 
@@ -238,8 +279,14 @@ export async function deleteItem(supabase: Db, workspaceId: string, id: string):
   // Blocks citing this item are NOT deleted — the key releases the source
   // instead, leaving the user's sentence in place with a visibly broken
   // citation. That is the designed behaviour, not a leak.
-  const { error } = await supabase.from('workspace_items').delete().eq('id', id)
+  const { data, error } = await supabase
+    .from('workspace_items')
+    .delete()
+    .eq('id', id)
+    .eq('workspace_id', workspaceId)
+    .select('id')
   if (error) throw new Error(error.message)
+  if (!data?.length) throw new RowNotFound('item')
   await touch(supabase, workspaceId)
 }
 
@@ -282,16 +329,24 @@ export async function patchBlock(
     .from('workspace_doc_blocks')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('workspace_id', workspaceId)
     .select(BLOCK_COLS)
-    .single()
+    .maybeSingle()
   if (error) throw new Error(error.message)
+  if (!data) throw new RowNotFound('block')
   await touch(supabase, workspaceId)
   return data as WorkspaceBlockRow
 }
 
 export async function deleteBlock(supabase: Db, workspaceId: string, id: string): Promise<void> {
-  const { error } = await supabase.from('workspace_doc_blocks').delete().eq('id', id)
+  const { data, error } = await supabase
+    .from('workspace_doc_blocks')
+    .delete()
+    .eq('id', id)
+    .eq('workspace_id', workspaceId)
+    .select('id')
   if (error) throw new Error(error.message)
+  if (!data?.length) throw new RowNotFound('block')
   await touch(supabase, workspaceId)
 }
 
@@ -333,9 +388,11 @@ export async function patchThread(
     .from('workspace_threads')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('workspace_id', workspaceId)
     .select(THREAD_COLS)
-    .single()
+    .maybeSingle()
   if (error) throw new Error(error.message)
+  if (!data) throw new RowNotFound('thread')
   await touch(supabase, workspaceId)
   return data as WorkspaceThreadRow
 }

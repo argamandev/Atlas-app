@@ -55,6 +55,8 @@ interface PlayerApi {
   barHidden: boolean
   hideBar: () => void
   showBar: () => void
+  /** the current source failed to load — nothing will play until another is chosen */
+  loadFailed: boolean
   getCurrentTime: () => number
   subscribeTime: (cb: () => void) => () => void
   /** call ids some surface is currently DISPLAYING — see `useViewingCall` */
@@ -147,6 +149,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const viewerCounts = useRef<ViewerCounts>(new Map())
   const [chatOpen, setChatOpen] = useState(false) // in-transcript side chat open → narrow the docked bar
   const [barHidden, setBarHidden] = useState(false) // bar UI dismissed while audio keeps playing
+  /** the current source failed to load — the bar says so instead of sitting mute */
+  const [loadFailed, setLoadFailed] = useState(false)
 
   // time store — a mutable ref + listener set, driven by rAF while playing + timeupdate.
   const timeRef = useRef(0)
@@ -226,6 +230,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const load = useCallback((c: PlayerCall) => {
     setCall((prev) => (prev?.id === c.id ? prev : c))
     setBarHidden(false) // loading (or re-summoning) a call always surfaces the bar
+    setLoadFailed(false) // a new source has not failed yet
   }, [])
   const hideBar = useCallback(() => setBarHidden(true), [])
   const showBar = useCallback(() => setBarHidden(false), [])
@@ -295,6 +300,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // Ending the call ends the HIDDEN state with it. Leaving it set would carry
     // "the bar is dismissed" across to a call the user has not started yet.
     setBarHidden(false)
+    setLoadFailed(false)
   }, [])
 
   const api: PlayerApi = {
@@ -315,6 +321,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     showBar,
     getCurrentTime,
     subscribeTime,
+    loadFailed,
     viewingIds,
     addViewing,
     removeViewing,
@@ -344,7 +351,24 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           pendingPlayRef.current = false // one shot, before the retry
           void e.currentTarget.play().catch(() => {})
         }}
-        onPlay={() => setPlaying(true)}
+        // A SOURCE THAT WILL NEVER LOAD MUST NOT LOOK LIKE ONE STILL LOADING.
+        //
+        // `canplay` never fires for a 404 or an expired URL, so without this the
+        // remembered press sits in `pendingPlayRef` forever: "Play the recording"
+        // does nothing, no karaoke starts, and nothing anywhere says why. That is
+        // the same invisible-failure shape the pendingPlay mechanism was written
+        // to fix (rules/app.md, 2026-08-05) reappearing through the one door it
+        // left open. Clearing the flag is what makes the next press try again
+        // instead of being swallowed by a stale intent.
+        onError={() => {
+          pendingPlayRef.current = false
+          setPlaying(false)
+          setLoadFailed(true)
+        }}
+        onPlay={() => {
+          setLoadFailed(false)
+          setPlaying(true)
+        }}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
         onTimeUpdate={(e) => {
