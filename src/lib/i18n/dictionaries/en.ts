@@ -240,7 +240,11 @@ export const en = {
     chatHeroLine2: 'about this workspace',
     chatConnected: 'Atlas is reading the files on this shelf.',
     chatHead: 'Ask about this workspace',
-    chatHint: 'Questions, comparisons, figures across the files here — or ask me to bring another one in.',
+    // Says WHERE another file would come from. "Bring another one in" was read as
+    // "fetch it from anywhere", which is the expectation the 2026-08-06 MAYA
+    // answer then confirmed in words (see lib/workspace/chat/prompt.ts).
+    chatHint:
+      "Questions, comparisons, figures across the files here — or ask me to bring in another from Atlas's library.",
     chatPlaceholder: 'Ask Atlas…',
     chatNoAnswer: 'I could not answer that just now — my model did not come back. Try again?',
     chatFailed: 'That did not go through: {error}',

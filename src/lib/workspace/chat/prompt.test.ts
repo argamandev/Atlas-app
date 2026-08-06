@@ -64,6 +64,35 @@ test('an illegible figure in a clipping must be admitted, not guessed', () => {
   assert.ok(buildChatPrompt({ ...base, snipCount: 1 }).includes('not legible'))
 })
 
+// ── the capability boundary ──────────────────────────────────────────────────
+// Filed from a live run, 2026-08-06: asked in Hebrew to pull Tigbur's reports
+// "from MAYA", the chat answered "הבאתי לך את כל הדוחות" (I brought you all the
+// reports) and offered to "locate" another from MAYA. It had fetched nothing and
+// there is no MAYA integration at all. The prompt had never said what Atlas
+// cannot do, so the model supplied the capability the question presupposed.
+
+test('the model is told it has no tools and no MAYA connection', () => {
+  const p = buildChatPrompt(base)
+  assert.ok(p.includes('NO tools'))
+  assert.ok(p.includes('MAYA'))
+  assert.ok(p.includes('cannot pull a filing from MAYA'))
+})
+
+test('the verbs of false achievement are named, because that is the shape the lie took', () => {
+  const p = buildChatPrompt(base)
+  // Naming them individually is the point: "be honest" did not prevent "הבאתי לך".
+  for (const verb of ['brought', 'fetched', 'pulled', 'downloaded', 'added']) {
+    assert.ok(p.includes(verb), `the prompt must forbid claiming it ${verb} a file`)
+  }
+  assert.ok(p.includes('הבאתי לך'), 'the Hebrew form of the claim is the one that was actually produced')
+})
+
+test('the bring-a-file path says WHERE it will look, and does not promise to find', () => {
+  const p = buildChatPrompt(base)
+  assert.ok(p.includes("ATLAS'S LIBRARY"))
+  assert.ok(p.includes('never that you will find it'))
+})
+
 // ── the answer ───────────────────────────────────────────────────────────────
 
 test('an empty or unparseable answer is refused, never rendered as a blank turn', () => {
