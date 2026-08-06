@@ -9,7 +9,14 @@ what Atlas SAYS when it cannot do a thing is the more interesting half.
 
 ---
 
-## 1. Maya — still blocked, but the reason is narrower again
+## 1. Maya — ~~still blocked~~ **SUPERSEDED THE SAME DAY: it works.**
+
+> **This section's conclusion is wrong.** The founder opened his portal pages and the base
+> URL turned out to be `https://datawise.tase.co.il`, a host never tried here. The key was
+> always fine; every probe below went to an address the product does not live at, so the
+> 503 said nothing about the key. See
+> `2026-08-06-maya-unblocked.md` and the rewritten `docs/MAYA-API.md`. The reasoning kept
+> below is left standing as the record of how confident a wrong inference got.
 
 Re-probed with the real key, a bogus key and no key: `openapigw.tase.co.il` returns the Imperva
 503 identically to all three. Seven bases tried in total. New in this round:
@@ -137,7 +144,9 @@ Hebrew typing, real model calls, live database reads. `npm run build` NOT run �
 
 ## Owed
 
-- The founder's 2-minute portal check (host + PENDING status) — the only thing that moves Maya.
+- ~~The founder's 2-minute portal check (host + PENDING status).~~ **Done, same day, and it
+  settled it: the API works. See `2026-08-06-maya-unblocked.md`.** The MAYA row in the table
+  above is now "reachable, not yet wired" rather than "does not exist".
 - Removal of the two redundant indexes from 018 (hook-blocked, needs the founder).
 - Corpus de-duplication: the same call and the same report each exist twice.
 - Workspace chat still does not persist (slice 4).

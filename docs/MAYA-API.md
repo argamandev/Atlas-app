@@ -1,169 +1,166 @@
-# MAYA / TASE Data Hub — what we have, what we are waiting for
+# MAYA / TASE Data Hub — WORKING as of 2026-08-06
 
-Checked live 2026-08-05 against the founder's own portal account and the key in
-this checkout. Everything below came from a command or a page, not from memory.
+Everything below came from a live 200, a portal page, or a command. Nothing here is
+inferred.
 
-## Status: the key exists, the DATA does not — the subscription is PENDING
+## Status: LIVE. The key works. The base URL was the whole problem.
 
 | | |
 |---|---|
-| Portal | <https://datahubapi.tase.co.il/> (account `sagi.arg@gmail.com`) |
-| Apps | **Atlas** — one credential, named `MAYA_API_KEY` · **Atlas - second application** — no credential |
-| Product both apps requested | **Market Announcements feed - MAYA 2.0.0** |
-| Status of that product, on BOTH apps | **PENDING** |
-| Requests in the last 30 days | **0** |
-| Key in this repo | `MAYA_API_KEY` is set in `.env.local` (32 chars). Never printed, never committed. |
+| **Base URL** | **`https://datawise.tase.co.il`** |
+| Auth | header **`apikey`** (not a bearer token) |
+| Language | header **`Accept-Language: he-IL`** or `en-US` — **required, and it matters, see below** |
+| Portal | <https://datahubapi.tase.co.il/> (account `sagi.arg@gmail.com`) — a **Kong** dev portal |
+| App the working key belongs to | **"Atlas - second application"** — product **APPROVED**, requests now counting |
+| App NOT to use | **"Atlas"** — its credential is the one literally named `MAYA_API_KEY`, and its product is still **PENDING** with **0 requests**. The *name* is a trap; the working value is the second app's. |
+| Key in this repo | `MAYA_API_KEY` in `.env.local` (32 chars). Verified working 2026-08-06. Never printed, never committed. |
+| Rate limit | 10 requests / 2 seconds, then HTTP 429 (from the guide) |
 
-**So there is nothing to test against yet.** A key is issued the moment you create
-a credential; it does not mean the data product has been granted. Until the
-product flips from PENDING to approved, no endpoint of this product will answer.
+**Proof it is a real authenticated call and not a WAF page** — three different answers to
+three different keys, which is the test the two blocked sessions could never produce:
 
-**The approval is not automatic and does not come from clicking Register.** The
-TASE guide (`Atlas Documents/MAYA API/maya_api-guide.pdf`, §04) states it plainly:
-paid products "require commercial approval prior to activation", submitting the
-portal request "does not automatically grant access", and completing activation
-means contacting the Data Sales Team at **marketdatateam@tase.co.il**. API
-support (technical, not commercial) is **apisupport@tase.co.il**.
-
-## What we get when it is approved
-
-Auth for this app, per the portal's own app page: **Application Auth Strategy =
-API Key Auth**, **Key Name = `apikey`** — i.e. the key travels in an `apikey`
-request header, not as a bearer token.
-
-Endpoints in the product (`GET`, all of them):
-
-| Path | What it is for Atlas |
+| Request | Result |
 |---|---|
-| `/api/v2/market-announcements/companies-disclosures/by-issuer` | every MAYA disclosure of one issuer — the company's filing history |
-| `/api/v2/market-announcements/financial-report-schedule/by-schedule-date` | who reports on a given date — **the Calendar feed** |
+| real key, `apikey` header | **200** `{"data":[{"financialReportTypeId":1,...}]}` |
+| no key | **401** `{"message":"No API key found in request"}` |
+| deliberately bogus key | **401** `{"message":"Unauthorized"}` |
+
+The portal's own request counter went **0 → 10** during that session, with a 10% error
+rate that is exactly the one 400 deliberately triggered. The counter is the arbiter, and
+it has now moved.
+
+## THE `Accept-Language` TRAP — `en-US` RETURNS `title: null`
+
+This is not a cosmetic locale choice. The **English feed has no titles at all**; the
+Hebrew feed carries the real ones. Same report, same request, only the header differs:
+
+```
+Accept-Language: he-IL   title: "מצגת משקיעים  - דוחות כספיים לרבעון הראשון של שנת 2026"
+                         issuer: "תיגבור קבוצה"
+                         events: 104:דוח רבעון 1 / 270:מצגת
+
+Accept-Language: en-US   title: null
+                         issuer: "TIGBUR GROUP"
+                         events: 104:1st Quarter Report / 270:Presentation
+```
+
+⇒ **Atlas must always send `he-IL`.** Sending `en-US` produces a shelf of untitled files
+and forces a title to be synthesised out of `events[].eventName`, which is a worse label
+that the issuer never wrote. Atlas is Hebrew-first anyway; here it is also the only feed
+that answers the question.
+
+## Endpoints (all `GET`, all verified 200)
+
+| Path | For Atlas |
+|---|---|
+| `/api/v2/market-announcements/companies-disclosures/by-issuer` | **the company's filing history — reports, presentations, everything** |
+| `/api/v2/market-announcements/financial-report-schedule/by-schedule-date` | who reports on a date — the Calendar feed |
 | `/api/v2/market-announcements/financial-report-schedule/by-report-year` | the same schedule keyed by report year |
-| `/api/v2/market-announcements/financial-report-schedule/event-types` | lookup: `eventId` / `eventName` |
-| `/api/v2/market-announcements/financial-report-schedule/period-types` | lookup: `periodTypeId` / `periodType` |
+| `/api/v2/market-announcements/financial-report-schedule/event-types` | lookup: `financialReportTypeId` / name |
+| `/api/v2/market-announcements/financial-report-schedule/period-types` | lookup: `periodTypeId` / name |
 
-Gateway host (TASE's published base, unverified against a live 200 because we
-have never had one): `https://openapigw.tase.co.il/tase/prod` + the path above.
-**Do not treat the base URL as settled** — see the next section.
+### `by-issuer` parameters (read off the portal's own spec)
 
-Rate limits, from the guide: **10 requests / 2 seconds**, burst the same; over it
-you get HTTP 429.
+| Name | Required | Notes |
+|---|---|---|
+| `FromDate` | **yes** | `YYYY-MM-DD`. Omitting it is a 400 naming the field. |
+| `ToDate` | **yes** | `YYYY-MM-DD` |
+| `IssuerId` | **yes** | int 1–99999. **Not the security id** — see below. |
+| `EventId` | no | filters to one event type, e.g. **270 = מצגת (Presentation)** |
+| `Accept-Language` | **yes** (header) | `he-IL` / `en-US` |
 
-## RE-CHECKED 2026-08-05 AFTER THE FOUNDER REPORTED THE KEY APPROVED — still no call reaches TASE, and the reason is now NARROWER
+Response row shape, verified against Tigbur:
 
-Founder, 2026-08-05: *"the api key was approved so check it!"* Re-ran the probe
-against all five endpoints of the product, both plausible bases, with the `apikey`
-header and a browser user-agent. Result, unchanged and uniform:
+```jsonc
+{
+  "publicationDate": "2026-05-27T11:27:00.52",
+  "mayaReportId": 1744031,
+  "isPriorityReport": false,
+  "title": "מצגת משקיעים  - דוחות כספיים לרבעון הראשון של שנת 2026",
+  "isCorrection": false,
+  "url": "https://maya.tase.co.il/he/reports/1744031",
+  "issuer": [{ "issuerId": 1460, "issuerName": "תיגבור קבוצה", "assosiated": false }],
+  "events": [{ "eventId": 104, "eventName": "דוח רבעון 1" },
+             { "eventId": 270, "eventName": "מצגת" }],
+  "attachedFiles": [{ "url": "https://mayafiles.tase.co.il/rhtm/…/H1744031.htm" },
+                    { "url": "https://mayafiles.tase.co.il/rpdf/…/P1744031-00.pdf" }]
+}
+```
 
-| Host | Result |
-|---|---|
-| `openapigw.tase.co.il/tase/prod` + any of the 5 paths | **503, Imperva/Incapsula bot page**, every time |
-| `datahubapi.tase.co.il` + the same paths | **404 with real JSON** (`{"message":"Cannot GET …"}`) |
+Event ids seen so far: **270 מצגת** · 104 דוח רבעון 1 · 101 דוח תקופתי ושנתי ·
+233 Conference Call · 113 Statements Release Date. Treat this list as a sample, not
+the vocabulary — there is no endpoint for the full disclosure-event table, only the
+two-row `event-types` lookup, which is the *schedule* vocabulary and a different thing.
 
-The second row matters: TASE is reachable from here and that host is a working
-app server — it is simply the PORTAL, not the gateway, so the product paths are
-not on it. Only `openapigw.tase.co.il` is refusing.
+## `IssuerId` is NOT `tase_security_id`, and we do not have it yet
 
-**The hypothesis this file carried — "the WAF refuses non-browser clients from
-here" — is now REFUTED.** Navigating the founder's own Chrome, on his own
-machine and network, to
-`https://openapigw.tase.co.il/tase/prod/api/v2/market-announcements/financial-report-schedule/event-types`
-returns the SAME Incapsula 503, and a same-origin `fetch()` from that page
-returns `{status: 503, waf: true}`. A real browser is refused exactly like a
-script, so the client was never the variable.
+`companies.tase_issuer_id` is **NULL for all four rows** (checked 2026-08-06). We hold
+`tase_security_id` (Tigbur `1105022`, 7 digits); the API wants the issuer number
+(Tigbur **1460**, 4 digits). They are unrelated numbering schemes.
 
-What is left, and neither can be settled from this machine:
+The mapping is readable from the TASE market page for a security — the company links
+on `market.tase.co.il/he/market_data/security/<securityId>/major_data` point at
+`maya.tase.co.il/he/companies/<issuerId>`. **Backfilling `tase_issuer_id` is the first
+task of any MAYA ingest**, and it is a per-company one-off, not a runtime lookup.
 
-1. **The base URL is not the one this product sits behind.** `openapigw.tase.co.il/tase/prod`
-   is TASE's published base for its OTHER products; nothing has ever confirmed it
-   for Market Announcements. This is the likeliest answer and the cheapest to
-   settle — the portal's "Try it out" prints the exact host it calls.
-2. **TASE's WAF blocks this network or region outright**, in which case a deployed
-   Atlas may be fine and only local development is blind.
+## Downloading the files — `mayafiles.tase.co.il`, public, no key
 
-**Blocked on the founder, and it is a 2-minute job:** the portal session has
-expired (`datahubapi.tase.co.il/my-apps` redirects to `Continue with SSO`), and
-signing in is not something an assistant session may do. Sign in, open the
-**Atlas** app, and report two things: whether *Market Announcements feed - MAYA
-2.0.0* still says **PENDING**, and what host the **Try it out** console actually
-calls. Either answer unblocks this immediately.
+`attachedFiles[].url` points at `mayafiles.tase.co.il`. Those are **public**: no `apikey`,
+no cookie, no browser user-agent needed. Verified by downloading Tigbur's Q1 2026
+presentation — 2,316,801 bytes, `%PDF-1.7`, **41 pages**, first page
+`מצגת לשוק ההון מאי 2026`, Hebrew extracting cleanly through the repo's own pdfjs.
 
-⇒ **Still true, and now for a sharper reason: nothing about the key has been
-tested.** Not one request has reached the API, so "approved" and "working" remain
-different claims. The request count in the portal is the arbiter.
+Attachment mix across Tigbur's 45 filings for 2026: **37 `.htm`, 22 `.pdf`, 2 `.xbrl`**.
+The `.htm` is the MAYA report wrapper; the `.pdf` is the document a person wants.
 
-## RE-CHECKED AGAIN 2026-08-06 — seven bases now, and the 503/403 split is the new evidence
+**⚠️ A 200 from mayafiles is not proof you got the file.** One fetch returned
+**HTTP 200, `content-type: text/html`, 212 bytes** — a WAF interstitial wearing a `.pdf`
+URL. Eight subsequent fetches of the same URL all returned the real PDF, so it is
+intermittent and cold-start-ish, which is the dangerous kind. **Any ingest MUST validate
+the `%PDF-` magic bytes and reject short bodies**, not trust the status code. This is the
+same class as the 0-byte-PDF-pinned-by-cache incident in `.claude/rules/app.md`:
+degradation must be visible, and a "successful" 212-byte report would be stored, cached,
+and shown as a document.
 
-Founder, 2026-08-06: *"check the maya api key works."* Re-ran the probe. Unchanged:
-`openapigw.tase.co.il` returns the Imperva 503 with the real key, a bogus key and
-no key at all. Then the search widened, and two things came back that are worth
-keeping.
+## What the two blocked sessions got wrong, so it is not repeated
 
-**`openapi.tase.co.il` 301-redirects to `datahub.tase.co.il`** — a host this repo
-had never tried. It is a marketing page: every product path on it 302s to
-`www.tase.co.il/he/content/products_lobby/datahub`. Not the gateway. Also tried,
-all refused or wrong: `api.tase.co.il`, `apigw.tase.co.il`, `datahub.tase.co.il`,
-`datahub.tase.co.il/tase/prod`, `datahubapi.tase.co.il/tase/prod` (returns the
-portal's own SPA HTML — a catch-all route, not an API).
+The base URL was assumed to be `https://openapigw.tase.co.il/tase/prod` — TASE's published
+base for its *other* products — and every probe went there. It answers Imperva **503** to
+everything, with a real key, a bogus key, or no key. Seven hostnames were tried across two
+sessions; `datawise.tase.co.il` was never among them, because nothing outside the portal
+names it. The guide PDF was extracted in full (9 pages) specifically to settle the base URL
+and **contains no hostname at all**.
 
-**The status codes differ, and that is the actual finding.** `api.tase.co.il`,
-`apigw.tase.co.il` and `mayaapi.tase.co.il` return Incapsula **403** — the WAF
-refusing a client. `openapigw.tase.co.il` returns **503**, which from Incapsula
-means the ORIGIN behind it is unreachable or not configured, not that we are
-blocked. Those are different failures. A 503 is consistent with the gateway
-simply not being provisioned for this account or product — i.e. consistent with
-PENDING — and it is NOT consistent with "the WAF is refusing us", which the
-browser test already refuted.
+Two readings were carried as live hypotheses and **both were wrong**: "the WAF blocks
+non-browser clients" (refuted by the founder's own Chrome getting the same 503) and "the
+subscription is not provisioned" (the 503-vs-403 split was read as evidence for it; the
+product had in fact been APPROVED on the second app all along).
 
-⇒ This raises the odds that nothing is wrong with the key, the host or the code,
-and that the subscription genuinely has not been activated. It does not prove it.
+**The lesson, and it is the one this repo keeps filing in other forms:** the base URL is
+configuration, and configuration is read from the system that issues it, not deduced. Two
+sessions of probing could not produce what one look at the portal's `Servers` dropdown
+gave in a minute. The founder had said "the key was approved" and that was true — the
+disbelief was aimed at the wrong component, because a 503 was allowed to stand in for
+evidence about a key it never reached.
 
-**The guide has no base URL in it.** `Atlas Documents/MAYA API/maya_api-guide.pdf`
-was extracted in full (9 pages, via pdfjs) specifically to settle this: it covers
-registration, apps, credentials, rate limits and error codes, and never once
-states a hostname. The portal's "Try it out" console remains the only place the
-real base URL can be read.
+Practical corollary for this portal specifically: it is **Kong**, and the server list lives
+in a `KONG-SWAGGER-UI` **shadow root**, so `document.body.innerText` does not contain it and
+a page-text scrape returns nothing. Walk `el.shadowRoot` to read it.
 
-**Still blocked on the founder, still two minutes, and now the only open branch:**
-sign in at `datahubapi.tase.co.il`, open the **Atlas** app, and report (a) whether
-*Market Announcements feed - MAYA 2.0.0* still says **PENDING**, and (b) what host
-"Try it out" calls. Nothing on this machine can settle either.
-
-**Nothing about the key has been tested.** Two sessions of probing, zero requests
-counted by the portal.
-
-## The original probe, and why its result proves nothing about the key
-
-Node and curl both get **HTTP 503 with an Imperva/Incapsula bot-mitigation page**
-from `openapigw.tase.co.il` — identically **with the real key, with a deliberately
-bogus key, and with no key at all**, and at the gateway root as well as at the
-product paths. A response that is the same for a valid and an invalid key is not
-evidence about the key; it is evidence that the request never reached the API.
-Either the WAF refuses non-browser clients from here, or the base URL/path prefix
-is not the one this product sits behind.
-
-Both readings are consistent with the portal saying **0 requests**: nothing we
-sent has ever been counted as an API call.
-
-⇒ **Re-test after the product is approved, and use the portal's own "Try it out"
-first** (it shows the exact host and headers for a working call, and the portal
-enables it once the product is granted). Do not conclude anything about the key
-from a 503 here.
-
-## When it lands, where it goes in Atlas
+## Where it goes in Atlas
 
 Decided 2026-08-01 (`agent-memory/cross-cutting.md`): **MAYA reports become
-`company_documents`** — no new parallel tables. Company data is shared corpus,
-not per-user (`docs/DATA-MODEL.md`). The intake path that will read the catalog
-is flagged in `src/lib/workspace/intake/corpus.ts`, and the ingest core that a
-MAYA auto-fetch is meant to reuse is `src/lib/documents/ingest.ts`.
+`company_documents`** — no new parallel tables. Company data is shared corpus, not per-user
+(`docs/DATA-MODEL.md`). The intake path that will read the catalog is flagged in
+`src/lib/workspace/intake/corpus.ts`; the ingest core a MAYA auto-fetch should reuse is
+`src/lib/documents/ingest.ts`.
 
-The `financial-report-schedule` endpoints are the first thing worth wiring: the
-Calendar currently shows `scheduled_calls` only, and "who reports when" is
-exactly this feed.
+The `financial-report-schedule` endpoints are the Calendar feed: it currently shows
+`scheduled_calls` only, and "who reports when" is exactly this data.
 
 ## Repro
 
-`node <scratchpad>/check-maya.mjs` — loads `.env.local` through `@next/env`,
-prints variable NAMES and lengths only (never a value), then probes the gateway
-and prints statuses. The scratchpad copy is disposable; the method matters more
-than the file: **never let a secret value into a transcript, a log, or a commit.**
+Scripts used for the verification above live in the session scratchpad and are disposable;
+the method is what matters. Load `.env.local` through `@next/env`, print variable NAMES and
+lengths only, and redact the key out of every response body before printing.
+**Never let a secret value into a transcript, a log, or a commit.**
