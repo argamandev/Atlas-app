@@ -20,8 +20,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // Attaching to someone else's workspace fails in the DATABASE, on the
     // composite key — not on a check here. Referential-integrity checks bypass
     // RLS, so a single-column key would have validated against a row RLS hides.
-    const item = await addItem(supabase, user.id, params.id, parsed.value)
-    return NextResponse.json({ item }, { status: 201 })
+    // 200 when the shelf already held this source: nothing was created, and the
+    // status line is the one part of a response a caller may read literally.
+    const { item, created } = await addItem(supabase, user.id, params.id, parsed.value)
+    return NextResponse.json({ item }, { status: created ? 201 : 200 })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
   }

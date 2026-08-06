@@ -184,12 +184,49 @@ export async function deleteWorkspace(supabase: Db, id: string): Promise<void> {
 
 // ── Shelf items ──────────────────────────────────────────────────────────────
 
+/**
+ * The row already holding this source on this shelf, or null.
+ *
+ * Only a CORPUS reference counts as an identity: `transcript_id` and
+ * `document_id` name a row every workspace shares, so two shelf entries for one
+ * of them are the same file twice. An upload (`storage_path` alone) is not
+ * deduplicated — it is its own artifact, and a person who uploads a file twice
+ * may well mean it.
+ */
+async function findAttached(
+  supabase: Db,
+  workspaceId: string,
+  input: ItemCreate
+): Promise<WorkspaceItemRow | null> {
+  const column = input.transcript_id ? 'transcript_id' : input.document_id ? 'document_id' : null
+  const value = input.transcript_id ?? input.document_id
+  if (!column || !value) return null
+
+  const { data, error } = await supabase
+    .from('workspace_items')
+    .select(ITEM_COLS)
+    .eq('workspace_id', workspaceId)
+    .eq(column, value)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as WorkspaceItemRow) ?? null
+}
+
+/**
+ * `created: false` means the shelf already held this source and nothing was
+ * written — the route answers 200 rather than 201, because "Created" for a row
+ * that already existed is a false statement in the one place a caller is
+ * entitled to trust literally.
+ */
+export type AddItemResult = { item: WorkspaceItemRow; created: boolean }
+
 export async function addItem(
   supabase: Db,
   userId: string,
   workspaceId: string,
   input: ItemCreate
-): Promise<WorkspaceItemRow> {
+): Promise<AddItemResult> {
   // APPEND TO THE END OF THE SHELF. Until 2026-08-04 this was omitted, so every
   // row took the column default of 0 and the shelf had no order at all — six
   // sources attached from the intake all landed at position 0, and the tab order
@@ -201,6 +238,33 @@ export async function addItem(
   // A concurrent pair can tie. `position` carries no unique constraint, ties
   // fall back to the read's secondary sort, and that is strictly better than
   // every row sharing one value.
+  //
+  // THE SAME SOURCE NEVER GOES ON ONE SHELF TWICE. Proved in the browser
+  // 2026-08-06: asked to pull Tigbur's reports, the intake proposed the whole
+  // shelf back — it had never been told what was already on it — and a bare
+  // "כן" wrote a SECOND row for transcript PyuMxe88, which was already at
+  // position 1. Two tabs of one call, two copies in every answer's context, and
+  // a token budget paying for both. The already-attached row is returned as-is,
+  // because "put this on my shelf" is satisfied by it already being there; the
+  // caller sees a normal item and the shelf does not grow.
+  //
+  // This is the APPLICATION half. The durable half is a unique index on
+  // (workspace_id, transcript_id) / (workspace_id, document_id), which is DDL
+  // against the shared production database — additive, but by rules/db.md it is
+  // reviewed before it is applied, and it would fail outright if any shelf in
+  // production already holds a pair like the one above. Filed, not smuggled in
+  // here. Until it exists, two simultaneous attaches can still tie.
+  const existing = await findAttached(supabase, workspaceId, input)
+  if (existing) {
+    // Asking for a file you already have, but CLOSED, must still show it —
+    // otherwise "yes, pull that one" appears to do nothing at all, which is the
+    // same invisible-outcome bug as the one-of-three-tabs case below.
+    const row = existing.is_open
+      ? existing
+      : await patchItem(supabase, workspaceId, existing.id, { is_open: true })
+    return { item: row, created: false }
+  }
+
   const { data: last, error: maxErr } = await supabase
     .from('workspace_items')
     .select('position')
@@ -245,7 +309,7 @@ export async function addItem(
     .single()
   if (error) throw new Error(error.message)
   await touch(supabase, workspaceId)
-  return data as WorkspaceItemRow
+  return { item: data as WorkspaceItemRow, created: true }
 }
 
 /**

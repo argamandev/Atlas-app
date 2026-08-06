@@ -34,14 +34,44 @@ export function buildSelectionPrompt(
   corpus: AttachableSource[],
   conversation: IntakeTurn[],
   /** the ids this conversation has already settled on, if any */
-  proposal: string[] = []
+  proposal: string[] = [],
+  /** source ids ALREADY on this workspace's shelf */
+  onShelf: string[] = []
 ): string {
+  // WHAT IS ALREADY ON THE SHELF, MARKED.
+  //
+  // Until 2026-08-06 this step was shown the corpus and nothing else, so it had
+  // no way to know the analyst already had a file. Asked in the browser to pull
+  // Tigbur's reports, it offered back the entire shelf as though none of it were
+  // there — and a bare "כן" then wrote a second row for a call already open in a
+  // tab. Offering to fetch something the analyst is currently looking at is the
+  // same false-achievement claim the workspace chat had, one step downstream.
+  const here = new Set(onShelf)
   const lines = corpus.map(
     (s) =>
       `- id: ${s.sourceId} | type: ${kindLabel(s.kind)} | company: ${s.company ?? 'unknown'} | date: ${
         s.when ? s.when.slice(0, 10) : 'unknown'
-      } | title: ${s.title}`
+      } | title: ${s.title}${here.has(s.sourceId) ? ' | ALREADY ON THE SHELF' : ''}`
   )
+
+  const anyOnShelf = onShelf.some((id) => corpus.some((s) => s.sourceId === id))
+  const shelfRule = anyOnShelf
+    ? `\nSome files above are marked ALREADY ON THE SHELF. The analyst has those
+open in this workspace right now. Never offer to pull one: say it is already
+here, by title, and carry on with whatever else they asked for. If EVERYTHING
+they asked for is already here, say exactly that and select nothing.
+`
+    : ''
+
+  // THE SAME RULE AGAIN, IN THE OPERATIVE LIST. Stating it once beside the file
+  // list was not enough — run 1 of this fix marked all three requested calls
+  // correctly and the model confirmed all three anyway. The bullets below are
+  // what it actually follows, and "CONFIRM IN WORDS which files you intend to
+  // pull" was the instruction winning. Conditional, because a rule about a
+  // marker that appears nowhere is noise.
+  const shelfBehaviour = anyOnShelf
+    ? `\n- FIRST, before anything else: drop from consideration every file marked ALREADY ON THE SHELF. The analyst has those open in front of them. Offering to pull one is offering to do something that is already done, and agreeing to it changes nothing on their screen. If some of what they asked for is already here, name those in one clause ("the Q1 call is already on your shelf") and confirm only the REST. If ALL of it is already here, say so and set "selected" to [] with status "clarifying" — there is nothing to pull.`
+    : ''
 
   const talk = conversation.map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${t.content}`).join('\n')
 
@@ -70,7 +100,7 @@ You are having a short, ordinary conversation with them — like a colleague, no
 
 FILES ATLAS HOLDS:
 ${lines.join('\n')}
-${standing}
+${shelfRule}${standing}
 CONVERSATION SO FAR:
 ${talk}
 
@@ -90,7 +120,7 @@ is the single most important rule here: "selected" is how the files you just
 said out loud are actually held, and a file missing from it is a file that will
 not arrive no matter what the analyst says next.
 
-How to behave:
+How to behave:${shelfBehaviour}
 - Work out which files they mean, then CONFIRM IN WORDS before doing anything: name the files you intend to pull, in a sentence, and ask if that is right. status = "clarifying", and "selected" holds those files.
 - Write it the way a person would speak — "just to confirm, you want the Q1 2026 board report and the latest investor call?". NEVER a numbered list, a bulleted list, or anything resembling checkboxes.
 - If they ask to add, drop or change something, adjust and confirm again. status = "clarifying".

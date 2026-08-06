@@ -77,6 +77,18 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (wErr) throw new Error(wErr.message)
     if (!ws) return NextResponse.json({ error: 'workspace not found' }, { status: 404 })
 
+    // WHAT THIS SHELF ALREADY HOLDS. Without it the selection step offers back
+    // files the analyst is looking at (see buildSelectionPrompt), and agreeing
+    // used to attach a second copy of one.
+    const { data: onShelfRows, error: sErr } = await supabase
+      .from('workspace_items')
+      .select('transcript_id, document_id')
+      .eq('workspace_id', params.id)
+    if (sErr) throw new Error(sErr.message)
+    const onShelf = (onShelfRows ?? [])
+      .map((r) => (r.transcript_id ?? r.document_id) as string | null)
+      .filter((v): v is string => !!v)
+
     const corpus = await loadCorpus(supabase)
     if (corpus.length === 0) {
       const request = parseModelRequest('', text)
@@ -127,7 +139,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     // ── stage 2: select, and answer in words ────────────────────────────────
-    const selectionRaw = await askModel(buildSelectionPrompt(candidates, messages, proposal), 1200)
+    const selectionRaw = await askModel(buildSelectionPrompt(candidates, messages, proposal, onShelf), 1200)
     const selection = parseSelection(selectionRaw, candidates)
 
     if (selection) {

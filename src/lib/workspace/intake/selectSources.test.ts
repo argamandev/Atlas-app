@@ -168,6 +168,40 @@ test('with nothing proposed yet the prompt does not mention a standing set', () 
   assert.ok(!p.includes('THE FILES YOU ALREADY PROPOSED'))
 })
 
+// ── what the shelf already holds ─────────────────────────────────────────────
+// Filed from a live run, 2026-08-06. Asked to pull Tigbur's reports, the intake
+// proposed the entire shelf back — it had never been shown what was on it — and
+// a bare "כן" wrote a SECOND row for a call already open in a tab.
+
+test('a file already on the shelf is marked as such, with a rule about it', () => {
+  const p = buildSelectionPrompt(CORPUS, [{ role: 'user', content: 'תביא לי דוחות' }], [], ['c1'])
+  assert.ok(p.includes('ALREADY ON THE SHELF'))
+  assert.ok(p.includes('Never offer to pull one'))
+  // AND in the operative list at the END of the prompt. Stating it only beside
+  // the file list was not enough: run 1 of this fix marked the three calls
+  // correctly and the model confirmed all three anyway, because "How to behave"
+  // is where the instructions it actually follows live.
+  const behave = p.slice(p.indexOf('How to behave:'))
+  assert.ok(behave.includes('ALREADY ON THE SHELF'), 'the rule must also be in the behaviour list')
+  // the marker rides on that file's own line, not as a separate list
+  const line = p.split('\n').find((l) => l.includes('id: c1')) ?? ''
+  assert.ok(line.includes('ALREADY ON THE SHELF'), "the marker must be on c1's own line")
+  const other = p.split('\n').find((l) => l.includes('id: c2')) ?? ''
+  assert.ok(!other.includes('ALREADY ON THE SHELF'))
+})
+
+test('an empty shelf adds no rule and no marker', () => {
+  const p = buildSelectionPrompt(CORPUS, [{ role: 'user', content: 'תביא לי דוחות' }], [], [])
+  assert.ok(!p.includes('ALREADY ON THE SHELF'))
+})
+
+test('shelf ids that are not in the candidate list raise no rule', () => {
+  // Narrowing can cut a shelf file out of the candidates; the rule would then
+  // describe a marker that appears nowhere.
+  const p = buildSelectionPrompt(CORPUS, [{ role: 'user', content: 'דוחות' }], [], ['not-a-candidate'])
+  assert.ok(!p.includes('Never offer to pull one'))
+})
+
 test('reads an explicit removal', () => {
   const s = parseSelection(
     '{"reply":"הורדתי את השיחה.","status":"ready","selected":["r1"],"removed":["c1"]}',
