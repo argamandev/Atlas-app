@@ -57,7 +57,7 @@ export function buildSelectionPrompt(
       `- id: ${s.sourceId} | type: ${kindLabel(s.kind)} | company: ${s.company ?? 'unknown'} | date: ${
         s.when ? s.when.slice(0, 10) : 'unknown'
       } | title: ${s.title}${here.has(s.sourceId) ? ' | ALREADY ON THE SHELF' : ''}${
-        s.remote ? ' | FROM MAYA — NOT YET IN ATLAS' : ''
+        s.remote ? ' | FROM MAYA — NOT YET IN ATLAS' : s.fromMaya ? ' | FROM MAYA — ALREADY IN ATLAS' : ''
       }`
   )
 
@@ -70,14 +70,22 @@ export function buildSelectionPrompt(
   // boundary rather than hope. The same care applies now that fetching is real:
   // it is a thing Atlas WILL do, not a thing it has done.
   const anyRemote = corpus.some((s) => s.remote)
-  const remoteRule = anyRemote
-    ? `\nSome files above are marked FROM MAYA — NOT YET IN ATLAS. Those are real
-filings published by the company to MAYA that Atlas does not hold yet. You may
-select them exactly like the others; if the analyst agrees, Atlas fetches them.
-Speak about them in the FUTURE — "I'll pull the 2024 annual report" — never as
-though they are already here, and never say you have already brought one.
+  const anyFromMaya = corpus.some((s) => s.fromMaya)
+  const remoteRule =
+    anyRemote || anyFromMaya
+      ? `\nMAYA is the Tel Aviv exchange's filing system, and files above may be marked
+two different ways:
+- FROM MAYA — NOT YET IN ATLAS: a real filing Atlas does not hold. Select it like
+  any other; if the analyst agrees, Atlas fetches it. Speak about it in the
+  FUTURE ("I'll pull the 2024 annual report"), never as though it is already here.
+- FROM MAYA — ALREADY IN ATLAS: the same kind of filing, fetched earlier. It IS a
+  MAYA filing. When the analyst asks for something "from MAYA" (ממאיה) and the
+  file they mean is marked this way, THAT is the file — select it and say Atlas
+  already has it. Do NOT reach for a different year just because that one is
+  still marked NOT YET IN ATLAS. "From MAYA" describes where a filing came from,
+  not a demand that it be downloaded again.
 `
-    : ''
+      : ''
 
   const anyOnShelf = onShelf.some((id) => corpus.some((s) => s.sourceId === id))
   const shelfRule = anyOnShelf

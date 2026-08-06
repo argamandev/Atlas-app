@@ -279,3 +279,34 @@ test('ANY status that is not exactly "ready" keeps the conversation going', () =
     assert.equal(s.status, 'clarifying', raw)
   }
 })
+
+// ── a MAYA filing Atlas ALREADY holds ────────────────────────────────────────
+// Found live 2026-08-06, three samples out of three. Once the 2024 annual report
+// had been fetched it was correctly dropped from the REMOTE candidates (offering
+// to fetch something already held is the false-achievement claim this file
+// exists to prevent) — but the local row carried no sign of where it came from,
+// so "get me the 2024 annual report from MAYA" found no MAYA-marked 2024 file
+// and the model reached for a different YEAR that was still marked fetchable.
+// Marking origin on the held row is what lets it answer "you already have it".
+test('a held MAYA filing is marked as such, so "from MAYA" can still resolve to it', () => {
+  const p = buildSelectionPrompt(
+    [
+      { sourceId: 'd1', kind: 'document', title: 'דוח תקופתי ושנתי לשנת 2024', company: 'תיגבור', when: '2025-03-30', fromMaya: true },
+      { sourceId: 'd2', kind: 'document', title: 'דוח דירקטוריון Q1 2026', company: 'תיגבור', when: '2026-07-16' },
+    ],
+    [{ role: 'user', content: 'תמשוך ממאיה את הדוח השנתי לשנת 2024' }]
+  )
+  assert.ok(p.includes('FROM MAYA — ALREADY IN ATLAS'))
+  // the hand-ingested document must NOT be labelled as coming from MAYA
+  assert.ok(!/דוח דירקטוריון Q1 2026.*FROM MAYA/.test(p))
+  // and the rule that stops it reaching for another year
+  assert.ok(p.includes('Do NOT reach for a different year'))
+})
+
+test('a corpus with no MAYA origin at all adds no MAYA rule', () => {
+  const p = buildSelectionPrompt(
+    [{ sourceId: 'd1', kind: 'document', title: 'דוח', company: 'תיגבור', when: '2026-01-01' }],
+    [{ role: 'user', content: 'תביא לי דוח' }]
+  )
+  assert.ok(!p.includes('FROM MAYA'))
+})

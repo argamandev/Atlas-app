@@ -35,7 +35,7 @@ export async function loadCorpus(supabase: UserClient): Promise<AttachableSource
 
   const { data: documents, error: dErr } = await supabase
     .from('company_documents')
-    .select('id, title, quarter, created_at, company_id')
+    .select('id, title, quarter, created_at, company_id, source')
     .order('created_at', { ascending: false })
     .limit(200)
   if (dErr) throw new Error(dErr.message)
@@ -78,6 +78,7 @@ export async function loadCorpus(supabase: UserClient): Promise<AttachableSource
         quarter: string | null
         created_at: string | null
         company_id: string | null
+        source: string | null
       }[]
     ).map((d) => ({
       sourceId: d.id,
@@ -85,6 +86,16 @@ export async function loadCorpus(supabase: UserClient): Promise<AttachableSource
       title: d.title?.trim() || d.quarter || d.id,
       company: d.company_id ? (nameById[d.company_id] ?? null) : null,
       when: d.created_at,
+      // A DOCUMENT ATLAS ALREADY PULLED FROM MAYA IS STILL A MAYA FILING.
+      //
+      // Without this the selection step could not answer "get me the 2024
+      // annual report from MAYA" once that report had been fetched: the filing
+      // is correctly dropped from the remote candidates (offering to fetch
+      // something already held is the false-achievement claim), so the only
+      // MAYA-marked candidates left were OTHER years — and the model picked one
+      // of those rather than the local row that was the actual answer. Observed
+      // 3 times out of 3 on 2026-08-06.
+      fromMaya: d.source === 'maya',
     })),
   ]
 }

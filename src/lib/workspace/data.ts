@@ -427,6 +427,15 @@ export type AttachableSource = {
    * written by one of them.
    */
   remote?: RemoteRef
+  /**
+   * This file is ALREADY in Atlas and originally came from MAYA.
+   *
+   * The counterpart to `remote`: same origin, opposite state. It exists so that
+   * "pull the 2024 annual report from MAYA" can still be answered once that
+   * report has been pulled — otherwise the filing is (correctly) absent from
+   * the remote candidates and the only MAYA-marked options left are other years.
+   */
+  fromMaya?: boolean
 }
 
 /** Which MAYA filing a candidate stands for. See `AttachableSource.remote`. */
