@@ -109,6 +109,8 @@ export const en = {
       "I couldn't reach MAYA just now, so this only covers what Atlas already holds. Worth trying again in a moment.",
     intakeUnknownCompany:
       "I don't have a TASE issuer under that name. I can only find companies that have announced a reporting date.",
+    intakeRequestNotUnderstood:
+      "I couldn't work out which company you meant well enough to search MAYA, so this covers only what Atlas already holds. Try naming the company and the period?",
     intakeFetching: 'Fetching from MAYA — downloading and reading the file…',
     intakeSearchFailed: 'That did not go through: {error}',
     buildingTitle: 'Setting up the workspace…',

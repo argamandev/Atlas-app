@@ -19,6 +19,88 @@ export type IssuerRow = { issuerId: number; nameHe: string | null; nameEn: strin
 /** Shortest run of characters allowed to stand in for a company name. */
 const MIN_FRAGMENT = 3
 
+/**
+ * WORDS THAT NAME AN INDUSTRY, NOT A COMPANY.
+ *
+ * Israeli corporate names are built out of a small set of these, and they are
+ * exactly the length that looks "distinctive" to a naive matcher. Before this
+ * list existed, "אלוני חץ נכסים", "נכסים ובנין" and "מבני תעשיה נכסים" — three
+ * different, real TASE companies — all resolved to "לוינשטין נכסים", because
+ * נכסים was shared and happened to be unique in the rows being searched.
+ *
+ * A confidently wrong company is the worst outcome this module has: it is not
+ * an error the analyst can see, it is another company's annual report arriving
+ * under the name they asked for, and on agreement it writes into shared corpus.
+ */
+const GENERIC_TOKENS = new Set([
+  // Hebrew
+  'קבוצת',
+  'קבוצה',
+  'אחזקות',
+  'החזקות',
+  'השקעות',
+  'נכסים',
+  'תעשיות',
+  'תעשיה',
+  'תעשייה',
+  'שירותי',
+  'שירותים',
+  'מערכות',
+  'טכנולוגיות',
+  'טכנולוגיה',
+  'פיתוח',
+  'בנייה',
+  'בניה',
+  'בניין',
+  'בנין',
+  'ובנין',
+  'מוצרי',
+  'בית',
+  'בתי',
+  'מבני',
+  'ישראל',
+  'ישראלית',
+  'הישראלית',
+  'לישראל',
+  'בנק',
+  'ביטוח',
+  'פיננסים',
+  'אנרגיה',
+  'נדלן',
+  'מסחר',
+  'סחר',
+  'כללי',
+  'מרכז',
+  'תקשורת',
+  'חברה',
+  'חברת',
+  'בעמ',
+  // English
+  'group',
+  'holdings',
+  'holding',
+  'industries',
+  'investments',
+  'properties',
+  'systems',
+  'technologies',
+  'technology',
+  'services',
+  'israel',
+  'bank',
+  'insurance',
+  'energy',
+  'development',
+  'international',
+  'global',
+  'company',
+])
+
+const wordsOf = (s: string): string[] => s.split(' ').filter((t) => t.length >= MIN_FRAGMENT)
+
+/** The words that actually identify a company, industry nouns removed. */
+const identifyingWords = (s: string): string[] => wordsOf(s).filter((t) => !GENERIC_TOKENS.has(t))
+
 /** Hebrew and English company names carry a lot of noise that is never part of
  *  what a person types: the corporate suffix, quote marks in several Unicode
  *  flavours, and inconsistent spacing. */
@@ -50,9 +132,18 @@ function namesOf(row: IssuerRow): string[] {
 /**
  * Resolve a company name to an issuer, or null.
  *
- * Three passes, narrowest first: exact, then prefix, then substring. Each pass
- * only answers if it found exactly ONE issuer — a tie falls through to the next
- * pass and, failing that, to null.
+ * TWO PASSES, and the second one carries the whole safety argument.
+ *
+ * 1. Exact, after normalisation.
+ * 2. COVERAGE: every identifying word the analyst typed must appear in the
+ *    candidate's name. Not "shares a word with" — that was the original rule
+ *    and it resolved three different real companies to a fourth, because they
+ *    all contain נכסים. Requiring the query to be fully accounted for makes the
+ *    test asymmetric in the safe direction: "קבוצת תיגבור בע\"מ" resolves to
+ *    "תיגבור קבוצה" (its only identifying word, תיגבור, is there), while
+ *    "אלוני חץ נכסים" resolves to nothing (אלוני and חץ are not).
+ *
+ * Either pass answers only if exactly ONE issuer qualifies. A tie is silence.
  */
 export function resolveIssuer(query: string, rows: IssuerRow[]): IssuerRow | null {
   const q = normaliseCompanyName(query)
@@ -71,22 +162,16 @@ export function resolveIssuer(query: string, rows: IssuerRow[]): IssuerRow | nul
   // directory and resolves confidently to it — which is how "א" became אמות.
   if (q.length < MIN_FRAGMENT) return null
 
-  const contains = rows.filter((r) => namesOf(r).some((n) => n.includes(q) || q.includes(n)))
-  if (contains.length > 0) {
-    const hit = unique(contains)
-    if (hit) return hit
-  }
+  // A QUERY MADE ENTIRELY OF INDUSTRY WORDS IDENTIFIES NOTHING. "בנק" is every
+  // bank; "נכסים" is a third of the exchange. Silence is the only honest answer.
+  const needed = identifyingWords(q)
+  if (needed.length === 0) return null
 
-  // A DISTINCTIVE SHARED WORD, which is what Hebrew word order needs.
-  // "קבוצת תיגבור בע\"מ" and MAYA's "תיגבור קבוצה" are the same company, but
-  // neither string contains the other and קבוצת/קבוצה differ by construct
-  // state. The word that identifies the company — תיגבור — is shared, and a
-  // word this long is distinctive enough to match on. Still unique-or-nothing:
-  // "בנק" is shared by every bank and therefore resolves to none of them.
-  const qTokens = new Set(q.split(' ').filter((t) => t.length >= MIN_FRAGMENT))
-  if (qTokens.size === 0) return null
-  const shared = rows.filter((r) =>
-    namesOf(r).some((n) => n.split(' ').some((t) => t.length >= MIN_FRAGMENT && qTokens.has(t)))
+  const covered = rows.filter((r) =>
+    namesOf(r).some((n) => {
+      const have = new Set(wordsOf(n))
+      return needed.every((w) => have.has(w))
+    })
   )
-  return shared.length > 0 ? unique(shared) : null
+  return covered.length > 0 ? unique(covered) : null
 }

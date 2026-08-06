@@ -18,8 +18,11 @@ type UserClient = ReturnType<typeof createServerSupabase>
  * the picker and the intake disagreeing about what Atlas has — which is exactly
  * the kind of contradiction a user reads as the product being broken.
  *
- * WHEN MAYA LANDS this is where its catalog joins: read `maya_filings`, map it
- * into `AttachableSource`, concatenate. `findSources` does not change.
+ * MAYA LANDED 2026-08-06, and its catalog does NOT join here — there is no
+ * `maya_filings` table and there was never going to be one. A MAYA query needs a
+ * company and a date range, so it cannot be "loaded" the way a corpus can; the
+ * intake route asks for it after interpreting the request, and merges the result
+ * with what this function returns. What DID change here is `fromMaya` below.
  */
 export async function loadCorpus(supabase: UserClient): Promise<AttachableSource[]> {
   // Only transcripts that actually HAVE content. Attaching an unprocessed row

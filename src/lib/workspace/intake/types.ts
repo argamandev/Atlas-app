@@ -152,7 +152,7 @@ export type IntakeResponse = {
    * untrue sentence fixed on 2026-08-06, arriving through a different door. The
    * panel states this itself, in the user's language.
    */
-  sourceError?: 'maya_unreachable' | null
+  sourceError?: 'maya_unreachable' | 'request_not_understood' | null
   /**
    * A company was named and could not be resolved to a TASE issuer. Said
    * plainly, rather than presenting local results as though the search

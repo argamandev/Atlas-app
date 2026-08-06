@@ -1,6 +1,8 @@
 // Ingest = upload PDF to the private bucket + extract per-page text + persist rows.
-// Script-only (imports extract.ts → pdfjs); the CLI wraps this, and Core-2 MAYA auto-fetch
-// will call ingestDocument() directly later. Idempotent on (company, quarter, docType).
+// Imports extract.ts → pdfjs, so it may ONLY run where pdfjs is not bundled: scripts (tsx),
+// and Next server code because pdfjs-dist is listed in serverComponentsExternalPackages.
+// The CLI wraps this, and `lib/maya/ingestFiling.ts` calls it for a MAYA filing.
+// Idempotent on (company, quarter, docType) — NOT on maya_report_id, see IngestArgs.
 import { createClient } from '@supabase/supabase-js'
 import { extractPdfPages } from './extract'
 

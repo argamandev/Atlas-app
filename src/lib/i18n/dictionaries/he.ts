@@ -89,6 +89,8 @@ export const he: Dictionary = {
     intakeMayaUnreachable:
       'לא הצלחתי להגיע למאיה כרגע, אז זה מכסה רק את מה שכבר נמצא באטלס. כדאי לנסות שוב עוד רגע.',
     intakeUnknownCompany: 'אין לי מנפיק בבורסה בשם הזה. אני מוצא רק חברות שפרסמו מועד דיווח.',
+    intakeRequestNotUnderstood:
+      'לא הצלחתי להבין איזו חברה התכוונת כדי לחפש במאיה, אז זה מכסה רק את מה שכבר נמצא באטלס. אפשר לנסות עם שם החברה והתקופה?',
     intakeFetching: 'מושך ממאיה — מוריד את הקובץ וקורא אותו…',
     intakeSearchFailed: 'זה לא עבר: {error}',
     buildingTitle: 'מכינים את סביבת העבודה…',

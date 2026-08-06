@@ -24,10 +24,15 @@ export const dynamic = 'force-dynamic'
  * items route, so progress and failure are both per-file and the panel's
  * existing `failures[]` renders them.
  *
- * THE BODY IS UNTRUSTED even though the intake produced it. It names a URL to
- * fetch and a company to write, so it is re-validated here — `parseRemoteSource`
- * pins the host to mayafiles.tase.co.il, which stops this becoming a
- * server-side request forgery that fetches whatever a caller names.
+ * THE BODY IS UNTRUSTED even though the intake produced it, and the defence is
+ * that it carries NO CONTENT — only `mayaReportId` + `issuerId` + a date hint.
+ * The title, the issuer's name and the file's URL are all read back from MAYA
+ * below, so a browser cannot name a company for every member of a shared corpus
+ * and cannot point the server at an address of its choosing. (An earlier
+ * comment here claimed `parseRemoteSource` "pins the host to
+ * mayafiles.tase.co.il". It does not, and does not need to: it accepts no URL
+ * at all. The comment was corrected rather than the code, but a future edit
+ * must not "restore" URL acceptance believing a host check backstops it.)
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const supabase = createServerSupabase(cookies())
@@ -99,9 +104,32 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }
 
       const companyId = await ensureCompanyForIssuer(match.issuerId, match.issuerName)
-      const ingested = await ingestFiling({ source: match, companyId, supabaseUrl, serviceRoleKey })
-      documentId = ingested.documentId
-      title = match.title
+      try {
+        const ingested = await ingestFiling({ source: match, companyId, supabaseUrl, serviceRoleKey })
+        documentId = ingested.documentId
+        title = match.title
+      } catch (e) {
+        // 23505 ON THE FILING'S UNIQUE INDEX MEANS SOMEONE ELSE GOT THERE FIRST.
+        //
+        // The dedupe read above is a separate statement from this write, so a
+        // concurrent pull — or the same filing landing under a different
+        // (company, quarter, doc_type) key, which is the joint-issuer case —
+        // reaches the index. The row exists and is correct, so this is not a
+        // failure to report: re-read it and carry on. Without this the analyst's
+        // failure line reads `duplicate key value violates unique constraint
+        // "company_documents_maya_report_uniq"`, which migration 019's own
+        // comment promised would never happen.
+        if (!/23505|duplicate key/i.test((e as Error).message)) throw e
+        const raced = await supabase
+          .from('company_documents')
+          .select('id, title')
+          .eq('maya_report_id', source.mayaReportId)
+          .limit(1)
+          .maybeSingle()
+        if (raced.error || !raced.data) throw e
+        documentId = raced.data.id as string
+        title = (raced.data.title as string) ?? match.title
+      }
     }
 
     // `document`, because that is what a shelf item's kind means here — where

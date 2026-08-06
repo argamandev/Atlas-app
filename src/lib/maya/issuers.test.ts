@@ -53,3 +53,33 @@ test('a one-letter query never substring-matches the market', () => {
   assert.equal(resolveIssuer('א', ROWS), null)
   assert.equal(resolveIssuer('ג', ROWS), null)
 })
+
+// ── the review's counter-examples, 2026-08-06 ────────────────────────────────
+// The original "shares a distinctive word" rule resolved THREE different real
+// TASE companies to a fourth, because Israeli corporate names are built out of
+// a small set of industry nouns and נכסים happened to be unique in the rows
+// being searched. A confidently wrong company is this module's worst outcome:
+// it is not an error the analyst can see, it is another company's annual report
+// arriving under the name they asked for — and on agreement it writes into
+// shared corpus.
+test('a shared industry word never resolves a company', () => {
+  for (const q of ['אלוני חץ נכסים', 'נכסים ובנין', 'מבני תעשיה נכסים']) {
+    assert.equal(resolveIssuer(q, ROWS), null, `${q} must not resolve to לוינשטין נכסים`)
+  }
+  // ...and a query that is ONLY industry words identifies nothing at all
+  assert.equal(resolveIssuer('נכסים', ROWS), null)
+  assert.equal(resolveIssuer('קבוצת אחזקות בע"מ', ROWS), null)
+})
+
+// A longer name is not the same company as the short one it contains.
+test('extra identifying words mean a different company, not a near miss', () => {
+  assert.equal(resolveIssuer('גילת שירותי בריאות', ROWS), null)
+  // the plain name still resolves
+  assert.equal(resolveIssuer('גילת', ROWS)?.issuerId, 2030)
+})
+
+test('the real directory shape still resolves what it should', () => {
+  assert.equal(resolveIssuer('לוינשטין נכסים', ROWS)?.issuerId, 1536)
+  assert.equal(resolveIssuer('לוינשטין', ROWS)?.issuerId, 1536)
+  assert.equal(resolveIssuer('טאואר', ROWS)?.issuerId, 2028)
+})

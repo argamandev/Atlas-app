@@ -123,7 +123,9 @@ export function WorkspaceIntake({
           ? dict.workspace.intakeUnknownCompany
           : result.sourceError === 'maya_unreachable'
             ? dict.workspace.intakeMayaUnreachable
-            : null
+            : result.sourceError === 'request_not_understood'
+              ? dict.workspace.intakeRequestNotUnderstood
+              : null
       )
 
       const ready = result.status === 'ready' && result.selected.length > 0
@@ -379,9 +381,19 @@ export function WorkspaceIntake({
                 dir="auto"
                 className="self-start rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink"
               >
+                {/* THE ERROR TEXT IS ENGLISH INSIDE A HEBREW SENTENCE, and the
+                    MAYA failures are exactly the mixed-run shape `.claude/rules/
+                    app.md` files as a 3-occurrence rule: "not a PDF (212 bytes)",
+                    "MAYA unavailable (timeout)" — Latin words with parenthesised
+                    numerals, which throw their punctuation to the far side when
+                    the line's direction is resolved from its first strong
+                    character. Its own `<bdi>` keeps it whole. */}
                 {dict.workspace.intakeAttachFailed
                   .replace('{n}', String(failures.length))
-                  .replace('{error}', failures[0].error)}
+                  .split('{error}')
+                  .flatMap((part, i) =>
+                    i === 0 ? [part] : [<bdi key="err">{failures[0].error}</bdi>, part]
+                  )}
                 <ul className="mt-1.5 flex flex-col gap-0.5 text-[12px] text-ink-ghost">
                   {/* Keyed by POSITION, not title. Two files can carry the same
                       title — the corpus already holds "דוח דירקטוריון Q1 2026"

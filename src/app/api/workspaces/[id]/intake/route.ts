@@ -23,6 +23,16 @@ import { describeFailure } from '@/lib/maya/types'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * How many calendar years one question may ask MAYA about.
+ *
+ * `yearWindows` issues one sequential request per year (plus the late-filing
+ * year), so this is directly a latency and rate-limit bound: 3 becomes at most
+ * 4 requests, about a second. The years arrive from a model and are otherwise
+ * bounded only to 1990–2100.
+ */
+const MAX_QUERY_YEARS = 3
+
 const FILTER_SYSTEM = `You turn an investor-research request into a search filter.
 Reply with ONLY a JSON object, no prose, with these optional keys:
   company   string  the company name as the user wrote it, Hebrew or English
@@ -175,10 +185,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // nothing to look up, and spending three sequential API calls to discover
     // that would slow down every ordinary turn.
     let remote: AttachableSource[] = []
-    let sourceError: 'maya_unreachable' | null = null
+    let sourceError: 'maya_unreachable' | 'request_not_understood' | null = null
     let unknownCompany: string | null = null
 
-    if (request.company) {
+    // A DEGRADED INTERPRET CALL TAKES MAYA OUT OF THE SEARCH SILENTLY.
+    //
+    // `askModel` returns '' rather than throwing, so an unparseable or timed-out
+    // filter response yields `company: null` — and the MAYA branch below is
+    // guarded on exactly that. Without this flag the selection step would then
+    // answer fluently from the local corpus alone ("אין לי את הדוח השנתי של
+    // תיגבור") with nothing on screen saying MAYA was never asked. That is the
+    // same untrue sentence this feature was built to stop, reached through a
+    // third door — and `parseModelRequest` already sets `interpreted: false`
+    // for precisely this case; the route simply never read it.
+    if (!request.interpreted) sourceError = 'request_not_understood'
+
+    if (request.interpreted && request.company) {
       const { data: issuerRows, error: issErr } = await supabase
         .from('maya_issuers')
         .select('issuer_id, name_he, name_en')
@@ -198,12 +220,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // resolve the company would answer a question we did not understand.
         unknownCompany = request.company
       } else {
+        // THE SPAN IS CLAMPED, because the years come from a model and every
+        // year is a sequential request. `parseModelRequest` bounds them only to
+        // 1990–2100, so "everything תיגבור ever filed" would fire 38 calls and a
+        // model slip at the bounds would fire 112 — a minute inside one
+        // interactive turn, spending a 10-req/2s budget that is shared by every
+        // user and all four consumers of this layer.
         const thisYear = new Date().getFullYear()
-        const listed = await listDisclosures({
-          issuerId: issuer.issuerId,
-          fromYear: request.fromYear ?? thisYear - 1,
-          toYear: request.toYear ?? thisYear,
-        })
+        const toYear = Math.min(request.toYear ?? thisYear, thisYear + 1)
+        const fromYear = Math.max(request.fromYear ?? thisYear - 1, toYear - (MAX_QUERY_YEARS - 1))
+
+        const listed = await listDisclosures({ issuerId: issuer.issuerId, fromYear, toYear })
 
         if (!listed.ok) {
           // A COVERAGE FAILURE IS NOT AN EMPTY RESULT. Without this flag the

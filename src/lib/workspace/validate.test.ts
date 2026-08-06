@@ -7,6 +7,7 @@ import {
   parseItemPatch,
   parseBlockCreate,
   parseBlockPatch,
+  parseRemoteSource,
   WS_NAME_MAX,
   WS_BODY_MAX,
 } from './validate'
@@ -154,4 +155,61 @@ test('an empty block body is a legitimate edit', () => {
   const ok = parseBlockPatch({ body: '' })
   assert.deepEqual(ok.ok && ok.value, { body: '' })
   assert.equal(parseBlockPatch({}).ok, false)
+})
+
+// ── parseRemoteSource — the branch's security boundary ───────────────────────
+// It had no test at all until review pointed that out. Everything that keeps a
+// browser from naming a company for every member of a shared corpus, or from
+// pointing the server at an address of its choosing, is enforced here.
+test('a MAYA pointer accepts only which filing is meant', () => {
+  const ok = parseRemoteSource({ mayaReportId: 1655039, issuerId: 1460, publishedISO: '2025-03-30T15:55:59.78' })
+  assert.equal(ok.ok, true)
+  if (ok.ok) {
+    assert.deepEqual(ok.value, {
+      mayaReportId: 1655039,
+      issuerId: 1460,
+      publishedISO: '2025-03-30T15:55:59.78',
+    })
+  }
+})
+
+// NO CONTENT MAY CROSS. A title or issuer name from a browser would become a row
+// every member sees; a URL would be a fetch of the caller's choosing.
+test('content and URLs supplied by the caller are discarded, not merely unused', () => {
+  const r = parseRemoteSource({
+    mayaReportId: 1,
+    issuerId: 1,
+    title: 'a title the caller chose',
+    issuerName: 'a company the caller invented',
+    pdfUrl: 'https://evil.example.com/x.pdf',
+    docType: 'report',
+  })
+  assert.equal(r.ok, true)
+  if (r.ok) {
+    assert.deepEqual(Object.keys(r.value).sort(), ['issuerId', 'mayaReportId', 'publishedISO'])
+    assert.ok(!('pdfUrl' in r.value))
+    assert.ok(!('title' in r.value))
+    assert.ok(!('issuerName' in r.value))
+  }
+})
+
+test('an unusable pointer is refused rather than defaulted', () => {
+  for (const bad of [
+    null,
+    {},
+    { mayaReportId: 0, issuerId: 1 },
+    { mayaReportId: -5, issuerId: 1 },
+    { mayaReportId: 1.5, issuerId: 1 },
+    { mayaReportId: 1, issuerId: 0 },
+    { mayaReportId: 1, issuerId: 100000 },
+    { mayaReportId: 'x', issuerId: 1 },
+  ]) {
+    assert.equal(parseRemoteSource(bad).ok, false, `${JSON.stringify(bad)} must be refused`)
+  }
+})
+
+test('an unparseable date hint becomes null rather than an invalid year', () => {
+  const r = parseRemoteSource({ mayaReportId: 1, issuerId: 1, publishedISO: 'not a date' })
+  assert.equal(r.ok, true)
+  if (r.ok) assert.equal(r.value.publishedISO, null)
 })
