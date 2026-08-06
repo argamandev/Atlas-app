@@ -188,11 +188,28 @@ Migration `supabase/migrations/20260806_019_maya.sql`:
    banned `FOR ALL … WITH CHECK (true)` to `public`. Written only by the refresh script
    (service role).
 2. **`company_documents.maya_report_id bigint`** + partial unique index
-   `where maya_report_id is not null`.
-   **This is also the fix for the duplicate-title defect.** A document's identity today is
-   `(company_id, quarter, doc_type)` — the `onConflict` target in `ingestDocument` — which
-   permits exactly one report per quarter and is why two rows are both titled
-   *"דוח דירקטוריון Q1 2026"*. A MAYA filing's real identity is its report number.
+   `where maya_report_id is not null`. It gives a MAYA-sourced row the identity the feed
+   actually has, so re-pulling a filing is a no-op and the intake can tell what Atlas already
+   holds.
+
+   **CORRECTION to an earlier draft of this spec, which claimed this also fixed the
+   duplicate-title defect. It does not, and the diagnosis was wrong.** Checked against the
+   live rows: both are `source: 'manual'` with *different* quarters (`Q1 2026` and `Q2 2026`)
+   and the same title — a human gave the Q2 document the Q1 title at ingest. The
+   `(company_id, quarter, doc_type)` constraint never permitted or caused it. That remains a
+   data-cleanup decision for the founder.
+
+   What follows for MAYA rows is the useful part: their `title` and `quarter` are derived from
+   the *same* source string, so the two cannot disagree the way a hand-typed pair can.
+
+   **The existing `(company_id, quarter, doc_type)` unique constraint stays and is honoured.**
+   It cannot be removed (additive-only, and `DROP` is hook-blocked), so MAYA ingest keeps
+   upserting on it. The consequence, stated rather than discovered later: for one company,
+   period and type Atlas holds **the most recently pulled filing**. When a company files a
+   correction — real example, *"מצגת משקיעים לרבעון שני 2024"* on 29 Aug 2024 and
+   *"…- תיקון טעות בחלק מהנתונים"* on 1 Sep 2024 — pulling the correction replaces the
+   original, which is what an analyst wants. Pulling the older one afterwards would replace it
+   back; both are genuine filings, so this is a limitation, not a corruption.
 3. **`companies.tase_issuer_id`** already exists and is NULL on all 4 rows. Backfilled by the
    refresh script by matching `maya_issuers` names, and set on auto-created companies.
 
