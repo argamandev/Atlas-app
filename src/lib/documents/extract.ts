@@ -1,8 +1,14 @@
 // Per-page Hebrew text extraction (spike-verified 2026-07-14, docs/superpowers/specs/
 // 2026-07-14-multiview-backend-design.md). pdf.js getTextContent gives logically-ordered
 // Hebrew strings per item; only the WITHIN-LINE item order needs geometric repair.
-// IMPORTANT: import this module only from scripts (tsx) — never from Next server code —
-// so pdfjs-dist stays out of the server bundle.
+// IMPORTANT: pdfjs-dist must never be BUNDLED. It may now be used from Next server
+// code (the MAYA ingest route needs it) ONLY because `pdfjs-dist` is listed in
+// `experimental.serverComponentsExternalPackages` in next.config.js, so Next requires
+// it from node_modules at runtime instead of bundling it. Remove that entry and this
+// module fails inside a route with "Object.defineProperty called on non-object" —
+// observed 2026-08-06, which is how the entry came to exist.
+// The BROWSER still must not import this: that path uses the committed
+// public/pdf.min.mjs (see `.claude/rules/app.md`).
 
 export interface TextItem {
   str: string

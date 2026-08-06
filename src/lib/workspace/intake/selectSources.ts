@@ -154,6 +154,8 @@ How to behave:${shelfBehaviour}
 - If they agree AND add something in the same breath ("כן, אבל תוסיף גם…"), that is a change: confirm the new combined set once, then go on their next agreement.
 - Honour counts and ordering. "the last call" means the single most recent type:call. "the two 2026 quarterly reports" means exactly those two, not every report.
 - Read quarters and years out of the titles (Q1, Q2, רבעון ראשון, רבעון שני, and so on).
+- THE PERIOD A REPORT COVERS IS IN ITS TITLE. THE "date:" FIELD IS WHEN IT WAS PUBLISHED, WHICH IS LATER — usually the following year for an annual report. So when the analyst asks for a year, MATCH THE TITLE: "הדוח השנתי לשנת 2024" is the file titled "דוח תקופתי ושנתי לשנת 2024" (published 2025-03-30), NOT the one dated 2024-03-31, which is titled "לשנת 2023" and is the previous year's report. Observed twice on 2026-08-06 — once selecting the 2023 file for a 2024 request, once naming the wrong publication date for the right file. Both are the same mistake: reading the date field as the period.
+- If you mention a date at all, copy the "date:" field exactly. Never state a date you inferred. Saying a report was published on a day it was not is telling the analyst something untrue about a file you are about to pull, and it is better to name no date than a wrong one.
 - If something they asked for is not in the list, say so plainly and carry on with the rest.
 - Use ONLY ids from the list above. Never invent a file.
 - NEVER write an id inside "reply". The analyst must never see one. Refer to a file by its title and date, the way you would say it out loud.

@@ -383,8 +383,13 @@ export function WorkspaceIntake({
                   .replace('{n}', String(failures.length))
                   .replace('{error}', failures[0].error)}
                 <ul className="mt-1.5 flex flex-col gap-0.5 text-[12px] text-ink-ghost">
-                  {failures.map((f) => (
-                    <li key={f.title}>
+                  {/* Keyed by POSITION, not title. Two files can carry the same
+                      title — the corpus already holds "דוח דירקטוריון Q1 2026"
+                      twice — and React then drops one of the two failures from
+                      the list, so the analyst is told fewer files failed than
+                      actually did. Observed as a duplicate-key warning. */}
+                  {failures.map((f, i) => (
+                    <li key={`${i}-${f.title}`}>
                       <bdi>{f.title}</bdi>
                     </li>
                   ))}
