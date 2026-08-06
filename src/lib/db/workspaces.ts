@@ -239,21 +239,24 @@ export async function addItem(
   // fall back to the read's secondary sort, and that is strictly better than
   // every row sharing one value.
   //
-  // THE SAME SOURCE NEVER GOES ON ONE SHELF TWICE. Proved in the browser
-  // 2026-08-06: asked to pull Tigbur's reports, the intake proposed the whole
-  // shelf back — it had never been told what was already on it — and a bare
-  // "כן" wrote a SECOND row for transcript PyuMxe88, which was already at
-  // position 1. Two tabs of one call, two copies in every answer's context, and
-  // a token budget paying for both. The already-attached row is returned as-is,
-  // because "put this on my shelf" is satisfied by it already being there; the
-  // caller sees a normal item and the shelf does not grow.
+  // ATTACHING A SOURCE THE SHELF ALREADY HOLDS IS A NO-OP, NOT AN ERROR.
   //
-  // This is the APPLICATION half. The durable half is a unique index on
-  // (workspace_id, transcript_id) / (workspace_id, document_id), which is DDL
-  // against the shared production database — additive, but by rules/db.md it is
-  // reviewed before it is applied, and it would fail outright if any shelf in
-  // production already holds a pair like the one above. Filed, not smuggled in
-  // here. Until it exists, two simultaneous attaches can still tie.
+  // The database has enforced this since migration 017 —
+  // `workspace_items_transcript_uniq` and `..._document_uniq`, partial unique
+  // indexes on (workspace_id, source id). That is the right place for it and it
+  // is not in doubt. What was missing is what happens when it fires: this
+  // function inserted unconditionally, so Postgres raised 23505 and the route's
+  // catch returned it as a 500 carrying raw "duplicate key value violates unique
+  // constraint" text. Asking for a file you already have is an ordinary thing to
+  // do, and it is not a server error.
+  //
+  // The already-attached row is returned instead: "put this on my shelf" is
+  // satisfied by it already being there. The caller sees a normal item, the
+  // shelf does not grow, and the route answers 200 rather than 201.
+  //
+  // NOT A REPLACEMENT FOR THE INDEX, and deliberately not written as one — this
+  // is read-then-write, so two simultaneous attaches still race. The index is
+  // what actually holds; this only decides how the collision reads.
   const existing = await findAttached(supabase, workspaceId, input)
   if (existing) {
     // Asking for a file you already have, but CLOSED, must still show it —

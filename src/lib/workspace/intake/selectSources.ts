@@ -43,9 +43,14 @@ export function buildSelectionPrompt(
   // Until 2026-08-06 this step was shown the corpus and nothing else, so it had
   // no way to know the analyst already had a file. Asked in the browser to pull
   // Tigbur's reports, it offered back the entire shelf as though none of it were
-  // there — and a bare "כן" then wrote a second row for a call already open in a
-  // tab. Offering to fetch something the analyst is currently looking at is the
+  // there. Offering to fetch something the analyst is currently looking at is the
   // same false-achievement claim the workspace chat had, one step downstream.
+  //
+  // It is worse than wasted words because the CORPUS holds some calls twice —
+  // `PyuMxe88e8g` and `PyuMxe88e8g_live` are the same investor call under two
+  // ids with the same title. So "pull the Q1 call" can attach a second row that
+  // the unique index cannot catch (different ids) and a person cannot tell apart
+  // (same title). Naming what is already here is the only thing that stops it.
   const here = new Set(onShelf)
   const lines = corpus.map(
     (s) =>

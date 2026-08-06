@@ -170,8 +170,10 @@ test('with nothing proposed yet the prompt does not mention a standing set', () 
 
 // ── what the shelf already holds ─────────────────────────────────────────────
 // Filed from a live run, 2026-08-06. Asked to pull Tigbur's reports, the intake
-// proposed the entire shelf back — it had never been shown what was on it — and
-// a bare "כן" wrote a SECOND row for a call already open in a tab.
+// proposed the entire shelf back — it had never been shown what was on it.
+// It matters more than wasted words because the corpus holds some calls twice
+// under different ids with the SAME title (PyuMxe88e8g / PyuMxe88e8g_live), so
+// agreeing can attach a second row no unique index can catch.
 
 test('a file already on the shelf is marked as such, with a rule about it', () => {
   const p = buildSelectionPrompt(CORPUS, [{ role: 'user', content: 'תביא לי דוחות' }], [], ['c1'])
