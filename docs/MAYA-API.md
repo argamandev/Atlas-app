@@ -91,6 +91,46 @@ calls. Either answer unblocks this immediately.
 tested.** Not one request has reached the API, so "approved" and "working" remain
 different claims. The request count in the portal is the arbiter.
 
+## RE-CHECKED AGAIN 2026-08-06 — seven bases now, and the 503/403 split is the new evidence
+
+Founder, 2026-08-06: *"check the maya api key works."* Re-ran the probe. Unchanged:
+`openapigw.tase.co.il` returns the Imperva 503 with the real key, a bogus key and
+no key at all. Then the search widened, and two things came back that are worth
+keeping.
+
+**`openapi.tase.co.il` 301-redirects to `datahub.tase.co.il`** — a host this repo
+had never tried. It is a marketing page: every product path on it 302s to
+`www.tase.co.il/he/content/products_lobby/datahub`. Not the gateway. Also tried,
+all refused or wrong: `api.tase.co.il`, `apigw.tase.co.il`, `datahub.tase.co.il`,
+`datahub.tase.co.il/tase/prod`, `datahubapi.tase.co.il/tase/prod` (returns the
+portal's own SPA HTML — a catch-all route, not an API).
+
+**The status codes differ, and that is the actual finding.** `api.tase.co.il`,
+`apigw.tase.co.il` and `mayaapi.tase.co.il` return Incapsula **403** — the WAF
+refusing a client. `openapigw.tase.co.il` returns **503**, which from Incapsula
+means the ORIGIN behind it is unreachable or not configured, not that we are
+blocked. Those are different failures. A 503 is consistent with the gateway
+simply not being provisioned for this account or product — i.e. consistent with
+PENDING — and it is NOT consistent with "the WAF is refusing us", which the
+browser test already refuted.
+
+⇒ This raises the odds that nothing is wrong with the key, the host or the code,
+and that the subscription genuinely has not been activated. It does not prove it.
+
+**The guide has no base URL in it.** `Atlas Documents/MAYA API/maya_api-guide.pdf`
+was extracted in full (9 pages, via pdfjs) specifically to settle this: it covers
+registration, apps, credentials, rate limits and error codes, and never once
+states a hostname. The portal's "Try it out" console remains the only place the
+real base URL can be read.
+
+**Still blocked on the founder, still two minutes, and now the only open branch:**
+sign in at `datahubapi.tase.co.il`, open the **Atlas** app, and report (a) whether
+*Market Announcements feed - MAYA 2.0.0* still says **PENDING**, and (b) what host
+"Try it out" calls. Nothing on this machine can settle either.
+
+**Nothing about the key has been tested.** Two sessions of probing, zero requests
+counted by the portal.
+
 ## The original probe, and why its result proves nothing about the key
 
 Node and curl both get **HTTP 503 with an Imperva/Incapsula bot-mitigation page**
