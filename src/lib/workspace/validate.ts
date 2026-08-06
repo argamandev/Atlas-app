@@ -131,6 +131,55 @@ export function parseItemCreate(body: unknown): Parsed<ItemCreate> {
   return { ok: true, value }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// A MAYA FILING ARRIVING FROM THE CLIENT — DELIBERATELY A POINTER, NOT CONTENT.
+//
+// An earlier draft of this accepted the whole filing: title, issuer name, and
+// the PDF URL to fetch. That was wrong in two ways at once, and both are worth
+// naming because the shape recurs.
+//
+// A URL FROM A CLIENT IS AN INSTRUCTION TO FETCH AN ADDRESS OF THEIR CHOOSING
+// from inside our network, with the response then written into shared corpus.
+// Pinning the host would have blunted it; not accepting a URL at all removes
+// the class.
+//
+// A TITLE AND COMPANY NAME FROM A CLIENT BECOME ROWS EVERY MEMBER SEES, because
+// `company_documents` and `companies` are shared corpus, not personal data. A
+// forged pair would let one user name a company for everybody.
+//
+// So this validates only WHICH FILING is meant. The attach route then asks MAYA
+// itself for the title, the issuer name and the file location. Nothing a client
+// writes here can become content in Atlas; the worst a forged body achieves is
+// naming a filing that does not exist, which fails.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type RemoteSourceInput = {
+  mayaReportId: number
+  issuerId: number
+  /** A hint for which year to ask MAYA about. Verified against the feed, never trusted as fact. */
+  publishedISO: string | null
+}
+
+export function parseRemoteSource(body: unknown): Parsed<RemoteSourceInput> {
+  const b = (body ?? {}) as Record<string, unknown>
+
+  const mayaReportId = Number(b.mayaReportId)
+  if (!Number.isInteger(mayaReportId) || mayaReportId <= 0) {
+    return { ok: false, error: 'mayaReportId must be a positive integer' }
+  }
+
+  // The API's own bound on this field, so anything outside it cannot name a real issuer.
+  const issuerId = Number(b.issuerId)
+  if (!Number.isInteger(issuerId) || issuerId < 1 || issuerId > 99_999) {
+    return { ok: false, error: 'issuerId must be between 1 and 99999' }
+  }
+
+  const rawDate = str(b.publishedISO)?.trim()
+  const publishedISO = rawDate && !Number.isNaN(Date.parse(rawDate)) ? rawDate : null
+
+  return { ok: true, value: { mayaReportId, issuerId, publishedISO } }
+}
+
 export type ItemPatch = Partial<{ is_open: boolean; position: number }>
 
 /**

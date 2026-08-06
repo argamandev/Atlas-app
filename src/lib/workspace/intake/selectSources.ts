@@ -56,8 +56,28 @@ export function buildSelectionPrompt(
     (s) =>
       `- id: ${s.sourceId} | type: ${kindLabel(s.kind)} | company: ${s.company ?? 'unknown'} | date: ${
         s.when ? s.when.slice(0, 10) : 'unknown'
-      } | title: ${s.title}${here.has(s.sourceId) ? ' | ALREADY ON THE SHELF' : ''}`
+      } | title: ${s.title}${here.has(s.sourceId) ? ' | ALREADY ON THE SHELF' : ''}${
+        s.remote ? ' | FROM MAYA — NOT YET IN ATLAS' : ''
+      }`
   )
+
+  // WHAT "FROM MAYA" ACTUALLY OBLIGES THE MODEL TO SAY.
+  //
+  // These candidates are filings Atlas does not hold. Describing them the same
+  // way as a file already on the shelf would be the false-achievement claim
+  // this whole chapter exists to stop — on 2026-08-06 the workspace chat said
+  // "הבאתי לך" about files it had not moved, and the fix was to name the
+  // boundary rather than hope. The same care applies now that fetching is real:
+  // it is a thing Atlas WILL do, not a thing it has done.
+  const anyRemote = corpus.some((s) => s.remote)
+  const remoteRule = anyRemote
+    ? `\nSome files above are marked FROM MAYA — NOT YET IN ATLAS. Those are real
+filings published by the company to MAYA that Atlas does not hold yet. You may
+select them exactly like the others; if the analyst agrees, Atlas fetches them.
+Speak about them in the FUTURE — "I'll pull the 2024 annual report" — never as
+though they are already here, and never say you have already brought one.
+`
+    : ''
 
   const anyOnShelf = onShelf.some((id) => corpus.some((s) => s.sourceId === id))
   const shelfRule = anyOnShelf
@@ -103,9 +123,9 @@ a shortcut. If they ask to remove one, put it in "removed".
 
 You are having a short, ordinary conversation with them — like a colleague, not a form.
 
-FILES ATLAS HOLDS:
+FILES AVAILABLE:
 ${lines.join('\n')}
-${shelfRule}${standing}
+${shelfRule}${remoteRule}${standing}
 CONVERSATION SO FAR:
 ${talk}
 

@@ -15,6 +15,25 @@ export interface IngestArgs {
   docType: 'report' | 'slides'
   title: string
   source?: string
+  /**
+   * A MAYA filing's own identity (migration 019). Recorded so the intake can
+   * tell what Atlas already holds and re-pulling a filing is a no-op.
+   *
+   * NOT the upsert target: `(company_id, quarter, doc_type)` still is, because
+   * its unique constraint cannot be removed from a database shared with
+   * production. The consequence is deliberate — for one company, period and
+   * type Atlas keeps the most recently pulled filing, so a corrected
+   * presentation replaces the erroneous one.
+   */
+  mayaReportId?: number
+  /**
+   * Overrides the default `${companyId}/${quarter}/${docType}.pdf`.
+   *
+   * MAYA needs this: a company can file several documents that map to the same
+   * quarter and type, and the default path would have them overwrite each
+   * other's BYTES in storage even when the rows are distinct.
+   */
+  storagePath?: string
 }
 
 export async function ingestDocument(a: IngestArgs): Promise<{ documentId: string; pageCount: number }> {
@@ -32,7 +51,7 @@ export async function ingestDocument(a: IngestArgs): Promise<{ documentId: strin
   }
 
   // 3. upload (upsert = re-ingest replaces the file)
-  const storagePath = `${a.companyId}/${a.quarter.replace(/\s+/g, '-')}/${a.docType}.pdf`
+  const storagePath = a.storagePath ?? `${a.companyId}/${a.quarter.replace(/\s+/g, '-')}/${a.docType}.pdf`
   const up = await db.storage
     .from(DOCUMENTS_BUCKET)
     .upload(storagePath, a.fileBytes, { contentType: 'application/pdf', upsert: true })
@@ -51,6 +70,9 @@ export async function ingestDocument(a: IngestArgs): Promise<{ documentId: strin
         storage_path: storagePath,
         page_count: pageCount,
         updated_at: new Date().toISOString(),
+        // Spread rather than `?? null`: a manual re-ingest of a row that came
+        // from MAYA must not erase which filing it is.
+        ...(a.mayaReportId === undefined ? {} : { maya_report_id: a.mayaReportId }),
       },
       { onConflict: 'company_id,quarter,doc_type' }
     )

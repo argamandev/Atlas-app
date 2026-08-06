@@ -101,6 +101,15 @@ export const en = {
     // something worse — the previous copy claimed "keyword matches", which the
     // conversation no longer shows.
     intakeNotInterpreted: 'I could not work that out just now — my model did not answer. Try again?',
+    // COVERAGE FAILURES, SAID OUT LOUD. Without these the panel would show a
+    // list drawn only from Atlas's own library and nothing would tell the
+    // analyst that MAYA was never reached — an answer that looks complete and
+    // is not.
+    intakeMayaUnreachable:
+      "I couldn't reach MAYA just now, so this only covers what Atlas already holds. Worth trying again in a moment.",
+    intakeUnknownCompany:
+      "I don't have a TASE issuer under that name. I can only find companies that have announced a reporting date.",
+    intakeFetching: 'Fetching from MAYA — downloading and reading the file…',
     intakeSearchFailed: 'That did not go through: {error}',
     buildingTitle: 'Setting up the workspace…',
     // A partial fill must be visible. Silently landing 3 of 5 files is exactly

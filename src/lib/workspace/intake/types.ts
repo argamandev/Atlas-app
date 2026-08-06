@@ -1,4 +1,14 @@
-import type { AttachableSource } from '../data'
+import type { AttachableSource, RemoteRef } from '../data'
+
+/**
+ * A proposed MAYA filing as it travels through the browser and back.
+ *
+ * `title` rides along for DISPLAY ONLY — so the panel can name the file in a
+ * failure line — and is never written anywhere. The attach route ignores it and
+ * asks MAYA for the real one, which is what keeps a browser from naming a
+ * document for every member of a shared corpus.
+ */
+export type ProposedRemote = RemoteRef & { title: string }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The intake's shapes. Kept apart from `../data.ts` (which holds row shapes and
@@ -49,7 +59,28 @@ export type FindReason = 'ok' | 'company-has-nothing-in-period' | 'nothing-match
  * other body field, and it never widens what a user may reach — a stranger's id
  * is not in the corpus their own client loads.
  */
-export type IntakeTurn = { role: 'user' | 'assistant'; content: string; proposed?: string[] }
+export type IntakeTurn = {
+  role: 'user' | 'assistant'
+  content: string
+  proposed?: string[]
+  /**
+   * The MAYA filings among `proposed`, echoed back in full.
+   *
+   * WHY IDS ALONE ARE NOT ENOUGH HERE. A local id is re-validated against the
+   * corpus, which the server can load. A `maya:<id>` names a filing that lives
+   * on TASE's servers, so the server cannot resolve it back into a file without
+   * knowing whose filing it is — and on the agreement turn ("כן") there is
+   * deliberately no model call to re-derive the company from. Without this the
+   * shortcut silently dropped every remote id and the user's yes pulled nothing.
+   *
+   * SAFE TO ECHO BECAUSE IT IS ONLY EVER A POINTER. The attach endpoint takes
+   * `mayaReportId` + `issuerId` from here and then asks MAYA itself for the
+   * title, the issuer name and the file URL. Nothing a client writes in this
+   * field becomes content in Atlas; a forged entry can at most name a filing
+   * that does not exist, which fails.
+   */
+  proposedRemote?: ProposedRemote[]
+}
 
 /**
  * Whether Atlas is still talking or has been told to go.
@@ -111,4 +142,22 @@ export type IntakeResponse = {
   /** the files Atlas will pull — only acted on when `status` is `ready` */
   selected: AttachableSource[]
   fallback: FindResult | null
+  /**
+   * MAYA COULD NOT BE REACHED, so the candidate list is Atlas's own library
+   * only.
+   *
+   * DETERMINISTIC, AND NOT LEFT TO THE MODEL, because the failure mode here is
+   * a fluent sentence that misrepresents coverage. Handed a local-only list the
+   * model would answer "I don't have that" with total confidence — the exact
+   * untrue sentence fixed on 2026-08-06, arriving through a different door. The
+   * panel states this itself, in the user's language.
+   */
+  sourceError?: 'maya_unreachable' | null
+  /**
+   * A company was named and could not be resolved to a TASE issuer. Said
+   * plainly, rather than presenting local results as though the search
+   * succeeded. The directory covers only companies that announced a reporting
+   * date, so this is a real and expected outcome, not only a typo.
+   */
+  unknownCompany?: string | null
 }

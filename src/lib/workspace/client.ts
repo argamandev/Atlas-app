@@ -148,6 +148,25 @@ export const addItemReq = (workspaceId: string, input: ItemCreate) =>
     body: JSON.stringify(input),
   })
 
+/**
+ * Fetch a MAYA filing into Atlas and attach it.
+ *
+ * SENDS A POINTER, NOT THE FILING. The server asks MAYA for the title, the
+ * issuer and the file itself — nothing typed or tampered with in a browser
+ * becomes a row in shared corpus.
+ *
+ * Slower than `addItemReq` by design: it downloads a PDF and extracts every
+ * page before the shelf can show it.
+ */
+export const addMayaItemReq = (
+  workspaceId: string,
+  ref: { mayaReportId: number; issuerId: number; publishedISO: string | null }
+) =>
+  call<{ item: WorkspaceItemRow; fetched: boolean }>(`/api/workspaces/${workspaceId}/items/from-maya`, {
+    method: 'POST',
+    body: JSON.stringify(ref),
+  })
+
 /** Layout only — `is_open` and `position`. Debounce this at the call site. */
 export const patchItemReq = (
   workspaceId: string,

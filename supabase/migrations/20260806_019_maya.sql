@@ -53,17 +53,56 @@ begin
   end if;
 end $$;
 
--- Name lookups are how this table is read; the directory is ~233 rows today but
--- is refreshed wholesale and will grow with the market.
-create index if not exists maya_issuers_name_he_idx on public.maya_issuers (name_he);
-create index if not exists maya_issuers_name_en_idx on public.maya_issuers (name_en);
+-- NO NAME INDEXES HERE, DELIBERATELY — an earlier draft had two and review
+-- caught them before apply, which is the entire reason `.claude/rules/db.md`
+-- puts the gate here. `resolveIssuer` is a pure function over rows the caller
+-- has already loaded, so the access pattern is a full read matched in
+-- JavaScript; at ~233 rows the planner would seq-scan regardless. Worse, one of
+-- them indexed `name_en`, which the only writer of this table hardcodes to
+-- null. `drop index` is hook-blocked, so an index that serves nothing is
+-- permanent — exactly the mistake migration 018 made one day earlier.
+-- Add one when a query needs it, with the query named.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 1b. ONE COMPANY PER ISSUER.
+--
+-- `ensureCompanyForIssuer` is check-then-insert, and without this two analysts
+-- pulling the same new company at the same moment create two `companies` rows
+-- for one issuer — after which the same filing can reach two different
+-- (company_id, quarter, doc_type) keys and collide on the unique index below.
+-- Found in review before apply.
+--
+-- Partial, because every existing row is legitimately NULL: all four companies
+-- have no issuer id until the refresh script backfills them. Verified NULL on
+-- every row before writing this, so the index validates over nothing and cannot
+-- fail at creation.
+--
+-- (`companies.tase_issuer_id` is TEXT while `maya_issuers.issuer_id` is INTEGER.
+-- That mismatch is pre-existing — changing a live column's type is destructive
+-- and forbidden here — so both writers spell it `String(issuerId)`.)
+-- ─────────────────────────────────────────────────────────────────────────────
+create unique index if not exists companies_tase_issuer_uniq
+  on public.companies (tase_issuer_id)
+  where tase_issuer_id is not null;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. FILING IDENTITY ON company_documents.
 --
 -- A MAYA filing's real identity is its report number. Recording it lets the
--- intake know what Atlas already holds, and makes re-pulling the same filing a
--- no-op instead of a 23505 surfaced as a 500.
+-- intake know what Atlas already holds, so the ordinary re-pull is answered
+-- from the existing row without a download.
+--
+-- IT DOES NOT MAKE 23505 IMPOSSIBLE, and an earlier draft of this comment
+-- claimed it did. The dedupe read in the attach route is a separate statement
+-- from the write, so a concurrent pull can still reach the index; the route
+-- therefore catches 23505 explicitly and answers "already in Atlas" rather
+-- than handing a raw constraint string to the panel. The index is the
+-- guarantee, and the route's check is only the fast path.
+--
+-- KNOWN LIMITATION, stated rather than discovered: this is globally unique, so
+-- a filing published jointly by two issuers can be catalogued under only one of
+-- them. MAYA models `issuer` as an array with an `assosiated` flag, so the case
+-- is real; it has not come up, and widening it later is additive.
 --
 -- THE EXISTING UNIQUE CONSTRAINT company_documents_company_id_quarter_doc_type_key
 -- STAYS AND IS STILL THE UPSERT TARGET. It cannot be removed here (additive-only,

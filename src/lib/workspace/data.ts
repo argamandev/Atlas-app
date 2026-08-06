@@ -1,3 +1,5 @@
+import type { RemoteSource } from '@/lib/maya/filings'
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Workspace data interface — FRONTEND-ONLY STUB.
 // The Workspace surfaces render exclusively through this module, so wiring the
@@ -403,6 +405,36 @@ export type AttachableSource = {
   /** null when the source has no company attached — never a fabricated one */
   company: string | null
   when: string | null
+  /**
+   * PRESENT ONLY FOR A FILING ATLAS DOES NOT HOLD YET — one MAYA has, that
+   * would be fetched if the analyst agrees to it.
+   *
+   * Modelled as an extra field rather than a third `kind` on purpose: the
+   * selection step, `parseSelection`'s honesty guard and `orderBySelection` all
+   * work on ids and titles, and none of them should have to learn a new case.
+   * Its `sourceId` is `maya:<mayaReportId>`, which cannot collide with a uuid
+   * or a youtube id, so a model can pick it exactly as it picks anything else
+   * and an id it invents is still discarded.
+   *
+   * The one place that must branch is attachment: a local source is attached
+   * directly, a remote one goes to `/api/workspaces/[id]/items/from-maya`,
+   * which fetches and extracts it first.
+   *
+   * A POINTER, NOT THE FILING. Everything the browser needs is "which filing",
+   * and everything else — title, issuer, file location — the attach route asks
+   * MAYA for itself. `company_documents` and `companies` are shared corpus, so
+   * a title that travelled through a browser would be a row every member sees,
+   * written by one of them.
+   */
+  remote?: RemoteRef
+}
+
+/** Which MAYA filing a candidate stands for. See `AttachableSource.remote`. */
+export type RemoteRef = {
+  mayaReportId: number
+  issuerId: number
+  /** which year to ask MAYA about; a hint, verified against the feed */
+  publishedISO: string | null
 }
 
 export type WorkspaceThreadRow = {

@@ -14,7 +14,12 @@ import {
   SELECTION_CANDIDATE_CAP,
 } from '@/lib/workspace/intake/selectSources'
 import { isBareAgreement, resolveSelection } from '@/lib/workspace/intake/agreement'
-import type { IntakeTurn } from '@/lib/workspace/intake/types'
+import type { IntakeTurn, ProposedRemote } from '@/lib/workspace/intake/types'
+import type { AttachableSource } from '@/lib/workspace/data'
+import { resolveIssuer } from '@/lib/maya/issuers'
+import { listDisclosures } from '@/lib/maya/disclosures'
+import { toRemoteSources } from '@/lib/maya/filings'
+import { describeFailure } from '@/lib/maya/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,22 +95,29 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       .filter((v): v is string => !!v)
 
     const corpus = await loadCorpus(supabase)
-    if (corpus.length === 0) {
-      const request = parseModelRequest('', text)
-      return json({
-        reply: null,
-        status: 'clarifying',
-        selected: [],
-        fallback: findSources(request, corpus),
-      })
-    }
+    // NO EARLY RETURN ON AN EMPTY CORPUS ANY MORE. It used to short-circuit
+    // here, which was right when Atlas's own library was the only thing that
+    // existed: nothing held meant nothing to offer. MAYA breaks that — a
+    // company's filings are reachable whether or not Atlas holds anything —
+    // so emptiness is now decided after the candidates are assembled.
 
     // THE SET ALREADY AGREED, re-validated against the corpus. It arrives from
     // the client, so it is untrusted like any other body field — but it cannot
     // widen reach: an id that is not in the corpus this user's own client loaded
     // is simply not here, and is discarded.
     const known = new Set(corpus.map((s) => s.sourceId))
-    const proposal = lastProposal(messages).filter((id) => known.has(id))
+    const rawProposal = lastProposal(messages)
+    const proposal = rawProposal.filter((id) => known.has(id))
+
+    // THE REMOTE HALF OF THAT SET. A `maya:` id cannot be checked against the
+    // corpus — it names a filing on TASE's servers — so it is carried by the
+    // pointer the client echoed back. Only ids that appear in BOTH the proposed
+    // list and the echoed pointers survive, so neither alone can smuggle a file
+    // into the agreed set.
+    const remoteByProposedId = new Map(lastProposalRemote(messages).map((p) => [`maya:${p.mayaReportId}`, p]))
+    const agreedRemote = rawProposal
+      .map((id) => remoteByProposedId.get(id))
+      .filter((p): p is ProposedRemote => p !== undefined)
 
     // ── the shortcut: "yes" is not a question for a model ────────────────────
     // Founder, 2026-08-04: he agreed, and Atlas asked the same question again —
@@ -115,20 +127,135 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // is nothing left to reason about, so nothing is asked. The loop and the
     // dropped file become impossible rather than discouraged, and the turn where
     // a human is least willing to wait now costs no network time at all.
+    //
+    // IT HAD TO LEARN ABOUT MAYA, and this is where the feature would otherwise
+    // have failed at its most important moment. `proposal` is filtered against
+    // the corpus, and a `maya:` id is never in the corpus — so a shelf agreed
+    // entirely of MAYA filings produced an empty proposal, the shortcut did not
+    // fire, and the user's "כן" pulled nothing at all.
     const latest = messages[messages.length - 1]
-    if (proposal.length > 0 && latest?.role === 'user' && isBareAgreement(latest.content)) {
+    const agreedSomething = proposal.length > 0 || agreedRemote.length > 0
+    if (agreedSomething && latest?.role === 'user' && isBareAgreement(latest.content)) {
       const { selected } = orderBySelection(corpus, proposal)
+      const remoteSelected: AttachableSource[] = agreedRemote.map((p) => ({
+        sourceId: `maya:${p.mayaReportId}`,
+        kind: 'document' as const,
+        // Display only, and only until the attach route reads the real one
+        // from MAYA. Never persisted from here.
+        title: p.title || 'MAYA',
+        company: null,
+        when: p.publishedISO,
+        remote: { mayaReportId: p.mayaReportId, issuerId: p.issuerId, publishedISO: p.publishedISO },
+      }))
       // `reply: null` with `ready` means "no sentence needed" — the panel is
       // already showing that it is pulling. It deliberately does not invent a
       // Hebrew or English sentence server-side; the client owns its own wording.
-      return json({ reply: null, status: 'ready', selected, fallback: null })
+      return json({
+        reply: null,
+        status: 'ready',
+        selected: [...remoteSelected, ...selected],
+        fallback: null,
+      })
     }
 
-    // ── stage 1: narrow, only if we must ────────────────────────────────────
+    // ── stage 1: INTERPRET, always ──────────────────────────────────────────
+    //
+    // This stage used to run only when the corpus exceeded the candidate cap,
+    // which with ~58 rows meant it had never executed in production — dead code
+    // guarding a case that had not arrived. It is now unconditional, because
+    // the structured request it produces (company, years, kinds) is EXACTLY a
+    // MAYA query. One model call, two jobs: narrowing a big local corpus, and
+    // telling us whose filings to ask MAYA for.
+    const filterRaw = await askModel(withDates(FILTER_SYSTEM) + `\n\nRequest: ${text}`, 400)
+    const request = parseModelRequest(filterRaw, text)
+
+    // ── stage 1b: MAYA ──────────────────────────────────────────────────────
+    //
+    // Only when a company was actually named. A question with no company has
+    // nothing to look up, and spending three sequential API calls to discover
+    // that would slow down every ordinary turn.
+    let remote: AttachableSource[] = []
+    let sourceError: 'maya_unreachable' | null = null
+    let unknownCompany: string | null = null
+
+    if (request.company) {
+      const { data: issuerRows, error: issErr } = await supabase
+        .from('maya_issuers')
+        .select('issuer_id, name_he, name_en')
+      if (issErr) throw new Error(issErr.message)
+
+      const issuer = resolveIssuer(
+        request.company,
+        (issuerRows ?? []).map((r) => ({
+          issuerId: r.issuer_id as number,
+          nameHe: (r.name_he as string) ?? null,
+          nameEn: (r.name_en as string) ?? null,
+        }))
+      )
+
+      if (!issuer) {
+        // SAID, NOT GUESSED. Presenting local-only results after failing to
+        // resolve the company would answer a question we did not understand.
+        unknownCompany = request.company
+      } else {
+        const thisYear = new Date().getFullYear()
+        const listed = await listDisclosures({
+          issuerId: issuer.issuerId,
+          fromYear: request.fromYear ?? thisYear - 1,
+          toYear: request.toYear ?? thisYear,
+        })
+
+        if (!listed.ok) {
+          // A COVERAGE FAILURE IS NOT AN EMPTY RESULT. Without this flag the
+          // selection step would be handed local files only and would answer
+          // "I don't have that" with total confidence — the exact untrue
+          // sentence fixed on 2026-08-06, arriving through a new door.
+          console.warn(`[intake] MAYA unavailable: ${describeFailure(listed.failure)}`)
+          sourceError = 'maya_unreachable'
+        } else {
+          const sources = toRemoteSources(listed.data)
+
+          // ALREADY INGESTED FILINGS ARE NOT "REMOTE". Offering to fetch
+          // something Atlas already holds would make the analyst wait for a
+          // download that is not needed, and would list one file twice.
+          const ids = sources.map((s) => s.mayaReportId)
+          const held = new Map<number, string>()
+          if (ids.length > 0) {
+            const { data: haveRows, error: haveErr } = await supabase
+              .from('company_documents')
+              .select('id, maya_report_id')
+              .in('maya_report_id', ids)
+            if (haveErr) throw new Error(haveErr.message)
+            for (const r of haveRows ?? []) held.set(r.maya_report_id as number, r.id as string)
+          }
+
+          const localIds = new Set(corpus.map((s) => s.sourceId))
+          remote = sources
+            // one Atlas already holds is represented by its LOCAL row, if that
+            // row is in the corpus; otherwise it is simply not offered twice
+            .filter((s) => !held.has(s.mayaReportId) || !localIds.has(held.get(s.mayaReportId) as string))
+            .map((s) => ({
+              sourceId: s.sourceId,
+              kind: 'document' as const,
+              title: s.title,
+              company: s.issuerName,
+              when: s.publishedISO,
+              // Only the pointer travels to the browser; the attach route reads
+              // the title, issuer and file location from MAYA itself.
+              remote: {
+                mayaReportId: s.mayaReportId,
+                issuerId: s.issuerId,
+                publishedISO: s.publishedISO,
+              },
+            }))
+        }
+      }
+    }
+
+    // ── stage 1c: narrow the LOCAL corpus, only if we must ───────────────────
     let candidates = corpus
     if (corpus.length > SELECTION_CANDIDATE_CAP) {
-      const filterRaw = await askModel(withDates(FILTER_SYSTEM) + `\n\nRequest: ${text}`, 400)
-      const found = findSources(parseModelRequest(filterRaw, text), corpus)
+      const found = findSources(request, corpus)
       const pool = found.matched.length > 0 ? found.matched : found.otherForCompany
       candidates = (pool.length > 0 ? pool : corpus).slice(0, SELECTION_CANDIDATE_CAP)
       // Narrowing must never hide a file the conversation has already agreed to
@@ -136,6 +263,25 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       const inPool = new Set(candidates.map((s) => s.sourceId))
       const missing = corpus.filter((s) => proposal.includes(s.sourceId) && !inPool.has(s.sourceId))
       candidates = [...candidates, ...missing]
+    }
+
+    // Remote first: the analyst asked for those by name, and the cap must not
+    // spend itself on local rows before reaching what was actually requested.
+    candidates = [...remote, ...candidates].slice(0, SELECTION_CANDIDATE_CAP + remote.length)
+
+    // NOTHING TO CHOOSE FROM. This used to be decided before MAYA was consulted,
+    // which was right when Atlas's own library was all that existed; now a
+    // company's filings are reachable whether or not Atlas holds anything, so
+    // the question is only answerable here.
+    if (candidates.length === 0) {
+      return json({
+        reply: null,
+        status: 'clarifying',
+        selected: [],
+        fallback: findSources(request, corpus),
+        sourceError,
+        unknownCompany,
+      })
     }
 
     // ── stage 2: select, and answer in words ────────────────────────────────
@@ -155,19 +301,31 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // `removed`, or a deliberate re-shape mid-conversation, takes one out.
       const ids = resolveSelection(selection.status, proposal, selection.selectedIds, selection.removedIds)
       const { selected } = orderBySelection(candidates, ids)
-      return json({ reply: selection.reply, status: selection.status, selected, fallback: null })
+      return json({
+        reply: selection.reply,
+        status: selection.status,
+        selected,
+        fallback: null,
+        // Carried even alongside a good reply: the model answered from a
+        // catalog it could not fully see, and the panel says so under the
+        // sentence rather than leaving the gap invisible.
+        sourceError,
+        unknownCompany,
+      })
     }
 
     // ── the selection failed: deterministic, and SAID to be deterministic ────
     // Deliberately no second model call. `parseModelRequest('')` yields
     // interpreted:false, which is what makes the panel state that these are
     // keyword matches rather than an understood request.
-    const request = parseModelRequest('', text)
+    const degraded = parseModelRequest('', text)
     return json({
       reply: null,
       status: 'clarifying',
       selected: [],
-      fallback: findSources(request, corpus),
+      fallback: findSources(degraded, corpus),
+      sourceError,
+      unknownCompany,
     })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
@@ -184,7 +342,7 @@ function parseTurns(raw: unknown): IntakeTurn[] {
   if (!Array.isArray(raw)) return []
   const turns: IntakeTurn[] = []
   for (const t of raw) {
-    const o = t as { role?: unknown; content?: unknown; proposed?: unknown }
+    const o = t as { role?: unknown; content?: unknown; proposed?: unknown; proposedRemote?: unknown }
     const role = o?.role === 'assistant' ? 'assistant' : o?.role === 'user' ? 'user' : null
     const content = typeof o?.content === 'string' ? o.content.trim() : ''
     if (!role || !content) continue
@@ -192,9 +350,39 @@ function parseTurns(raw: unknown): IntakeTurn[] {
     const proposed = Array.isArray(o?.proposed)
       ? o.proposed.filter((x): x is string => typeof x === 'string').slice(0, SELECTION_CANDIDATE_CAP)
       : undefined
-    turns.push({ role, content: content.slice(0, 4000), ...(proposed ? { proposed } : {}) })
+    const proposedRemote = Array.isArray(o?.proposedRemote)
+      ? (o.proposedRemote as unknown[])
+          .map(readProposedRemote)
+          .filter((x): x is ProposedRemote => x !== null)
+          .slice(0, SELECTION_CANDIDATE_CAP)
+      : undefined
+    turns.push({
+      role,
+      content: content.slice(0, 4000),
+      ...(proposed ? { proposed } : {}),
+      ...(proposedRemote && proposedRemote.length > 0 ? { proposedRemote } : {}),
+    })
   }
   return turns.slice(-20)
+}
+
+/**
+ * One echoed MAYA pointer, or null.
+ *
+ * A POINTER IS ALL THAT IS TRUSTED. `title` is kept only so the panel can name
+ * a file in a failure line; the attach route ignores it and asks MAYA for the
+ * real one, so nothing here becomes a row anyone else sees.
+ */
+function readProposedRemote(raw: unknown): ProposedRemote | null {
+  const o = (raw ?? {}) as Record<string, unknown>
+  const mayaReportId = Number(o.mayaReportId)
+  const issuerId = Number(o.issuerId)
+  if (!Number.isInteger(mayaReportId) || mayaReportId <= 0) return null
+  if (!Number.isInteger(issuerId) || issuerId < 1 || issuerId > 99_999) return null
+  const publishedISO =
+    typeof o.publishedISO === 'string' && !Number.isNaN(Date.parse(o.publishedISO)) ? o.publishedISO : null
+  const title = typeof o.title === 'string' ? o.title.trim().slice(0, 300) : ''
+  return { mayaReportId, issuerId, publishedISO, title }
 }
 
 /** The most recent set Atlas put on the table, or []. Later turns win — an
@@ -203,6 +391,17 @@ function lastProposal(turns: IntakeTurn[]): string[] {
   for (let i = turns.length - 1; i >= 0; i--) {
     const t = turns[i]
     if (t.role === 'assistant' && t.proposed && t.proposed.length > 0) return t.proposed
+  }
+  return []
+}
+
+/** The MAYA pointers from that same turn. Read separately rather than merged
+ *  into `lastProposal` so the id list stays the single record of WHAT was
+ *  agreed, and these only say where the remote ones can be found. */
+function lastProposalRemote(turns: IntakeTurn[]): ProposedRemote[] {
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i]
+    if (t.role === 'assistant' && t.proposed && t.proposed.length > 0) return t.proposedRemote ?? []
   }
   return []
 }

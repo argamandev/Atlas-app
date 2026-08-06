@@ -7,7 +7,7 @@ import { PillComposer } from '@/components/ds/PillComposer'
 import { WordReveal } from '@/components/ds/WordReveal'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon } from '@/components/ds/icons'
-import { intakeSearchReq, addItemReq } from '@/lib/workspace/client'
+import { intakeSearchReq, addItemReq, addMayaItemReq } from '@/lib/workspace/client'
 import type { IntakeTurn } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
 
@@ -68,6 +68,10 @@ export function WorkspaceIntake({
   const [thinking, setThinking] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const [failures, setFailures] = useState<{ title: string; error: string }[]>([])
+  /** a coverage caveat the SERVER decided, never something the model narrated */
+  const [notice, setNotice] = useState<string | null>(null)
+  /** true while a pull includes a filing being downloaded from MAYA */
+  const [fetchingRemote, setFetchingRemote] = useState(false)
   /** index of the one turn currently revealing itself, or null */
   const [animateAt, setAnimateAt] = useState<number | null>(null)
 
@@ -111,6 +115,17 @@ export function WorkspaceIntake({
       const { result } = await intakeSearchReq(workspaceId, next)
       setThinking(false)
 
+      // Deterministic, from the server. `unknownCompany` first: if the company
+      // was never resolved, saying MAYA was unreachable would be a second,
+      // wrong explanation for the same missing result.
+      setNotice(
+        result.unknownCompany
+          ? dict.workspace.intakeUnknownCompany
+          : result.sourceError === 'maya_unreachable'
+            ? dict.workspace.intakeMayaUnreachable
+            : null
+      )
+
       const ready = result.status === 'ready' && result.selected.length > 0
 
       // ATLAS ALWAYS SAYS SOMETHING BACK — there is no turn where the user
@@ -137,10 +152,20 @@ export function WorkspaceIntake({
       // these are the same files as ids, so the next turn can act on what was
       // agreed instead of asking a model to re-read its own words. Founder,
       // 2026-08-04: he said yes to two files and one arrived.
+      // The MAYA filings among them ride along as POINTERS. A local id can be
+      // re-checked against the corpus on the next turn; a `maya:` id cannot,
+      // because it names a filing on TASE's servers — so without this the
+      // agreement turn would drop every remote file and a user's "כן" would
+      // pull nothing.
+      const remoteRefs = result.selected
+        .filter((s) => s.remote)
+        .map((s) => ({ ...(s.remote as NonNullable<AttachableSource['remote']>), title: s.title }))
+
       const said: IntakeTurn = {
         role: 'assistant',
         content: spoken,
         ...(result.selected.length > 0 ? { proposed: result.selected.map((s) => s.sourceId) } : {}),
+        ...(remoteRefs.length > 0 ? { proposedRemote: remoteRefs } : {}),
       }
       setTurns([...next, said])
       // Only THIS turn animates. Re-running the reveal over the whole thread on
@@ -163,6 +188,9 @@ export function WorkspaceIntake({
   async function pull(files: AttachableSource[]) {
     setStage('pulling')
     setFailures([])
+    // "Adding" is honest for a row we already hold; for a filing being fetched
+    // from MAYA it would understate a wait of several seconds.
+    setFetchingRemote(files.some((f) => f.remote))
 
     const failed: { title: string; error: string }[] = []
     // Sequential on purpose: `addItem` appends by reading the current maximum
@@ -170,11 +198,19 @@ export function WorkspaceIntake({
     // shelf in a different order from the one just agreed.
     for (const s of files) {
       try {
-        await addItemReq(workspaceId, {
-          kind: s.kind,
-          name: s.title,
-          ...(s.kind === 'transcript' ? { transcript_id: s.sourceId } : { document_id: s.sourceId }),
-        })
+        if (s.remote) {
+          // A FILING ATLAS DOES NOT HOLD YET. This downloads the PDF from MAYA
+          // and extracts its text before the shelf can show it, so it takes
+          // seconds rather than milliseconds — which is why the pulling state
+          // is on screen while this loop runs.
+          await addMayaItemReq(workspaceId, s.remote)
+        } else {
+          await addItemReq(workspaceId, {
+            kind: s.kind,
+            name: s.title,
+            ...(s.kind === 'transcript' ? { transcript_id: s.sourceId } : { document_id: s.sourceId }),
+          })
+        }
       } catch (e: unknown) {
         failed.push({ title: s.title, error: (e as Error).message })
       }
@@ -319,7 +355,23 @@ export function WorkspaceIntake({
 
             {thinking && <Dots label={dict.workspace.intakeThinking} />}
 
-            {stage === 'pulling' && failures.length === 0 && <Dots label={dict.workspace.intakeAdding} />}
+            {/* WHAT THE SEARCH COULD NOT SEE, stated by the panel rather than
+                narrated by the model. A list drawn only from Atlas's own
+                library, with nothing saying MAYA was never reached, is an
+                answer that looks complete and is not. `<bdi>` because the
+                company name is the user's own text beside a Hebrew sentence. */}
+            {notice !== null && (
+              <div
+                dir="auto"
+                className="self-start rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink-ghost"
+              >
+                <bdi>{notice}</bdi>
+              </div>
+            )}
+
+            {stage === 'pulling' && failures.length === 0 && (
+              <Dots label={fetchingRemote ? dict.workspace.intakeFetching : dict.workspace.intakeAdding} />
+            )}
 
             {failures.length > 0 && (
               <div

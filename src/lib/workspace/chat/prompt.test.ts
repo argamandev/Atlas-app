@@ -71,11 +71,30 @@ test('an illegible figure in a clipping must be admitted, not guessed', () => {
 // there is no MAYA integration at all. The prompt had never said what Atlas
 // cannot do, so the model supplied the capability the question presupposed.
 
-test('the model is told it has no tools and no MAYA connection', () => {
+// UPDATED 2026-08-06, THE SAME DAY, AND THE UPDATE IS THE LESSON.
+//
+// The assertion here used to be `p.includes('cannot pull a filing from MAYA')`,
+// which was TRUE when it was written and FALSE a few hours later, once the MAYA
+// layer shipped. It failed loudly, which is exactly what it was for: a
+// capability denial in a prompt is load-bearing state, not decoration, and a
+// feature that adds a capability has to revisit every sentence that denied it.
+// Had this test not existed, Atlas would have shipped politely refusing to use
+// something it could now do, with nothing on screen looking broken.
+test('the model is told it has no tools, and that MAYA is reachable through the document step', () => {
   const p = buildChatPrompt(base)
   assert.ok(p.includes('NO tools'))
-  assert.ok(p.includes('MAYA'))
-  assert.ok(p.includes('cannot pull a filing from MAYA'))
+  assert.ok(p.includes('cannot browse the web'))
+  // the capability, stated
+  assert.ok(p.includes('CONNECTED TO MAYA'))
+  // ...and bounded: the model does not do it itself, the document step does
+  assert.ok(p.includes('YOU do not do that yourself'))
+  // MAYA is the only outside reach — no news feed, no web search
+  assert.ok(p.includes('ONLY outside source'))
+  // the denial that must NOT survive the capability landing
+  assert.ok(
+    !p.includes('cannot pull a filing from MAYA'),
+    'the prompt still denies a capability Atlas now has'
+  )
 })
 
 test('the verbs of false achievement are named, because that is the shape the lie took', () => {
@@ -89,8 +108,12 @@ test('the verbs of false achievement are named, because that is the shape the li
 
 test('the bring-a-file path says WHERE it will look, and does not promise to find', () => {
   const p = buildChatPrompt(base)
-  assert.ok(p.includes("ATLAS'S LIBRARY"))
+  // Both places, now that both are real.
+  assert.ok(p.includes("Atlas's own library"))
+  assert.ok(p.includes('AND on MAYA'))
   assert.ok(p.includes('never that you will find it'))
+  // A title invented before the search is a file the analyst will go looking for.
+  assert.ok(p.includes('Do NOT name specific files you have not seen'))
 })
 
 // ── the answer ───────────────────────────────────────────────────────────────

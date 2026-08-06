@@ -72,6 +72,103 @@ export async function getCompanyByTicker(ticker: string): Promise<Company | null
   return data ? mapCompany(data as Row) : null
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// A COMPANY ROW FOR AN ISSUER ATLAS HAS NEVER SEEN.
+//
+// The founder's coverage decision (2026-08-06) was all ~233 TASE reporters, not
+// the four Atlas happens to hold, so asking for גילת's deck has to work the
+// first time. `companies` can no longer be a hand-curated list.
+//
+// SHARED CORPUS: the row belongs to nobody, and this writes through
+// `supabaseAdmin` like the rest of this module. Which companies exist on the
+// exchange is the same fact for every member (`docs/DATA-MODEL.md`), and
+// inventing an owner column here would contradict it.
+//
+// IDEMPOTENT BY NECESSITY — two analysts asking for the same new company at the
+// same moment must end up with one row.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Same normalisation the MAYA layer uses, so "תיגבור קבוצה" and "קבוצת תיגבור בע\"מ" meet. */
+function normalise(s: string): string {
+  return s
+    .normalize('NFKC')
+    .replace(/["'`׳״‘’“”]/g, '')
+    .replace(/(^|\s)(בעמ|בע מ)(?=\s|$)/g, ' ')
+    .replace(/\b(ltd|limited|inc|corp|plc|co)\b/gi, ' ')
+    .replace(/[.,;:()[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+/**
+ * The company id for a MAYA issuer, creating the row if Atlas has none.
+ *
+ * Narrowest match first, and the order is load-bearing: the issuer id is an
+ * exact fact and a name is a guess, so matching on name first would risk
+ * attaching one company's annual report to another that merely reads alike.
+ */
+export async function ensureCompanyForIssuer(issuerId: number, issuerName: string): Promise<string> {
+  const id = String(issuerId)
+
+  // 1. the exact fact
+  const byIssuer = await supabaseAdmin
+    .from('companies')
+    .select('id')
+    .eq('tase_issuer_id', id)
+    .limit(1)
+    .maybeSingle()
+  if (byIssuer.error) throw new Error(`company lookup failed: ${byIssuer.error.message}`)
+  if (byIssuer.data) return String(byIssuer.data.id)
+
+  // 2. a company Atlas already holds under this name but with no issuer id.
+  //    All four existing rows are in exactly that state, so this is the normal
+  //    path today rather than a fallback — and it BACKFILLS the id instead of
+  //    creating a second Tigbur.
+  const all = await supabaseAdmin.from('companies').select('id, name, name_en, display_name')
+  if (all.error) throw new Error(`company scan failed: ${all.error.message}`)
+
+  const target = normalise(issuerName)
+  const match = (all.data ?? []).find((c) => {
+    const names = [c.name, c.name_en, c.display_name]
+      .filter((v): v is string => typeof v === 'string' && !!v)
+      .map(normalise)
+    return names.some((n) => n === target || n.includes(target) || target.includes(n))
+  })
+
+  if (match) {
+    const upd = await supabaseAdmin
+      .from('companies')
+      .update({ tase_issuer_id: id })
+      .eq('id', String(match.id))
+    if (upd.error) throw new Error(`company backfill failed: ${upd.error.message}`)
+    return String(match.id)
+  }
+
+  // 3. genuinely new
+  const ins = await supabaseAdmin
+    .from('companies')
+    .insert({ name: issuerName, display_name: issuerName, tase_issuer_id: id })
+    .select('id')
+    .single()
+
+  if (ins.error || !ins.data) {
+    // Another request may have inserted it between the scan and this insert.
+    // Losing that race is not an error — it is the other request having done
+    // our work — so re-read before failing.
+    const retry = await supabaseAdmin
+      .from('companies')
+      .select('id')
+      .eq('tase_issuer_id', id)
+      .limit(1)
+      .maybeSingle()
+    if (retry.data) return String(retry.data.id)
+    throw new Error(`company insert failed: ${ins.error?.message ?? 'unknown'}`)
+  }
+
+  return String(ins.data.id)
+}
+
 export async function searchCompanies(q: string): Promise<Company[]> {
   // Strip characters that are syntactically meaningful inside a PostgREST `.or()` filter
   // (comma = clause separator, parens = grouping, `*`/`%` = wildcards) so user input can't
