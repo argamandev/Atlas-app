@@ -121,9 +121,14 @@ clean. `npm run build` NOT run — a dev server owns `.next`.
 
 ## Owed / not done
 
-- **EN locale and a bidi pass on the new strings** were not completed — the MAYA titles mix
-  Hebrew with Latin ("Q1", dates), which is the recurring `<bdi>` trap in `.claude/rules/app.md`.
-  The new notice line uses `<bdi>`; the rendering was checked in Hebrew only.
+- ~~EN locale and a bidi pass were not completed.~~ **Done, and it passes.** Checked by probing
+  computed styles on the live page rather than by looking, since the failure mode is a
+  direction that resolves wrongly, not a layout that looks odd. In the **English** locale
+  (`html lang=en dir=ltr`) with a Hebrew MAYA title on the shelf, both mixed runs are already
+  inside `<bdi>` and resolve independently: `FY 2024 · Report` → `dir: ltr` within an `rtl`
+  ancestor, and `דוח תקופתי ושנתי לשנת 2024` → `dir: rtl`. The tab label and the pane header
+  were already written this way, so a Hebrew filing title dropped into an English UI needed no
+  new work — the rule in `.claude/rules/app.md` had already been applied where it mattered.
 - A **"Demo content · Sample data — not real analysis"** banner sits above the workspace, now
   over a genuinely real filing. Pre-existing (`overview-stub`), but it is now actively untrue on
   this surface.
