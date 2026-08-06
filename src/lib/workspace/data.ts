@@ -61,39 +61,6 @@ export type Workspace = {
   docTitle: string
 }
 
-export type WsThreadGroup = 'Today' | 'Yesterday' | 'Earlier'
-
-export type WsThread = {
-  id: string
-  title: string
-  snippet: string
-  when: string
-  group: WsThreadGroup
-}
-
-export type WsAgent = {
-  name: string
-  ini: string
-  role: string
-  /** what it read, e.g. "6 files · 412 pages" */
-  read: string
-  when: string
-  findings: string[]
-}
-
-export type WsActionKind = 'open' | 'build' | 'agent' | 'doc'
-export type WsAction = { text: string; when: string; kind: WsActionKind }
-export type WsSession = { label: string; items: WsAction[] }
-
-export type LegalSeverity = 'flag' | 'medium' | 'clear'
-export type LegalFinding = {
-  /** display label: "Flag" | "Medium" | "Clear" */
-  sev: string
-  k: LegalSeverity
-  text: string
-  src: string
-}
-
 function withCounts(w: Omit<Workspace, 'fileCount' | 'subtitle'>): Workspace {
   return { ...w, fileCount: w.files.length, subtitle: `${w.company} · ${w.sub}` }
 }
@@ -154,170 +121,27 @@ export const WS_SORTS = {
 } as const
 export type WsSortKey = keyof typeof WS_SORTS
 
-export const WS_THREADS: WsThread[] = [
-  {
-    id: 'c1',
-    title: 'Compare FY24 vs FY25 revenue',
-    snippet: 'Revenue rose every year — ₪1.21B → ₪1.56B, a +8.3% CAGR.',
-    when: '2m ago',
-    group: 'Today',
-  },
-  {
-    id: 'c2',
-    title: 'Who is actually bidding?',
-    snippet: 'Three consortia filed; two carry sovereign-fund money.',
-    when: '09:12',
-    group: 'Today',
-  },
-  {
-    id: 'c3',
-    title: 'The 2023 restatement',
-    snippet: 'Three line items were restated — freight, port fees, D&A.',
-    when: '17:40',
-    group: 'Yesterday',
-  },
-  {
-    id: 'c4',
-    title: 'Draft questions for the Q3 call',
-    snippet: 'Six questions, ordered by what the CFO has dodged before.',
-    when: '16:55',
-    group: 'Yesterday',
-  },
-  {
-    id: 'c5',
-    title: 'Union agreement obligations',
-    snippet: 'No-layoff undertaking runs to 2029 and survives a sale.',
-    when: 'Jun 24',
-    group: 'Earlier',
-  },
-]
-
-export const WS_THREAD_GROUPS: readonly WsThreadGroup[] = ['Today', 'Yesterday', 'Earlier'] as const
-
-export const WS_AGENT_PROFILES: Record<string, Omit<WsAgent, 'name'>> = {
-  'Doc reader': {
-    ini: 'DR',
-    role: 'Reads & structures filings',
-    read: '6 files · 412 pages',
-    when: '2h ago',
-    findings: ['Normalised 4 annual reports into one schema', 'Flagged 3 restated line items in FY2023'],
-  },
-  Tabulator: {
-    ini: 'TB',
-    role: 'Builds comparable tables',
-    read: 'financials.xlsx · 4 years',
-    when: '2h ago',
-    findings: ['Revenue CAGR +8.3% (2022→2025)', 'Operating margin improved to 3.7%'],
-  },
-  'Legal analyst': {
-    ini: 'LA',
-    role: 'Regulatory & contract review',
-    read: '6 files + 14 public filings',
-    when: 'just now',
-    findings: [
-      'Two open proceedings before the Antitrust Authority',
-      'Change-of-control clause in the Haifa port concession',
-    ],
-  },
-}
-
-export const SYSTEM_AGENTS = ['Doc reader', 'Tabulator', 'Risk scanner', 'Translator', 'Note-taker'] as const
-
-export const WS_SESSIONS: WsSession[] = [
-  {
-    label: 'This session · today',
-    items: [
-      { text: 'Opened 2024 annual.pdf', when: '09:41', kind: 'open' },
-      { text: 'Started the document “Tigbur — what we know”', when: '09:38', kind: 'doc' },
-    ],
-  },
-  {
-    label: 'Yesterday',
-    items: [
-      { text: 'Compared FY2024 and FY2025 side by side', when: '17:02', kind: 'open' },
-      { text: 'Built financials.xlsx from 4 reports', when: '16:20', kind: 'build' },
-      { text: 'Deployed the Tabulator agent', when: '16:14', kind: 'agent' },
-    ],
-  },
-  {
-    label: 'Jun 24',
-    items: [
-      { text: 'Opened דוח ועד העובדים.pdf', when: '11:47', kind: 'open' },
-      { text: 'Cited the CEO guidance quote in the document', when: '11:30', kind: 'doc' },
-      { text: 'Workspace created from the Q2 2026 call', when: '10:02', kind: 'build' },
-    ],
-  },
-]
-
-export const LEGAL_AREAS = ['Litigation', 'Regulatory', 'Contracts & liens', 'Ownership & control'] as const
-
-export const LEGAL_STEPS = [
-  'Reading 6 workspace files',
-  'Pulling 14 public filings & court records',
-  'Checking regulatory exposure',
-  'Reviewing contracts, liens & concessions',
-  'Drafting findings',
-] as const
-
-export const LEGAL_FINDINGS: LegalFinding[] = [
-  {
-    sev: 'Flag',
-    k: 'flag',
-    text: 'The Haifa port concession carries a change-of-control clause — the state may reopen terms on any transfer above 25%.',
-    src: '2024 annual.pdf · note 14',
-  },
-  {
-    sev: 'Flag',
-    k: 'flag',
-    text: 'Two open proceedings before the Israel Competition Authority relating to 2023 pricing on the Ashdod–Limassol lane.',
-    src: 'Public register · filed 2025-11-03',
-  },
-  {
-    sev: 'Medium',
-    k: 'medium',
-    text: 'Sovereign-fund holdings behind the leading bidder trigger a foreign-investment review under the 2022 advisory committee rules.',
-    src: 'דוח ועד העובדים.pdf · p. 6',
-  },
-  {
-    sev: 'Medium',
-    k: 'medium',
-    text: 'Fleet financing includes a maritime lien on four vessels; consent required before any share transfer.',
-    src: 'financials.xlsx · Debt schedule',
-  },
-  {
-    sev: 'Medium',
-    k: 'medium',
-    text: 'Collective agreement runs to 2029 with a no-layoff undertaking that survives a sale.',
-    src: '2025 annual.pdf · note 9',
-  },
-  {
-    sev: 'Clear',
-    k: 'clear',
-    text: 'No outstanding environmental enforcement actions; last inspection closed without findings.',
-    src: 'Ministry register · 2026-02',
-  },
-]
-
-/** Severity ink + wash, exactly as the design defines them (SEV, design line 3652). */
-export const LEGAL_SEVERITY_STYLE: Record<LegalSeverity, { color: string; background: string }> = {
-  flag: { color: '#B0533E', background: 'rgba(203,75,46,.10)' },
-  medium: { color: '#8A6A2F', background: 'rgba(180,140,60,.13)' },
-  clear: { color: '#4F7A52', background: 'rgba(79,122,82,.11)' },
-}
-
-/**
- * The action timeline the detail column shows. The workspace's OWN actions lead
- * the current session, then the shared history — this is what makes the design's
- * "Actions taken" count 10 for Tigbur rather than 8.
- */
-export function workspaceSessions(w: Workspace): WsSession[] {
-  const live: WsAction[] = [...w.actions].reverse().map((text, i) => ({
-    text,
-    when: i === 0 ? 'just now' : i === 1 ? '4m ago' : '12m ago',
-    kind: /legal|agent|deploy/i.test(text) ? 'agent' : /built|index|fetch/i.test(text) ? 'build' : 'open',
-  }))
-  return [{ ...WS_SESSIONS[0], items: [...live, ...WS_SESSIONS[0].items] }, ...WS_SESSIONS.slice(1)]
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// WHAT USED TO SIT HERE, AND WHY IT IS GONE.
+//
+// Founder, 2026-08-06: *"remove the mislabbaled documents and the 'demo
+// content'"*. What stood here was five invented chat threads, three agent
+// profiles with invented findings, three sessions of invented activity, and six
+// legal findings about a REAL TASE issuer wearing citation clothes — "2024
+// annual.pdf · note 14", a note in a file nobody ever uploaded.
+//
+// The DemoBanner over it was the right answer while every one of these surfaces
+// was stubbed. It stopped being the right answer the day the shelf started
+// holding filings pulled from MAYA: a page cannot be half-marked, so one caution
+// bar stood over a genuine 171-page annual report AND over invented legal
+// exposure, and a reader had no way to tell which half they were looking at.
+//
+// The replacement is not a smaller lie, it is an empty state. Agents, actions
+// and chats now say plainly that nothing has happened yet, which is TRUE — no
+// agent has ever run, there is no activity log, and `workspace_threads` is a
+// table nothing writes to. Founder priority law: "not built yet" is fine,
+// "the UI says something untrue" is not.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export async function getWorkspaces(): Promise<Workspace[]> {
   return DEMO_WORKSPACES

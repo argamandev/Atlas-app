@@ -2,31 +2,42 @@
 
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ChevronLeftIcon, PlusIcon, CloseIcon } from '@/components/ds/icons'
-import {
-  WS_AGENT_PROFILES,
-  workspaceSessions,
-  WS_THREADS,
-  WS_THREAD_GROUPS,
-  type Workspace,
-  type WsFileKind,
-} from '@/lib/workspace/data'
+import { type Workspace, type WsFileKind } from '@/lib/workspace/data'
 
 // Detail column (design lines 1566-1702): slides out inside the panel with one of
 // four bodies — Files (1578) · Agents (1609) · Chats (1637) · Actions (1666).
+//
+// THREE OF THE FOUR ARE EMPTY, AND SAY SO (2026-08-06). Agents, chats and
+// actions used to render invented content — three agent profiles with invented
+// findings, five invented threads, eight invented activity lines — inside a
+// workspace whose shelf holds real filings. Founder: *"remove the … 'demo
+// content'"*. What replaced them is not a thinner stub: it is the truth, which
+// is that no agent has run here, no thread has been saved, and nothing keeps an
+// activity log yet.
 
 export type DetailKey = 'files' | 'agents' | 'chats' | 'actions'
 
 // The three REAL provenances carry NO `meta`: a persisted item's page or line
-// count is not known here, and the demo kinds below get theirs from fabricated
-// demo content. Inventing "68 pages" for a row that came out of the database
-// would be the stub problem all over again — a real page showing a made-up fact.
+// count is not known here. The legacy display kinds below kept theirs from the
+// design's demo content, and they are blank now for the same reason everything
+// else on this screen is — "68 pages" under a row read out of the database is a
+// real page showing a made-up fact.
 const KIND: Record<WsFileKind, { label: string; cls: string; meta: string }> = {
   transcript: { label: 'CALL', cls: 'text-[#4A6E8A] bg-[rgba(74,110,138,.12)]', meta: '' },
   document: { label: 'DOC', cls: 'text-[#9C6B4E] bg-[rgba(156,107,78,.12)]', meta: '' },
   file: { label: 'FILE', cls: 'text-ink-ghost bg-[rgba(0,0,0,.05)]', meta: '' },
-  pdf: { label: 'PDF', cls: 'text-[#9C6B4E] bg-[rgba(156,107,78,.12)]', meta: '68 pages' },
-  xlsx: { label: 'XLS', cls: 'text-[#4F7A52] bg-[rgba(79,122,82,.11)]', meta: '4 sheets' },
-  slide: { label: 'DECK', cls: 'text-[#6A5F8C] bg-[rgba(106,95,140,.12)]', meta: '24 slides' },
+  pdf: { label: 'PDF', cls: 'text-[#9C6B4E] bg-[rgba(156,107,78,.12)]', meta: '' },
+  xlsx: { label: 'XLS', cls: 'text-[#4F7A52] bg-[rgba(79,122,82,.11)]', meta: '' },
+  slide: { label: 'DECK', cls: 'text-[#6A5F8C] bg-[rgba(106,95,140,.12)]', meta: '' },
+}
+
+/** Nothing here yet, said in words rather than shown as a blank column. */
+function NothingYet({ text }: { text: string }) {
+  return (
+    <p dir="auto" className="px-1 py-6 text-center text-[12.5px] leading-[1.65] text-ink-ghost">
+      {text}
+    </p>
+  )
 }
 
 export function WorkspaceDetailColumn({
@@ -55,8 +66,8 @@ export function WorkspaceDetailColumn({
   const counts: Record<DetailKey, number> = {
     files: workspace.files.length,
     agents: workspace.agents.length,
-    chats: WS_THREADS.length,
-    actions: workspaceSessions(workspace).reduce((n, s) => n + s.items.length, 0),
+    chats: 0,
+    actions: workspace.actions.length,
   }
 
   return (
@@ -137,115 +148,40 @@ export function WorkspaceDetailColumn({
           </div>
         )}
 
-        {which === 'agents' && (
-          <div className="flex flex-col gap-2.5">
-            {workspace.agents.map((name) => {
-              const p = WS_AGENT_PROFILES[name]
-              if (!p) return null
-              return (
-                <div key={name} className="rounded-[10px] border border-hairline bg-paper p-3">
-                  <div className="mb-2 flex items-center gap-2.5">
-                    <span
-                      dir="ltr"
-                      className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-ink font-mono-num text-[10px] font-bold text-paper"
-                    >
-                      {p.ini}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-semibold text-ink">{name}</span>
-                      <span className="block truncate text-[11px] text-ink-ghost">{p.role}</span>
-                    </span>
-                    <span dir="ltr" className="flex-none font-mono-num text-[10.5px] text-ink-ghost">
-                      {p.when}
-                    </span>
-                  </div>
-                  <div dir="ltr" className="mb-1.5 font-mono-num text-[10.5px] text-ink-faint rtl:text-right">
-                    {p.read}
-                  </div>
-                  <ul className="flex flex-col gap-1">
-                    {p.findings.map((f) => (
-                      <li key={f} className="flex gap-1.5 text-[11.5px] leading-[1.5] text-ink-muted">
-                        <span aria-hidden className="text-ink-ghost">
-                          ·
-                        </span>
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        {/* NO AGENT HAS EVER RUN IN A WORKSPACE. `workspace.agents` is [] for
+            every real row (present.ts), so this used to render nothing at all —
+            except when the demo workspaces were on screen, where it rendered
+            three profiles with invented findings. Empty either way; now it says
+            so instead of showing a blank column. */}
+        {which === 'agents' && <NothingYet text={dict.workspace.agentsEmpty} />}
 
-        {which === 'chats' && (
-          <div className="flex flex-col gap-3">
-            {WS_THREAD_GROUPS.map((g) => {
-              const items = WS_THREADS.filter((t) => t.group === g)
-              if (!items.length) return null
-              return (
-                <div key={g}>
-                  <div className="mb-1 px-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-ghost">
-                    {g}
-                  </div>
-                  {items.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex flex-col gap-0.5 rounded-[9px] px-2 py-2 hover:bg-subtle/60"
-                    >
-                      <div className="flex items-baseline gap-2">
-                        <span
-                          dir="auto"
-                          className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink"
-                        >
-                          {t.title}
-                        </span>
-                        <span dir="ltr" className="flex-none font-mono-num text-[10.5px] text-ink-ghost">
-                          {t.when}
-                        </span>
-                      </div>
-                      <span dir="auto" className="truncate text-[11px] text-ink-ghost">
-                        {t.snippet}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        )}
+        {/* Five invented threads stood here. The real ones will come from
+            `workspace_threads` (migration 016), which nothing writes to yet. */}
+        {which === 'chats' && <NothingYet text={dict.workspace.chatsEmpty} />}
 
-        {which === 'actions' && (
-          <div className="flex flex-col gap-3.5">
-            {workspaceSessions(workspace).map((s) => (
-              <div key={s.label}>
-                <div className="mb-1.5 px-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-ghost">
-                  {s.label}
+        {/* The invented sessions are gone with their timestamps. A workspace
+            carries `actions` in its shape and nothing fills it, so this is
+            written to render the real list the moment something does. */}
+        {which === 'actions' &&
+          (workspace.actions.length === 0 ? (
+            <NothingYet text={dict.workspace.actionsEmpty} />
+          ) : (
+            <div className="flex flex-col">
+              {workspace.actions.map((text, i) => (
+                <div key={`${i}-${text}`} className="flex items-start gap-2.5 px-1 py-1.5">
+                  <span
+                    className="mt-[3px] flex h-4 w-4 flex-none items-center justify-center rounded-full bg-subtle text-[9px] text-ink-faint"
+                    aria-hidden
+                  >
+                    ›
+                  </span>
+                  <span dir="auto" className="min-w-0 flex-1 text-[12px] leading-[1.5] text-ink-muted">
+                    <bdi>{text}</bdi>
+                  </span>
                 </div>
-                <div className="flex flex-col">
-                  {s.items.map((a, i) => (
-                    <div key={`${a.text}-${i}`} className="flex items-start gap-2.5 px-1 py-1.5">
-                      <span
-                        className={`mt-[3px] flex h-4 w-4 flex-none items-center justify-center rounded-full text-[9px] ${
-                          a.kind === 'agent' ? 'bg-ink text-paper' : 'bg-subtle text-ink-faint'
-                        }`}
-                        aria-hidden
-                      >
-                        {a.kind === 'agent' ? '◆' : a.kind === 'build' ? '▣' : a.kind === 'doc' ? '✎' : '›'}
-                      </span>
-                      <span dir="auto" className="min-w-0 flex-1 text-[12px] leading-[1.5] text-ink-muted">
-                        {a.text}
-                      </span>
-                      <span dir="ltr" className="flex-none font-mono-num text-[10.5px] text-ink-ghost">
-                        {a.when}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ))}
       </div>
     </div>
   )

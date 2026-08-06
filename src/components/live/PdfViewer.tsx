@@ -295,6 +295,20 @@ export function PdfViewer({
       data-ask="1"
       onPointerDown={onPointerDown}
       onMouseUp={onMouseUp}
+      // `safe center`, and the `safe` is the load-bearing half.
+      //
+      // Below 100% the page is NARROWER than the pane, and a flex column aligns
+      // a fixed-width child to the start edge — which in these RTL panes is the
+      // physical RIGHT. So a zoomed-out report sat pinned to the right of its
+      // own pane with all the empty space on the left (founder, 2026-08-06).
+      // Plain `center` would fix that and break the opposite case: a centred
+      // item WIDER than its scroll container overflows equally both ways, and
+      // the scrollable region does not include the overflow on the start side,
+      // so the left half of a zoomed-in page becomes permanently unreachable.
+      // `safe` centres only while it fits and falls back to start alignment the
+      // moment it does not — which is exactly when SourceDocument's recentre
+      // effect takes over and scrolls to the middle instead.
+      style={{ alignItems: 'safe center' }}
       className="relative flex flex-col gap-3"
     >
       {doc && pageWidth > 0

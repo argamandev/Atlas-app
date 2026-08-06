@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { DemoBanner } from '@/components/ds/DemoBanner'
 import {
   ChevronLeftIcon,
   PencilIcon,
@@ -15,15 +14,8 @@ import {
 } from '@/components/ds/icons'
 import { WorkspaceDetailColumn, type DetailKey } from './WorkspaceDetailColumn'
 import { WorkingDocument } from './WorkingDocument'
-import { LegalPanelRow, LegalAgentChat, type LegalStage } from './LegalDueDiligence'
 import { WorkspaceDocs } from './WorkspaceDocs'
-import {
-  LEGAL_STEPS,
-  WS_THREADS,
-  workspaceSessions,
-  type Workspace,
-  type WorkspaceBlockRow,
-} from '@/lib/workspace/data'
+import { type Workspace, type WorkspaceBlockRow } from '@/lib/workspace/data'
 import {
   blankBlock,
   blockHeadings,
@@ -42,7 +34,7 @@ import { documentTitle } from '@/lib/workspace/present'
 import { detectDir } from '@/lib/utils'
 import { composeReq, patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
 import { usePlayer } from '@/lib/player/PlayerProvider'
-import { shownPanes } from '@/lib/workspace/panes'
+import { addPane, initialPanes, MAX_PANES, shownPanes } from '@/lib/workspace/panes'
 import { clipDerivedHtml, clipFigureHtml, quoteBlockHtml } from '@/lib/workspace/clip'
 import { WorkspaceIntake } from './WorkspaceIntake'
 import { WorkspaceChat, type AskContext } from './WorkspaceChat'
@@ -51,11 +43,19 @@ import { appendSnip } from '@/lib/documents/snip'
 import type { ChatSnip } from '@/lib/api/chat'
 
 // The populated control layout (design lines 1433-2084): a floating workspace
-// panel beside a floating main card with a tab bar. Special tabs __doc / __legal
-// / __chat sit alongside file tabs, exactly as the design's tab model does.
+// panel beside a floating main card with a tab bar. The special tab __doc sits
+// alongside file tabs, exactly as the design's tab model does.
+//
+// __legal IS GONE (2026-08-06). The Legal Due-Diligence row, its scoping form,
+// its five-step "running" animation and the six findings it produced were demo
+// content from end to end — the steps advanced on YOUR click because nothing was
+// running, and the findings were invented legal exposure attributed to a real
+// TASE issuer with citations to notes in files nobody had uploaded. There is no
+// backend to point it at, so it is removed rather than stubbed: a door that
+// opens onto invented legal risk is worse than no door. Reversible in one
+// commit if the founder wants it back for a walkthrough.
 
 const DOC_TAB = '__doc'
-const LEGAL_TAB = '__legal'
 // The chat is a SIDE PANEL as of 2026-08-04, so nothing opens this tab any more.
 // The id survives only so `persistOpen` still refuses to PATCH it if an older
 // session's layout ever hands one back — it is not a row and has nothing to save.
@@ -102,10 +102,6 @@ export function WorkspaceShell({
   const [docTitleRaw, setDocTitleRaw] = useState(workspace.docTitle)
   const [docTitleError, setDocTitleError] = useState<unknown>(null)
   const docTitleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const [legalStage, setLegalStage] = useState<LegalStage>('idle')
-  const [legalStep, setLegalStep] = useState(0)
-  const [legalAreas, setLegalAreas] = useState<string[]>([])
 
   // ASK ATLAS. A passage marked in any source pane opens the chat carrying it.
   // The chat is a TAB, not a separate surface, so it can also sit beside the
@@ -161,6 +157,21 @@ export function WorkspaceShell({
   // visible instead of assumed.
   const [clipDraft, setClipDraft] = useState<{ snip: ChatSnip; title: string } | null>(null)
   const [clipNote, setClipNote] = useState('')
+  /**
+   * ONE QUESTION AT A TIME.
+   *
+   * Founder, 2026-08-06: *"when we screenshot a section the user gets presented
+   * 'ask atlas / put in document', only when he presses on put in document he
+   * gets shown the options about how to insert it in the document."*
+   *
+   * Both questions used to be on the card at once — the destination buttons AND
+   * the three how-chips AND the free-text box — so a clipping headed for the
+   * chat arrived under a row of options that had nothing to do with it, and the
+   * document button changed its own label depending on a field above it. `where`
+   * asks which destination; `how` is reached only by choosing the document, and
+   * only then does the form for shaping it exist.
+   */
+  const [clipStage, setClipStage] = useState<'where' | 'how'>('where')
 
   /**
    * ═══ EVERYTHING THAT GOES INTO THE WORKING DOCUMENT GOES THROUGH HERE ═══
@@ -567,6 +578,9 @@ export function WorkspaceShell({
     // who wanted a plain screenshot gets a model call they never asked for.
     // Caught in the browser on the second clip of the session, not by a test.
     setClipNote('')
+    // Same reasoning, one step up: a new clipping asks where it goes, never
+    // reopening on the previous one's second question.
+    setClipStage('where')
   }, [])
 
   // NOTHING WITH A SIDE EFFECT GOES INSIDE A STATE UPDATER. React 18 invokes
@@ -753,7 +767,11 @@ export function WorkspaceShell({
 
     setOpenTabs((t) => [...t, ...arrived.filter((id) => !t.includes(id))])
     setActiveTab(arrived[arrived.length - 1])
-    if (split) setMulti((m) => [...m, ...arrived.filter((id) => !m.includes(id))])
+    // Through addPane, so pulling four files at once shows the last three
+    // rather than four columns. Reduced left-to-right, which means the ones
+    // that survive are the ones that arrived LAST — the same order the tabs
+    // were appended in, so pane order still matches tab order.
+    if (split) setMulti((m) => arrived.reduce((acc, id) => addPane(acc, id), m))
   }, [workspace.files, split])
 
   /**
@@ -761,12 +779,12 @@ export function WorkspaceShell({
    * left it". ONE row, not the whole workspace, and it deliberately does not
    * move `workspaces.updated_at`: opening a pane is not an edit.
    *
-   * The synthetic tabs (__doc, __legal, __chat) are not shelf items and have no
-   * row to patch, so they are skipped rather than sent and 404'd.
+   * The synthetic tabs (__doc, __chat) are not shelf items and have no row to
+   * patch, so they are skipped rather than sent and 404'd.
    */
   const persistOpen = useCallback(
     (id: string, isOpen: boolean) => {
-      if (id === DOC_TAB || id === LEGAL_TAB || id === CHAT_TAB) return
+      if (id === DOC_TAB || id === CHAT_TAB) return
       patchItemReq(workspace.id, id, { is_open: isOpen }).catch((e: unknown) => {
         // Surfaced, not swallowed. If this fails the pane still moved on screen
         // but WILL NOT survive a reload, and the user has to be told — a layout
@@ -784,7 +802,7 @@ export function WorkspaceShell({
       // In multi-view a newly opened file must APPEAR. Without this it lands as
       // a tab whose pane is not shown, so clicking a file in the panel would
       // look like it did nothing.
-      if (split) setMulti((m) => (m.includes(id) ? m : [...m, id]))
+      if (split) setMulti((m) => addPane(m, id))
       persistOpen(id, true)
     },
     [persistOpen, split]
@@ -852,12 +870,15 @@ export function WorkspaceShell({
    *
    * Founder decision, asked directly the same day: one click shows ALL open
    * files side by side, and you close what you do not want.
+   *
+   * CAPPED AT THREE since 2026-08-06, so "all open files" is now "up to three,
+   * one of which is certainly the one you were reading" — see initialPanes.
    */
   const toggleSplit = useCallback(() => {
     const next = !split
-    if (next) setMulti(openTabs)
+    if (next) setMulti(initialPanes(openTabs, activeTab))
     setSplit(next)
-  }, [split, openTabs])
+  }, [split, openTabs, activeTab])
 
   const closeTab = useCallback(
     (id: string) => {
@@ -879,15 +900,16 @@ export function WorkspaceShell({
   // is derived at every display site rather than substituted into the fact.
   const shownDocTitle = documentTitle(docTitleRaw, dict)
 
+  // EVERY COUNT COMES OFF THE WORKSPACE NOW. Two of these used to be constants —
+  // `WS_THREADS.length` and a sum over invented sessions — so a workspace with
+  // no chats and no history read "5" and "8" on the panel, identically for every
+  // account. A count is the smallest possible untrue sentence and the easiest to
+  // believe. Agents and actions are 0 because nothing produces them yet.
   const sections: { key: DetailKey; label: string; count: number }[] = [
     { key: 'files', label: dict.workspace.sectionFiles, count: workspace.files.length },
     { key: 'agents', label: dict.workspace.sectionAgents, count: workspace.agents.length },
-    {
-      key: 'actions',
-      label: dict.workspace.sectionActions,
-      count: workspaceSessions(workspace).reduce((n, s) => n + s.items.length, 0),
-    },
-    { key: 'chats', label: dict.workspace.sectionChats, count: WS_THREADS.length },
+    { key: 'actions', label: dict.workspace.sectionActions, count: workspace.actions.length },
+    { key: 'chats', label: dict.workspace.sectionChats, count: 0 },
   ]
 
   const iconBtn =
@@ -897,10 +919,11 @@ export function WorkspaceShell({
     // `relative` so the add-sources overlay's `absolute inset-0` is bounded by
     // the workspace surface rather than escaping to the viewport.
     <div className="relative flex h-full min-h-0 flex-col">
-      {/* The workspace and its shelf are real rows now; the AGENT and legal
-          surfaces inside this shell are still demo, which is what the banner
-          still speaks for. */}
-      <DemoBanner />
+      {/* NO DemoBanner (removed 2026-08-06). Nothing on this surface is invented
+          any more: the shelf, the panes, the working document and its citations
+          are all real rows, and the three panel sections that were stub-fed now
+          render honest empty states instead. A caution bar over a real 171-page
+          annual report was itself the untrue thing left on the page. */}
       {/* A layout change that failed to persist still moved on screen, so
           without this the workspace would silently forget on the next reload —
           the very thing this chapter set out to fix. */}
@@ -1085,28 +1108,8 @@ export function WorkspaceShell({
                     </span>
                   </button>
 
-                  <LegalPanelRow
-                    stage={legalStage}
-                    step={legalStep}
-                    areas={legalAreas}
-                    onToggleArea={(a) =>
-                      setLegalAreas((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))
-                    }
-                    onOpenScoping={() => setLegalStage('scoping')}
-                    onCancel={() => setLegalStage('idle')}
-                    onRun={() => {
-                      setLegalStage('running')
-                      setLegalStep(0)
-                    }}
-                    onAdvance={() => {
-                      if (legalStep < LEGAL_STEPS.length - 1) setLegalStep((s) => s + 1)
-                      else {
-                        setLegalStage('done')
-                        openTab(LEGAL_TAB)
-                      }
-                    }}
-                    onOpenFindings={() => openTab(LEGAL_TAB)}
-                  />
+                  {/* The Legal Due-Diligence row stood here until 2026-08-06.
+                      See the LEGAL_TAB note at the top of this file. */}
 
                   <div className="mb-2 ms-0.5 mt-[22px] text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-ghost">
                     {dict.workspace.workspaceSection}
@@ -1155,7 +1158,10 @@ export function WorkspaceShell({
           onSelect={setActiveTab}
           onClose={closeTab}
           onToggleSplit={toggleSplit}
-          onToggleMulti={(id) => setMulti((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]))}
+          onToggleMulti={(id) =>
+            setMulti((m) => (m.includes(id) ? m.filter((x) => x !== id) : addPane(m, id)))
+          }
+          maxPanes={MAX_PANES}
           renderSpecial={(id, paneCtl) =>
             id === DOC_TAB ? (
               <WorkingDocument
@@ -1175,17 +1181,9 @@ export function WorkspaceShell({
                 onSave={saveDocument}
                 saveError={docSaveError}
               />
-            ) : id === LEGAL_TAB ? (
-              <LegalAgentChat areas={legalAreas} />
             ) : null
           }
-          specialLabel={(id) =>
-            id === DOC_TAB
-              ? shownDocTitle
-              : id === LEGAL_TAB
-                ? dict.workspace.legalReviewTab
-                : dict.workspace.workspaceChat
-          }
+          specialLabel={(id) => (id === DOC_TAB ? shownDocTitle : dict.workspace.workspaceChat)}
           onAskAtlas={(passage) => {
             setAskSeed(passage)
             setChatOpen(true)
@@ -1197,6 +1195,9 @@ export function WorkspaceShell({
             setConnectNote('')
           }}
           onStar={() => setChatOpen(true)}
+          // With the panel open a marked passage is referenced on the spot, the
+          // way the live call does it. The panes need to know, so they are told.
+          askOpen={chatOpen}
           snipArm={snipArm}
           onSnip={takeSnip}
           onSnipEnd={() => setSnipArm(0)}
@@ -1266,7 +1267,9 @@ export function WorkspaceShell({
                 className="h-14 w-20 flex-none rounded-md border border-hairline object-cover"
               />
               <div className="min-w-0">
-                <div className="text-[13px] font-semibold text-ink">{dict.workspace.clipWhere}</div>
+                <div className="text-[13px] font-semibold text-ink">
+                  {clipStage === 'where' ? dict.workspace.clipWhere : dict.workspace.clipHow}
+                </div>
                 {/* Each run its own <bdi>: a Hebrew filing title beside a Latin page run. */}
                 <div className="truncate text-[11.5px] text-ink-ghost">
                   <bdi>{clipDraft.title}</bdi> ·{' '}
@@ -1274,21 +1277,48 @@ export function WorkspaceShell({
                 </div>
               </div>
               <div className="ms-auto flex flex-none items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={clipToChat}
-                  className="flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-subtle"
-                >
-                  <SparkleIcon size={14} className="flex-none" />
-                  {dict.workspace.clipToChat}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => clipToDocument(clipNote)}
-                  className="rounded-lg bg-ink px-2.5 py-1.5 text-[12.5px] font-medium text-paper transition-opacity hover:opacity-90"
-                >
-                  {clipNote.trim() ? dict.workspace.clipDoIt : dict.workspace.clipToDocument}
-                </button>
+                {clipStage === 'where' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={clipToChat}
+                      className="flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-subtle"
+                    >
+                      <SparkleIcon size={14} className="flex-none" />
+                      {dict.workspace.clipToChat}
+                    </button>
+                    {/* ADVANCES, it does not fire. The second question — as an
+                        image, as text, as a table, or something typed — only
+                        exists once this destination has been chosen. */}
+                    <button
+                      type="button"
+                      onClick={() => setClipStage('how')}
+                      className="rounded-lg bg-ink px-2.5 py-1.5 text-[12.5px] font-medium text-paper transition-opacity hover:opacity-90"
+                    >
+                      {dict.workspace.clipToDocument}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* The destination is a CHOICE, so it stays changeable —
+                        without this, reaching the second question by mistake
+                        leaves discarding the clipping as the only way back. */}
+                    <button
+                      type="button"
+                      onClick={() => setClipStage('where')}
+                      className="rounded-lg border border-hairline px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-subtle"
+                    >
+                      {dict.workspace.clipBack}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => clipToDocument(clipNote)}
+                      className="rounded-lg bg-ink px-2.5 py-1.5 text-[12.5px] font-medium text-paper transition-opacity hover:opacity-90"
+                    >
+                      {clipNote.trim() ? dict.workspace.clipDoIt : dict.workspace.clipToDocument}
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => setClipDraft(null)}
@@ -1312,39 +1342,47 @@ export function WorkspaceShell({
                 model, the image goes in exactly as it was cut. The three chips
                 are the answers he named, written into the same box so a fourth
                 one can be typed — they fill the field rather than firing, so what
-                is about to happen is always readable before it happens. */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              {[dict.workspace.clipAsImage, dict.workspace.clipAsText, dict.workspace.clipAsTable].map(
-                (preset, i) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    // The first chip is "as it is": it CLEARS the instruction
-                    // rather than describing it, because no instruction is what
-                    // makes that path instant.
-                    onClick={() => setClipNote(i === 0 ? '' : preset)}
-                    className={`rounded-full border px-2.5 py-1 text-[12px] transition-colors ${
-                      (i === 0 && !clipNote.trim()) || clipNote === preset
-                        ? 'border-transparent bg-ink text-paper'
-                        : 'border-hairline text-ink-muted hover:bg-subtle'
-                    }`}
-                  >
-                    {preset}
-                  </button>
-                )
-              )}
-            </div>
-            <input
-              value={clipNote}
-              onChange={(e) => setClipNote(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') clipToDocument(clipNote)
-              }}
-              placeholder={dict.workspace.clipNotePlaceholder}
-              dir="auto"
-              aria-label={dict.workspace.clipNotePlaceholder}
-              className="w-full rounded-lg border border-hairline bg-paper px-2.5 py-1.5 text-[12.5px] text-ink outline-none placeholder:text-ink-ghost focus:border-ink-ghost"
-            />
+                is about to happen is always readable before it happens.
+
+                BEHIND THE SECOND STEP since 2026-08-06 (founder), because these
+                are options for ONE of the two destinations and were being shown
+                under both. */}
+            {clipStage === 'how' && (
+              <>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[dict.workspace.clipAsImage, dict.workspace.clipAsText, dict.workspace.clipAsTable].map(
+                    (preset, i) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        // The first chip is "as it is": it CLEARS the instruction
+                        // rather than describing it, because no instruction is what
+                        // makes that path instant.
+                        onClick={() => setClipNote(i === 0 ? '' : preset)}
+                        className={`rounded-full border px-2.5 py-1 text-[12px] transition-colors ${
+                          (i === 0 && !clipNote.trim()) || clipNote === preset
+                            ? 'border-transparent bg-ink text-paper'
+                            : 'border-hairline text-ink-muted hover:bg-subtle'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    )
+                  )}
+                </div>
+                <input
+                  value={clipNote}
+                  onChange={(e) => setClipNote(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') clipToDocument(clipNote)
+                  }}
+                  placeholder={dict.workspace.clipNotePlaceholder}
+                  dir="auto"
+                  aria-label={dict.workspace.clipNotePlaceholder}
+                  className="w-full rounded-lg border border-hairline bg-paper px-2.5 py-1.5 text-[12.5px] text-ink outline-none placeholder:text-ink-ghost focus:border-ink-ghost"
+                />
+              </>
+            )}
           </div>
         </div>
       )}

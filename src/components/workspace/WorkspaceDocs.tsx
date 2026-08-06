@@ -35,6 +35,8 @@ export function WorkspaceDocs({
   onSnip,
   onSnipEnd,
   onSnippable,
+  maxPanes,
+  askOpen = false,
 }: {
   workspace: Workspace
   openTabs: string[]
@@ -56,6 +58,10 @@ export function WorkspaceDocs({
   onSnip: (snip: ChatSnip, source: { itemId: string; title: string }) => void
   onSnipEnd: () => void
   onSnippable: (itemId: string, can: boolean) => void
+  /** how many panes fit at once — lib/workspace/panes.MAX_PANES */
+  maxPanes: number
+  /** the Ask Atlas side panel is open, so a marked passage goes straight to it */
+  askOpen?: boolean
 }) {
   const { dict } = useI18n()
   const [flex, setFlex] = useState<Record<string, number>>({})
@@ -216,7 +222,18 @@ export function WorkspaceDocs({
                   <button
                     type="button"
                     onClick={() => onToggleMulti(id)}
-                    title={inSplit ? dict.workspace.removeFromSplit : dict.workspace.addToSplit}
+                    // AT THE CAP THE TOOLTIP SAYS WHAT THE CLICK WILL COST.
+                    // The button stays live — panes.addPane evicts the oldest
+                    // rather than refusing, so this never becomes a control
+                    // that does nothing — but "show it" is only half the truth
+                    // once something has to leave to make room for it.
+                    title={
+                      inSplit
+                        ? dict.workspace.removeFromSplit
+                        : multi.length >= maxPanes
+                          ? dict.workspace.addToSplitFull.replace('{n}', String(maxPanes))
+                          : dict.workspace.addToSplit
+                    }
                     aria-pressed={inSplit}
                     className={`flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md transition-colors ${
                       inSplit ? 'bg-ink text-paper' : 'text-ink-ghost hover:bg-subtle hover:text-ink'
@@ -308,6 +325,7 @@ export function WorkspaceDocs({
                 workspaceId={workspace.id}
                 file={f}
                 onAskAtlas={onAskAtlas}
+                askOpen={askOpen}
                 onConnect={onConnect}
                 snipArm={snipArm}
                 onSnip={onSnip}

@@ -195,9 +195,15 @@ export const en = {
     untitledDocument: 'Untitled document',
     docTitleLabel: 'Document title',
     docTitleFailed: 'The document title did not save: {error}',
-    multiView: 'Multi-view — all open files side by side',
+    // "up to three", not "all open files": the panes are capped at
+    // lib/workspace/panes.MAX_PANES, and a control must not promise a screen it
+    // will not produce.
+    multiView: 'Multi-view — up to three files side by side',
     singleView: 'Single view — one file at a time',
     addToSplit: 'Show in multi-view',
+    // Shown once the panes are full: the click still works, and this is what it
+    // costs. {n} is the cap (lib/workspace/panes.MAX_PANES).
+    addToSplitFull: 'Show in multi-view — {n} at a time, so the oldest pane closes',
     removeFromSplit: 'Hide from multi-view',
     hidePane: 'Hide from multi-view — the tab stays open',
     resetSplit: 'Reset widths',
@@ -300,6 +306,16 @@ export const en = {
     clipAsTable: 'Make a table from it',
     clipNotePlaceholder: 'Or tell Atlas what to do with it…',
     clipDoIt: 'Let Atlas do it',
+    // Second step of the clipping card, reached only by choosing the document —
+    // so the question narrows from "where does this go" to "in what form".
+    clipHow: 'How should it go in?',
+    clipBack: 'Back',
+    // The three panel sections that no backend fills yet. They replaced invented
+    // agents, threads and activity on 2026-08-06 — "not built" said plainly is
+    // the honest state, and it is what the DemoBanner used to stand in for.
+    agentsEmpty: 'No agent has run in this workspace. Agents are not wired up yet.',
+    chatsEmpty: 'Saved chats will appear here. Ask Atlas conversations are not kept yet.',
+    actionsEmpty: 'Nothing has happened here yet. This workspace does not keep an activity log yet.',
   },
   agents: {
     ready: 'Ready when you are.',

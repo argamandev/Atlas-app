@@ -34,6 +34,7 @@ export function SourceDocument({
   workspaceId,
   file,
   onAskAtlas,
+  askOpen = false,
   onConnect,
   snipArm = 0,
   onSnip,
@@ -51,6 +52,24 @@ export function SourceDocument({
   onHidePane?: () => void
   /** marking a passage offers this; absent means the pane is read-only */
   onAskAtlas?: (passage: { itemId: string; title: string; text: string }) => void
+  /**
+   * THE ASK ATLAS PANEL IS ALREADY OPEN, so a marked passage goes into its
+   * composer with no click at all.
+   *
+   * Founder, 2026-08-06: *"when marking text on the pdf, and i am with ask
+   * atlas open -> the text gets refernced automatically, the same way it is in
+   * the investor call."* The call states the rule in its own words
+   * (LiveTranscriptView.onTextSelect): *"chat open → auto-reference; chat closed
+   * → floating Ask-Atlas button first"* — and it applies there to the transcript
+   * and the report PDF alike, which is why this pane honours it for both too.
+   *
+   * The one difference from the call, and it is a deliberate addition rather
+   * than a divergence: a workspace can also put a passage IN THE DOCUMENT, and
+   * the call has no such destination. So the popup does not disappear here, it
+   * narrows — the ask has already happened, and what remains on offer is the
+   * action that has not.
+   */
+  askOpen?: boolean
   /** work the marked passage into the working document */
   /**
    * A marked passage, on its way to the working document — with WHERE IT CAME
@@ -90,6 +109,8 @@ export function SourceDocument({
     lineId: string | null
     x: number
     y: number
+    /** already in the Ask Atlas composer, so the popup drops its ask button */
+    referenced?: boolean
   } | null>(null)
   /** the same menu for a PDF selection — positioned in VIEWPORT coords, which is
    *  what PdfViewer's anchor is (a getBoundingClientRect on the range). */
@@ -100,6 +121,8 @@ export function SourceDocument({
     page: number | null
     top: number
     left: number
+    /** already in the Ask Atlas composer, so the popup drops its ask button */
+    referenced?: boolean
   } | null>(null)
   const paneRef = useRef<HTMLDivElement>(null)
 
@@ -111,7 +134,13 @@ export function SourceDocument({
   // steps, driving the SAME PdfViewer — only the palette differs, because that
   // pane is themed for the call surface and this one sits on the workspace's paper.
   const ZOOM_STEPS = [75, 90, 100, 110, 125, 150, 175, 200]
-  const [zoom, setZoom] = useState(100)
+  // OPENS AT 75%, unlike the live call's report pane which opens at 100%.
+  // Founder, 2026-08-06. The difference is the surface, not a preference: a
+  // call shows ONE report in a pane as wide as the window, while a workspace
+  // pane is one of up to three columns, so 100% here is a page too wide to read
+  // a whole line of. The step already existed — this only picks a different
+  // starting rung, and the % label still clicks back to 100.
+  const [zoom, setZoom] = useState(75)
   const [page, setPage] = useState(1)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [snipArmed, setSnipArmed] = useState(false)
@@ -221,8 +250,13 @@ export function SourceDocument({
   // the user has actually chosen something. Positioned from the selection's own
   // rectangle so it lands on the passage in BOTH directions — a fixed corner
   // would sit on the wrong side of an RTL column.
+  // Hoisted above readSelection, which now needs it: auto-referencing a passage
+  // sends it to the composer immediately, and a reference has to be labelled
+  // with the file it came from at the moment it is made.
+  const title = content && content.kind !== 'unavailable' ? content.title : file.name
+
   const readSelection = useCallback(() => {
-    if (!onAskAtlas) return
+    if (!onAskAtlas && !onConnect) return
     const sel = window.getSelection()
     const text = sel?.toString().trim() ?? ''
     if (!sel || sel.rangeCount === 0 || text.length < 2) {
@@ -249,6 +283,11 @@ export function SourceDocument({
       }
       node = node.parentNode
     }
+    // THE ASK, WITHOUT ASKING FOR IT — the panel is open, so the passage lands
+    // in its composer now rather than after a click on a button that is only
+    // there to open what is already open.
+    const referenced = askOpen && !!onAskAtlas
+    if (referenced) onAskAtlas!({ itemId: file.id, title, text })
     const rect = sel.getRangeAt(0).getBoundingClientRect()
     const box = pane.getBoundingClientRect()
     setMark({
@@ -258,10 +297,9 @@ export function SourceDocument({
       // edge cannot push the button out of view.
       x: Math.min(Math.max(rect.left - box.left + rect.width / 2, 60), box.width - 60),
       y: Math.max(rect.top - box.top - 8, 8),
+      referenced,
     })
-  }, [onAskAtlas])
-
-  const title = content && content.kind !== 'unavailable' ? content.title : file.name
+  }, [onAskAtlas, onConnect, askOpen, file.id, title])
 
   // WHICH WAY THE DOCUMENT READS. Founder, 2026-08-04: *"documents that are open
   // in the platform should be rtl."*
@@ -447,26 +485,33 @@ export function SourceDocument({
             }}
             onAskSelection={
               onAskAtlas || onConnect
-                ? (text, pages, _docId, anchor) =>
+                ? (text, pages, _docId, anchor) => {
+                    // The page is part of the citation, exactly as the in-call
+                    // panel labels a report passage.
+                    const label =
+                      pages.length > 0
+                        ? `${content.title} · ${dict.workspace.sourcePage.replace(
+                            '{n}',
+                            pages.length > 1 ? `${pages[0]}–${pages[pages.length - 1]}` : String(pages[0])
+                          )}`
+                        : content.title
+                    // Ask Atlas open ⇒ the passage is referenced on the spot,
+                    // no click. See the `askOpen` prop for the founder's words.
+                    const referenced = askOpen && !!onAskAtlas
+                    if (referenced) onAskAtlas!({ itemId: file.id, title: label, text })
                     setPdfMark({
                       text,
                       // The FIRST page the selection touches is the anchor a
-                      // citation stores; the label below can name a range, but
+                      // citation stores; the label above can name a range, but
                       // `source_page` is one number and has to be the one a
                       // reader would turn to.
                       page: pages.length > 0 ? pages[0] : null,
-                      // The page is part of the citation, exactly as the in-call
-                      // panel labels a report passage.
-                      title:
-                        pages.length > 0
-                          ? `${content.title} · ${dict.workspace.sourcePage.replace(
-                              '{n}',
-                              pages.length > 1 ? `${pages[0]}–${pages[pages.length - 1]}` : String(pages[0])
-                            )}`
-                          : content.title,
+                      title: label,
                       top: anchor.top,
                       left: anchor.left,
+                      referenced,
                     })
+                  }
                 : undefined
             }
           />
@@ -479,14 +524,17 @@ export function SourceDocument({
             {snipError === 'toolarge' ? dict.workspace.snipTooLarge : dict.workspace.snipFailed}
           </div>
         )}
-        {pdfMark && (
+        {/* Nothing left to offer once the passage is referenced AND there is no
+            document to put it in — an empty black pill following the cursor
+            around would be the only thing this popup did. */}
+        {pdfMark && !(pdfMark.referenced && !onConnect) && (
           // `fixed`, because the anchor is viewport-space and the pane it sits
           // in scrolls underneath it.
           <div
             style={{ top: pdfMark.top - 8, left: pdfMark.left }}
             className="fixed z-30 flex -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg bg-ink text-[12px] font-medium text-paper shadow-menu"
           >
-            {onAskAtlas && (
+            {onAskAtlas && !pdfMark.referenced && (
               <button
                 type="button"
                 onMouseDown={(e) => {
@@ -499,7 +547,9 @@ export function SourceDocument({
                 ✦ {dict.workspace.askAtlas}
               </button>
             )}
-            {onAskAtlas && onConnect && <span className="my-1.5 w-px bg-white/25" aria-hidden />}
+            {onAskAtlas && !pdfMark.referenced && onConnect && (
+              <span className="my-1.5 w-px bg-white/25" aria-hidden />
+            )}
             {onConnect && (
               <button
                 type="button"
@@ -528,7 +578,7 @@ export function SourceDocument({
         onScroll={() => setMark(null)}
         className="atscroll relative min-h-0 flex-1 overflow-auto px-8 py-7"
       >
-        {mark && (onAskAtlas || onConnect) && (
+        {mark && (onAskAtlas || onConnect) && !(mark.referenced && !onConnect) && (
           // TWO THINGS TO DO WITH A MARKED PASSAGE: ask about it, or put it in the
           // document. Founder, 2026-08-04 — the second one is what makes the
           // workspace feel agentic rather than merely conversational.
@@ -539,7 +589,7 @@ export function SourceDocument({
             style={{ left: mark.x, top: mark.y }}
             className="absolute z-20 flex -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg bg-ink text-[12px] font-medium text-paper shadow-menu"
           >
-            {onAskAtlas && (
+            {onAskAtlas && !mark.referenced && (
               <button
                 type="button"
                 onMouseDown={(e) => {
@@ -553,7 +603,9 @@ export function SourceDocument({
                 ✦ {dict.workspace.askAtlas}
               </button>
             )}
-            {onAskAtlas && onConnect && <span className="my-1.5 w-px bg-white/25" aria-hidden />}
+            {onAskAtlas && !mark.referenced && onConnect && (
+              <span className="my-1.5 w-px bg-white/25" aria-hidden />
+            )}
             {onConnect && (
               <button
                 type="button"
