@@ -22,12 +22,23 @@ export const MAX_PANES = 3
  * it here means the shell's idea of "shown" includes the same rescue the
  * renderer performs, rather than being right about a screen that is not there.
  *
- * THE CAP IS APPLIED HERE TOO, not only where panes are added, and the
- * belt-and-braces is deliberate: a workspace's layout is PERSISTED, so a shelf
- * arranged before this limit existed still has four `is_open` rows in the
- * database and would otherwise render four columns on the next load. Clamping
- * at the render chokepoint means no stored state can exceed the limit, and
- * `addPane` below means live state never grows into needing the clamp.
+ * THE CAP IS APPLIED HERE TOO, not only where panes are added — a defensive
+ * clamp at the render chokepoint, and NO CURRENTLY REACHABLE INPUT NEEDS IT.
+ *
+ * ⚠ The reason this comment used to give was invented, and the cold review
+ * (2026-08-08) caught it: it claimed a layout "persisted before the cap" would
+ * arrive with four panes. It cannot. `multi` is `useState<string[]>([])` and
+ * `split` is `useState(false)` in WorkspaceShell; what persists per item is
+ * `is_open`, which seeds `openTabs` — and a tab only becomes a PANE by going
+ * through `addPane`, which is already capped. So there is no stored state that
+ * reaches this `slice`, and the test that pinned it was asserting over a `multi`
+ * the app cannot produce.
+ *
+ * It stays because it is free and because `multi` will eventually have a second
+ * writer — the spec's `workspaces.layout` column — and a cap at the one place
+ * every pane must pass through is the cheapest way for that writer to be unable
+ * to exceed it. That is the honest reason: not a bug it currently prevents, but
+ * an invariant held where it cannot be forgotten. Measured, not assumed.
  */
 export function shownPanes(state: {
   split: boolean
