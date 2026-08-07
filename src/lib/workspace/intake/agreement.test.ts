@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isBareAgreement, reconcileSelection, resolveSelection, agreedToStandingSet } from './agreement'
+import { isBareAgreement, resolveSelection, agreedToStandingSet, narrowsSelection } from './agreement'
 
 // ── the yes ──────────────────────────────────────────────────────────────────
 // THE EXACT MESSAGE THAT LOOPED. Founder, 2026-08-04: he answered a confirmation
@@ -92,33 +92,6 @@ test('punctuation and emphasis do not defeat it', () => {
   }
 })
 
-// ── the reconciliation ───────────────────────────────────────────────────────
-// THE OTHER HALF OF THE SAME BUG: two files agreed, one pulled.
-
-test('a file the model simply forgot to re-type is NOT dropped', () => {
-  // The observed failure: the proposal held two, the ready payload held one.
-  assert.deepEqual(reconcileSelection(['a', 'b'], ['a']), ['a', 'b'])
-})
-
-test('an addition in the same breath is kept, after the agreed ones', () => {
-  assert.deepEqual(reconcileSelection(['a', 'b'], ['a', 'b', 'c']), ['a', 'b', 'c'])
-})
-
-test('a file is removed ONLY when the removal is explicit', () => {
-  assert.deepEqual(reconcileSelection(['a', 'b'], ['a'], ['b']), ['a'])
-  // and an explicit removal beats its presence in the selection
-  assert.deepEqual(reconcileSelection(['a', 'b'], ['a', 'b'], ['b']), ['a'])
-})
-
-test('the agreed order survives, and duplicates collapse', () => {
-  assert.deepEqual(reconcileSelection(['b', 'a'], ['a', 'b']), ['b', 'a'])
-  assert.deepEqual(reconcileSelection(['a'], ['a', 'a']), ['a'])
-})
-
-test('with no proposal it is just the selection', () => {
-  assert.deepEqual(reconcileSelection([], ['a', 'b']), ['a', 'b'])
-})
-
 // ── the set on the table, turn by turn ───────────────────────────────────────
 // THE SECOND HALF of "he agreed to three and one arrived". The first fix made
 // the agreed set durable; these are the cases proving it is also PRODUCED.
@@ -140,12 +113,109 @@ test('an explicit removal empties out of the standing set too', () => {
   assert.deepEqual(resolveSelection('clarifying', ['q1', 'q2'], [], ['q2']), ['q1'])
 })
 
-test('at ready, a proposal the model did not re-type still arrives in full', () => {
-  assert.deepEqual(resolveSelection('ready', ['q1', 'q2', 'call'], ['q1']), ['q1', 'q2', 'call'])
+// ⚠ THIS TEST REPLACES ITS OWN OPPOSITE. It used to read "at ready, a proposal
+// the model did not re-type still arrives in full" and pinned a UNION —
+// resolveSelection('ready', ['q1','q2','call'], ['q1']) === all three. The cold
+// review (2026-08-08) found what that meant in the browser: the analyst says
+// "כן, רק את הראשון" ("yes, only the first"), the model reports the narrowing by
+// OMISSION, and all three are attached, FETCHED FROM MAYA and written into the
+// shared corpus. Atlas doing more than was agreed to.
+//
+// The union was defending "he only pulled 1 file while i asked for two" — but a
+// bare "כן" never reaches here (isBareAgreement pulls the proposal without a
+// model), so what arrives at `ready` carried extra words, and extra words are
+// where a narrowing lives. Pulling too few is one sentence to correct; pulling
+// too many spends downloads and writes rows every member of the platform reads.
+test('at ready, a narrowing the model reports by omission is HONOURED, not reverted', () => {
+  assert.deepEqual(resolveSelection('ready', ['q1', 'q2', 'call'], ['q1']), ['q1'])
 })
 
-test('at ready, a newly added file joins the agreed ones', () => {
+test('at ready, a newly added file joins whatever the model returned', () => {
   assert.deepEqual(resolveSelection('ready', ['q1'], ['q1', 'q3']), ['q1', 'q3'])
+})
+
+// The status argument no longer changes anything, and that is the fix: one rule
+// instead of two identical payloads meaning opposite things.
+test('the two statuses resolve identically, given the same payload', () => {
+  for (const args of [
+    [['q1', 'q2', 'call'], ['q1'], []],
+    [['q1', 'q2'], [], ['q2']],
+    [['q1'], ['q1', 'q3'], []],
+    [[], ['q1', 'q2'], []],
+    [['q1', 'q2'], [], []],
+  ] as [string[], string[], string[]][]) {
+    assert.deepEqual(
+      resolveSelection('ready', ...args),
+      resolveSelection('clarifying', ...args),
+      `statuses diverged for ${JSON.stringify(args)}`
+    )
+  }
+})
+
+test('an explicit removal beats the selection it appears in, at both statuses', () => {
+  assert.deepEqual(resolveSelection('ready', ['a', 'b'], ['a', 'b'], ['b']), ['a'])
+  assert.deepEqual(resolveSelection('clarifying', ['a', 'b'], ['a', 'b'], ['b']), ['a'])
+})
+
+// `orderBySelection` maps over these ids without collapsing repeats, so one id
+// twice would be one FILE twice — on the confirm list and then on the shelf.
+// The union this replaced deduped as a side effect of merging; nothing else does.
+test('duplicate ids collapse, and the returned order is kept', () => {
+  assert.deepEqual(resolveSelection('ready', [], ['a', 'b', 'a']), ['a', 'b'])
+  assert.deepEqual(resolveSelection('clarifying', ['b', 'b', 'a'], []), ['b', 'a'])
+})
+
+// ⚠ THE SAME BLOCKER THROUGH ITS OTHER DOOR, found while proving the first fix
+// in the browser (2026-08-08). Proposal of three, analyst says "כן, רק את
+// הראשון", model narrows IN PROSE ("so just the 2021 report?") and returns
+// `selected: []`. The empty-selection fallback then restored all three —
+// observed live as `resolvedCount: 3` under a reply naming exactly one file —
+// the client stored them as the standing proposal, and the next bare "כן" is
+// pulled VERBATIM by isBareAgreement without a model. Three unwanted filings.
+test('after a narrowing, an empty selection does NOT restore the set that was cut down', () => {
+  assert.deepEqual(resolveSelection('clarifying', ['q1', 'q2', 'call'], [], [], true), [])
+  assert.deepEqual(resolveSelection('ready', ['q1', 'q2', 'call'], [], [], true), [])
+})
+
+test('a narrowing does not touch a selection the model DID return', () => {
+  assert.deepEqual(resolveSelection('clarifying', ['q1', 'q2', 'call'], ['q1'], [], true), ['q1'])
+})
+
+// And the third door, seen live: the model's PROSE narrowed correctly ("so just
+// the 2021 report?") while its ids came back as all three. The ids are the half
+// that moves files, so a narrowing that did not narrow is a failed turn — never
+// an agreement to everything.
+test('a narrowing that returns the WHOLE set again is refused, not honoured', () => {
+  const three = ['q1', 'q2', 'call']
+  assert.deepEqual(resolveSelection('clarifying', three, three, [], true), [])
+  // order and duplicates must not smuggle it past the comparison
+  assert.deepEqual(resolveSelection('ready', three, ['call', 'q1', 'q2', 'q1'], [], true), [])
+})
+
+test('narrowing a ONE-file set to that file is confirmation, and still works', () => {
+  assert.deepEqual(resolveSelection('clarifying', ['q1'], ['q1'], [], true), ['q1'])
+})
+
+// A first message can contain "רק" with nothing on the table yet — there is
+// nothing to narrow from, so the flag must not blank a fresh selection.
+test('a narrowing word in a FIRST message does not blank the model selection', () => {
+  assert.deepEqual(resolveSelection('clarifying', [], ['q1', 'q2'], [], true), ['q1', 'q2'])
+})
+
+test('without a narrowing, the empty-selection fallback still stands', () => {
+  assert.deepEqual(resolveSelection('clarifying', ['q1', 'q2'], [], [], false), ['q1', 'q2'])
+})
+
+test('narrowsSelection sees a cut, and does not see an addition or filler', () => {
+  for (const s of ['כן, רק את הראשון', 'כן אבל בלי השיחה', 'yes, only the first', 'no, not that one']) {
+    assert.equal(narrowsSelection(s), true, s)
+  }
+  // AN ADDITION IS NOT A NARROWING — treating "but" as one would drop the agreed
+  // set, which is the founder's 2026-08-04 complaint reintroduced. And English
+  // "just" is filler far more often than it is a cut.
+  for (const s of ['כן, אבל תוסיף גם את השיחה', 'yes but also add the Q3 call', 'ok, just go ahead', 'כן']) {
+    assert.equal(narrowsSelection(s), false, s)
+  }
 })
 
 test('with no standing proposal, resolveSelection is just the model selection', () => {
@@ -189,23 +259,82 @@ test('an explicit negative blocks promotion even when the sets happen to match',
   }
 })
 
+// ⚠ THE COLD REVIEW'S OWN COUNTEREXAMPLES (2026-08-08). The first version of
+// this function accepted ANY agree-word anywhere in an UNBOUNDED message, with
+// neither of the two properties that make `isBareAgreement` safe. The exact-set
+// comparison was supposed to be the backstop and is not one: selectSources tells
+// the model to return the standing set at BOTH statuses, so on a question ABOUT
+// the standing set the comparison matches and the files get pulled. Two guards,
+// one of which was always going to pass.
+test('a QUESTION containing an agreement word is not agreement', () => {
+  const standing = ['c1', 'c2']
+  for (const q of [
+    'מה בדיוק ההבדל ביניהם?', //  בדיוק ("exactly") is in AGREE
+    'the first one looks right', //  "right" is in AGREE
+    'האם זה בדיוק אותו דוח?',
+    'is that the correct one',
+  ]) {
+    assert.equal(
+      agreedToStandingSet(q, 'clarifying', standing, standing),
+      false,
+      `"${q}" must not be read as agreement`
+    )
+  }
+})
+
+test('an unbounded message is refused however it ends, like its sibling', () => {
+  const standing = ['c1']
+  const long = 'כן ' + 'בסדר '.repeat(30)
+  assert.ok(long.length > 60)
+  assert.equal(agreedToStandingSet(long, 'clarifying', standing, standing), false)
+})
+
+test('a trailing question mark disqualifies outright', () => {
+  const standing = ['c1']
+  assert.equal(agreedToStandingSet('כן?', 'clarifying', standing, standing), false)
+  assert.equal(agreedToStandingSet('ok?', 'clarifying', standing, standing), false)
+  // …while the same words without it still pass
+  assert.equal(agreedToStandingSet('כן', 'clarifying', standing, standing), true)
+})
+
+// The vocabulary is CLOSED, one step wider than the bare check: agreement,
+// filler, or a QUANTITY word. Anything else means this is not a plain yes.
+test('the vocabulary is closed — one unknown word is enough to refuse', () => {
+  const standing = ['c1', 'c2']
+  assert.equal(agreedToStandingSet('כן, תביא את שתיהן', 'clarifying', standing, standing), true)
+  assert.equal(agreedToStandingSet('yes, both', 'clarifying', standing, standing), true)
+  // "הדוחות" is a KIND of file, deliberately not filler — it re-shapes the ask
+  assert.equal(agreedToStandingSet('כן, תביא את הדוחות', 'clarifying', standing, standing), false)
+  assert.equal(agreedToStandingSet('כן, של תיגבור', 'clarifying', standing, standing), false)
+  assert.equal(agreedToStandingSet('yes, the 2025 ones', 'clarifying', standing, standing), false)
+})
+
 test('a message with no yes-word at all is not agreement', () => {
   assert.equal(agreedToStandingSet('מה יש לך על תיגבור?', 'clarifying', ['c1'], ['c1']), false)
   assert.equal(agreedToStandingSet('', 'clarifying', ['c1'], ['c1']), false)
 })
 
-// `תביא` ("bring") is in the agreement vocabulary, because "כן, תביא" is the
-// commonest yes there is. That makes a FRESH REQUEST like "תביא לי את הדוחות של
-// 2025" pass the word check — and the set comparison is what stops it, not the
-// vocabulary. Worth a test of its own, since the guard is the whole safety
-// argument for accepting a non-bare message at all.
-test('a fresh request containing a yes-word is stopped by the set comparison, not the words', () => {
+// ⚠ THIS TEST ALSO REPLACES ITS OWN OPPOSITE, and the version it replaces was
+// mine. It asserted that a fresh request like "תביא לי את הדוחות של 2025" is
+// "stopped by the SET COMPARISON, not the vocabulary" — and that when the model
+// happened to return the standing set, promoting was fine "because pulling it is
+// what the sentence asked for anyway".
+//
+// That reasoning was wrong in the way the cold review named: the set comparison
+// is not an independent guard. `selectSources.ts` instructs the model to return
+// the standing set at BOTH statuses, so for any message ABOUT the standing set —
+// a request, a question, a musing — the comparison MATCHES. Leaning on it left
+// one real guard, and the vocabulary check I had skipped was that guard.
+//
+// `תביא` ("bring") stays in AGREE, because "כן, תביא" is the commonest yes there
+// is. What stops a fresh request is that the REST of it is unknown words.
+test('a fresh request containing a yes-word is refused by the VOCABULARY, at any set', () => {
   const askAgain = 'תביא לי את הדוחות של 2025'
-  // the model answers it with different files — no promotion
+  // different files — refused
   assert.equal(agreedToStandingSet(askAgain, 'clarifying', ['c1', 'c2'], ['r1', 'r2']), false)
-  // and if the model comes back with EXACTLY what was already on the table,
-  // pulling it is what the sentence asked for anyway
-  assert.equal(agreedToStandingSet(askAgain, 'clarifying', ['r1'], ['r1']), true)
+  // and refused EVEN WHEN the sets match exactly, which is the whole point:
+  // matching sets are the normal case, not evidence of agreement
+  assert.equal(agreedToStandingSet(askAgain, 'clarifying', ['r1'], ['r1']), false)
 })
 
 test('nothing is promoted when there was no standing proposal, or it is already ready', () => {

@@ -13,7 +13,12 @@ import {
   orderBySelection,
   SELECTION_CANDIDATE_CAP,
 } from '@/lib/workspace/intake/selectSources'
-import { isBareAgreement, resolveSelection, agreedToStandingSet } from '@/lib/workspace/intake/agreement'
+import {
+  isBareAgreement,
+  resolveSelection,
+  agreedToStandingSet,
+  narrowsSelection,
+} from '@/lib/workspace/intake/agreement'
 import type { IntakeTurn, ProposedRemote } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
 import { resolveIssuer } from '@/lib/maya/issuers'
@@ -321,11 +326,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // swallowed, because a model beginning to invent ids must not be silent.
         console.warn(`[intake] model returned unknown ids: ${selection.dropped.join(', ')}`)
       }
-      // OMISSION IS NOT REMOVAL, at both statuses — see resolveSelection. At
-      // `ready` the agreed proposal is restored under whatever the model
-      // re-typed; while clarifying a NAMED-BUT-UNRETURNED set survives, which is
-      // what stopped three agreed files arriving as one. Only an explicit
-      // `removed`, or a deliberate re-shape mid-conversation, takes one out.
+      // AN EMPTY SELECTION IS AN OMISSION; A SHORTER ONE IS A DECISION.
+      //
+      // `resolveSelection` treats both statuses alike now: a set the model
+      // returned is honoured as returned, and only an EMPTY one falls back to
+      // the standing proposal (nobody re-shapes a set to nothing while still
+      // discussing it). That replaced a union at `ready` which silently put back
+      // files the analyst had just narrowed away — see that function's header
+      // for the full case; it is the one finding that gated this merge.
       // THE ANALYST ALREADY SAID YES, AND THE MODEL ASKED AGAIN.
       //
       // `isBareAgreement` above catches a plain "כן" before a model is called at
@@ -340,19 +348,42 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // Promoted here rather than argued with in the prompt, because the model's
       // SET was already right and only its status was wrong — and because the
       // prompt has told it not to re-confirm since 2026-08-04 and it does anyway.
-      const status = agreedToStandingSet(
+      const promoted = agreedToStandingSet(
         latest?.role === 'user' ? latest.content : '',
         selection.status,
         proposal,
         selection.selectedIds
       )
-        ? ('ready' as const)
-        : selection.status
+      const status = promoted ? ('ready' as const) : selection.status
 
-      const ids = resolveSelection(status, proposal, selection.selectedIds, selection.removedIds)
+      const ids = resolveSelection(
+        status,
+        proposal,
+        selection.selectedIds,
+        selection.removedIds,
+        // A narrowing forbids the empty-selection fallback: restoring the set
+        // the analyst just cut down is how "כן, רק את הראשון" ended up standing
+        // for three filings again.
+        latest?.role === 'user' ? narrowsSelection(latest.content) : false
+      )
       const { selected } = orderBySelection(candidates, ids)
       return json({
-        reply: selection.reply,
+        // A PROMOTED TURN THROWS THE MODEL'S SENTENCE AWAY, and must.
+        //
+        // The reply belongs to the status the model CHOSE, and the prompt
+        // requires a clarifying reply to be a question — "shall I pull both?".
+        // Promoting the turn answers that question in code and starts the pull,
+        // so shipping the sentence with it rendered Atlas asking permission
+        // directly above the spinner for the attach it was already doing (cold
+        // review, 2026-08-08). Asking for consent you have already acted on is
+        // worse than not asking.
+        //
+        // `null` rather than a substitute sentence because the panel already
+        // owns this case: `reply === null` + `ready` renders
+        // `intakePullingNow` — "great, I'm pulling them in, it can take a
+        // second" — which the founder asked for on 2026-08-04 and which is
+        // localised where the wording belongs.
+        reply: promoted ? null : selection.reply,
         status,
         selected,
         fallback: null,
@@ -437,23 +468,47 @@ function readProposedRemote(raw: unknown): ProposedRemote | null {
 
 /** The most recent set Atlas put on the table, or []. Later turns win — an
  *  earlier proposal has already been superseded by the one after it. */
-function lastProposal(turns: IntakeTurn[]): string[] {
+/**
+ * The MOST RECENT assistant turn, whatever it holds.
+ *
+ * ⚠ THIS USED TO SKIP TURNS THAT PROPOSED NOTHING, and that skip resurrected
+ * sets the analyst had already thrown away (found 2026-08-08 while proving the
+ * narrowing fix in the browser). The sequence:
+ *
+ *   Atlas: "these three?"        proposed:[A,B,C]
+ *   analyst: "כן, רק את הראשון"  → the set is correctly cleared for this turn
+ *   Atlas: "so just the 2021 one?"   (no `proposed` — nothing stands)
+ *   analyst: "כן"                → lastProposal SCANNED PAST the empty turn,
+ *                                  found [A,B,C] two turns back, and `ready`
+ *                                  came out holding all three again.
+ *
+ * Clearing the set was pointless while a lookup could see around the clearing.
+ * The standing proposal is what Atlas LAST PUT ON THE TABLE: a turn that offered
+ * nothing offered nothing, and the answer is an empty list, not "keep looking".
+ *
+ * A turn that failed to interpret the request also lands here as empty, and that
+ * is right for the same reason — Atlas has just said it did not understand, so
+ * nothing is on the table. Costing the analyst one restatement is the safe half
+ * of this trade; the other half fetches filings nobody asked for into a corpus
+ * every member of the platform reads.
+ */
+function lastAssistantTurn(turns: IntakeTurn[]): IntakeTurn | null {
   for (let i = turns.length - 1; i >= 0; i--) {
-    const t = turns[i]
-    if (t.role === 'assistant' && t.proposed && t.proposed.length > 0) return t.proposed
+    if (turns[i].role === 'assistant') return turns[i]
   }
-  return []
+  return null
 }
 
-/** The MAYA pointers from that same turn. Read separately rather than merged
- *  into `lastProposal` so the id list stays the single record of WHAT was
- *  agreed, and these only say where the remote ones can be found. */
+function lastProposal(turns: IntakeTurn[]): string[] {
+  return lastAssistantTurn(turns)?.proposed ?? []
+}
+
+/** The MAYA pointers from THAT SAME TURN — read off the one turn rather than
+ *  scanned for independently, so the ids and the pointers can never come from
+ *  different moments in the conversation. The id list stays the single record of
+ *  WHAT was agreed; these only say where the remote ones can be found. */
 function lastProposalRemote(turns: IntakeTurn[]): ProposedRemote[] {
-  for (let i = turns.length - 1; i >= 0; i--) {
-    const t = turns[i]
-    if (t.role === 'assistant' && t.proposed && t.proposed.length > 0) return t.proposedRemote ?? []
-  }
-  return []
+  return lastAssistantTurn(turns)?.proposedRemote ?? []
 }
 
 function withDates(template: string): string {

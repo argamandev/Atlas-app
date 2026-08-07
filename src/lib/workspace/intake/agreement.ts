@@ -216,6 +216,73 @@ const NEGATION = new Set([
 ])
 
 /**
+ * Words that can only make a set SMALLER.
+ *
+ * A strict subset of NEGATION, and the exclusions are the point. `אבל` / `but`
+ * are ambiguous — *"כן, אבל תוסיף גם את השיחה"* is an ADDITION, and treating it
+ * as a narrowing would drop the standing set, which is the founder's 2026-08-04
+ * complaint reintroduced. English `just` is worse: *"ok, just go ahead"* is
+ * pure filler. Both stay in NEGATION, where they only ever block a promotion —
+ * a safe thing to be wrong about — and out of here, where being wrong discards
+ * an agreed set.
+ */
+const NARROWING = new Set([
+  'רק',
+  'בלי',
+  'חוץ',
+  'במקום',
+  'לא',
+  'only',
+  'without',
+  'except',
+  'instead',
+  'not',
+  'no',
+])
+
+/**
+ * Did the analyst just ask for LESS than what is on the table?
+ *
+ * Used for one decision: whether an EMPTY model selection may fall back to the
+ * standing proposal. See `resolveSelection` for why that fallback is otherwise
+ * correct, and why it is catastrophic here.
+ */
+export function narrowsSelection(text: string): boolean {
+  return text
+    .trim()
+    .toLowerCase()
+    .split(SEPARATORS)
+    .filter(Boolean)
+    .some((w) => NARROWING.has(w))
+}
+
+/**
+ * Words that say HOW MANY of a set, without changing which set.
+ *
+ * The ONLY reason `agreedToStandingSet` exists rather than just calling
+ * `isBareAgreement`: "כן, תביא את שתיהן" is an agreement whose extra word is a
+ * quantity. These cannot go in FILLER, because with three files on the table
+ * "both" is a NARROWING — but paired with the exact-set comparison below, where
+ * a narrowing makes the model return a different set, they are safe here.
+ *
+ * As short as AGREE and FILLER, and for the same reason: every word here is a
+ * word that can no longer block a false positive.
+ */
+const QUANTITY = new Set([
+  'שתיהן',
+  'שתיהם',
+  'שניהם',
+  'שניהן',
+  'שלושתם',
+  'שלושתן',
+  'כולם',
+  'כולן',
+  'both',
+  'either',
+  'each',
+])
+
+/**
  * The analyst agreed, and the model asked them again anyway.
  *
  * FOUNDER, 2026-08-07: *"adding a document doesn't actually work"*. The full
@@ -229,15 +296,33 @@ const NEGATION = new Set([
  * The analyst is told the files are coming, and waits for files that are not.
  *
  * The model's `selected` was RIGHT; only its status was wrong. So this does not
- * try to widen the vocabulary or to re-read the sentence. It asks a narrower
- * question that has a certain answer: did the analyst say a yes-word, and did
- * the model come back with EXACTLY the set already on the table? If so there is
+ * re-read the sentence. It asks a narrower question that has a certain answer:
+ * did the analyst say a yes-word and nothing else of consequence, and did the
+ * model come back with EXACTLY the set already on the table? If so there is
  * nothing left to confirm — the prompt's own "NEVER ASK THE SAME CONFIRMATION
  * TWICE" applies, and this is that rule moved into the code, where this file's
  * header says the rules that matter live.
  *
- * A change is safe by construction: "כן, אבל בלי השיחה" makes the model return
- * a DIFFERENT set, the comparison fails, and the conversation carries on.
+ * ⚠ THE FIRST VERSION OF THIS FUNCTION TOOK "ANY AGREE WORD ANYWHERE" IN AN
+ * UNBOUNDED MESSAGE, and the cold review (2026-08-08) was right to call it: it
+ * had neither of the two properties that make `isBareAgreement` safe. So
+ * *"מה בדיוק ההבדל ביניהם?"* ("what exactly is the difference between them?")
+ * passed on `בדיוק`, and *"the first one looks right"* passed on `right` —
+ * QUESTIONS, both of them. The exact-set comparison was supposed to be the
+ * backstop and is not one here: `selectSources.ts` tells the model to return the
+ * standing set at BOTH statuses, so on a question about the standing set the
+ * comparison MATCHES and the files get pulled. Two guards, one of which was
+ * always going to pass.
+ *
+ * It now carries the same closed vocabulary and the same length bound as its
+ * sibling, one step wider: every word must be a known agreement, filler or
+ * QUANTITY word. An unknown word — a company, a quarter, "difference", "looks" —
+ * means this is not a plain yes and the conversation carries on. A trailing "?"
+ * disqualifies outright: whatever else a question is, it is not agreement.
+ *
+ * A change is still safe twice over: "כן, אבל בלי השיחה" is refused on `אבל`
+ * before the vocabulary is even consulted, and would fail the set comparison
+ * anyway.
  */
 export function agreedToStandingSet(
   latestUserMessage: string,
@@ -248,9 +333,19 @@ export function agreedToStandingSet(
   if (status === 'ready') return false
   if (proposal.length === 0) return false
 
-  const words = latestUserMessage.trim().toLowerCase().split(SEPARATORS).filter(Boolean)
+  const trimmed = latestUserMessage.trim()
+  // The same bound as `isBareAgreement`: long enough to hold an instruction, so
+  // not a plain yes however it reads.
+  if (!trimmed || trimmed.length > MAX_AGREEMENT_CHARS) return false
+  if (trimmed.endsWith('?') || trimmed.endsWith('؟')) return false
+
+  const words = trimmed.toLowerCase().split(SEPARATORS).filter(Boolean)
   if (words.length === 0) return false
   if (words.some((w) => NEGATION.has(w))) return false
+  // CLOSED, like the bare check. An unknown word might be a company, a quarter,
+  // a question or a whole new instruction — we do not know, and guessing is the
+  // failure this module exists to prevent.
+  if (!words.every((w) => AGREE_SET.has(w) || FILLER_SET.has(w) || QUANTITY.has(w))) return false
   if (!words.some((w) => AGREE_SET.has(w))) return false
 
   // EXACTLY the standing set — not a superset, not a subset. Anything else is
@@ -264,18 +359,13 @@ export function agreedToStandingSet(
   return a.every((id) => b.has(id))
 }
 
-export function reconcileSelection(proposal: string[], selected: string[], removed: string[] = []): string[] {
-  const drop = new Set(removed)
-  const out: string[] = []
-  const seen = new Set<string>()
-
-  for (const id of [...proposal, ...selected]) {
-    if (drop.has(id) || seen.has(id)) continue
-    seen.add(id)
-    out.push(id)
-  }
-  return out
-}
+// `reconcileSelection` STOOD HERE AND IS DELETED (2026-08-08). It merged the
+// standing proposal with the model's selection, and merging is precisely the
+// behaviour the cold review found attaching files the analyst had asked to leave
+// out. Once `resolveSelection` stopped branching on status it had no caller left
+// but its own tests — an exported, well-tested function that nothing runs, which
+// is the same "backend with zero callers" shape this branch spent a day closing
+// elsewhere. Removed rather than left for someone to reintroduce by calling it.
 
 /**
  * The set on the table after one turn, at EITHER status.
@@ -295,19 +385,101 @@ export function reconcileSelection(proposal: string[], selected: string[], remov
  * returning none cannot be a deliberate emptying — nobody re-shapes a set to
  * nothing while still discussing it — so the standing proposal survives.
  *
- * A NON-EMPTY clarifying selection is taken as given, not merged. That is the
- * difference from `ready`: while still talking, the model is entitled to re-shape
- * the set ("actually, just the Q1 one"), and unioning would silently re-add what
- * the analyst just asked to drop.
+ * A NON-EMPTY SELECTION IS AUTHORITATIVE AT BOTH STATUSES — one rule, not two.
+ *
+ * ⚠ THIS USED TO BRANCH ON STATUS, AND THAT BRANCH WAS THE WORST BUG ON THE
+ * BRANCH (cold review, 2026-08-08). `ready` unioned the proposal with the
+ * selection while `clarifying`, one line below, honoured the selection as given.
+ * Identical payloads, opposite meanings, keyed on a status the route elsewhere
+ * distrusts enough to override. The failure it produced:
+ *
+ *     proposal ["A","B","C"] · analyst "כן, רק את הראשון" ("yes, only the first")
+ *     model    status:"ready", selected:["A"], removed:[]
+ *     → union → ["A","B","C"]  ⇒ all three attached, all three FETCHED FROM MAYA
+ *                                and written into the SHARED corpus.
+ *
+ * A narrowing the model reports by OMISSION was silently reverted, and Atlas did
+ * more than the analyst agreed to — the founder's own intolerable class, and the
+ * reason this held 62 otherwise-good commits.
+ *
+ * The union was defending the opposite mistake (founder, 2026-08-04: *"he only
+ * pulled 1 file while i asked for two files and we agreed on them"*), so dropping
+ * it is not free. It is right anyway, for two reasons:
+ *
+ *   1. THAT CASE NO LONGER REACHES HERE. A bare "כן" is recognised in code by
+ *      `isBareAgreement` and pulls the standing proposal verbatim WITHOUT calling
+ *      a model (see the route). What reaches this function at `ready` is a
+ *      message that carried extra words — and extra words are exactly where a
+ *      narrowing lives. Honouring the model's set is honouring the analyst's.
+ *   2. THE TWO ERRORS ARE NOT SYMMETRICAL. Pulling too few is visible and
+ *      recoverable in one sentence ("you missed one"). Pulling too many spends
+ *      MAYA downloads, writes shared-corpus rows every member of the platform
+ *      then reads, and puts files on a shelf nobody asked for.
+ *
+ * An EMPTY selection still falls back to the standing proposal, which is what
+ * covers "go ahead" without a re-listing: nobody re-shapes a set to nothing while
+ * still discussing it, so an empty list is an omission, never a deliberate
+ * emptying. Taking one out is `removed`, which applies at both statuses.
+ *
+ * ⚠ EXCEPT AFTER A NARROWING, and this is the same blocker through its other
+ * door — found while proving the first fix in the browser. Proposal of three,
+ * analyst says *"כן, רק את הראשון"*, and the model narrows IN PROSE ("so just
+ * the 2021 report?") while returning `selected: []`. The fallback then restores
+ * all three, the client stores them as the standing proposal, and the analyst's
+ * next bare "כן" — which `isBareAgreement` pulls VERBATIM without a model —
+ * fetches every one of them. Observed: `resolvedCount: 3` under a reply naming
+ * exactly one file.
+ *
+ * So when `narrowed` is set, an empty selection stays empty. The set on the
+ * table is then nothing, which costs the analyst one more turn and cannot cost
+ * them three unwanted filings in the shared corpus. The asymmetry is the same
+ * one this whole function turns on: too few is a sentence, too many is a
+ * download.
+ *
+ * DEDUPED HERE, and it has to be: `orderBySelection` maps over the ids it is
+ * given without collapsing repeats, so one id twice is one FILE twice — on the
+ * confirm list and then on the shelf. The union this replaced deduped as a side
+ * effect of merging two lists; nothing downstream does.
+ *
+ * `status` is no longer read. It stays in the signature because callers pass it
+ * and because its removal would make this look like a rename rather than what it
+ * is — the deliberate end of two rules where there should always have been one.
  */
 export function resolveSelection(
-  status: 'ready' | 'clarifying',
+  _status: 'ready' | 'clarifying',
   proposal: string[],
   selected: string[],
-  removed: string[] = []
+  removed: string[] = [],
+  /** the analyst's latest message asked for LESS — see `narrowsSelection` */
+  narrowed = false
 ): string[] {
-  if (status === 'ready') return reconcileSelection(proposal, selected, removed)
-  if (selected.length > 0) return selected
   const drop = new Set(removed)
-  return proposal.filter((id) => !drop.has(id))
+  const source = selected.length > 0 ? selected : narrowed && proposal.length > 0 ? [] : proposal
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const id of source) {
+    if (drop.has(id) || seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+  }
+
+  // A NARROWING THAT DID NOT NARROW IS A FAILED TURN, not an agreement to
+  // everything. Observed live on the fix above: asked for three, told "כן, רק
+  // את הראשון", the model wrote *"so just the 2021 report?"* — correct prose —
+  // and returned all THREE ids anyway. Honouring `selected` then carries the
+  // full set forward as the standing proposal, and the next bare "כן" pulls it
+  // verbatim without a model. The model's words and its ids disagreed, and the
+  // ids are the half that moves files.
+  //
+  // `> 1` because narrowing a one-item set TO that item is confirmation, not a
+  // cut: "כן, רק את זה" with one file on the table must still work.
+  if (narrowed && proposal.length > 1 && sameSet(out, proposal)) return []
+  return out
+}
+
+/** Set equality over id lists, order- and duplicate-insensitive. */
+function sameSet(a: string[], b: string[]): boolean {
+  const left = Array.from(new Set(a))
+  const right = new Set(b)
+  return left.length === right.size && left.every((id) => right.has(id))
 }
