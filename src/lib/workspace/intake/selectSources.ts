@@ -51,14 +51,30 @@ export function buildSelectionPrompt(
   // ids with the same title. So "pull the Q1 call" can attach a second row that
   // the unique index cannot catch (different ids) and a person cannot tell apart
   // (same title). Naming what is already here is the only thing that stops it.
+  // THE DATE FIELD MEANT TWO DIFFERENT THINGS UNDER ONE NAME, so it is now
+  // labelled by which one it is (2026-08-07).
+  //
+  // A filing Atlas has not fetched carries MAYA's real `publicationDate`. The
+  // same filing, once ingested, is read back out of `company_documents` as
+  // `created_at` — the moment ATLAS took it in. Both arrived here as `date:`,
+  // and the behaviour list went on to state, in capitals, that `date:` is when a
+  // report was published. So Atlas told the analyst that Tigbur's 2020 ANNUAL
+  // report was published on 07.08.2026, which is the afternoon it was pulled.
+  // Six of six MAYA-ingested documents carried an ingest timestamp this way.
+  //
+  // The real fix is a publication-date column on `company_documents` — the value
+  // exists at ingest (`source.publishedISO`) and is thrown away. That is DDL
+  // against the shared production database, so it belongs to the MAYA phase,
+  // where the calendar needs it anyway. Until then the label is honest about
+  // which date this is, which costs nothing and stops the false sentence.
   const here = new Set(onShelf)
   const lines = corpus.map(
     (s) =>
-      `- id: ${s.sourceId} | type: ${kindLabel(s.kind)} | company: ${s.company ?? 'unknown'} | date: ${
-        s.when ? s.when.slice(0, 10) : 'unknown'
-      } | title: ${s.title}${here.has(s.sourceId) ? ' | ALREADY ON THE SHELF' : ''}${
-        s.remote ? ' | FROM MAYA — NOT YET IN ATLAS' : s.fromMaya ? ' | FROM MAYA — ALREADY IN ATLAS' : ''
-      }`
+      `- id: ${s.sourceId} | type: ${kindLabel(s.kind)} | company: ${s.company ?? 'unknown'} | ${
+        s.remote ? 'published' : 'added to Atlas'
+      }: ${s.when ? s.when.slice(0, 10) : 'unknown'} | title: ${s.title}${
+        here.has(s.sourceId) ? ' | ALREADY ON THE SHELF' : ''
+      }${s.remote ? ' | FROM MAYA — NOT YET IN ATLAS' : s.fromMaya ? ' | FROM MAYA — ALREADY IN ATLAS' : ''}`
   )
 
   // WHAT "FROM MAYA" ACTUALLY OBLIGES THE MODEL TO SAY.
@@ -78,23 +94,56 @@ two different ways:
 - FROM MAYA — NOT YET IN ATLAS: a real filing Atlas does not hold. Select it like
   any other; if the analyst agrees, Atlas fetches it. Speak about it in the
   FUTURE ("I'll pull the 2024 annual report"), never as though it is already here.
-- FROM MAYA — ALREADY IN ATLAS: the same kind of filing, fetched earlier. It IS a
-  MAYA filing. When the analyst asks for something "from MAYA" (ממאיה) and the
-  file they mean is marked this way, THAT is the file — select it and say Atlas
-  already has it. Do NOT reach for a different year just because that one is
-  still marked NOT YET IN ATLAS. "From MAYA" describes where a filing came from,
-  not a demand that it be downloaded again.
+- FROM MAYA — ALREADY IN ATLAS: the same kind of filing, fetched earlier, so it
+  sits in ATLAS'S LIBRARY and needs no download. THAT IS NOT THE SAME AS BEING ON
+  THE ANALYST'S SHELF, and confusing the two is the one mistake to avoid here.
+  Unless its title is in the ON THE SHELF list, they do NOT have it: select it
+  like any other file and say you are ADDING it — it simply arrives at once
+  instead of being downloaded. Never answer "you already have it" off this
+  marker. When the analyst asks for something "from MAYA" (ממאיה) and the file
+  they mean is marked this way, THAT is the file. Do NOT reach for a different
+  year just because that one is still marked NOT YET IN ATLAS. "From MAYA"
+  describes where a filing came from, not a demand that it be downloaded again.
 `
       : ''
 
-  const anyOnShelf = onShelf.some((id) => corpus.some((s) => s.sourceId === id))
+  // THE SHELF AS A CLOSED SET, STATED — not merely marked line by line.
+  //
+  // Founder, 2026-08-07: *"adding a document doesn't actually work"* and *"if i
+  // deleted a document, when i try to pull it … atlas thinks i already have this
+  // document"*. Both reproduced deterministically, and both are this block.
+  //
+  // The per-line marker only ever said what IS here. Nothing said that an
+  // unmarked file is NOT — so with one report on the shelf and a rule opening
+  // "FIRST, before anything else: drop every file marked ALREADY ON THE SHELF",
+  // the model refused to pull an investor call that was never on it
+  // (`selected: []`, "כבר נמצאת אצלך על המדף"). And an EMPTY shelf emitted no
+  // rule at all, which is worse: with no statement to contradict, the model read
+  // "FROM MAYA — ALREADY IN ATLAS" as possession and answered "כבר נמצא כאן" in
+  // a workspace holding nothing.
+  //
+  // So the shelf is now always stated, empty or not, and stated as COMPLETE.
+  // A negative fact has to be asserted to be usable; leaving it to be inferred
+  // from a missing marker is what both bugs did.
+  const shelfHere = onShelf
+    .map((id) => corpus.find((s) => s.sourceId === id))
+    .filter((s): s is AttachableSource => !!s)
+  const anyOnShelf = shelfHere.length > 0
   const shelfRule = anyOnShelf
-    ? `\nSome files above are marked ALREADY ON THE SHELF. The analyst has those
-open in this workspace right now. Never offer to pull one: say it is already
-here, by title, and carry on with whatever else they asked for. If EVERYTHING
-they asked for is already here, say exactly that and select nothing.
+    ? `\nON THE SHELF RIGHT NOW — this list is COMPLETE, and appearing on it is the
+ONLY thing that makes a file "already here":
+${shelfHere.map((s) => `- ${s.title}`).join('\n')}
+A file not named in that list is NOT on the shelf, however familiar it looks and
+wherever else Atlas may hold a copy of it. Never tell the analyst a file is
+already here, or already theirs, unless its title is in that list. Never offer to
+pull one that IS in the list: say it is already here, by title, and carry on with
+the rest of what they asked for. If EVERY file they asked for is in that list,
+say exactly that and select nothing.
 `
-    : ''
+    : `\nTHE SHELF IS EMPTY. This workspace holds no files at all yet, so nothing the
+analyst asks for can be "already here" and nothing may be skipped for that
+reason. Whatever they ask for, you have to select it.
+`
 
   // THE SAME RULE AGAIN, IN THE OPERATIVE LIST. Stating it once beside the file
   // list was not enough — run 1 of this fix marked all three requested calls
@@ -103,7 +152,7 @@ they asked for is already here, say exactly that and select nothing.
   // pull" was the instruction winning. Conditional, because a rule about a
   // marker that appears nowhere is noise.
   const shelfBehaviour = anyOnShelf
-    ? `\n- FIRST, before anything else: drop from consideration every file marked ALREADY ON THE SHELF. The analyst has those open in front of them. Offering to pull one is offering to do something that is already done, and agreeing to it changes nothing on their screen. If some of what they asked for is already here, name those in one clause ("the Q1 call is already on your shelf") and confirm only the REST. If ALL of it is already here, say so and set "selected" to [] with status "clarifying" — there is nothing to pull.`
+    ? `\n- FIRST, before anything else: check each file they asked for against the ON THE SHELF list, BY TITLE. Only a file named in that list is already here — the analyst has those open in front of them, so offering to pull one is offering to do something already done. Name those in one clause ("the Q1 call is already on your shelf") and confirm only the REST. EVERY OTHER FILE MUST STILL BE SELECTED, even one Atlas already holds a copy of elsewhere: a copy in Atlas's library is not a file on this shelf. If ALL of what they asked for is in that list, say so and set "selected" to [] with status "clarifying". If NONE of it is, do not mention the shelf at all.`
     : ''
 
   const talk = conversation.map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${t.content}`).join('\n')
@@ -155,6 +204,7 @@ not arrive no matter what the analyst says next.
 
 How to behave:${shelfBehaviour}
 - Work out which files they mean, then CONFIRM IN WORDS before doing anything: name the files you intend to pull, in a sentence, and ask if that is right. status = "clarifying", and "selected" holds those files.
+- WHILE status IS "clarifying", NOTHING IS HAPPENING, so do not write a sentence that says it is. "אז אני מביא לך את שתי השיחות…" / "so I'm bringing you both calls" is a claim that the files are on their way when no file will move — the analyst then waits for something that is never coming. At "clarifying" ASK ("להביא את שתיהן?", "shall I pull both?"). Only at "ready" may you say you are bringing them in.
 - Write it the way a person would speak — "just to confirm, you want the Q1 2026 board report and the latest investor call?". NEVER a numbered list, a bulleted list, or anything resembling checkboxes.
 - If they ask to add, drop or change something, adjust and confirm again. status = "clarifying".
 - ONLY when their LATEST message agrees — "כן", "yes", "pull them", "תמשוך", "בוא נתחיל", "go ahead" — set status = "ready", put the final ids in "selected", and let "reply" say you are pulling them in now. Never set "ready" off your own guess; they have to say so.
@@ -162,8 +212,9 @@ How to behave:${shelfBehaviour}
 - If they agree AND add something in the same breath ("כן, אבל תוסיף גם…"), that is a change: confirm the new combined set once, then go on their next agreement.
 - Honour counts and ordering. "the last call" means the single most recent type:call. "the two 2026 quarterly reports" means exactly those two, not every report.
 - Read quarters and years out of the titles (Q1, Q2, רבעון ראשון, רבעון שני, and so on).
-- THE PERIOD A REPORT COVERS IS IN ITS TITLE. THE "date:" FIELD IS WHEN IT WAS PUBLISHED, WHICH IS LATER — usually the following year for an annual report. So when the analyst asks for a year, MATCH THE TITLE: "הדוח השנתי לשנת 2024" is the file titled "דוח תקופתי ושנתי לשנת 2024" (published 2025-03-30), NOT the one dated 2024-03-31, which is titled "לשנת 2023" and is the previous year's report. Observed twice on 2026-08-06 — once selecting the 2023 file for a 2024 request, once naming the wrong publication date for the right file. Both are the same mistake: reading the date field as the period.
-- If you mention a date at all, copy the "date:" field exactly. Never state a date you inferred. Saying a report was published on a day it was not is telling the analyst something untrue about a file you are about to pull, and it is better to name no date than a wrong one.
+- THE PERIOD A REPORT COVERS IS IN ITS TITLE, never in its date. So when the analyst asks for a year, MATCH THE TITLE: "הדוח השנתי לשנת 2024" is the file titled "דוח תקופתי ושנתי לשנת 2024", NOT one whose date happens to fall in 2024 — an annual report is filed the FOLLOWING year, so its date and its period never agree. Observed twice on 2026-08-06 — once selecting the 2023 file for a 2024 request, once naming the wrong publication date for the right file. Both are the same mistake: reading a date as the period.
+- THE TWO DATE LABELS MEAN DIFFERENT THINGS, and only one of them is a publication date. "published:" is the real filing date, from MAYA. "added to Atlas:" is when ATLAS took the file in — often years after it was published, sometimes today. NEVER present an "added to Atlas:" date as when something was published, released or filed; for those files, name no date at all unless the analyst asked when Atlas got it. Saying a 2020 annual report was published this afternoon is telling the analyst something untrue about a file you are about to hand them.
+- If you mention a date at all, copy the field exactly. Never state a date you inferred. It is better to name no date than a wrong one.
 - If something they asked for is not in the list, say so plainly and carry on with the rest.
 - Use ONLY ids from the list above. Never invent a file.
 - NEVER write an id inside "reply". The analyst must never see one. Refer to a file by its title and date, the way you would say it out loud.

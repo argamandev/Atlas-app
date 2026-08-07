@@ -191,6 +191,79 @@ export function isBareAgreement(text: string): boolean {
  * Order: the agreed proposal first, in the order it was confirmed, then anything
  * newly added — so the shelf reads in the order the conversation built it.
  */
+/**
+ * Words that make a message a CHANGE however many yes-words sit beside it.
+ *
+ * Only used by `agreedToStandingSet` below, which is already guarded by an exact
+ * set comparison — this is the belt to that braces. "yes, but not the call" is
+ * the shape it exists for.
+ */
+const NEGATION = new Set([
+  'לא',
+  'בלי',
+  'חוץ',
+  'במקום',
+  'אבל',
+  'רק',
+  'no',
+  'not',
+  'without',
+  'except',
+  'instead',
+  'but',
+  'only',
+  'just',
+])
+
+/**
+ * The analyst agreed, and the model asked them again anyway.
+ *
+ * FOUNDER, 2026-08-07: *"adding a document doesn't actually work"*. The full
+ * chain, reproduced: they ask for a call, the model finds two with the same
+ * title and asks which — a good question — and they answer *"כן, תביא את
+ * שתיהן"*. That is an agreement, but not a BARE one: `שתיהן` ("both of them")
+ * is not in the filler vocabulary and cannot safely be added to it, because the
+ * same word is a NARROWING when three files are on the table. So the turn takes
+ * the model path, and the model replied *"אז אני מביא לך את שתי השיחות…"* —
+ * "so I'm bringing you both" — with `status: "clarifying"`. Nothing was pulled.
+ * The analyst is told the files are coming, and waits for files that are not.
+ *
+ * The model's `selected` was RIGHT; only its status was wrong. So this does not
+ * try to widen the vocabulary or to re-read the sentence. It asks a narrower
+ * question that has a certain answer: did the analyst say a yes-word, and did
+ * the model come back with EXACTLY the set already on the table? If so there is
+ * nothing left to confirm — the prompt's own "NEVER ASK THE SAME CONFIRMATION
+ * TWICE" applies, and this is that rule moved into the code, where this file's
+ * header says the rules that matter live.
+ *
+ * A change is safe by construction: "כן, אבל בלי השיחה" makes the model return
+ * a DIFFERENT set, the comparison fails, and the conversation carries on.
+ */
+export function agreedToStandingSet(
+  latestUserMessage: string,
+  status: 'ready' | 'clarifying',
+  proposal: string[],
+  selected: string[]
+): boolean {
+  if (status === 'ready') return false
+  if (proposal.length === 0) return false
+
+  const words = latestUserMessage.trim().toLowerCase().split(SEPARATORS).filter(Boolean)
+  if (words.length === 0) return false
+  if (words.some((w) => NEGATION.has(w))) return false
+  if (!words.some((w) => AGREE_SET.has(w))) return false
+
+  // EXACTLY the standing set — not a superset, not a subset. Anything else is
+  // the model re-shaping the proposal, which is a thing the analyst still has
+  // to see and agree to.
+  // Arrays, not Set iteration: the tsconfig target predates downlevel iteration
+  // over a Set, and that only surfaces at typecheck.
+  const a = Array.from(new Set(proposal))
+  const b = new Set(selected)
+  if (a.length !== b.size) return false
+  return a.every((id) => b.has(id))
+}
+
 export function reconcileSelection(proposal: string[], selected: string[], removed: string[] = []): string[] {
   const drop = new Set(removed)
   const out: string[] = []

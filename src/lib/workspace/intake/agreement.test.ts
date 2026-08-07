@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isBareAgreement, reconcileSelection, resolveSelection } from './agreement'
+import { isBareAgreement, reconcileSelection, resolveSelection, agreedToStandingSet } from './agreement'
 
 // ── the yes ──────────────────────────────────────────────────────────────────
 // THE EXACT MESSAGE THAT LOOPED. Founder, 2026-08-04: he answered a confirmation
@@ -152,4 +152,70 @@ test('with no standing proposal, resolveSelection is just the model selection', 
   assert.deepEqual(resolveSelection('clarifying', [], ['q1', 'q2']), ['q1', 'q2'])
   assert.deepEqual(resolveSelection('ready', [], ['q1', 'q2']), ['q1', 'q2'])
   assert.deepEqual(resolveSelection('clarifying', [], []), [])
+})
+
+// ── the yes that was not BARE ────────────────────────────────────────────────
+// FOUNDER, 2026-08-07: "adding a document doesn't actually work". Reproduced end
+// to end. Two calls share a title, the model asks which, the analyst answers
+// "כן, תביא את שתיהן" — an agreement, but `שתיהן` ("both of them") is a quantity
+// and quantities cannot join the filler vocabulary: the same word NARROWS when
+// three files are on the table. So the turn went to the model, which replied
+// "אז אני מביא לך את שתי השיחות…" at status `clarifying`. Nothing was pulled and
+// the analyst was told the files were coming.
+//
+// The model's SET was right; only its status was wrong. Hence a narrower
+// question with a certain answer, asked in code.
+
+test('a yes-word plus the model re-proposing the SAME set means the analyst already agreed', () => {
+  assert.equal(agreedToStandingSet('כן, תביא את שתיהן', 'clarifying', ['c1', 'c2'], ['c1', 'c2']), true)
+  // order must not matter, and neither must duplicates in the proposal
+  assert.equal(agreedToStandingSet('yes, both', 'clarifying', ['c1', 'c2', 'c1'], ['c2', 'c1']), true)
+})
+
+test('a change is never promoted, because the model returns a different set', () => {
+  // "yes, but drop the call" — the model reflects it in `selected`
+  assert.equal(agreedToStandingSet('כן, תביא את שתיהן', 'clarifying', ['c1', 'c2'], ['c1']), false)
+  // a superset is a re-shape the analyst has not seen agreed either
+  assert.equal(agreedToStandingSet('yes', 'clarifying', ['c1'], ['c1', 'c2']), false)
+})
+
+test('an explicit negative blocks promotion even when the sets happen to match', () => {
+  for (const msg of ['לא, תביא רק את הראשונה', 'yes but not that one', 'כן אבל בלי השיחה', 'no']) {
+    assert.equal(
+      agreedToStandingSet(msg, 'clarifying', ['c1', 'c2'], ['c1', 'c2']),
+      false,
+      `"${msg}" must not be read as agreement`
+    )
+  }
+})
+
+test('a message with no yes-word at all is not agreement', () => {
+  assert.equal(agreedToStandingSet('מה יש לך על תיגבור?', 'clarifying', ['c1'], ['c1']), false)
+  assert.equal(agreedToStandingSet('', 'clarifying', ['c1'], ['c1']), false)
+})
+
+// `תביא` ("bring") is in the agreement vocabulary, because "כן, תביא" is the
+// commonest yes there is. That makes a FRESH REQUEST like "תביא לי את הדוחות של
+// 2025" pass the word check — and the set comparison is what stops it, not the
+// vocabulary. Worth a test of its own, since the guard is the whole safety
+// argument for accepting a non-bare message at all.
+test('a fresh request containing a yes-word is stopped by the set comparison, not the words', () => {
+  const askAgain = 'תביא לי את הדוחות של 2025'
+  // the model answers it with different files — no promotion
+  assert.equal(agreedToStandingSet(askAgain, 'clarifying', ['c1', 'c2'], ['r1', 'r2']), false)
+  // and if the model comes back with EXACTLY what was already on the table,
+  // pulling it is what the sentence asked for anyway
+  assert.equal(agreedToStandingSet(askAgain, 'clarifying', ['r1'], ['r1']), true)
+})
+
+test('nothing is promoted when there was no standing proposal, or it is already ready', () => {
+  assert.equal(agreedToStandingSet('כן', 'clarifying', [], []), false)
+  assert.equal(agreedToStandingSet('כן', 'ready', ['c1'], ['c1']), false)
+})
+
+// The bare path still owns the common case and must not have been widened.
+test('the bare-agreement vocabulary was NOT loosened to fix this', () => {
+  assert.equal(isBareAgreement('כן'), true)
+  assert.equal(isBareAgreement('כן, תביא את שתיהן'), false, 'a quantity must still take the model path')
+  assert.equal(isBareAgreement('yes, both'), false)
 })

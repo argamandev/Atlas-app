@@ -13,7 +13,7 @@ import {
   orderBySelection,
   SELECTION_CANDIDATE_CAP,
 } from '@/lib/workspace/intake/selectSources'
-import { isBareAgreement, resolveSelection } from '@/lib/workspace/intake/agreement'
+import { isBareAgreement, resolveSelection, agreedToStandingSet } from '@/lib/workspace/intake/agreement'
 import type { IntakeTurn, ProposedRemote } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
 import { resolveIssuer } from '@/lib/maya/issuers'
@@ -326,11 +326,34 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // re-typed; while clarifying a NAMED-BUT-UNRETURNED set survives, which is
       // what stopped three agreed files arriving as one. Only an explicit
       // `removed`, or a deliberate re-shape mid-conversation, takes one out.
-      const ids = resolveSelection(selection.status, proposal, selection.selectedIds, selection.removedIds)
+      // THE ANALYST ALREADY SAID YES, AND THE MODEL ASKED AGAIN.
+      //
+      // `isBareAgreement` above catches a plain "כן" before a model is called at
+      // all. It cannot catch "כן, תביא את שתיהן" — `שתיהן` is a quantity, and a
+      // quantity is a NARROWING when the table holds three. So that turn reaches
+      // the model, and on 2026-08-07 the model answered "אז אני מביא לך את שתי
+      // השיחות…" — "so I'm bringing you both" — at status `clarifying`, which
+      // pulls nothing. The founder's report was simply "adding a document
+      // doesn't actually work", and from where he sat that is exactly what it
+      // was: Atlas said the files were coming and no file ever came.
+      //
+      // Promoted here rather than argued with in the prompt, because the model's
+      // SET was already right and only its status was wrong — and because the
+      // prompt has told it not to re-confirm since 2026-08-04 and it does anyway.
+      const status = agreedToStandingSet(
+        latest?.role === 'user' ? latest.content : '',
+        selection.status,
+        proposal,
+        selection.selectedIds
+      )
+        ? ('ready' as const)
+        : selection.status
+
+      const ids = resolveSelection(status, proposal, selection.selectedIds, selection.removedIds)
       const { selected } = orderBySelection(candidates, ids)
       return json({
         reply: selection.reply,
-        status: selection.status,
+        status,
         selected,
         fallback: null,
         // Carried even alongside a good reply: the model answered from a
