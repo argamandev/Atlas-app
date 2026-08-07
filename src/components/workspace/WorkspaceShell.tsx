@@ -30,14 +30,16 @@ import {
   type DraftBlock,
 } from '@/lib/workspace/blocks'
 import { addBlockReq, deleteBlockReq, fetchWorkspace, patchBlockReq } from '@/lib/workspace/client'
-import { documentTitle } from '@/lib/workspace/present'
+import { documentTitle, removeItemLines } from '@/lib/workspace/present'
 import { detectDir } from '@/lib/utils'
-import { composeReq, patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
+import { composeReq, deleteItemReq, patchItemReq, patchWorkspaceReq } from '@/lib/workspace/client'
+import { ConfirmDialog } from './ConfirmDialog'
 import { usePlayer } from '@/lib/player/PlayerProvider'
 import { addPane, initialPanes, MAX_PANES, shownPanes } from '@/lib/workspace/panes'
 import { clipDerivedHtml, clipFigureHtml, quoteBlockHtml } from '@/lib/workspace/clip'
 import { WorkspaceIntake } from './WorkspaceIntake'
 import { WorkspaceChat, type AskContext } from './WorkspaceChat'
+import { deriveThreadTitle, type StoredMsg } from '@/lib/workspace/thread'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { appendSnip } from '@/lib/documents/snip'
 import type { ChatSnip } from '@/lib/api/chat'
@@ -64,10 +66,13 @@ const CHAT_TAB = '__chat'
 export function WorkspaceShell({
   workspace,
   blocks: initialBlocks = [],
+  conversation = [],
 }: {
   workspace: Workspace
   /** the working document as the server read it — see the block engine below */
   blocks?: WorkspaceBlockRow[]
+  /** the saved conversation, read on the server with everything else */
+  conversation?: StoredMsg[]
 }) {
   const { dict } = useI18n()
   const router = useRouter()
@@ -880,7 +885,16 @@ export function WorkspaceShell({
     setSplit(next)
   }, [split, openTabs, activeTab])
 
-  const closeTab = useCallback(
+  /**
+   * Take a tab off the screen, WITHOUT telling the server anything.
+   *
+   * Split out from `closeTab` for the one caller that must not write: removing a
+   * source deletes its row, and `persistOpen` would then PATCH an id that no
+   * longer exists — a guaranteed 404 landing in `layoutError`, i.e. a real error
+   * banner about a layout that is in fact perfectly fine. Closing and removing
+   * look the same on screen and are opposite in what they mean to the database.
+   */
+  const dropTab = useCallback(
     (id: string) => {
       // NO setState INSIDE A setState UPDATER — this file's own rule, four
       // hundred lines up, and this was the one place still breaking it. React 18
@@ -891,10 +905,80 @@ export function WorkspaceShell({
       setOpenTabs(next)
       setActiveTab((a) => (a === id ? (next[next.length - 1] ?? '') : a))
       setMulti((m) => m.filter((x) => x !== id))
+    },
+    [openTabs]
+  )
+
+  const closeTab = useCallback(
+    (id: string) => {
+      dropTab(id)
       persistOpen(id, false)
     },
-    [openTabs, persistOpen]
+    [dropTab, persistOpen]
   )
+
+  /**
+   * Take a source OFF THE SHELF.
+   *
+   * The confirmation lives here rather than in the panel that owns the button,
+   * because the sentence it has to show first is counted from `docBlocks` — how
+   * many citations are about to lose their anchor. `.claude/rules/db.md` binds
+   * every delete affordance to stating what it destroys BEFORE destroying it,
+   * and this is the number that makes the statement worth reading: `deleteItem`
+   * releases the key and LEAVES the sentences standing, which is good behaviour
+   * nobody would guess from a bare "are you sure".
+   */
+  /**
+   * The workspace's one conversation, as the PANEL needs to describe it.
+   *
+   * Seeded from the server's copy and then kept current by the chat itself —
+   * `useState(initial)` runs its initialiser once, so a `router.refresh()` will
+   * not update this, and the chat reporting upward is what makes the Chats
+   * section agree with the panel beside it rather than with the last page load.
+   */
+  const [chatSummary, setChatSummary] = useState(() => ({
+    count: conversation.length,
+    title: deriveThreadTitle(conversation),
+  }))
+
+  const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null)
+  const [removePending, setRemovePending] = useState(false)
+  const [removeError, setRemoveError] = useState<unknown>(null)
+
+  const citationsOf = (itemId: string) => docBlocks.filter((b) => b.source_item_id === itemId).length
+
+  const removeFile = useCallback(async () => {
+    const target = removing
+    if (!target || removePending) return
+    setRemovePending(true)
+    setRemoveError(null)
+    try {
+      await deleteItemReq(workspace.id, target.id)
+
+      // The database has already nulled the anchors (`on delete set null
+      // (source_item_id)`, migration 016). Mirroring it here rather than waiting
+      // for the refresh is what makes those citations render as ABSENT in the
+      // same frame the source disappears — otherwise the document keeps drawing
+      // live links to a shelf item that is gone.
+      setDocBlocks((rows) =>
+        rows.map((b) => (b.source_item_id === target.id ? { ...b, source_item_id: null } : b))
+      )
+      // Not `closeTab`: the row is gone, so there is nothing left to PATCH.
+      dropTab(target.id)
+      // Forget it, so adding the same filing back counts as an ARRIVAL and opens
+      // itself. Without this, re-adding a removed source would write the row and
+      // show nothing — the exact defect the `seen` ref above was built for.
+      seen.current?.delete(target.id)
+      setRemoving(null)
+      router.refresh()
+    } catch (e) {
+      // The dialog stays open and says why. A silently-failed removal with the
+      // file still on the shelf is indistinguishable from a dead button.
+      setRemoveError(e)
+    } finally {
+      setRemovePending(false)
+    }
+  }, [removing, removePending, workspace.id, dropTab, router])
 
   // '' is a real stored title — a document nobody has named yet — so the label
   // is derived at every display site rather than substituted into the fact.
@@ -909,7 +993,10 @@ export function WorkspaceShell({
     { key: 'files', label: dict.workspace.sectionFiles, count: workspace.files.length },
     { key: 'agents', label: dict.workspace.sectionAgents, count: workspace.agents.length },
     { key: 'actions', label: dict.workspace.sectionActions, count: workspace.actions.length },
-    { key: 'chats', label: dict.workspace.sectionChats, count: 0 },
+    // ONE conversation or none — v1 keeps exactly one per workspace
+    // (lib/workspace/thread.ts). This was a hardcoded 0 for as long as nothing
+    // persisted, which was true then and stopped being true on 2026-08-07.
+    { key: 'chats', label: dict.workspace.sectionChats, count: chatSummary.count > 0 ? 1 : 0 },
   ]
 
   const iconBtn =
@@ -973,6 +1060,14 @@ export function WorkspaceShell({
                 onBack={() => setDetail(null)}
                 onOpenFile={openTab}
                 onCloseFile={closeTab}
+                onRemoveFile={(id) => {
+                  const f = workspace.files.find((x) => x.id === id)
+                  if (!f) return
+                  setRemoveError(null)
+                  setRemoving({ id, name: f.name })
+                }}
+                chat={chatSummary}
+                onOpenChat={() => setChatOpen(true)}
               />
             ) : (
               <>
@@ -1225,6 +1320,8 @@ export function WorkspaceShell({
             <div className="min-h-0 flex-1">
               <WorkspaceChat
                 workspaceId={workspace.id}
+                initialMessages={conversation}
+                onConversationChange={setChatSummary}
                 seed={askSeed}
                 onClearSeed={() => setAskSeed(null)}
                 // The chat never attaches a file. It hands the request to the
@@ -1580,6 +1677,22 @@ export function WorkspaceShell({
             </div>
           </div>
         </div>
+      )}
+
+      {removing && (
+        <ConfirmDialog
+          title={dict.workspace.removeFileTitle}
+          titleValue={removing.name}
+          lines={removeItemLines(citationsOf(removing.id), dict)}
+          confirmLabel={dict.workspace.confirmRemove}
+          pending={removePending}
+          error={removeError}
+          onConfirm={() => void removeFile()}
+          onCancel={() => {
+            setRemoving(null)
+            setRemoveError(null)
+          }}
+        />
       )}
     </div>
   )

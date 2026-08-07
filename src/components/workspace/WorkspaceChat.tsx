@@ -7,7 +7,8 @@ import { ThinkingDots } from '@/components/chat/ThinkingDots'
 import { Markdown } from '@/components/chat/Markdown'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { CloseIcon, ArrowUpIcon, QuoteIcon, MicIcon, ScissorsIcon } from '@/components/ds/icons'
-import { workspaceChatReq } from '@/lib/workspace/client'
+import { workspaceChatReq, saveThreadReq } from '@/lib/workspace/client'
+import { deriveThreadTitle, type StoredMsg } from '@/lib/workspace/thread'
 import { detectDir } from '@/lib/utils'
 import type { ChatSnip } from '@/lib/api/chat'
 import type { ChatTurn } from '@/lib/workspace/chat/prompt'
@@ -33,6 +34,42 @@ import type { ChatTurn } from '@/lib/workspace/chat/prompt'
 
 export type AskContext = { itemId: string; title: string; text: string }
 
+/**
+ * On-screen turn -> stored turn, and back.
+ *
+ * The asymmetry is the clippings, and it is the whole reason these two are
+ * written out rather than being a cast. Going OUT, a live `snips` array becomes
+ * a list of page numbers — the images do not go into the database
+ * (lib/workspace/thread.ts). Coming BACK, those page numbers land in `snipPages`
+ * and never in `snips`, so the renderer can tell a picture it can show from one
+ * it can only describe.
+ */
+function toStored(m: Msg): StoredMsg {
+  const out: StoredMsg = { role: m.role, content: m.content }
+  if (m.reference) out.reference = m.reference
+  if (m.referenceTitle) out.referenceTitle = m.referenceTitle
+  if (m.caveat?.length) out.caveat = m.caveat
+  // Either source of pages, because a turn may be live (snips) or already
+  // restored (snipPages) by the time the next save sweeps the whole array.
+  const pages = m.snips?.map((s) => s.page) ?? m.snipPages
+  if (pages?.length) out.snipPages = pages
+  return out
+}
+
+function fromStored(m: StoredMsg): Msg {
+  return {
+    role: m.role,
+    content: m.content,
+    ...(m.reference ? { reference: m.reference } : {}),
+    ...(m.referenceTitle ? { referenceTitle: m.referenceTitle } : {}),
+    ...(m.caveat?.length ? { caveat: m.caveat } : {}),
+    ...(m.snipPages?.length ? { snipPages: m.snipPages } : {}),
+    // NEVER `revealing`. The word-by-word entrance is for an answer arriving
+    // now; replaying it on every reload would animate a conversation the user
+    // has already read.
+  }
+}
+
 type Msg = {
   role: 'user' | 'assistant'
   content: string
@@ -41,6 +78,13 @@ type Msg = {
   referenceTitle?: string
   /** the clippings that went with it — what Atlas actually saw stays visible */
   snips?: ChatSnip[]
+  /**
+   * The pages clippings were cut from, on a turn RESTORED from the database.
+   * The images are not stored (lib/workspace/thread.ts explains why), so a
+   * reloaded turn that had clippings says so in words instead of pretending it
+   * never had any. Live turns carry `snips` and never this.
+   */
+  snipPages?: number[]
   /** files the answer could see only part of, or not at all */
   caveat?: string[]
   revealing?: boolean
@@ -48,6 +92,8 @@ type Msg = {
 
 export function WorkspaceChat({
   workspaceId,
+  initialMessages = [],
+  onConversationChange,
   seed,
   onClearSeed,
   onRequestDocuments,
@@ -60,6 +106,22 @@ export function WorkspaceChat({
   snipCapped = false,
 }: {
   workspaceId: string
+  /**
+   * The saved conversation, read on the SERVER with the rest of the room. A
+   * prop rather than a fetch here: this panel is unmounted while the chat is
+   * closed, so a fetch-on-mount would put a loading frame in front of history
+   * every time the user reopened it — and would arrive after the first paint,
+   * which is the cold-open the warm read exists to prevent.
+   */
+  initialMessages?: StoredMsg[]
+  /**
+   * Report the conversation upward as it grows, so the panel's Chats section
+   * counts what is actually there. Without it that section reads the SERVER's
+   * copy and keeps saying "nothing has been asked yet" through a conversation
+   * happening beside it — untrue the moment the first question lands, and only
+   * corrected by a reload.
+   */
+  onConversationChange?: (summary: { count: number; title: string }) => void
   /** a marked passage, when this was opened by Ask Atlas */
   seed?: AskContext | null
   onClearSeed?: () => void
@@ -86,10 +148,12 @@ export function WorkspaceChat({
 }) {
   const { dict } = useI18n()
 
-  const [messages, setMessages] = useState<Msg[]>([])
+  const [messages, setMessages] = useState<Msg[]>(() => initialMessages.map(fromStored))
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<unknown>(null)
+  /** a conversation that could not be written — said out loud, never swallowed */
+  const [saveError, setSaveError] = useState<unknown>(null)
 
   /** the pending reference shown above the composer */
   const [ref, setRef] = useState<AskContext | null>(null)
@@ -124,6 +188,40 @@ export function WorkspaceChat({
       y: Math.max(rect.top - box.top + host.scrollTop - 8, 8),
     })
   }, [onConnect])
+
+  /**
+   * Write the conversation, ONE AT A TIME.
+   *
+   * The PUT replaces the whole array, so two in flight together would be a
+   * lost update: the older request can land second and reinstate a
+   * conversation missing the newest turn. The chain is the same device the
+   * working document uses for its block saves, and for the same reason —
+   * serialising is what makes "what is on screen is what is stored" true rather
+   * than usually true.
+   *
+   * The messages are read from a REF, not from the closure. A save queued
+   * behind another must write the conversation as it stands when its turn
+   * comes, not as it stood when it was queued.
+   */
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+  const saveChain = useRef<Promise<unknown>>(Promise.resolve())
+
+  const saveConversation = useCallback(() => {
+    saveChain.current = saveChain.current
+      .catch(() => {})
+      .then(async () => {
+        try {
+          await saveThreadReq(workspaceId, messagesRef.current.map(toStored))
+          setSaveError(null)
+        } catch (e) {
+          // RENDERED, never swallowed. A conversation the user believes is
+          // saved and is not would only be discovered on the reload that lost
+          // it — the exact failure this feature was built to end.
+          setSaveError(e)
+        }
+      })
+  }, [workspaceId])
 
   const scrollToEnd = useCallback(() => {
     const el = scrollRef.current
@@ -198,6 +296,37 @@ export function WorkspaceChat({
     }
   }
 
+  /**
+   * Every turn is written, from an EFFECT rather than from `send`.
+   *
+   * `setMessages` schedules; it does not update. Calling the save at the end of
+   * `send` would read a `messagesRef` that React has not refreshed yet and store
+   * the conversation one turn short — the same "state set through React is not
+   * state you have yet" trap `.claude/rules/app.md` files against the audio
+   * element. An effect runs after the commit, so what it reads is what the user
+   * can see.
+   *
+   * BOTH TURNS REACH IT, including the one whose answer failed: the question was
+   * genuinely asked, and a failed model call is exactly when someone closes the
+   * tab. Losing what they typed on top of not getting an answer is the worse
+   * half of the same bad minute.
+   *
+   * `lastSaved` starts at the SERVER'S count, so opening a workspace does not
+   * immediately write back the conversation it was just handed.
+   */
+  const lastSaved = useRef(initialMessages.length)
+  useEffect(() => {
+    if (messages.length === lastSaved.current) return
+    lastSaved.current = messages.length
+    saveConversation()
+    // Told from the same place, so the panel's count and the stored row can
+    // never disagree about how many turns there are.
+    onConversationChange?.({
+      count: messages.length,
+      title: deriveThreadTitle(messages.map(toStored)),
+    })
+  }, [messages, saveConversation, onConversationChange])
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div
@@ -266,6 +395,26 @@ export function WorkspaceChat({
                       className="h-20 w-auto max-w-[170px] rounded-[8px] border border-hairline bg-white object-contain"
                     />
                   ))}
+                </div>
+              )}
+              {/* A RESTORED CLIPPING, whose image is not stored. Said in words
+                  rather than rendered as nothing: a turn that silently lost its
+                  attachment reads as a question that never had one, and the
+                  answer above it then looks like it came from thin air. See
+                  lib/workspace/thread.ts for why the pixels do not go in the
+                  row. Only ever one of these two branches — a live turn carries
+                  `snips`, a reloaded one carries `snipPages`. */}
+              {!m.snips?.length && m.snipPages && m.snipPages.length > 0 && (
+                <div
+                  dir="auto"
+                  className="ml-auto max-w-[92%] rounded-[8px] border border-dashed border-hairline px-3 py-1.5 text-[11px] text-ink-ghost"
+                >
+                  <bdi>
+                    {(m.snipPages.length === 1
+                      ? dict.workspace.clipNotKept
+                      : dict.workspace.clipsNotKept.replace('{n}', String(m.snipPages.length))
+                    ).replace('{pages}', m.snipPages.join(', '))}
+                  </bdi>
                 </div>
               )}
               {m.reference && (
@@ -339,6 +488,23 @@ export function WorkspaceChat({
             <ErrorLine
               template={dict.workspace.chatFailed}
               error={error}
+              auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+            />
+          </div>
+        )}
+
+        {/* A SEPARATE BANNER FROM THE ONE ABOVE, because they are separate
+            facts: that one says the answer failed, this one says the record of
+            it will not survive a reload. Showing only the first would leave the
+            second to be discovered by losing the conversation. */}
+        {saveError !== null && (
+          <div
+            role="alert"
+            className="rounded-[10px] border border-hairline bg-paper px-3 py-2 text-[12.5px] text-ink"
+          >
+            <ErrorLine
+              template={dict.workspace.chatSaveFailed}
+              error={saveError}
               auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
             />
           </div>

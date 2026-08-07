@@ -1,7 +1,7 @@
 'use client'
 
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { ChevronLeftIcon, PlusIcon, CloseIcon } from '@/components/ds/icons'
+import { ChevronLeftIcon, PlusIcon, CloseIcon, TrashIcon } from '@/components/ds/icons'
 import { type Workspace, type WsFileKind } from '@/lib/workspace/data'
 
 // Detail column (design lines 1566-1702): slides out inside the panel with one of
@@ -47,6 +47,9 @@ export function WorkspaceDetailColumn({
   onBack,
   onOpenFile,
   onCloseFile,
+  onRemoveFile,
+  chat,
+  onOpenChat,
 }: {
   workspace: Workspace
   which: DetailKey
@@ -54,6 +57,17 @@ export function WorkspaceDetailColumn({
   onBack: () => void
   onOpenFile: (id: string) => void
   onCloseFile: (id: string) => void
+  /**
+   * Take the source OFF THE SHELF — a different verb from `onCloseFile`, which
+   * only closes its tab. Reporting intent rather than doing it: the shell owns
+   * the confirmation, because the sentence it has to show first ("N citations
+   * lose their source") is counted from the document's blocks, which live there.
+   */
+  onRemoveFile: (id: string) => void
+  /** the workspace's one saved conversation — `count: 0` means none yet */
+  chat: { count: number; title: string }
+  /** open the chat panel on the saved conversation */
+  onOpenChat: () => void
 }) {
   const { dict } = useI18n()
 
@@ -66,7 +80,7 @@ export function WorkspaceDetailColumn({
   const counts: Record<DetailKey, number> = {
     files: workspace.files.length,
     agents: workspace.agents.length,
-    chats: 0,
+    chats: chat.count > 0 ? 1 : 0,
     actions: workspace.actions.length,
   }
 
@@ -96,7 +110,7 @@ export function WorkspaceDetailColumn({
               return (
                 <div
                   key={f.id}
-                  className="flex items-center gap-2.5 rounded-[9px] px-2 py-2 hover:bg-subtle/60"
+                  className="group flex items-center gap-2.5 rounded-[9px] px-2 py-2 hover:bg-subtle/60"
                 >
                   <span
                     dir="ltr"
@@ -122,6 +136,21 @@ export function WorkspaceDetailColumn({
                         {[f.year, k.meta].filter(Boolean).join(' · ')}
                       </div>
                     )}
+                  </button>
+                  {/* REMOVE, beside CLOSE, and they are not the same act: this
+                      one takes the source off the shelf for good, the ✕ next to
+                      it only closes its tab. Hidden until the row is hovered so
+                      the list stays calm, and always present where there is no
+                      hover — an invisible-but-tappable delete would be worse
+                      than a visible one. */}
+                  <button
+                    type="button"
+                    onClick={() => onRemoveFile(f.id)}
+                    title={dict.workspace.removeFile}
+                    aria-label={`${dict.workspace.removeFile} — ${f.name}`}
+                    className="flex h-6 w-6 flex-none items-center justify-center rounded text-ink-ghost opacity-0 transition-opacity hover:bg-subtle hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                  >
+                    <TrashIcon size={13} strokeWidth={1.9} />
                   </button>
                   {isOpen ? (
                     <button
@@ -155,9 +184,36 @@ export function WorkspaceDetailColumn({
             so instead of showing a blank column. */}
         {which === 'agents' && <NothingYet text={dict.workspace.agentsEmpty} />}
 
-        {/* Five invented threads stood here. The real ones will come from
-            `workspace_threads` (migration 016), which nothing writes to yet. */}
-        {which === 'chats' && <NothingYet text={dict.workspace.chatsEmpty} />}
+        {/* Five invented threads stood here, then an empty state saying nothing
+            was kept. Since 2026-08-07 `workspace_threads` is actually written,
+            and v1 keeps exactly ONE conversation per workspace — so this is a
+            list of one or of none, never a thread switcher. */}
+        {which === 'chats' &&
+          (chat.count === 0 ? (
+            <NothingYet text={dict.workspace.chatsEmpty} />
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenChat}
+              className="flex w-full flex-col gap-0.5 rounded-[9px] px-2 py-2 text-start hover:bg-subtle/60"
+            >
+              {/* <bdi>, not dir: the title is the user's opening question and
+                  the count beside it is Latin digits — the mixed line
+                  .claude/rules/app.md keeps filing. An untitled conversation
+                  falls back to the section's own name rather than rendering an
+                  empty row. */}
+              <span className="truncate text-[12.5px] text-ink">
+                <bdi>{chat.title || dict.workspace.sectionChats}</bdi>
+              </span>
+              <span className="text-[11px] text-ink-ghost">
+                <bdi>
+                  {chat.count === 1
+                    ? dict.workspace.chatMessageOne
+                    : dict.workspace.chatMessages.replace('{n}', String(chat.count))}
+                </bdi>
+              </span>
+            </button>
+          ))}
 
         {/* The invented sessions are gone with their timestamps. A workspace
             carries `actions` in its shape and nothing fills it, so this is

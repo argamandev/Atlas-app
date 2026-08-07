@@ -21,6 +21,7 @@ export const he: Dictionary = {
     copied: 'הועתק',
     share: 'שיתוף',
     retry: 'נסה שוב',
+    working: 'רגע…',
     error: 'משהו השתבש',
     empty: 'אין כאן עדיין כלום',
     comingSoon: 'בקרוב',
@@ -238,8 +239,35 @@ export const he: Dictionary = {
     clipBack: 'חזרה',
     // שלושת המקטעים שאין להם עדיין צד שרת — במקום סוכנים, שיחות ופעילות מומצאים.
     agentsEmpty: 'אף סוכן עוד לא רץ בסביבת העבודה הזו. הסוכנים עוד לא מחוברים.',
-    chatsEmpty: 'שיחות שמורות יופיעו כאן. שיחות עם אטלס עדיין לא נשמרות.',
+    // היה "שיחות עם אטלס עדיין לא נשמרות" — משפט שהפסיק להיות נכון ביום שהשיחה
+    // נשמרה. מצב ריק מתאר את מה שחסר עכשיו, ולכן הוא מתיישן ברגע שהיכולת נוחתת.
+    chatsEmpty: 'עוד לא נשאלה כאן שאלה. מרגע שתשאל, השיחה נשמרת.',
     actionsEmpty: 'עוד לא קרה כאן כלום. סביבת העבודה הזו עדיין לא שומרת יומן פעילות.',
+    chatMessages: '{n} הודעות',
+    chatMessageOne: 'הודעה אחת',
+    clipsNotKept: '{n} גזירות · עמוד {pages} — התמונות אינן נשמרות',
+    clipNotKept: 'גזירה אחת · עמוד {pages} — התמונה אינה נשמרת',
+    chatSaveFailed: 'לא ניתן היה לשמור את השיחה — {error}',
+
+    // ── אישורי מחיקה ─────────────────────────────────────────────────────
+    deleteWorkspace: 'מחיקת סביבת העבודה',
+    deleteWorkspaceTitle: 'למחוק את {name}?',
+    deleteWorkspaceIrreversible: 'אי אפשר לבטל את הפעולה.',
+    deleteCountFiles: '{n} מקורות על המדף',
+    deleteCountFileOne: 'מקור אחד על המדף',
+    deleteCountBlocks: '{n} פסקאות במסמך העבודה',
+    deleteCountBlockOne: 'פסקה אחת במסמך העבודה',
+    deleteCountThreads: '{n} שיחות שמורות',
+    deleteCountThreadOne: 'שיחה שמורה אחת',
+    deleteNothingInside: 'היא ריקה — לא שמור בתוכה דבר.',
+    confirmDelete: 'מחיקה',
+    removeFile: 'הסרה מסביבת העבודה',
+    removeFileTitle: 'להסיר את {name}?',
+    removeFileBody: 'הוא יורד מהמדף הזה. הקובץ עצמו נשאר באטלס, ואפשר להוסיף אותו שוב.',
+    removeFileCitations:
+      '{n} ציטוטים במסמך העבודה יאבדו את המקור שלהם. המשפטים נשארים, וכל אחד ממשיך להראות על מה הצביע.',
+    removeFileCitationOne: 'ציטוט אחד במסמך העבודה יאבד את המקור שלו. המשפט נשאר, וממשיך להראות על מה הצביע.',
+    confirmRemove: 'הסרה',
   },
   agents: {
     ready: 'מוכן כשאתם מוכנים.',

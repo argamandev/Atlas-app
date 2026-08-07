@@ -22,6 +22,8 @@ export const en = {
     copied: 'Copied',
     share: 'Share',
     retry: 'Retry',
+    /** A button's label while its request is in flight. */
+    working: 'Working…',
     error: 'Something went wrong',
     empty: 'Nothing here yet',
     comingSoon: 'Coming soon',
@@ -314,8 +316,44 @@ export const en = {
     // agents, threads and activity on 2026-08-06 — "not built" said plainly is
     // the honest state, and it is what the DemoBanner used to stand in for.
     agentsEmpty: 'No agent has run in this workspace. Agents are not wired up yet.',
-    chatsEmpty: 'Saved chats will appear here. Ask Atlas conversations are not kept yet.',
+    // WAS "Ask Atlas conversations are not kept yet", which stopped being true
+    // the day the conversation started persisting. An empty state describes what
+    // is missing NOW, so it goes stale the moment the feature lands.
+    chatsEmpty: 'Nothing has been asked in this workspace yet. Your conversation is saved once you do.',
     actionsEmpty: 'Nothing has happened here yet. This workspace does not keep an activity log yet.',
+    /** The one conversation a workspace keeps (v1), in the Chats list. */
+    chatMessages: '{n} messages',
+    chatMessageOne: '1 message',
+    // A clipping's image is not stored — thread.ts explains why. The turn still
+    // says what it was asked about, because a silent gap would read as a
+    // question that never had a picture attached.
+    clipsNotKept: '{n} clippings · page {pages} — the images are not kept',
+    clipNotKept: '1 clipping · page {pages} — the image is not kept',
+    chatSaveFailed: 'This conversation could not be saved — {error}',
+
+    // ── Destructive confirmations ─────────────────────────────────────────
+    // Every line states what will be destroyed BEFORE it is (rules/db.md).
+    deleteWorkspace: 'Delete workspace',
+    deleteWorkspaceTitle: 'Delete {name}?',
+    deleteWorkspaceIrreversible: 'This cannot be undone.',
+    deleteCountFiles: '{n} sources on the shelf',
+    deleteCountFileOne: '1 source on the shelf',
+    deleteCountBlocks: '{n} paragraphs in the working document',
+    deleteCountBlockOne: '1 paragraph in the working document',
+    deleteCountThreads: '{n} saved conversations',
+    deleteCountThreadOne: '1 saved conversation',
+    deleteNothingInside: 'It is empty — nothing is stored inside it.',
+    confirmDelete: 'Delete',
+    removeFile: 'Remove from workspace',
+    removeFileTitle: 'Remove {name}?',
+    // The file is shared corpus. Taking it off one shelf must not imply Atlas
+    // threw it away — it is still findable, and can be added again.
+    removeFileBody: 'It comes off this shelf. The file itself stays in Atlas, and you can add it back.',
+    removeFileCitations:
+      '{n} citations in your working document lose their source. The sentences stay, and each keeps showing what it pointed at.',
+    removeFileCitationOne:
+      '1 citation in your working document loses its source. The sentence stays, and keeps showing what it pointed at.',
+    confirmRemove: 'Remove',
   },
   agents: {
     ready: 'Ready when you are.',

@@ -494,10 +494,17 @@ export function WorkingDocument({
           </button>
         </div>
 
-        {/* NO "saved" confirmation here. Nothing saves — edits live in session
-            state and are gone on reload. A tick that says otherwise is the
-            fake-success class rules/app.md exists to stop. The banner at the top
-            of the page already states what is true about this document. */}
+        {/* STILL NO "saved" tick, for a reason that has now INVERTED.
+            It used to be that nothing saved: edits lived in session state and
+            were gone on reload, so a tick would have been the fake-success class
+            rules/app.md exists to stop, and the demo banner overhead carried the
+            caveat. Both of those are gone. Every edit is now written — debounced
+            700ms, flushed on blur and on unmount, serialised through the shell's
+            one chain — so the tick would be true, and it is left out because a
+            document that saves reliably should not need to keep announcing it.
+            What is NOT silent is failure: `docSaveError` renders in the header.
+            The distinction worth keeping: say nothing when it works, say
+            something when it does not. */}
 
         <div ref={exportRef} className="relative flex-none">
           <button

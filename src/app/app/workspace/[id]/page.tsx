@@ -3,7 +3,8 @@ import { AppPage } from '@/components/app/AppPage'
 import { WorkspaceRoute } from '@/components/workspace/WorkspaceRoute'
 import { createServerSupabase } from '@/lib/supabase'
 import { resolveUser } from '@/lib/auth/verifyUser'
-import { getWorkspaceFull, companyNamesByItem } from '@/lib/db/workspaces'
+import { getWorkspaceFull, companyNamesByItem, listThreads } from '@/lib/db/workspaces'
+import { readThreadMessages, type StoredMsg } from '@/lib/workspace/thread'
 import type { WorkspaceBlockRow, WorkspaceItemRow, WorkspaceRow } from '@/lib/workspace/data'
 
 export const dynamic = 'force-dynamic'
@@ -28,6 +29,7 @@ export default async function WorkspaceByIdRoute({ params }: { params: { id: str
   let items: WorkspaceItemRow[] = []
   let blocks: WorkspaceBlockRow[] = []
   let companies: Record<string, string> = {}
+  let conversation: StoredMsg[] = []
   let loadError: string | null = null
 
   if (user) {
@@ -42,6 +44,12 @@ export default async function WorkspaceByIdRoute({ params }: { params: { id: str
         // route, which is why a reload lost everything the analyst had written.
         blocks = full.blocks
         companies = await companyNamesByItem(supabase, full.items)
+        // AND THE CONVERSATION, for the same reason. Until 2026-08-07 the chat
+        // was the one part of this room that did not come back: the shelf, the
+        // panes, the document and its citations all reopened warm while the
+        // questions that produced them were gone. `listThreads` orders newest
+        // first and v1 keeps exactly one (see lib/workspace/thread.ts).
+        conversation = readThreadMessages((await listThreads(supabase, params.id))[0]?.messages)
       }
       // full === null means RLS made it NOT THERE — either it never existed or
       // it belongs to someone else. Both are "not found"; the component says so
@@ -57,6 +65,7 @@ export default async function WorkspaceByIdRoute({ params }: { params: { id: str
         workspace={workspace}
         items={items}
         blocks={blocks}
+        conversation={conversation}
         companies={companies}
         loadError={loadError}
         nowIso={new Date().toISOString()}

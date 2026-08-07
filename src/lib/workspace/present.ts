@@ -93,6 +93,60 @@ export function documentTitle(raw: string, dict: Dictionary): string {
   return raw.trim() || dict.workspace.untitledDocument
 }
 
+/**
+ * The sentences a delete confirmation says before it destroys anything.
+ *
+ * `.claude/rules/db.md` and countWorkspaceContents's own header make this an
+ * obligation rather than a courtesy, so the wording lives here — pure and
+ * tested — instead of inside a dialog where nothing can check it.
+ *
+ * A ZERO IS NOT LISTED. "0 saved conversations" is noise that pushes the two
+ * numbers that matter down the box, and a workspace with nothing in it should
+ * say that in one line rather than three. Every count is rendered with its own
+ * singular form: "1 sources on the shelf" is the kind of small wrongness that
+ * makes a reader trust the rest of the dialog less, and this one is asking for
+ * permission to destroy something.
+ */
+export function deleteWorkspaceLines(
+  counts: { items: number; threads: number; blocks: number },
+  dict: Dictionary
+): string[] {
+  const ws = dict.workspace
+  const line = (n: number, one: string, many: string) => (n === 1 ? one : many.replace('{n}', String(n)))
+
+  const parts: string[] = []
+  if (counts.items > 0) parts.push(line(counts.items, ws.deleteCountFileOne, ws.deleteCountFiles))
+  if (counts.blocks > 0) parts.push(line(counts.blocks, ws.deleteCountBlockOne, ws.deleteCountBlocks))
+  if (counts.threads > 0) parts.push(line(counts.threads, ws.deleteCountThreadOne, ws.deleteCountThreads))
+
+  // The irreversibility line is last and always present — it is the one sentence
+  // that is true whether or not anything is inside.
+  return parts.length > 0
+    ? [...parts, ws.deleteWorkspaceIrreversible]
+    : [ws.deleteNothingInside, ws.deleteWorkspaceIrreversible]
+}
+
+/**
+ * The sentences shown before a source comes off the shelf.
+ *
+ * Two facts, and the second only when it applies: the file survives in Atlas
+ * (removing it from one workspace is not a deletion, and a dialog that does not
+ * say so invites the user to assume the worst), and how many citations in the
+ * working document are about to lose their anchor. That second number is why
+ * this cannot be a bare "are you sure" — `deleteItem`'s key releases the source
+ * and LEAVES the sentences, which is good behaviour nobody would guess.
+ */
+export function removeItemLines(citationCount: number, dict: Dictionary): string[] {
+  const ws = dict.workspace
+  if (citationCount <= 0) return [ws.removeFileBody]
+  return [
+    ws.removeFileBody,
+    citationCount === 1
+      ? ws.removeFileCitationOne
+      : ws.removeFileCitations.replace('{n}', String(citationCount)),
+  ]
+}
+
 export function presentWorkspace(
   row: WorkspaceRow,
   items: WorkspaceItemRow[],

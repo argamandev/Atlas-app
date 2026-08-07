@@ -82,6 +82,50 @@ test('the workspace shell renders no demo banner, because nothing under it is de
   assert.ok(!/<DemoBanner\b/.test(shell), 'the workspace shell is showing a demo banner again')
 })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// THE BIDI RULE, AS A TEST — occurrence 5 of .claude/rules/app.md's <bdi> rule,
+// and the first one caught while it was still on screen rather than a day later.
+//
+// A confirmation heading is "Delete {name}?" with a name that is routinely
+// Hebrew in an English UI or Latin in a Hebrew one. Substituting it into the
+// string before rendering leaves ConfirmDialog nothing to isolate: `dir="auto"`
+// resolves the WHOLE line from its first strong character, and a neutral that
+// belongs to the NAME then gets re-attached to the sentence around it.
+//
+// PROVEN BY MEASUREMENT in the live page — 4 templates × 8 realistic names, 6
+// of the 32 render differently. The clearest is the real workspace called
+// `תיגבור קבוצה.`, whose own trailing period is dragged out of the name and
+// parked against the "?" without <bdi>; `Q1 דוח` in the Hebrew locale is the
+// mirror image. NOTE for anyone re-checking: a trailing YEAR is NOT an
+// occurrence — "…לשנת 2021" looks orphaned next to an English verb and is
+// simply correct, and calling it a bug from a screenshot is how this fix was
+// first mis-diagnosed. Measure before believing your eyes (verify-app law 4).
+//
+// The fix is structural (template and value passed separately, value wrapped in
+// <bdi>), so the guard is structural too: nobody may hand this dialog a
+// pre-joined title again. A comment could not hold this — the comment that
+// stood in ConfirmDialog asserted the opposite and was believed.
+// ─────────────────────────────────────────────────────────────────────────────
+test('no caller pre-substitutes a name into a confirmation title', () => {
+  for (const file of [
+    ['components', 'workspace', 'WorkspaceShell.tsx'],
+    ['components', 'workspace', 'WorkspacePicker.tsx'],
+  ]) {
+    const src = readFileSync(join(process.cwd(), 'src', ...file), 'utf8')
+    assert.equal(
+      /Title\.replace\(\s*['"]\{name\}['"]/.test(src),
+      false,
+      `${file.join('/')} joins a name into a dialog title — pass \`titleValue\` so <bdi> can isolate it`
+    )
+  }
+})
+
+test('the confirmation dialog isolates its title value in a <bdi>', () => {
+  const src = readFileSync(join(process.cwd(), 'src', 'components', 'workspace', 'ConfirmDialog.tsx'), 'utf8')
+  assert.match(src, /<bdi>\{titleValue\}<\/bdi>/, 'the title value is no longer bidi-isolated')
+  assert.match(src, /title\.split\(['"]\{name\}['"]\)/, 'the title template is no longer split')
+})
+
 test('emptyWorkspace has no files so a new workspace lands in intake', () => {
   const w = emptyWorkspace('new-workspace-1', 'New workspace')
   assert.equal(w.files.length, 0)

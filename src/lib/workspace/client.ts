@@ -3,6 +3,7 @@ import type { ItemCreate, BlockCreate } from './validate'
 import type { IntakeResponse, IntakeTurn } from './intake/types'
 import type { ItemContent } from './contentTypes'
 import type { ChatTurn } from './chat/prompt'
+import type { StoredMsg } from './thread'
 import type { ChatSnip } from '@/lib/api/chat'
 import { handleResponse } from '@/lib/api/client'
 
@@ -136,11 +137,31 @@ export const patchWorkspaceReq = (id: string, patch: Record<string, unknown>) =>
     body: JSON.stringify(patch),
   })
 
+export type WorkspaceCounts = { items: number; threads: number; blocks: number }
+
+/**
+ * What deleting this workspace would destroy — asked BEFORE asking to destroy
+ * it. The DELETE response carries the same numbers, but by then the answer is a
+ * receipt rather than a question (`rules/db.md`, and countWorkspaceContents's
+ * own header).
+ */
+export const fetchWorkspaceCounts = (id: string) =>
+  call<{ counts: WorkspaceCounts }>(`/api/workspaces/${id}/counts`)
+
 export const deleteWorkspaceReq = (id: string) =>
-  call<{ deleted: true; counts: { items: number; threads: number; blocks: number } }>(
-    `/api/workspaces/${id}`,
-    { method: 'DELETE' }
-  )
+  call<{ deleted: true; counts: WorkspaceCounts }>(`/api/workspaces/${id}`, { method: 'DELETE' })
+
+export type StoredThread = { id: string; title: string; messages: StoredMsg[] }
+
+export const fetchThreadReq = (workspaceId: string) =>
+  call<{ thread: StoredThread | null }>(`/api/workspaces/${workspaceId}/thread`)
+
+/** Replace the workspace's conversation. Whole array — see the route's header. */
+export const saveThreadReq = (workspaceId: string, messages: StoredMsg[]) =>
+  call<{ thread: StoredThread }>(`/api/workspaces/${workspaceId}/thread`, {
+    method: 'PUT',
+    body: JSON.stringify({ messages }),
+  })
 
 export const addItemReq = (workspaceId: string, input: ItemCreate) =>
   call<{ item: WorkspaceItemRow }>(`/api/workspaces/${workspaceId}/items`, {

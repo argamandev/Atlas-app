@@ -5,10 +5,16 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Monogram } from '@/components/ds/Monogram'
 import { ErrorLine } from '@/components/projects/ErrorLine'
-import { SearchIcon, PlusIcon, ChevronDownIcon, CheckIcon } from '@/components/ds/icons'
+import { SearchIcon, PlusIcon, ChevronDownIcon, CheckIcon, TrashIcon } from '@/components/ds/icons'
 import { WS_SORTS, type WsSortKey, type WorkspaceRow, type WorkspaceItemRow } from '@/lib/workspace/data'
-import { presentWorkspace } from '@/lib/workspace/present'
-import { createWorkspaceReq } from '@/lib/workspace/client'
+import { presentWorkspace, deleteWorkspaceLines } from '@/lib/workspace/present'
+import {
+  createWorkspaceReq,
+  deleteWorkspaceReq,
+  fetchWorkspaceCounts,
+  type WorkspaceCounts,
+} from '@/lib/workspace/client'
+import { ConfirmDialog } from './ConfirmDialog'
 
 // Workspace picker (design lines 1263-1333): header + sort menu + black
 // "New workspace", explainer, 44px search, 3-column grid, and the two empty
@@ -44,6 +50,27 @@ export function WorkspacePicker({
   const [creating, setCreating] = useState(false)
   const sortRef = useRef<HTMLDivElement>(null)
 
+  /**
+   * The delete confirmation, and what it is allowed to say.
+   *
+   * `counts` starts null and the dialog renders `dict.common.loading` until the
+   * numbers arrive — it must not open with zeroes, because "It is empty" over a
+   * workspace holding six filings is the confidently-wrong sentence this whole
+   * dialog exists to prevent.
+   */
+  const [confirm, setConfirm] = useState<{ id: string; name: string } | null>(null)
+  const [counts, setCounts] = useState<WorkspaceCounts | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<unknown>(null)
+  /**
+   * Rows deleted in this session. `rows` is a SERVER prop, so it keeps listing a
+   * workspace until the route re-renders; `router.refresh()` is fired after a
+   * success but it is a round trip, and a card that lingers after a confirmed
+   * delete reads as a failure. This is not optimism — the delete already
+   * returned — it is the local half of a fact the server has not re-sent yet.
+   */
+  const [deleted, setDeleted] = useState<string[]>([])
+
   // Rows -> display shapes here rather than on the server, because every label
   // is DERIVED and derivation needs the dictionary and locale.
   const workspaces = useMemo(() => {
@@ -71,11 +98,13 @@ export function WorkspacePicker({
 
   const query = q.trim().toLowerCase()
   const visible = useMemo(() => {
-    let list = workspaces.filter((w) => `${w.name} ${w.company} ${w.sub}`.toLowerCase().includes(query))
+    let list = workspaces
+      .filter((w) => !deleted.includes(w.id))
+      .filter((w) => `${w.name} ${w.company} ${w.sub}`.toLowerCase().includes(query))
     if (sort === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name))
     else if (sort === 'files') list = [...list].sort((a, b) => b.fileCount - a.fileCount)
     return list
-  }, [workspaces, query, sort])
+  }, [workspaces, query, sort, deleted])
 
   const sortLabels: Record<WsSortKey, string> = {
     updated: dict.workspace.sortUpdated,
@@ -97,6 +126,52 @@ export function WorkspacePicker({
       // does nothing is the defect this chapter's predecessor was gated on.
       setCreateError(e)
       setCreating(false)
+    }
+  }
+
+  /**
+   * Open the confirmation, then go and find out what it is about to destroy.
+   *
+   * The COUNTS ARE FETCHED, not derived from the grid. `w.fileCount` is right
+   * here on screen, but it counts only the shelf — the working document and the
+   * saved conversation are the two things a user would most regret losing and
+   * neither is in this component's props. A dialog that listed the one number it
+   * happened to have would read as a complete inventory.
+   */
+  function askDelete(w: { id: string; name: string }) {
+    setConfirm({ id: w.id, name: w.name })
+    setCounts(null)
+    setDeleteError(null)
+    void fetchWorkspaceCounts(w.id)
+      .then((r) => {
+        // Guarded: the dialog may have been cancelled and REOPENED on another
+        // workspace while this was in flight, and arriving late with the first
+        // one's numbers would describe the wrong room.
+        setConfirm((cur) => {
+          if (cur?.id === w.id) setCounts(r.counts)
+          return cur
+        })
+      })
+      .catch((e: unknown) => setDeleteError(e))
+  }
+
+  async function doDelete() {
+    const target = confirm
+    if (!target || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteWorkspaceReq(target.id)
+      setDeleted((d) => [...d, target.id])
+      setConfirm(null)
+      // Resync with the server, so a second tab's view and this one agree.
+      router.refresh()
+    } catch (e) {
+      // The dialog STAYS OPEN on failure. Closing it would leave the card in the
+      // grid with no explanation, which reads as a dead button.
+      setDeleteError(e)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -203,19 +278,24 @@ export function WorkspacePicker({
           {visible.length > 0 ? (
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => router.push(`/app/workspace/${w.id}`)}
-                  className="flex min-h-[152px] flex-col gap-3.5 rounded-xl border border-hairline bg-paper p-[18px] text-start transition-colors hover:bg-subtle/50"
-                >
-                  <div className="flex items-center justify-between">
-                    <Monogram name={w.initial} size={38} fontSize={16} radius={9} />
-                    <span className="font-mono-num text-[11px] text-ink-ghost" dir="ltr">
-                      {w.updatedLabel}
-                    </span>
-                  </div>
-                  {/* NOT dir="auto" on either line — 4th occurrence of the rule
+                // A WRAPPER, because the delete control cannot live inside the
+                // card: the card is a <button>, and a button inside a button is
+                // invalid HTML that browsers resolve by dropping one of them.
+                // Siblings in a `relative` box keep both real controls, both
+                // keyboard-reachable, with the card still filling the cell.
+                <div key={w.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/app/workspace/${w.id}`)}
+                    className="flex min-h-[152px] w-full flex-col gap-3.5 rounded-xl border border-hairline bg-paper p-[18px] text-start transition-colors hover:bg-subtle/50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Monogram name={w.initial} size={38} fontSize={16} radius={9} />
+                      <span className="font-mono-num text-[11px] text-ink-ghost" dir="ltr">
+                        {w.updatedLabel}
+                      </span>
+                    </div>
+                    {/* NOT dir="auto" on either line — 4th occurrence of the rule
                       in .claude/rules/app.md, and the first where real data made
                       it bite. `dir` resolves the WHOLE line from its FIRST
                       strong character, and presentWorkspace now feeds these real
@@ -226,20 +306,37 @@ export function WorkspacePicker({
                       each resolve on its own and the container keeps the page's
                       direction. The parent is a block div, not flex, so these
                       stay inline rather than blockifying. */}
-                  <div className="flex-1">
-                    <div className="mb-[3px] text-[15px] font-semibold tracking-[-0.01em] text-ink">
-                      <bdi>{w.name}</bdi>
+                    <div className="flex-1">
+                      <div className="mb-[3px] text-[15px] font-semibold tracking-[-0.01em] text-ink">
+                        <bdi>{w.name}</bdi>
+                      </div>
+                      <div className="text-[12.5px] text-ink-muted">
+                        <bdi>{w.company}</bdi> · <bdi>{w.sub}</bdi>
+                      </div>
                     </div>
-                    <div className="text-[12.5px] text-ink-muted">
-                      <bdi>{w.company}</bdi> · <bdi>{w.sub}</bdi>
+                    <div className="font-mono-num text-[11.5px] text-ink-faint">
+                      <bdi dir="ltr">
+                        {w.fileCount} {w.fileCount === 1 ? dict.workspace.fileOne : dict.workspace.files}
+                      </bdi>
                     </div>
-                  </div>
-                  <div className="font-mono-num text-[11.5px] text-ink-faint">
-                    <bdi dir="ltr">
-                      {w.fileCount} {w.fileCount === 1 ? dict.workspace.fileOne : dict.workspace.files}
-                    </bdi>
-                  </div>
-                </button>
+                  </button>
+                  {/* `end-*`, not `right-*`: a logical property, so the control
+                    sits in the card's trailing corner in both locales rather
+                    than colliding with the Hebrew source count.
+                    Hidden until hover on pointer devices — a delete button is
+                    not something a grid of workspaces should wear all the time —
+                    but ALWAYS shown where there is no hover, or it would be an
+                    invisible tap target sitting on top of a real card. */}
+                  <button
+                    type="button"
+                    onClick={() => askDelete(w)}
+                    title={dict.workspace.deleteWorkspace}
+                    aria-label={`${dict.workspace.deleteWorkspace} — ${w.name}`}
+                    className="absolute bottom-3.5 end-3.5 flex h-7 w-7 items-center justify-center rounded-[7px] text-ink-ghost opacity-0 transition-opacity hover:bg-subtle hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                  >
+                    <TrashIcon size={14} strokeWidth={1.8} />
+                  </button>
+                </div>
               ))}
             </div>
           ) : (
@@ -259,6 +356,26 @@ export function WorkspacePicker({
           )}
         </div>
       </div>
+
+      {confirm && (
+        <ConfirmDialog
+          title={dict.workspace.deleteWorkspaceTitle}
+          titleValue={confirm.name}
+          // Until the counts land the dialog says it is still looking, rather
+          // than showing an inventory it does not have yet. Delete stays
+          // clickable — the user's intent does not depend on the numbers, and a
+          // disabled button on a slow request is its own kind of dead control.
+          lines={counts ? deleteWorkspaceLines(counts, dict) : [dict.common.loading]}
+          confirmLabel={dict.workspace.confirmDelete}
+          pending={deleting}
+          error={deleteError}
+          onConfirm={() => void doDelete()}
+          onCancel={() => {
+            setConfirm(null)
+            setDeleteError(null)
+          }}
+        />
+      )}
     </div>
   )
 }
