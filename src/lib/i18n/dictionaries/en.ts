@@ -561,7 +561,11 @@ export const en = {
     latestAnnouncements: 'Latest announcements',
     viewAll: 'View all',
     askAboutResults: 'Ask Atlas about these results',
-    relatedCompanies: 'Related companies',
+    // NOT "Related": the list is the first four companies the feed returns, and
+    // relatedness is not computable — 4 of 234 companies have a sector. Renamed
+    // 2026-08-09 when the directory went from 5 companies to 234 and "similar"
+    // became a visible claim about four arbitrary issuers.
+    relatedCompanies: 'Other companies',
     relatedSub: 'on TASE',
     tagImmediate: 'Immediate',
     tagTransaction: 'Transaction',

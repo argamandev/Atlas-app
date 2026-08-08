@@ -15,7 +15,7 @@ import {
   CalMicIcon,
   CalWebinarIcon,
 } from '@/components/ds/icons'
-import { eventKind, EVENT_KINDS, EVENT_KIND_META, type EventKind } from '@/lib/calendar/event-meta'
+import { eventKind, kindLabel, EVENT_KINDS, EVENT_KIND_META, type EventKind } from '@/lib/calendar/event-meta'
 import { cn } from '@/lib/utils'
 
 function dayKey(iso: string): string {
@@ -112,17 +112,15 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
     })
   }
 
-  const kindLabel: Record<EventKind, string> = {
+  const chipLabel: Record<EventKind, string> = {
     call: dict.calendar.kindCalls,
     report: dict.calendar.kindReports,
     webinar: dict.calendar.kindWebinars,
   }
-  // hover context card uses the singular type name (design demo: "Investor call")
-  const kindSingular: Record<EventKind, string> = {
-    call: dict.calendar.ctxKindCall,
-    report: dict.calendar.ctxKindReport,
-    webinar: dict.calendar.ctxKindWebinar,
-  }
+  // hover context card uses the singular type name (design demo: "Investor call").
+  // Through the shared `kindLabel` so Home, the company page and this card cannot
+  // drift — Home held its own hardcoded string and called every report an
+  // investor call until 2026-08-09.
 
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
@@ -226,7 +224,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                     <span className="flex" style={{ color: EVENT_KIND_META[k].accent }}>
                       <Icon size={13} />
                     </span>
-                    {kindLabel[k]}
+                    {chipLabel[k]}
                     <span className={cn('flex', on ? 'text-ink' : 'text-[#ADADAD]')}>
                       {on ? <CloseIcon size={12} strokeWidth={2} /> : <PlusIcon size={12} strokeWidth={2} />}
                     </span>
@@ -330,7 +328,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                             className="mb-[5px] text-[9.5px] font-semibold uppercase tracking-[0.1em]"
                             style={{ color: EVENT_KIND_META[kind].accent }}
                           >
-                            {kindSingular[kind]}
+                            {kindLabel(kind, dict.calendar)}
                           </div>
                           {/* EACH RUN GETS ITS OWN <bdi>, direction on the container.
                               This line mixes a Hebrew company name with Latin quarter,

@@ -14,6 +14,7 @@ import { UpcomingCard } from '@/components/app/UpcomingCard'
 import { SectionHeader } from '@/components/ds/SectionHeader'
 import { LiveNowPanel } from '@/components/app/LiveNowPanel'
 import { getCompanyByTicker } from '@/lib/db/companies'
+import { eventKind, kindLabel } from '@/lib/calendar/event-meta'
 
 export default async function HomePage() {
   const locale = getLocale()
@@ -74,7 +75,14 @@ export default async function HomePage() {
                     href={`/app/company/${call.companyId}`}
                     logoSrc={call.company?.logoUrl}
                     name={call.company ? companyDisplayName(call.company, locale) : ''}
-                    sub={`${call.quarter} · ${dict.home.investorCall}`}
+                    // NAME THE EVENT THAT IT IS. This said `dict.home.investorCall`
+                    // for every row, so the 99 upcoming REPORT-PUBLICATION dates were
+                    // each labelled "investor call" — an event type nobody scheduled.
+                    // Found eyes-on 2026-08-09; the clock guard was right and the
+                    // label beside it was still asserting the wrong thing.
+                    sub={[call.quarter, kindLabel(eventKind(call), dict.calendar)]
+                      .filter(Boolean)
+                      .join(' · ')}
                     dateLabel={formatDate(call.scheduledAt, locale, { day: 'numeric', month: 'short' })}
                     // Report-publication rows carry a date and no time; showing the
                     // bucketed midnight would invent an appointment nobody announced.

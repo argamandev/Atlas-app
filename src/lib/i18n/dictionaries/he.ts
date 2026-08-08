@@ -467,7 +467,8 @@ export const he: Dictionary = {
     latestAnnouncements: 'הודעות אחרונות',
     viewAll: 'הצגת הכול',
     askAboutResults: 'שאלו את אטלס על התוצאות',
-    relatedCompanies: 'חברות דומות',
+    // ראו ההערה ב-en.ts: הרשימה אינה "דומות" — אין לנו נתוני ענף כדי לחשב דמיון.
+    relatedCompanies: 'חברות נוספות',
     relatedSub: 'בבורסה',
     tagImmediate: 'מיידי',
     tagTransaction: 'עסקה',

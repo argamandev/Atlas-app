@@ -12,6 +12,7 @@ import { CalendarIcon, ClockIcon, PlayIcon, ChevronRightIcon } from '@/component
 import { formatDate, formatTime, formatRelativeDays } from '@/lib/i18n/format'
 import { companyLiveDisplay } from '@/lib/live/liveTiming'
 import { fetchCompanies } from '@/lib/api/companies'
+import { eventKind, kindLabel } from '@/lib/calendar/event-meta'
 import { companyDisplayName, type Company, type ScheduledCall } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 
@@ -216,8 +217,11 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
                   <CalendarIcon size={18} strokeWidth={1.6} />
                 </span>
                 <div className="min-w-0 flex-1 text-start">
+                  {/* Same fix as Home: a report-publication date is not an investor call. */}
                   <div className="text-[14.5px] font-semibold text-ink">
-                    {[nextCall.quarter, dict.home.investorCall].filter(Boolean).join(' · ')}
+                    {[nextCall.quarter, kindLabel(eventKind(nextCall), dict.calendar)]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </div>
                   {/* No clock unless MAYA published one — a report date carries a day
                       and nothing more, and `scheduledAt` holds midnight as a bucket. */}
