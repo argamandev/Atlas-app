@@ -36,7 +36,10 @@
 --   publications carry one in 0 of 472. `scheduled_at` is NOT NULL, so a
 --   publication must be stored at SOME instant — midnight Israel time on its
 --   date. Without this flag the UI cannot tell that midnight from a real 00:00
---   appointment and would print a clock for 461 of the 879 rows the sync writes.
+--   appointment and would print a clock for every report on the calendar.
+--   [APPLIED 2026-08-09: the run wrote 891 rows, 470 with no published time.
+--    An earlier draft of this comment said 461 of 879 — dry-run estimates
+--    written as though they were measurements.]
 --   Defaults true so the four existing rows (all `source='mock'`, all with real
 --   times) keep their meaning without a backfill.
 --
@@ -46,7 +49,7 @@
 --    periodTypeId, timeZone, url} and nothing in it is stable-and-unique, so a
 --   re-run has nothing to upsert against. `scheduled_calls` had NO unique
 --   constraint of any kind before this file, so a second sync would have
---   duplicated all ~879 rows — and DELETE is hook-blocked, so those duplicates
+--   duplicated all 891 rows — and DELETE is hook-blocked, so those duplicates
 --   would have been unremovable.
 --
 -- ─────────────────────────────────────────────────────────────────────────────

@@ -8,7 +8,21 @@
 
 | | |
 |---|---|
-| `npm test` | **576 pass / 0 fail** (553 before this branch + 19 schedule + 3 kindLabel, minus 3 from the deleted stub test, plus 1 key-completeness test) |
+| `npm test` | **576 pass / 0 fail** |
+
+Test-count arithmetic, each number from a separate `npm test` run rather than reconstructed:
+**556** at the base commit `55ffdf0` (measured in a throwaway worktree) **− 3** for the deleted
+`overview-stub.test.ts` **+ 20** in `schedule.test.ts` **+ 3** added to `event-meta.test.ts`
+(3 → 6) = **576**.
+
+> ⚠️ **CORRECTION, kept in place rather than quietly edited.** The first version of this line said
+> "553 before this branch + 19 schedule + 3 kindLabel … + 1 key-completeness test". Every part of
+> that was wrong: 553 was a mid-branch measurement taken *after* the stub test was deleted, not
+> main; `schedule.test.ts` has 20 tests, not 19; there is no separate "key-completeness test"; and
+> the parts summed to 573 while the headline said 576. The headline total was real and reproducible
+> — the decomposition beneath it was written from memory. A cold review caught it. This is the
+> fourth time this repo has filed "a count in a document comes from a command", and the first time
+> the offending count was in my own evidence file.
 | `npx tsc --noEmit` | exit 0 |
 | `npm run build` | green · `/app/calendar` 4.01 kB / 101 kB first load · Middleware 81.8 kB |
 | Console (calendar, both locales) | **zero errors** — only React DevTools' info line |
@@ -141,6 +155,55 @@ Three WARNINGs were also fixed: a name collision that could link two issuers to 
 payload so a nightly re-sync cannot reset it; and `listCalls` gaining pagination, because
 PostgREST's max-rows cap returns a **short list rather than an error** — a truncated calendar would
 have looked exactly like a complete one.
+
+## Review round 2 — what the cold review found after all of the above
+
+The full-branch `atlas-reviewer` returned CHANGES: 1 BLOCKER, 7 WARNINGs, 6 NITs. Everything below
+was fixed and then re-verified in the browser, not just re-read.
+
+**BLOCKER — I broke the live banner while claiming to improve it.** I replaced
+`isLiveCompany = company.ticker === '1097229'` with `calls.find(c => c.status === 'live')` and wrote
+a comment calling it "a real live row instead of a hardcoded ticker". **Nothing in this repo writes
+`scheduled_calls.status='live'`** — `git grep` finds only readers — so the condition could never be
+true and every company page silently stopped polling the live engine. A prettier trigger that never
+fires is worse than an ugly one that does.
+
+Restored, with the literal moved into a named `LIVE_DEMO_TICKER` (`src/lib/live/demoCompany.ts`)
+that three files previously hardcoded separately. **Verified by observed behaviour in both
+directions** — a fetch spy over 8 seconds:
+
+| Page | `/api/live/state` polls |
+|---|---|
+| תמיס (the demo issuer) | **3** |
+| מגה אור (an ordinary company) | **0** |
+
+The fabricated half — `liveQuarter: 'Q2 2026'` — stays deleted. That was the part that was displayed
+and untrue; the ticker is a routing decision that shows the user nothing.
+
+**Two honesty bugs on the exact surface my first pass never rendered.** The company page I opened
+(קומפיוגן) had no future events, so its "next scheduled" card never drew. With a company that has
+one:
+
+- `dir="ltr"` on the date line rendered the Hebrew date `4 באוג׳ 2026` as `4 2026 באוג׳`. Fourth
+  filing of the `<bdi>`-per-run rule. Now measured on `סלע קפיטל נדל"ן`: **0** `dir="ltr"` wrappers,
+  date isolated as `<bdi>10 באוג׳ 2026</bdi>`, no clock, labelled `Q2 2026 · דוח`.
+- A report due **today** was filtered out of "next scheduled" for the whole day, because its midnight
+  bucket is already past by 00:01. Unknown-time rows are now compared by DAY. Verified on
+  `מגה אור`, whose Q2 report is due today: it renders as `הבאה בתור · בקרוב · היום`.
+
+**Other fixes:** the sync's third case (an issuer whose name normalises onto a company already
+holding a different issuer id) fell through silently and was then mis-blamed by a diagnostic telling
+the reader to re-run a script that could not help — now counted, named, and given the right remedy ·
+`schedule.ts`'s bucketing comment claimed the opposite of what the code does for viewers west of
+Jerusalem · the calendar's empty-state no longer says "nothing scheduled" when the user has simply
+switched every filter off · the agents page stopped calling every workspace an "Investor call" ·
+15 dictionary keys orphaned by the stub deletion removed from both locales, each confirmed at
+**0 usages** by command first · and a comment now records that `scheduled_calls.source` defaults to
+`'mock'`, so any future writer omitting it produces a row invisible on every surface.
+
+Corrected documents: this file's battery arithmetic (above), the spec's Pass 1 (it described an
+id-sweep the sync does not do), the migration's row counts (pre-run estimates written as
+measurements), and two `docs/LAUNCH-KIT.md` references to a line this branch deleted.
 
 ## Known limits, stated rather than discovered later
 

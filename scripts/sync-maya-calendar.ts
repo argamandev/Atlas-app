@@ -96,6 +96,7 @@ async function main() {
 
   const toInsert: { name: string; display_name: string; tase_issuer_id: string }[] = []
   const toLink: { id: string; issuerId: string }[] = []
+  const unlinkable: { issuerId: string; name: string; companyId: string }[] = []
 
   for (const row of directory) {
     const issuerId = String(row.issuer_id)
@@ -116,13 +117,27 @@ async function main() {
       toLink.push({ id: match.id, issuerId })
     } else if (!match) {
       toInsert.push({ name, display_name: name, tase_issuer_id: issuerId })
+    } else {
+      // THE THIRD CASE, WHICH USED TO FALL THROUGH SILENTLY: a company row that
+      // already carries a DIFFERENT issuer id. Its events cannot be written
+      // (one row, one issuer), so it is counted and named here rather than
+      // disappearing into the "not in the directory" bucket further down — a
+      // diagnostic that would send the next person to re-run the wrong script.
+      unlinkable.push({ issuerId, name, companyId: match.id })
     }
   }
 
   console.log(
     `PHASE 1 companies: ${directory.length} issuers in the directory · ${byIssuer.size} already linked · ` +
-      `${toLink.length} to link by name · ${toInsert.length} to insert`
+      `${toLink.length} to link by name · ${toInsert.length} to insert · ${unlinkable.length} unlinkable`
   )
+  for (const u of unlinkable) {
+    console.log(
+      `  ⚠ issuer ${u.issuerId} "${u.name}" normalises onto company ${u.companyId}, which already ` +
+        `holds another issuer id. Its schedule rows will be skipped. Two TASE issuers may share a ` +
+        `name, or one company row may be linked to the wrong issuer — this needs a human.`
+    )
+  }
 
   if (!DRY) {
     for (const l of toLink) {
@@ -218,11 +233,24 @@ async function main() {
     // so anything still unmapped is an issuer that schedules reports and yet was
     // never named by `by-issuer` — i.e. the directory itself is short, not this run.
     const missing = Array.from(new Set(kept.map((e) => e.issuerId).filter((i) => !byIssuer.has(String(i)))))
-    console.log(
-      `    → these issuers appear in the schedule but not in maya_issuers: ${missing.slice(0, 12).join(', ')}` +
-        `${missing.length > 12 ? `, +${missing.length - 12} more` : ''}\n` +
-        `      Re-run scripts/maya-refresh-issuers.ts (they filed nothing in its name window).`
-    )
+    const unlinkableIds = new Set(unlinkable.map((u) => u.issuerId))
+    // TWO DIFFERENT CAUSES, TWO DIFFERENT REMEDIES. Naming the wrong one sends
+    // the next person to re-run a script that cannot help.
+    const notInDirectory = missing.filter((i) => !unlinkableIds.has(String(i)))
+    const blockedByName = missing.filter((i) => unlinkableIds.has(String(i)))
+    if (notInDirectory.length) {
+      console.log(
+        `    → not in maya_issuers at all: ${notInDirectory.slice(0, 12).join(', ')}` +
+          `${notInDirectory.length > 12 ? `, +${notInDirectory.length - 12} more` : ''}\n` +
+          `      Re-run scripts/maya-refresh-issuers.ts (they filed nothing in its name window).`
+      )
+    }
+    if (blockedByName.length) {
+      console.log(
+        `    → in the directory but UNLINKABLE (see the phase-1 warnings above): ${blockedByName.join(', ')}\n` +
+          `      Re-running the refresh will NOT fix these; a person must resolve the name clash.`
+      )
+    }
   }
 
   if (DRY) {

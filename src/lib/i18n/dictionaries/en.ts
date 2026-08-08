@@ -547,29 +547,14 @@ export const en = {
     noWebinars: 'No webinars on record yet.',
     askAtlas: 'Ask Atlas',
     quartersLabel: 'quarters',
-    indices: 'Indices',
     liveTase: 'Live · TASE',
-    irLabel: 'IR',
-    latestReportedQuarter: 'Latest reported quarter',
-    reportedResults: 'Reported results',
-    reportedOn: 'Reported',
-    readFromCall: 'read from the call',
-    fromTheCall: 'From the call',
-    speakerLabel: 'Speaker',
-    jumpToTranscript: 'Jump to {t} in transcript',
-    outlookRaised: 'Full-year outlook raised',
-    latestAnnouncements: 'Latest announcements',
     viewAll: 'View all',
-    askAboutResults: 'Ask Atlas about these results',
     // NOT "Related": the list is the first four companies the feed returns, and
     // relatedness is not computable — 4 of 234 companies have a sector. Renamed
     // 2026-08-09 when the directory went from 5 companies to 234 and "similar"
     // became a visible claim about four arbitrary issuers.
     relatedCompanies: 'Other companies',
     relatedSub: 'on TASE',
-    tagImmediate: 'Immediate',
-    tagTransaction: 'Transaction',
-    tagFinancials: 'Financials',
   },
   live: {
     overview: 'Overview',

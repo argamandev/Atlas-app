@@ -133,9 +133,16 @@ export function toScheduleEvent(row: MayaScheduleRow): ScheduleEvent | null {
 
   const scheduledAtUtc = timeKnown
     ? zonedWallClockToUtc(row.scheduledDate, row.scheduledTime!, zone!)
-    : // Midnight ISRAEL time, not UTC: the date is the fact, and bucketing it in
-      // the exchange's own zone keeps it on the day MAYA published for every
-      // reader west of Jerusalem.
+    : // Midnight ISRAEL time, not UTC. The DATE is the fact here; this instant is
+      // a bucket, and `time_known=false` is what says so.
+      //
+      // ⚠ AND IT IS NOT VIEWER-SAFE, which an earlier version of this comment
+      // claimed the opposite of. Midnight Jerusalem is 21:00Z the previous day,
+      // so a viewer in London, Berlin or New York renders it on the day BEFORE
+      // unless the surface buckets by date rather than by instant. Consumers must
+      // treat an unknown-time row as a DAY (see `CompanyOverview`'s `isFuture`).
+      // Correct handling for viewers outside Israel is unfinished work, recorded
+      // in the evidence rather than papered over.
       zonedWallClockToUtc(row.scheduledDate, '00:00:00', 'Asia/Jerusalem')
 
   const period = PERIOD_LABEL[row.periodTypeId] ?? ''

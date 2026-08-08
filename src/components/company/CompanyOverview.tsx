@@ -101,9 +101,21 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
     }
   }, [data.companyId])
 
-  // "Next scheduled" = the nearest FUTURE call (the calls feed can contain stale past rows)
+  // "Next scheduled" = the nearest FUTURE event (the calls feed can contain stale past rows).
+  //
+  // AN EVENT WITH NO PUBLISHED TIME IS COMPARED BY DAY, NOT BY INSTANT. Report
+  // dates are bucketed at midnight Israel time, so an instant comparison calls a
+  // report due TODAY "past" from one minute after midnight — the company page
+  // would skip today's publication all day and name a September event as next.
+  // The date is the fact for those rows; the clock is a storage artefact.
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const isFuture = (c: ScheduledCall) => {
+    const t = new Date(c.scheduledAt).getTime()
+    return c.timeKnown ? t > Date.now() : t >= startOfToday.getTime()
+  }
   const future = calls
-    .filter((c) => new Date(c.scheduledAt).getTime() > Date.now())
+    .filter(isFuture)
     .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
   const nextCall = future[0] ?? null
   const restCalls = future.slice(1)
@@ -224,14 +236,23 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
                       .join(' · ')}
                   </div>
                   {/* No clock unless MAYA published one — a report date carries a day
-                      and nothing more, and `scheduledAt` holds midnight as a bucket. */}
-                  <div className="mt-0.5 font-mono-num text-[12.5px] text-ink-faint" dir="ltr">
+                      and nothing more, and `scheduledAt` holds midnight as a bucket.
+                      NO `dir="ltr"` ON THE LINE: the Hebrew date "4 באוג׳ 2026"
+                      contains a strong RTL run, and forcing the line LTR renders it
+                      as "4 2026 באוג׳" — measured in Chromium. Each run gets its own
+                      <bdi> instead (rules/app.md, 4th filing of this defect). */}
+                  <div className="mt-0.5 font-mono-num text-[12.5px] text-ink-faint">
                     {[
                       formatDate(nextCall.scheduledAt, locale),
                       nextCall.timeKnown ? formatTime(nextCall.scheduledAt, locale) : null,
                     ]
                       .filter(Boolean)
-                      .join(' · ')}
+                      .map((part, i) => (
+                        <span key={i}>
+                          {i > 0 ? ' · ' : ''}
+                          <bdi>{part}</bdi>
+                        </span>
+                      ))}
                   </div>
                 </div>
               </div>
@@ -262,7 +283,15 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
                 logoSrc={logoUrl}
                 name={companyName}
                 secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
-                secondary={`${call.quarter} · ${formatDate(call.scheduledAt, locale)}`}
+                secondary={
+                  // Mixed runs: "Q2 2026" is Latin, the Hebrew date is not. Each
+                  // in its own <bdi> so neither reorders the other.
+                  <>
+                    <bdi>{call.quarter}</bdi>
+                    {' · '}
+                    <bdi>{formatDate(call.scheduledAt, locale)}</bdi>
+                  </>
+                }
                 meta={call.timeKnown ? <span dir="ltr">{formatTime(call.scheduledAt, locale)}</span> : null}
               />
             ))}

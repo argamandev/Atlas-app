@@ -371,8 +371,11 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
         )}
         {/* A MONTH WITH NOTHING IN IT SAYS SO. An empty grid is ambiguous between
             "nothing is scheduled" and "the feed did not load"; MAYA only holds
-            2025-2026, so an analyst paging outside that range will meet this often. */}
-        {mode === 'all' && monthCount === 0 && (
+            2025-2026, so an analyst paging outside that range will meet this often.
+            Gated on `kinds.size` too: with every filter chip switched off the month
+            is empty BECAUSE OF THE FILTER, and saying "nothing scheduled" there
+            would be the message stating something untrue about the data. */}
+        {mode === 'all' && kinds.size > 0 && monthCount === 0 && (
           <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noEventsThisMonth}</p>
         )}
       </div>

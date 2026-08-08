@@ -121,19 +121,30 @@ for the same company. Before inserting, the sync matches on `normaliseCompanyNam
 Pure code. No model calls. Two passes, run sequentially through the existing
 `mayaGet()` chokepoint so the shared rate limit is respected (`MAYA_MIN_REQUEST_GAP_MS`).
 
-### Pass 1 — discover companies
+### Pass 1 — a company row for every known issuer
 
-Walk issuer ids across the measured range (default 1–2600, both bounds flags), one
-`companies-disclosures/by-issuer` call each over a 12-month window. Any id returning ≥1 filing is a
-real issuer and the response carries its name. Insert unseen issuers; link name-matched ones; never
-update.
+> **AS BUILT.** An earlier draft of this section described Pass 1 as walking the issuer-id space
+> itself, with an `--issuers-from-schedule` flag. That is not what shipped, and the flag does not
+> exist — a cold review caught the spec describing a design rather than the code. Corrected here to
+> what the two scripts actually do.
 
-- ~2,600 requests ≈ 9 minutes at the rate limit. One-off, then monthly.
-- `--issuers-from-schedule` restricts the pass to the ~233 ids the schedule mentions (≈1 minute) —
-  this is what the calendar strictly needs, and what CI-ish reruns should use.
-- The range is a **measured** bound, not a guaranteed one. The script logs the highest id at which
-  it found an issuer; if that equals the upper bound, it says so loudly, because that means the
-  universe may extend past where we stopped looking.
+Issuer **discovery** belongs to `scripts/maya-refresh-issuers.ts`, which already existed and owns
+the `maya_issuers` directory table. It has two modes:
+
+- **default** — ids come from the report schedule (~233 issuers, ≈1 minute). Tier 1, and everything
+  the calendar needs.
+- **`--sweep [--from N] [--to N]`** — walks the issuer-id space directly (default 1–2600,
+  ~9 minutes). Tier 2: the companies that file but never schedule a call. **Not run in this merge**
+  — it belongs to the company-pages merge, which will have somewhere to render them.
+- The sweep's range is a **measured** bound, not a guaranteed one. The script prints the highest id
+  at which it found an issuer and shouts if that equals `--to`, because the universe may continue
+  past where we stopped looking.
+
+`sync-maya-calendar.ts` Pass 1 then **reads `maya_issuers` from the database** and gives every named
+issuer a `companies` row: insert unseen ones, link a name match that has no issuer id yet, and never
+update an existing row (four companies carry hand-curated sector/description/website/logo that MAYA
+cannot supply). An issuer whose name normalises onto a company already holding a *different* issuer
+id is counted and named as **unlinkable** rather than silently skipped.
 
 ### Pass 2 — the schedule
 

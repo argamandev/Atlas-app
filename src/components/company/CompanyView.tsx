@@ -22,6 +22,7 @@ import {
   VideoIcon,
 } from '@/components/ds/icons'
 import { Monogram } from '@/components/ds/Monogram'
+import { LIVE_DEMO_TICKER } from '@/lib/live/demoCompany'
 import { AddInvestorCall } from './AddInvestorCall'
 import { AdminCallControls } from './AdminCallControls'
 import { CompanyOverview } from './CompanyOverview'
@@ -74,11 +75,25 @@ export function CompanyView({
   const name = companyDisplayName(company, locale)
   const industry = [company.sector, company.subSector].filter(Boolean).join(' · ')
   const openInChat = () => setChatOpen(true)
-  // THE LIVE BANNER FOLLOWS A REAL LIVE ROW, not a hardcoded ticker. This read
-  // `company.ticker === '1097229'` (תמיס, the live-demo company) until 2026-08-09,
-  // which meant the banner could never appear for any other issuer no matter what
-  // the engine was doing, and always polled for that one.
-  const liveCall = calls.find((c) => c.status === 'live') ?? null
+  // WHICH COMPANY PAGE POLLS THE LIVE ENGINE.
+  //
+  // This is a routing decision, not displayed data: it decides whether this page
+  // asks `/api/live/state` every five seconds. The banner's CONTENT comes from
+  // the engine's answer, so nothing here is asserted to the user.
+  //
+  // ⚠ It was briefly rewritten to `calls.find(c => c.status === 'live')` on
+  // 2026-08-09 as an "upgrade from a hardcoded ticker". That was wrong and a cold
+  // review caught it: NOTHING in this repo writes `scheduled_calls.status='live'`
+  // — `git grep` finds only readers — so the condition can never be true and the
+  // live banner became permanently unreachable. A prettier trigger that never
+  // fires is worse than an ugly one that does.
+  //
+  // The honest fix is for `/api/live/state` to report WHICH company it is
+  // broadcasting, and that is live-engine work — a different chapter by the
+  // founder's 2026-08-09 decision. Until then the demo issuer is the trigger.
+  // What this branch did remove is the fabricated `liveQuarter: 'Q2 2026'` that
+  // rode alongside it, which WAS displayed and was untrue.
+  const isLiveCompany = company.ticker === LIVE_DEMO_TICKER
   const transcriptsByQuarter = groupByQuarter(transcripts)
   const onQuoteRemoved = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id))
 
@@ -196,8 +211,10 @@ export function CompanyView({
                 logoUrl: company.logoUrl,
                 calls,
                 transcripts,
-                liveEnabled: !!liveCall,
-                liveQuarter: liveCall?.quarter ?? null,
+                liveEnabled: isLiveCompany,
+                // null, not "Q2 2026": the engine reports no period, so there is
+                // none to show. This is the half of the old pair that WAS a claim.
+                liveQuarter: null,
               }}
             />
           )}

@@ -253,7 +253,7 @@ SCOPE, and keep it tight — this is hours, not days:
     company, code comment only, NOTHING on screen).
   - hardcoded quarter="Q2 2026" at app/home/page.tsx:27, app/live/[id]/page.tsx:27,
     app/agents/page.tsx:50.
-  - isLiveCompany = company.ticker === '1097229' at CompanyView.tsx:80.
+  - isLiveCompany = company.ticker === '1097229' — [CLOSED 2026-08-09 on feat/maya-calendar: the fabricated liveQuarter beside it was deleted; the ticker itself is a polling gate, now the named LIVE_DEMO_TICKER in src/lib/live/demoCompany.ts, and it retires when /api/live/state reports which company it is broadcasting — live chapter].
 THE PATTERN ALREADY EXISTS — COPY IT, DO NOT INVENT ONE: components/live/FacetPanes.tsx renders its
 stub card with dict.live.demoContent as a visible badge (line ~388). That is the house solution and
 it is already localised.
@@ -301,7 +301,7 @@ lib/company/overview-stub.ts feeds CompanyOverview.tsx:97 and CompanyView.tsx:77
 index memberships, "latest reported quarter" and "latest announcements" — for EVERY company, with
 only a code comment and NOTHING on screen saying so. Also hardcoded: quarter="Q2 2026" at
 app/home/page.tsx:27, app/live/[id]/page.tsx:27 and app/agents/page.tsx:50, and
-isLiveCompany = company.ticker === '1097229' at CompanyView.tsx:80.
+isLiveCompany = company.ticker === '1097229' — [CLOSED 2026-08-09 on feat/maya-calendar: the fabricated liveQuarter beside it was deleted; the ticker itself is a polling gate, now the named LIVE_DEMO_TICKER in src/lib/live/demoCompany.ts, and it retires when /api/live/state reports which company it is broadcasting — live chapter].
 Two acceptable outcomes per module, and only two: a REAL feed, or a VISIBLE demo marker. A third
 outcome — real-looking invented data on a real company page — is the founder's stated intolerable
 class. (For contrast, the live Report pane already does this correctly: its stub card renders

@@ -48,9 +48,16 @@ export interface ListCallsOptions {
    *
    * Founder decision 2026-08-08 was to remove the mock data, and these are
    * fabricated June-2026 investor calls for real TASE issuers. They cannot be
-   * DELETED — `delete` is hook-blocked and this database is shared with
-   * production Timlul — so filtering them at the only read path is the
-   * equivalent that is available, and it is reversible.
+   * removed from the table — row removal is hook-blocked and this database is
+   * shared with production Timlul — so filtering them at the only read path is
+   * the equivalent that is available, and it is reversible.
+   *
+   * ⚠ THE TRAP THIS SETS FOR A FUTURE WRITER: `scheduled_calls.source` is
+   * `not null DEFAULT 'mock'`, so any INSERT that omits the column produces a
+   * row invisible on every surface, with no error anywhere. Nothing inserts into
+   * this table today except `scripts/sync-maya-calendar.ts`, which sets
+   * `source:'maya'` explicitly. **Any new writer MUST set `source`.** Changing
+   * the column default would be the real fix and needs its own migration.
    */
   includeMock?: boolean
 }
