@@ -208,7 +208,7 @@ away. Its final two lines are a supervisor marker: everything above them is chap
 not current state.
 
 YOUR WORKTREE STILL HOLDS THE MERGED BRANCH. Start clean:
-git fetch origin && git checkout main && git pull && git checkout -b feat/maya-calendar
+git fetch origin && git checkout main && git pull && git checkout -b feat/honesty-pass
 
 WHAT YOU JUST SHIPPED, so you never redo it: Workspace V1 — four owned tables under the ownership
 law with composite (id,user_id) FKs, fourteen /api/workspaces* routes, lib/db/workspaces.ts through
@@ -223,17 +223,49 @@ finishable. Founder's framing, filed 2026-08-08: Atlas V1 = Workspace v1 (done) 
 pages and chat being RIGHT + deployed to Railway. After the deploy, real feedback starts, and the
 product improves against real use instead of guesses.
 
-FOUR SLICES, EACH MERGED BEFORE THE NEXT BEGINS. This is a founder decision, not a suggestion —
+SLICES, EACH MERGED BEFORE THE NEXT BEGINS. This is a founder decision, not a suggestion —
 chapter 2 was 69 commits in one branch and needed three review rounds.
-  SLICE 0  the schema — ONE migration (below)
-  SLICE 1  CALENDAR        → /ship → merge
-  SLICE 2  COMPANY PAGES   → /ship → merge
-  SLICE 3  CHAT answering off the DB → /ship → merge
-  then the supervisor takes it to Railway.
+  SLICE 0  THE HONESTY PASS  → /ship → merge   ← START HERE, and read why below
+  ————— the supervisor + founder then DEPLOY TO RAILWAY —————
+  SLICE 1  the schema — ONE migration
+  SLICE 2  CALENDAR          → /ship → merge
+  SLICE 3  COMPANY PAGES     → /ship → merge
+  SLICE 4  CHAT answering off the DB → /ship → merge
 BRAINSTORM EACH SLICE WITH THE FOUNDER BEFORE BUILDING IT (superpowers:brainstorming → spec →
-plan in docs/superpowers/). That step was skipped on the branches that went badly.
+plan in docs/superpowers/). That step was skipped on the branches that went badly. Slice 0 is the
+exception — it is small, fully specified below, and it is what the deploy is waiting on.
 
-SLICE 0 — THE SCHEMA, FIRST AND ONCE.
+SLICE 0 — THE HONESTY PASS. THE DEPLOY IS WAITING ON THIS ONE, so it comes before the schema.
+Founder decision 2026-08-08, revised the same day once the supervisor actually verified the company
+pages: Atlas deploys to Railway BEFORE the MAYA slices, so real feedback starts three slices
+earlier and the deploy is debugged at minimum surface area. The ONLY thing blocking that is that
+Atlas would publish invented facts about REAL TASE COMPANIES with nothing on screen saying so.
+That is a labelling job, not a MAYA job, and none of it is throwaway — slice 3's rule is already
+"a REAL feed or a VISIBLE marker", so every module that will not have a real feed by V1 needs the
+marker anyway. You are just doing that part first.
+SCOPE, and keep it tight — this is hours, not days:
+  - lib/company/overview-stub.ts feeding CompanyOverview.tsx:97 and CompanyView.tsx:77 (IR contact,
+    index memberships, "latest reported quarter", "latest announcements" — invented for EVERY
+    company, code comment only, NOTHING on screen).
+  - hardcoded quarter="Q2 2026" at app/home/page.tsx:27, app/live/[id]/page.tsx:27,
+    app/agents/page.tsx:50.
+  - isLiveCompany = company.ticker === '1097229' at CompanyView.tsx:80.
+THE PATTERN ALREADY EXISTS — COPY IT, DO NOT INVENT ONE: components/live/FacetPanes.tsx renders its
+stub card with dict.live.demoContent as a visible badge (line ~388). That is the house solution and
+it is already localised.
+Per module, exactly two acceptable outcomes: a visible demo marker, or the module does not render.
+Removing a module is a legitimate answer and often the better one — an empty state that says
+"no data yet" beats a badge on a fabrication. Decide with the founder where each lands; that is a
+five-minute conversation, not a brainstorm.
+NOT IN SLICE 0: the two live endpoints. GET /api/live/{state,pcm} are unauthenticated and must be
+gated BEFORE LIVE_ENGINE_URL is ever set in a deployed environment — but they fall back to
+localhost:8788, which does not exist on Railway, so leaving that variable UNSET keeps them harmless
+and the deploy is not blocked on them. That gate travels with whichever slice first wants live calls
+working on the deployed instance, and it needs a live engine run (rules/live.md, :8788 is
+SINGLE-OWNER — claim it in cross-cutting) plus a latency measurement on /pcm, which is polled
+continuously.
+
+SLICE 1 — THE SCHEMA, FIRST OF THE MAYA WORK AND DONE ONCE.
 Two known items, same table, ONE migration:
   (a) a PUBLICATION-DATE column on company_documents. Verified against the live DB 2026-08-08, the
       table has exactly: id, company_id, quarter, doc_type, title, source, storage_path, page_count,
@@ -250,7 +282,7 @@ LAW, and it is the one irreversible class here: write the migration FILE, push t
 reviewed as a FILE, and only then apply. Append to cross-cutting.md BEFORE applying. Additive only.
 Do not dribble one migration per slice.
 
-SLICE 1 — CALENDAR. Read this before you plan it, because the supervisor got it wrong once and
+SLICE 2 — CALENDAR. Read this before you plan it, because the supervisor got it wrong once and
 corrected it: src/lib/calendar/event-meta.ts is NOT fabricated data. All 23 lines are EVENT_KINDS,
 probed accent colours, label keys and an eventKind() hint reader; the calendar already renders REAL
 scheduled_calls rows. ARCHITECTURE.md's "design-demo event metadata (typed stub)" row oversells it
@@ -258,7 +290,7 @@ and should be corrected at merge. So this slice ADDS a feed rather than removing
 report/webinar events alongside the real calls, which is exactly what EVENT_KINDS and the filter
 chips were built to receive. Decide with the founder what belongs on the calendar and what does not.
 
-SLICE 2 — COMPANY PAGES. THIS is where the fabricated data is, and it is UNMARKED on screen:
+SLICE 3 — COMPANY PAGES. THIS is where the fabricated data is, and it is UNMARKED on screen:
 lib/company/overview-stub.ts feeds CompanyOverview.tsx:97 and CompanyView.tsx:77 with IR contact,
 index memberships, "latest reported quarter" and "latest announcements" — for EVERY company, with
 only a code comment and NOTHING on screen saying so. Also hardcoded: quarter="Q2 2026" at
@@ -269,7 +301,7 @@ outcome — real-looking invented data on a real company page — is the founder
 class. (For contrast, the live Report pane already does this correctly: its stub card renders
 dict.live.demoContent as a visible marker. Copy that, do not re-invent it.)
 
-BEFORE SLICE 1, WRITE ONE GUARD. A test that fails the battery if a stub/fabricated module can
+BEFORE SLICE 2, WRITE ONE GUARD. A test that fails the battery if a stub/fabricated module can
 render on a real page without a visible demo marker. It is the same shape as apiAuthBoundary.test.ts
 and legacyBoundary.test.ts, and it exists because THIS repo's most-repeated lesson is that a lesson
 written as a paragraph gets violated again and a lesson written as a test does not. State its limits
