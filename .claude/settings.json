@@ -36,6 +36,10 @@
       {
         "matcher": "mcp__supabase__.*",
         "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-bash-gate.mjs" }]
+      },
+      {
+        "matcher": "mcp__railway.*",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-bash-gate.mjs" }]
       }
     ],
     "PostToolUse": [

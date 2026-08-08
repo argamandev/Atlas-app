@@ -52,10 +52,19 @@
    └──────────────────────────────────────────────────────┘
 
    ENFORCEMENT (deterministic, can't be talked past — .claude/hooks/):
-   pre-bash-gate.mjs  → blocks destructive SQL (Bash AND Supabase MCP doors),
-                        unsafe recursive deletes, .env access, force-push,
-                        lane-pushes-to-main   [fire-test suite: node
-                        .claude/hooks/gate-tests.mjs — re-run + EXTEND on every hook change]
+   pre-bash-gate.mjs  → THREE doors. (1) Bash: destructive SQL, unsafe recursive
+                        deletes, .env access, force-push, lane-pushes-to-main,
+                        append-only fleet logs. (2) Supabase MCP: destructive SQL.
+                        (3) Railway MCP: DEFAULT-DENY — every tool blocked unless
+                        named on a verified read-only allowlist, with variable/secret
+                        readers and infra mutations blocked ABOVE the allowlist so
+                        neither can be waved through by adding a name. Added
+                        2026-08-08 because a deploy made Railway a third door with
+                        none of the other two's protections: its destructive ops are
+                        not SQL, and its variable tools would route around the .env*
+                        rule that keeps secrets out of transcripts.
+                        [fire-test suite: node .claude/hooks/gate-tests.mjs — 70 cases,
+                        re-run + EXTEND on every hook change]
    post-edit-verify.mjs → prettier + incremental tsc after EVERY edit
 ```
 

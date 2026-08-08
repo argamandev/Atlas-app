@@ -15,7 +15,9 @@ try {
   process.exit(0) // never break the harness on parse issues
 }
 const toolName = String(input.tool_name ?? '')
-const cwd = String(input.cwd ?? '').replaceAll('\\', '/').toLowerCase()
+const cwd = String(input.cwd ?? '')
+  .replaceAll('\\', '/')
+  .toLowerCase()
 const inSupervisor = cwd === MAIN || cwd.startsWith(MAIN + '/')
 
 function block(reason) {
@@ -28,7 +30,8 @@ function block(reason) {
 // Checks run PER STATEMENT so a later WHERE can't shadow an earlier bare DELETE/UPDATE,
 // and an additive ALTER isn't blocked by the word "drop" in a later statement or comment.
 function sqlIsDestructive(text) {
-  if (/\b(drop\s+(table|column|schema|database|index|trigger|function|policy)|truncate\s+)/i.test(text)) return true
+  if (/\b(drop\s+(table|column|schema|database|index|trigger|function|policy)|truncate\s+)/i.test(text))
+    return true
   for (const stmt of text.split(';')) {
     if (/\balter\s+table\b[^]*\bdrop\b/i.test(stmt)) return true
     if (/\bdelete\s+from\b/i.test(stmt) && !/\bwhere\b/i.test(stmt)) return true
@@ -39,9 +42,58 @@ function sqlIsDestructive(text) {
 
 // ---- Door 2: Supabase MCP tools (execute_sql / apply_migration) ----
 if (toolName.startsWith('mcp__supabase__')) {
-  const sql = String(input.tool_input?.query ?? input.tool_input?.sql ?? JSON.stringify(input.tool_input ?? {}))
+  const sql = String(
+    input.tool_input?.query ?? input.tool_input?.sql ?? JSON.stringify(input.tool_input ?? {})
+  )
   if (sqlIsDestructive(sql))
-    block('destructive SQL via Supabase MCP. DB is shared with production Timlul — additive-only. See .claude/rules/db.md')
+    block(
+      'destructive SQL via Supabase MCP. DB is shared with production Timlul — additive-only. See .claude/rules/db.md'
+    )
+  process.exit(0)
+}
+
+// ---- Door 3: Railway MCP tools (added 2026-08-08, the day Atlas went live on Railway) ----
+// Railway is a THIRD door, and it has NONE of the other two's protections. Its destructive
+// operations are not SQL, so sqlIsDestructive() is blind to them; and its variable tools would
+// hand the deployment's secrets straight into a transcript — precisely what the .env* rule on
+// the Bash door below exists to prevent. Writing a blocklist of dangerous verbs over a tool
+// vocabulary nobody has read is the exact failure rules/app.md has now filed twice (a guessed
+// word list, and a probe written against a stale signature). So this door is DEFAULT-DENY.
+const RAILWAY_READONLY = new Set([
+  // EMPTY ON PURPOSE. The Railway MCP server was not installed when this door was written, so
+  // any name here would have been guessed rather than verified. Populate it at connect time,
+  // ONE NAME AT A TIME, each read off the installed server's own tool list and each confirmed
+  // unable to mutate infrastructure or reveal a variable's value. An empty set blocks every
+  // Railway tool, which is the correct direction to fail in.
+  //
+  // The one entry below is NOT a Railway tool and never will be. It exists so gate-tests can
+  // prove this allowlist is actually consulted and the name-strip above works: without it, a
+  // broken strip is indistinguishable from a working default-deny, and the breakage would only
+  // surface the day someone adds a real name and quietly gets nothing.
+  '__gate_selftest__',
+])
+if (toolName.startsWith('mcp__railway')) {
+  const tool = toolName.replace(/^mcp__railway[^_]*__/, '')
+  // (a) Secrets. Kept ABOVE the allowlist deliberately: it must stay impossible to allowlist a
+  //     variable reader by accident. Values live in the Railway dashboard, for human eyes.
+  if (/var(iable)?|secret|credential|token|password|apikey|api_key/i.test(tool))
+    block(
+      `Railway MCP "${tool}" can read deployment variables. Secret values must never enter a ` +
+        `transcript — same law as .env* on the Bash door. Read them in the Railway dashboard.`
+    )
+  // (b) Mutation/destruction of live infrastructure. Atlas is in production; these go through
+  //     the founder in the dashboard, where the blast radius is visible before it is chosen.
+  if (/delete|destroy|remove|teardown|wipe|purge|restart|redeploy|rollback|scale|detach/i.test(tool))
+    block(
+      `Railway MCP "${tool}" mutates or destroys live infrastructure, and Atlas is in ` +
+        `production at www.timlul-ai.com. This one goes through the founder in the dashboard.`
+    )
+  if (!RAILWAY_READONLY.has(tool))
+    block(
+      `Railway MCP "${tool}" is not on the verified read-only allowlist in ` +
+        `.claude/hooks/pre-bash-gate.mjs (default-deny). Add it only after reading the ` +
+        `installed server's own tool list and confirming it can neither mutate nor reveal.`
+    )
   process.exit(0)
 }
 
@@ -50,8 +102,11 @@ const cmd = String(input.tool_input?.command ?? '')
 
 // 1. Destructive SQL in shell commands (psql, supabase, node -e, heredocs…)
 if (sqlIsDestructive(cmd))
-  block('destructive SQL (DROP/TRUNCATE/ALTER-DROP/unfiltered DELETE/UPDATE). DB is shared with production. See .claude/rules/db.md')
-if (/\bsupabase\s+db\s+reset\b/i.test(cmd)) block('supabase db reset would wipe the shared-with-production database')
+  block(
+    'destructive SQL (DROP/TRUNCATE/ALTER-DROP/unfiltered DELETE/UPDATE). DB is shared with production. See .claude/rules/db.md'
+  )
+if (/\bsupabase\s+db\s+reset\b/i.test(cmd))
+  block('supabase db reset would wipe the shared-with-production database')
 
 // 2. Recursive force deletes outside safe targets (short OR long flags, any order; PowerShell + cmd too)
 const isRm = /\brm\b/.test(cmd) || /\bremove-item\b/i.test(cmd)
@@ -64,14 +119,20 @@ if ((isRm && hasRecursive && hasForce) || isRmdirS) {
     .replace(/\s\/[sq]\b/gi, '')
     .split(/\s+/)
     .filter((t) => t && !t.startsWith('-'))
-  const SAFE = /^\.?\/?(\.next|node_modules|dist|scripts\/out)([/\\]|$)|appdata[/\\]local[/\\]temp[/\\]claude/i
+  const SAFE =
+    /^\.?\/?(\.next|node_modules|dist|scripts\/out)([/\\]|$)|appdata[/\\]local[/\\]temp[/\\]claude/i
   const unsafe = targets.filter((t) => !SAFE.test(t.replaceAll('\\', '/')))
-  if (unsafe.length) block(`recursive force delete of: ${unsafe.join(' ')}. Only .next/node_modules/dist/scripts/out/scratchpad are deletable`)
+  if (unsafe.length)
+    block(
+      `recursive force delete of: ${unsafe.join(' ')}. Only .next/node_modules/dist/scripts/out/scratchpad are deletable`
+    )
 }
 
 // 3. Shell access to secrets — readers, interpreters, dumpers, and redirects
 if (
-  /(^|[\s;|&])(cat|less|more|head|tail|grep|sed|awk|cp|mv|type|get-content|gc|xxd|strings|od|dd|hexdump|base64)\s+[^|;&>]*\.env/i.test(cmd) ||
+  /(^|[\s;|&])(cat|less|more|head|tail|grep|sed|awk|cp|mv|type|get-content|gc|xxd|strings|od|dd|hexdump|base64)\s+[^|;&>]*\.env/i.test(
+    cmd
+  ) ||
   /(^|[\s;|&])(node|python3?|perl|ruby|php)\b[^\n]*\.env/i.test(cmd) ||
   /readfilesync[^\n]*\.env/i.test(cmd) ||
   />+\s*\.?\S*\.env/i.test(cmd)
@@ -102,10 +163,12 @@ if (new RegExp(LOGRE, 'i').test(cmd)) {
   const LOGDEST = new RegExp(`((^|[/\\\\])agent-memory[/\\\\]|^)(cross-cutting|ready-queue)\\.md$`, 'i')
   for (const seg of cmd.split(/&&|\|\||;|\|/)) {
     if (/(^|\s)(cp|mv|copy-item|move-item)\b/i.test(seg)) {
-      const toks = seg.trim().split(/\s+/).filter((t) => t && !t.startsWith('-'))
+      const toks = seg
+        .trim()
+        .split(/\s+/)
+        .filter((t) => t && !t.startsWith('-'))
       const last = (toks[toks.length - 1] || '').replace(/["']/g, '')
-      if (LOGDEST.test(last))
-        block('cp/mv onto an append-only fleet log replaces its history — appends only')
+      if (LOGDEST.test(last)) block('cp/mv onto an append-only fleet log replaces its history — appends only')
     }
   }
 }
@@ -118,8 +181,11 @@ if (/git\s+push\b/.test(cmd) && !inSupervisor) {
     block('pushing main is supervisor-only — finish via /ship and post to the ready queue')
   // Bare push (no explicit main) — block if the lane is actually ON main.
   try {
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: input.cwd, timeout: 5000 }).toString().trim()
-    if (branch === 'main') block('this worktree is on main — lanes never push main. Check out your feature branch')
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: input.cwd, timeout: 5000 })
+      .toString()
+      .trim()
+    if (branch === 'main')
+      block('this worktree is on main — lanes never push main. Check out your feature branch')
   } catch {
     /* not a repo / git unavailable → let permissions handle it */
   }
