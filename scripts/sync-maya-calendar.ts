@@ -104,8 +104,19 @@ async function main() {
     if (byIssuer.has(issuerId)) continue
 
     const match = byName.get(normaliseCompanyName(name))
-    if (match && !match.hasIssuer) toLink.push({ id: match.id, issuerId })
-    else if (!match) toInsert.push({ name, display_name: name, tase_issuer_id: issuerId })
+    if (match && !match.hasIssuer) {
+      // ONE COMPANY ROW CAN ONLY CARRY ONE ISSUER ID. `hasIssuer` is a snapshot
+      // taken before this loop, so two directory issuers whose names normalise
+      // to the same string would both link to the same company — after which the
+      // JS dedupe key (issuerId) and the DB key (company_id) disagree, and two
+      // real events collide. In one upsert chunk that is Postgres 21000
+      // ("ON CONFLICT DO UPDATE cannot affect row a second time") aborting the
+      // whole import; across chunks it is one event silently overwriting another.
+      match.hasIssuer = true
+      toLink.push({ id: match.id, issuerId })
+    } else if (!match) {
+      toInsert.push({ name, display_name: name, tase_issuer_id: issuerId })
+    }
   }
 
   console.log(
@@ -182,7 +193,12 @@ async function main() {
         company_id: companyId,
         scheduled_at: e.scheduledAtUtc,
         quarter: e.quarter,
-        status: 'scheduled',
+        // NO `status` IN THE PAYLOAD. An upsert writes every column it is given,
+        // so including it would reset the status of every MAYA row on every
+        // nightly re-sync. Harmless today because nothing else writes status —
+        // and wrong the moment live-call wiring does, since `lib/db/calls.ts`
+        // keys both the `live` and `upcoming` scopes off it. The column defaults
+        // to 'scheduled' on insert, which is what a newly synced row is.
         source: 'maya',
         kind: e.kind,
         time_known: e.timeKnown,

@@ -93,8 +93,15 @@ create index if not exists scheduled_calls_kind_idx on public.scheduled_calls(ki
 `scheduled_calls` is **shared corpus** (`docs/DATA-MODEL.md`) — no `user_id`, and this migration
 adds none. Its RLS is unchanged.
 
-Why a unique **constraint** and not just an index: PostgREST resolves `on_conflict` against a
-constraint, and the sync upserts through it. Verified requirement, not preference.
+Why a unique **constraint** rather than a bare unique index: either would work — Postgres infers
+the arbiter from the column list — so this is a readability preference, not a requirement. *(An
+earlier draft of this spec called it "verified requirement, not preference"; nobody had run that,
+and the pre-apply review was right to call it out.)*
+
+What the pre-apply review did change, and both would have been permanent: an index on `kind` that
+no query uses (nothing filters on it in SQL — the calendar's chips filter in React), and a CHECK
+that the `maya_*` key parts are all present on a MAYA row, without which a feed row missing one
+would be re-inserted on every nightly run and could never be cleaned up.
 
 ### `companies` — no schema change
 

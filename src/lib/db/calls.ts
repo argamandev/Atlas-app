@@ -60,24 +60,45 @@ export async function listCalls({
   companyId,
   includeMock = false,
 }: ListCallsOptions = {}): Promise<ScheduledCall[]> {
-  let query = supabaseAdmin
-    .from('scheduled_calls')
-    .select(`${CALL_COLS}, companies(${LITE_COLS})`)
-    .order('scheduled_at', { ascending: true })
+  // PAGINATED, AND THAT IS NOT PREMATURE. PostgREST applies a server-side
+  // max-rows cap (1000 on Supabase by default) and returns a SHORT LIST rather
+  // than an error — so the calendar would silently show part of the year and
+  // look exactly like a calendar showing all of it. This table went from 4 rows
+  // to ~883 with the first MAYA sync and grows by roughly 900 a year, so the
+  // cap is months away, not hypothetical. Asking in pages removes the class
+  // instead of raising the ceiling.
+  const PAGE = 500
+  const rows: Row[] = []
+  for (let from = 0; ; from += PAGE) {
+    let query = supabaseAdmin
+      .from('scheduled_calls')
+      .select(`${CALL_COLS}, companies(${LITE_COLS})`)
+      .order('scheduled_at', { ascending: true })
+      // A stable tiebreak, or a row can appear on two pages and another on none:
+      // `scheduled_at` is not unique (63 rows share a timestamp in the synced data).
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
 
-  if (!includeMock) query = query.neq('source', 'mock')
-  if (companyId) query = query.eq('company_id', companyId)
-  if (scope === 'live') query = query.eq('status', 'live')
-  if (scope === 'upcoming') {
-    const startOfToday = new Date()
-    startOfToday.setHours(0, 0, 0, 0)
-    query = query.gte('scheduled_at', startOfToday.toISOString()).neq('status', 'ended')
+    if (!includeMock) query = query.neq('source', 'mock')
+    if (companyId) query = query.eq('company_id', companyId)
+    if (scope === 'live') query = query.eq('status', 'live')
+    if (scope === 'upcoming') {
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
+      query = query.gte('scheduled_at', startOfToday.toISOString()).neq('status', 'ended')
+    }
+
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    const page = data ?? []
+    rows.push(...(page as Row[]))
+    // A short page means the end. A full one may still be the server's cap
+    // rather than ours, which is exactly why the loop asks again.
+    if (page.length < PAGE) break
   }
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
   // Company calls are most useful newest-first; everything else nearest-upcoming-first.
-  const calls = (data ?? []).map(mapCall)
+  const calls = rows.map(mapCall)
   if (companyId) calls.sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
   return calls
 }

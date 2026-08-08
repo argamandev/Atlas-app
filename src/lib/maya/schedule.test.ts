@@ -94,6 +94,16 @@ test('an unusable date yields nothing rather than a wrong day', () => {
   assert.equal(toScheduleEvent(row({ scheduledDate: '10/08/2026' })), null)
 })
 
+test('a row missing any part of the natural key is REFUSED', () => {
+  // Not cosmetic. NULLs are DISTINCT in the unique constraint, so such a row
+  // would conflict with nothing and be re-inserted on every nightly run — and
+  // DELETE is hook-blocked, so the duplicates could never be cleaned up.
+  assert.equal(toScheduleEvent(row({ year: undefined as unknown as number })), null)
+  assert.equal(toScheduleEvent(row({ periodTypeId: undefined as unknown as number })), null)
+  assert.equal(toScheduleEvent(row({ financialReportTypeId: undefined as unknown as number })), null)
+  assert.equal(toScheduleEvent(row({ year: null as unknown as number })), null)
+})
+
 test('an unknown period id leaves the quarter empty instead of inventing one', () => {
   const e = toScheduleEvent(row({ periodTypeId: 99 }))!
   assert.equal(e.quarter, '')
@@ -115,7 +125,6 @@ const ev = (o: Partial<ScheduleEvent>): ScheduleEvent => ({
   mayaYear: 2026,
   mayaPeriodTypeId: 1,
   mayaReportTypeId: 1,
-  sourceUrl: null,
   ...o,
 })
 

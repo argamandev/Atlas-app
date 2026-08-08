@@ -54,8 +54,6 @@ export interface ScheduleEvent {
   mayaYear: number
   mayaPeriodTypeId: number
   mayaReportTypeId: number
-  /** The announcement this schedule row points at, when it has one (803 of 925 do). */
-  sourceUrl: string | null
 }
 
 /**
@@ -115,6 +113,15 @@ export function toScheduleEvent(row: MayaScheduleRow): ScheduleEvent | null {
   if (!row?.scheduledDate || !/^\d{4}-\d{2}-\d{2}$/.test(row.scheduledDate)) return null
   if (typeof row.issuerId !== 'number') return null
 
+  // THE WHOLE KEY OR NOTHING. `year` and `periodTypeId` are unvalidated wire
+  // fields. A row missing either would be written with a NULL in the natural
+  // key, and NULLs are DISTINCT in a unique constraint — so it would conflict
+  // with nothing and be re-inserted on every nightly run, accumulating
+  // duplicates that DELETE (hook-blocked) could not remove. Refusing the row
+  // costs one calendar entry; accepting it costs a table nobody can clean.
+  if (!Number.isFinite(row.year) || !Number.isFinite(row.periodTypeId)) return null
+  if (!Number.isFinite(row.financialReportTypeId)) return null
+
   const isCall = row.financialReportTypeId === REPORT_TYPE_CONFERENCE_CALL
 
   // A TIME IS ONLY KNOWN WHEN MAYA GAVE US BOTH A CLOCK AND A ZONE. Publications
@@ -141,7 +148,11 @@ export function toScheduleEvent(row: MayaScheduleRow): ScheduleEvent | null {
     mayaYear: row.year,
     mayaPeriodTypeId: row.periodTypeId,
     mayaReportTypeId: row.financialReportTypeId,
-    sourceUrl: row.url ?? null,
+    // NOTE: `row.url` (the MAYA announcement, present on 803 of 925 rows) is
+    // deliberately NOT carried. There is no column for it and no reader, and a
+    // field computed into a shape nobody consumes is the "backend with zero
+    // callers" this lane filed on 2026-08-07. It is a good candidate for the
+    // company-pages merge, which will have somewhere to put it.
   }
 }
 
