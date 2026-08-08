@@ -188,17 +188,24 @@ export function TranscriptBody({
           </div>
         </div>
       ))}
+      {/* THE ARROW IS THE WHOLE BUTTON (founder, 2026-08-05: *"remove the text of
+          the back to current word and only keep the arrow down and up"*). The
+          label stays as the accessible name and the tooltip — a bare glyph is
+          not a name, and a screen reader would otherwise announce "up arrow",
+          which says the direction and not the destination. */}
       {autoScroll && !following && (
         <div className="pointer-events-none sticky bottom-24 z-20 flex justify-center">
           <button
             type="button"
+            title={followLabel ?? dict.live.backToLive}
+            aria-label={followLabel ?? dict.live.backToLive}
             onClick={() => {
               setFollowing(true)
               activeWordRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
             }}
-            className="pointer-events-auto flex items-center gap-1 rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white shadow-popover transition-opacity hover:opacity-90"
+            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-ink text-[15px] leading-none text-white shadow-popover transition-opacity hover:opacity-90"
           >
-            <span aria-hidden>{wordIsAbove ? '↑' : '↓'}</span> {followLabel ?? dict.live.backToLive}
+            <span aria-hidden>{wordIsAbove ? '↑' : '↓'}</span>
           </button>
         </div>
       )}

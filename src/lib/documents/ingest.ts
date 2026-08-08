@@ -1,6 +1,8 @@
 // Ingest = upload PDF to the private bucket + extract per-page text + persist rows.
-// Script-only (imports extract.ts → pdfjs); the CLI wraps this, and Core-2 MAYA auto-fetch
-// will call ingestDocument() directly later. Idempotent on (company, quarter, docType).
+// Imports extract.ts → pdfjs, so it may ONLY run where pdfjs is not bundled: scripts (tsx),
+// and Next server code because pdfjs-dist is listed in serverComponentsExternalPackages.
+// The CLI wraps this, and `lib/maya/ingestFiling.ts` calls it for a MAYA filing.
+// Idempotent on (company, quarter, docType) — NOT on maya_report_id, see IngestArgs.
 import { createClient } from '@supabase/supabase-js'
 import { extractPdfPages } from './extract'
 
@@ -15,6 +17,25 @@ export interface IngestArgs {
   docType: 'report' | 'slides'
   title: string
   source?: string
+  /**
+   * A MAYA filing's own identity (migration 019). Recorded so the intake can
+   * tell what Atlas already holds and re-pulling a filing is a no-op.
+   *
+   * NOT the upsert target: `(company_id, quarter, doc_type)` still is, because
+   * its unique constraint cannot be removed from a database shared with
+   * production. The consequence is deliberate — for one company, period and
+   * type Atlas keeps the most recently pulled filing, so a corrected
+   * presentation replaces the erroneous one.
+   */
+  mayaReportId?: number
+  /**
+   * Overrides the default `${companyId}/${quarter}/${docType}.pdf`.
+   *
+   * MAYA needs this: a company can file several documents that map to the same
+   * quarter and type, and the default path would have them overwrite each
+   * other's BYTES in storage even when the rows are distinct.
+   */
+  storagePath?: string
 }
 
 export async function ingestDocument(a: IngestArgs): Promise<{ documentId: string; pageCount: number }> {
@@ -32,7 +53,7 @@ export async function ingestDocument(a: IngestArgs): Promise<{ documentId: strin
   }
 
   // 3. upload (upsert = re-ingest replaces the file)
-  const storagePath = `${a.companyId}/${a.quarter.replace(/\s+/g, '-')}/${a.docType}.pdf`
+  const storagePath = a.storagePath ?? `${a.companyId}/${a.quarter.replace(/\s+/g, '-')}/${a.docType}.pdf`
   const up = await db.storage
     .from(DOCUMENTS_BUCKET)
     .upload(storagePath, a.fileBytes, { contentType: 'application/pdf', upsert: true })
@@ -51,6 +72,9 @@ export async function ingestDocument(a: IngestArgs): Promise<{ documentId: strin
         storage_path: storagePath,
         page_count: pageCount,
         updated_at: new Date().toISOString(),
+        // Spread rather than `?? null`: a manual re-ingest of a row that came
+        // from MAYA must not erase which filing it is.
+        ...(a.mayaReportId === undefined ? {} : { maya_report_id: a.mayaReportId }),
       },
       { onConflict: 'company_id,quarter,doc_type' }
     )

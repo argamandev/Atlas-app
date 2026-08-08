@@ -22,6 +22,8 @@ export const en = {
     copied: 'Copied',
     share: 'Share',
     retry: 'Retry',
+    /** A button's label while its request is in flight. */
+    working: 'Working…',
     error: 'Something went wrong',
     empty: 'Nothing here yet',
     comingSoon: 'Coming soon',
@@ -75,26 +77,70 @@ export const en = {
     backToWorkspaces: 'Back to workspaces',
     backToFiles: 'Back to files',
     intakeHead: 'What are we working on today?',
-    intakeSub:
-      'Describe the company or material — your workspace agent will gather the files and set everything up.',
+    intakeSub: 'Describe the company or material you want — Atlas will search what it has.',
     intakePlaceholder: 'Describe the files or material you want to work on…',
-    intakeHint: 'Type / for skills, @ to mention a company.',
+    // Was "Type / for skills, @ to mention a company" — neither existed. A hint
+    // that teaches a gesture the app does not have is the same class of untruth
+    // as a fabricated result, just quieter.
+    intakeHint: 'Hebrew or English. Name a company, a period, or both.',
     intakeSend: 'Send',
     intakeAdd: 'Attach',
     intakeMic: 'Dictate',
-    clarifyLead: 'Got it. Before I pull everything in, a few quick checks so the workspace lands right:',
-    clarifyPeriod: 'Which period should I cover?',
-    clarifyElse: 'Anything else to include?',
-    clarifyDeck: 'Latest investor deck',
-    clarifyReport: 'Annual reports',
-    approveBuild: 'Approve & build workspace',
-    orKeepDescribing: 'or keep describing below',
+    // The intake is a CONVERSATION now, so most of its copy comes from the model
+    // in the user's own language. What is left here is the chrome around it:
+    // what Atlas is doing, and what to say when it cannot answer at all.
+    intakeThinking: 'Thinking…',
+    intakeAdding: 'Pulling the files in…',
+    // ATLAS ANSWERS THE YES. Founder, 2026-08-04: *"more human. if the user says
+    // yes pull them -> he should respond 'great, im pulling them it can take a
+    // second…'"*. Said by the CLIENT, not the server: the whole point of the
+    // bare-agreement shortcut is that this turn costs no model call, and asking
+    // a model to compose "great, pulling them" would hand back the half-second
+    // it just saved.
+    intakePullingNow: 'Great — pulling them in now. It can take a second…',
+    // Said as a turn in the thread, not as a banner. Honest about WHY there is
+    // no answer, and it asks for the retry rather than silently offering
+    // something worse — the previous copy claimed "keyword matches", which the
+    // conversation no longer shows.
+    intakeNotInterpreted: 'I could not work that out just now — my model did not answer. Try again?',
+    // NOTHING WAS SELECTED, SO NOTHING WAS ATTACHED — and this says exactly that
+    // and nothing more. It replaces `intakeNotInterpreted` on this path, which
+    // was the wrong cause: the model answered, so "I could not work that out"
+    // blamed a failure that did not happen. `rules/app.md` forbids inventing a
+    // cause, and a wrong one is worse than a generic one because the analyst
+    // acts on it — here they would retry an unchanged request.
+    intakeSelectionUnclear:
+      "I didn't end up with a file to add, so I've added nothing. Tell me which ones you want and I'll bring them in.",
+    // THE MODEL'S PROSE AND ITS IDS DISAGREED. Said as the disagreement it is,
+    // because that is something the analyst can settle in one sentence — and
+    // because picking one half silently is what reverted a narrowing they had
+    // explicitly asked for.
+    intakeSelectionConflict:
+      "I read that as narrowing the list, but what came back was still all of them — so I've added nothing rather than guess. Which ones should I bring in?",
+    // COVERAGE FAILURES, SAID OUT LOUD. Without these the panel would show a
+    // list drawn only from Atlas's own library and nothing would tell the
+    // analyst that MAYA was never reached — an answer that looks complete and
+    // is not.
+    intakeMayaUnreachable:
+      "I couldn't reach MAYA just now, so this only covers what Atlas already holds. Worth trying again in a moment.",
+    intakeUnknownCompany:
+      "I don't have a TASE issuer under that name. I can only find companies that have announced a reporting date.",
+    intakeRequestNotUnderstood:
+      "I couldn't work out which company you meant well enough to search MAYA, so this covers only what Atlas already holds. Try naming the company and the period?",
+    intakeFetching: 'Fetching from MAYA — downloading and reading the file…',
+    intakeSearchFailed: 'That did not go through: {error}',
     buildingTitle: 'Setting up the workspace…',
-    buildingSteps: 'Gathering files · indexing financials.xlsx · deploying agents',
-    // The build is not real — no backend gathers anything this chapter.
-    buildingDemoNote: 'Nothing is actually being fetched — this is the designed flow only.',
+    // A partial fill must be visible. Silently landing 3 of 5 files is exactly
+    // the failure this chapter exists to remove.
+    intakeAttachFailed: 'Could not add {n} of them: {error}',
+    intakeContinueAnyway: 'Open the workspace',
     notFound: 'This workspace is no longer here.',
-    notFoundHint: 'Workspaces created in this demo live for the session only — a page reload clears them.',
+    // Was "workspaces live for the session only — a page reload clears them",
+    // which stopped being true at migration 016. Workspaces persist now, so the
+    // honest reasons it is not here are deletion or ownership: RLS makes
+    // another account's workspace NOT THERE rather than forbidden, and this
+    // screen is what that looks like.
+    notFoundHint: 'It may have been deleted, or it belongs to a different account.',
     allWorkspaces: 'All workspaces',
     collapsePanel: 'Collapse panel',
     expandPanel: 'Show panel',
@@ -125,6 +171,31 @@ export const en = {
     docToolBullet: 'Bulleted list',
     docToolQuote: 'Quote block',
     docToolCite: 'Cite a source',
+    // ── Atlas writing into the document ──────────────────────────────────────
+    docLetAtlasWrite: 'Let Atlas write',
+    docWritePlaceholder:
+      'Tell Atlas what to write — "open with the industry, then the board, then why this is a good investment"',
+    docWriting: 'Atlas is writing…',
+    docWriteFailed: 'Atlas could not write that: {error}',
+    // The loudest string in the workspace, on purpose: everything typed after
+    // this point is not being kept, and silence would be the worst possible
+    // answer to that.
+    docSaveFailed: 'Your document is NOT being saved: {error}',
+    connectQuote: 'Quote it',
+    docWriteNoAnswer: 'Atlas could not draft that just now. Try again?',
+    // The background write — reported where the analyst already is, never by
+    // moving them into the document (founder, 2026-08-05).
+    docWorking: 'Atlas is writing it into your document',
+    docWorkingClip: 'Atlas is reading the clipping',
+    docIncoming: 'Atlas is adding to this document',
+    docAdded: 'Added to your document',
+    docFailed: 'Atlas could not add that. Try again?',
+    docOpen: 'Open',
+    docEmptyHint: 'Write here — or tell Atlas what to draft, and edit what it gives you.',
+    // Marked text anywhere in the workspace can be worked into the document.
+    connectToDocument: 'Connect to document',
+    connectPlaceholder: 'Where should this go, and how?',
+    connectTo: 'Adding to your document',
     docContinue: 'Continue this section',
     docQuoteDemo:
       'The quoted passage, its speaker and the figures in this document are invented for the demo — nothing here comes from a real filing or call.',
@@ -135,11 +206,168 @@ export const en = {
     docExportUnavailable: 'Not in this build',
     docCitations: '{n} citations',
     docContinueInserted: 'Sample continuation — no model wrote this.',
-    splitToggle: 'Split view',
-    addToSplit: 'Add to split',
-    removeFromSplit: 'Remove from split',
+    // The toggle names the state it takes you TO. "Split view" named neither
+    // state, on a control whose icon named nothing at all.
+    untitledDocument: 'Untitled document',
+    docTitleLabel: 'Document title',
+    docTitleFailed: 'The document title did not save: {error}',
+    // "up to three", not "all open files": the panes are capped at
+    // lib/workspace/panes.MAX_PANES, and a control must not promise a screen it
+    // will not produce.
+    multiView: 'Multi-view — up to three files side by side',
+    singleView: 'Single view — one file at a time',
+    addToSplit: 'Show in multi-view',
+    // Shown once the panes are full: the click still works, and this is what it
+    // costs. {n} is the cap (lib/workspace/panes.MAX_PANES).
+    addToSplitFull: 'Show in multi-view — {n} at a time, so the oldest pane closes',
+    removeFromSplit: 'Hide from multi-view',
+    hidePane: 'Hide from multi-view — the tab stays open',
     resetSplit: 'Reset widths',
     workspaceChat: 'Workspace chat',
+
+    // ── Derived at render from persisted rows (migration 016) ──────────────
+    // A workspace's company is DERIVED from its sources, never stored: one
+    // workspace is about Tigbur, another is about three companies at once, and
+    // a stored column could not represent the second without lying.
+    companyNone: 'Untitled',
+    companyMany: '{n} companies',
+    // Both locales inflect at one: "1 sources" / "1 מקורות" would ship to the UI.
+    sourceOne: '1 source',
+    sourceMany: '{n} sources',
+
+    // A citation must never render as a working link when it is not one.
+    // `drifted` is the dangerous case: the anchor still resolves, but the
+    // transcript was re-processed and the line now holds different words.
+    citationDrifted: 'The source moved — this quote is no longer at that line',
+    citationAbsent: 'The source was removed from this workspace',
+
+    // Failures are RENDERED. An empty grid and a failed query must never look
+    // the same, and a create that did nothing must not leave a silent button.
+    loadFailed: 'Could not load your workspaces — {error}',
+    createFailed: 'Not saved — {error}',
+    openFailed: 'Could not open this workspace — {error}',
+    // The pane moved on screen but the change did not reach the database, so
+    // it will NOT survive a reload. Saying so beats a workspace that quietly
+    // forgets.
+    layoutFailed: 'This layout will not be remembered — {error}',
+    // The name on screen is REVERTED when this shows. A rename that failed must
+    // not leave the new name sitting there looking saved.
+    renameFailed: 'The name was not changed — {error}',
+
+    // ── Putting a real source on the shelf ─────────────────────────────────
+    // ── a source pane showing the REAL file ──────────────────────────────────
+    sourceLoading: 'Opening…',
+    sourceFailed: 'Could not open this file: {error}',
+    // Each of these is a real row with no words behind it. They say which,
+    // rather than rendering an empty page that reads like an empty filing.
+    sourceProcessing: 'This call is still being transcribed. Its text will appear here once it is ready.',
+    sourceNoText: 'Atlas holds this file, but no readable text has been extracted from it yet.',
+    sourceGone: 'The source this was attached to is no longer in the archive.',
+    sourcePage: 'Page {n}',
+    sourceSelectHint: 'Select any passage to quote it, or to ask Atlas about it.',
+    // "Add a document", singular and conversational — the same asking that
+    // filled the workspace, not a second browse-and-tick surface beside it.
+    // ── workspace chat, which is also Ask Atlas ──────────────────────────────
+    // Second line of the serif hero — the first line is shared with the in-call
+    // Ask Atlas (`live.askHeroLine1`), so the two greetings read as one feature.
+    chatHeroLine2: 'about this workspace',
+    chatConnected: 'Atlas is reading the files on this shelf.',
+    chatHead: 'Ask about this workspace',
+    // Says WHERE another file would come from. "Bring another one in" was read as
+    // "fetch it from anywhere", which is the expectation the 2026-08-06 MAYA
+    // answer then confirmed in words (see lib/workspace/chat/prompt.ts).
+    chatHint:
+      "Questions, comparisons, figures across the files here — or ask me to bring in another from Atlas's library.",
+    chatPlaceholder: 'Ask Atlas…',
+    chatNoAnswer: 'I could not answer that just now — my model did not come back. Try again?',
+    chatFailed: 'That did not go through: {error}',
+    // Never omitted when it applies: an answer drawn from part of a long
+    // transcript reads exactly like one drawn from all of it.
+    chatPartial: 'I could only read part of these, so this answer may be incomplete:',
+    askAtlas: 'Ask Atlas',
+    addDocument: 'Add a document',
+    addDocumentHint: 'Describe what you need and I will pull it in — a call, a report, a quarter.',
+    addSources: 'Add sources',
+    addSourcesHint:
+      'Pull in investor calls and company documents. Everything you add stays in this workspace.',
+    searchSources: 'Search calls and documents…',
+    sourceAdded: 'Added',
+    noSources: 'No calls or documents are available yet.',
+    noSourceMatch: 'Nothing matches that search.',
+    sourcesFailed: 'Could not load the available sources — {error}',
+    attachFailed: 'Could not add that source — {error}',
+    doneAdding: 'Done',
+    // A clip that was captured but cannot be sent. Said out loud, because the
+    // alternative is a chip in the composer for an image the server dropped.
+    // The word after the quarter on a tab chip: "Q1 2026 · Transcript".
+    tabKinds: { transcript: 'Transcript', document: 'Report' },
+    closeTab: 'Close tab — the file stays on the shelf',
+    playRecording: 'Play the recording',
+    snipTooLarge: 'That clipping is too large to send — try a smaller area.',
+    snipFailed: 'That clipping could not be captured. Try again.',
+    // NOT `live.snip` ("Snip to chat"), which stays true in a live call: here a
+    // clipping is asked where it goes, so the tool cannot name one destination.
+    snipTool: 'Clip an area',
+    // Where a fresh clipping goes: a question to Atlas, or evidence in the document.
+    clipWhere: 'Where should this clipping go?',
+    clipToChat: 'Ask Atlas',
+    clipToDocument: 'Put in the document',
+    clipDiscard: 'Discard the clipping',
+    clipPage: 'page {page}',
+    clipAdded: 'Added to your document',
+    // The three answers the founder named, written as INSTRUCTIONS because a
+    // chip fills the box rather than firing — what will happen stays readable.
+    clipAsImage: 'As an image',
+    clipAsText: 'Extract the data as text',
+    clipAsTable: 'Make a table from it',
+    clipNotePlaceholder: 'Or tell Atlas what to do with it…',
+    clipDoIt: 'Let Atlas do it',
+    // Second step of the clipping card, reached only by choosing the document —
+    // so the question narrows from "where does this go" to "in what form".
+    clipHow: 'How should it go in?',
+    clipBack: 'Back',
+    // The three panel sections that no backend fills yet. They replaced invented
+    // agents, threads and activity on 2026-08-06 — "not built" said plainly is
+    // the honest state, and it is what the DemoBanner used to stand in for.
+    agentsEmpty: 'No agent has run in this workspace. Agents are not wired up yet.',
+    // WAS "Ask Atlas conversations are not kept yet", which stopped being true
+    // the day the conversation started persisting. An empty state describes what
+    // is missing NOW, so it goes stale the moment the feature lands.
+    chatsEmpty: 'Nothing has been asked in this workspace yet. Your conversation is saved once you do.',
+    actionsEmpty: 'Nothing has happened here yet. This workspace does not keep an activity log yet.',
+    /** The one conversation a workspace keeps (v1), in the Chats list. */
+    chatMessages: '{n} messages',
+    chatMessageOne: '1 message',
+    // A clipping's image is not stored — thread.ts explains why. The turn still
+    // says what it was asked about, because a silent gap would read as a
+    // question that never had a picture attached.
+    clipsNotKept: '{n} clippings · page {pages} — the images are not kept',
+    clipNotKept: '1 clipping · page {pages} — the image is not kept',
+    chatSaveFailed: 'This conversation could not be saved — {error}',
+
+    // ── Destructive confirmations ─────────────────────────────────────────
+    // Every line states what will be destroyed BEFORE it is (rules/db.md).
+    deleteWorkspace: 'Delete workspace',
+    deleteWorkspaceTitle: 'Delete {name}?',
+    deleteWorkspaceIrreversible: 'This cannot be undone.',
+    deleteCountFiles: '{n} sources on the shelf',
+    deleteCountFileOne: '1 source on the shelf',
+    deleteCountBlocks: '{n} paragraphs in the working document',
+    deleteCountBlockOne: '1 paragraph in the working document',
+    deleteCountThreads: '{n} saved conversations',
+    deleteCountThreadOne: '1 saved conversation',
+    deleteNothingInside: 'It is empty — nothing is stored inside it.',
+    confirmDelete: 'Delete',
+    removeFile: 'Remove from workspace',
+    removeFileTitle: 'Remove {name}?',
+    // The file is shared corpus. Taking it off one shelf must not imply Atlas
+    // threw it away — it is still findable, and can be added again.
+    removeFileBody: 'It comes off this shelf. The file itself stays in Atlas, and you can add it back.',
+    removeFileCitations:
+      '{n} citations in your working document lose their source. The sentences stay, and each keeps showing what it pointed at.',
+    removeFileCitationOne:
+      '1 citation in your working document loses its source. The sentence stays, and keeps showing what it pointed at.',
+    confirmRemove: 'Remove',
   },
   agents: {
     ready: 'Ready when you are.',
@@ -378,6 +606,11 @@ export const en = {
     backToLive: 'Back to live',
     backToPlaying: 'Back to current word',
     openAudioBar: 'Open audio bar',
+    stopPlayback: 'Stop the audio',
+    // A source that will never load has to SAY so. Without it the bar sits
+    // mute, the play button does nothing, and there is no way to tell a broken
+    // recording from one that is still fetching.
+    playbackFailed: 'This recording could not be loaded',
     slidesEmpty: 'Slides will appear here when linked to this call.',
     reportEmpty: 'The quarterly report will appear here when linked.',
     reportFreely: 'PDF · read freely',

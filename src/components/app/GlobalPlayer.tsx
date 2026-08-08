@@ -2,12 +2,14 @@
 
 import { usePlayer, usePlayerTime } from '@/lib/player/PlayerProvider'
 import { MediaPlayer } from '@/components/live/MediaPlayer'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 // The docked player bar, now global (Feature 4). Reads the shared player + playhead and
 // renders the existing MediaPlayer UI unchanged. Rendered by the app shell so it persists
 // across navigation; absent (returns null) when no recorded call is loaded.
 export function GlobalPlayer() {
   const p = usePlayer()
+  const { dict } = useI18n()
   const currentTime = usePlayerTime()
   // barHidden: the ✕ dismisses the BAR only — audio keeps playing (founder round 3);
   // the transcript view's bottom chip (or loading any call) brings it back.
@@ -16,7 +18,10 @@ export function GlobalPlayer() {
     <MediaPlayer
       logoUrl={p.call.logoUrl}
       title={p.call.title}
-      subtitle={p.call.subtitle}
+      // A recording whose source 404s or expires never fires `canplay`, so the
+      // bar would otherwise sit there looking loadable while every press of play
+      // does nothing. The bar is the only surface that can say it.
+      subtitle={p.loadFailed ? dict.live.playbackFailed : p.call.subtitle}
       currentTime={currentTime}
       duration={p.duration}
       playing={p.playing}

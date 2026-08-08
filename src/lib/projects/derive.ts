@@ -24,28 +24,12 @@ import {
  */
 export { PROJECT_CONTEXT_BUDGET }
 
-export type Locale = 'en' | 'he'
-
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ['year', 365 * 24 * 3_600_000],
-  ['month', 30 * 24 * 3_600_000],
-  ['day', 24 * 3_600_000],
-  ['hour', 3_600_000],
-  ['minute', 60_000],
-]
-
-/**
- * "2 hours ago" / "לפני שעתיים". Intl does the localisation, so Hebrew is
- * correct without a dictionary key per unit per plural form.
- */
-export function relativeLabel(iso: string, now: Date, locale: Locale): string {
-  const diff = now.getTime() - new Date(iso).getTime()
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
-  for (const [unit, ms] of UNITS) {
-    if (Math.abs(diff) >= ms) return rtf.format(-Math.round(diff / ms), unit)
-  }
-  return rtf.format(0, 'minute')
-}
+// Moved to @/lib/time/relative on 2026-08-03 when Workspace needed the same
+// rule — a shared time helper should not live inside one feature. Re-exported
+// so every existing caller and test keeps working unchanged.
+export { relativeLabel, type Locale } from '@/lib/time/relative'
+import { relativeLabel } from '@/lib/time/relative'
+import type { Locale } from '@/lib/time/relative'
 
 /** Null `memoryUpdatedAt` means it genuinely never was — say so, do not invent a time. */
 export function memoryLabel(

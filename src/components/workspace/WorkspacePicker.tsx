@@ -3,11 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { useDemoState } from '@/lib/demo/DemoStateProvider'
-import { DemoBanner } from '@/components/ds/DemoBanner'
 import { Monogram } from '@/components/ds/Monogram'
-import { SearchIcon, PlusIcon, ChevronDownIcon, CheckIcon } from '@/components/ds/icons'
-import { WS_SORTS, type WsSortKey } from '@/lib/workspace/data'
+import { ErrorLine } from '@/components/projects/ErrorLine'
+import { SearchIcon, PlusIcon, ChevronDownIcon, CheckIcon, TrashIcon } from '@/components/ds/icons'
+import { WS_SORTS, type WsSortKey, type WorkspaceRow, type WorkspaceItemRow } from '@/lib/workspace/data'
+import { presentWorkspace, deleteWorkspaceLines } from '@/lib/workspace/present'
+import {
+  createWorkspaceReq,
+  deleteWorkspaceReq,
+  fetchWorkspaceCounts,
+  type WorkspaceCounts,
+} from '@/lib/workspace/client'
+import { ConfirmDialog } from './ConfirmDialog'
 
 // Workspace picker (design lines 1263-1333): header + sort menu + black
 // "New workspace", explainer, 44px search, 3-column grid, and the two empty
@@ -19,14 +26,66 @@ import { WS_SORTS, type WsSortKey } from '@/lib/workspace/data'
 // founder answered on 2026-08-01 by rebuilding the headline in the design as
 // serif — so parity and app-wide consistency now agree. Verified against the
 // re-rendered design, not against bundle CSS (rules/app.md).
-export function WorkspacePicker() {
-  const { dict } = useI18n()
+export function WorkspacePicker({
+  rows,
+  items,
+  companies,
+  loadError,
+  nowIso,
+}: {
+  rows: WorkspaceRow[]
+  items: WorkspaceItemRow[]
+  /** itemId -> company name; the workspace's company is derived from these */
+  companies: Record<string, string>
+  loadError: string | null
+  /** the server's clock, so hydration cannot mismatch on "2 hours ago" */
+  nowIso: string
+}) {
+  const { dict, locale } = useI18n()
   const router = useRouter()
-  const { workspaces, addWorkspace } = useDemoState()
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<WsSortKey>('updated')
   const [sortOpen, setSortOpen] = useState(false)
+  const [createError, setCreateError] = useState<unknown>(null)
+  const [creating, setCreating] = useState(false)
   const sortRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * The delete confirmation, and what it is allowed to say.
+   *
+   * `counts` starts null and the dialog renders `dict.common.loading` until the
+   * numbers arrive — it must not open with zeroes, because "It is empty" over a
+   * workspace holding six filings is the confidently-wrong sentence this whole
+   * dialog exists to prevent.
+   */
+  const [confirm, setConfirm] = useState<{ id: string; name: string } | null>(null)
+  const [counts, setCounts] = useState<WorkspaceCounts | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<unknown>(null)
+  /**
+   * Rows deleted in this session. `rows` is a SERVER prop, so it keeps listing a
+   * workspace until the route re-renders; `router.refresh()` is fired after a
+   * success but it is a round trip, and a card that lingers after a confirmed
+   * delete reads as a failure. This is not optimism — the delete already
+   * returned — it is the local half of a fact the server has not re-sent yet.
+   */
+  const [deleted, setDeleted] = useState<string[]>([])
+
+  // Rows -> display shapes here rather than on the server, because every label
+  // is DERIVED and derivation needs the dictionary and locale.
+  const workspaces = useMemo(() => {
+    const now = new Date(nowIso)
+    const byWorkspace: Record<string, WorkspaceItemRow[]> = {}
+    for (const it of items) {
+      if (!byWorkspace[it.workspace_id]) byWorkspace[it.workspace_id] = []
+      byWorkspace[it.workspace_id].push(it)
+    }
+    return rows.map((r) => {
+      const own = byWorkspace[r.id] ?? []
+      const names = own.map((i) => companies[i.id]).filter(Boolean)
+      return presentWorkspace(r, own, names, now, locale, dict)
+    })
+  }, [rows, items, companies, nowIso, locale, dict])
 
   useEffect(() => {
     if (!sortOpen) return
@@ -39,11 +98,13 @@ export function WorkspacePicker() {
 
   const query = q.trim().toLowerCase()
   const visible = useMemo(() => {
-    let list = workspaces.filter((w) => `${w.name} ${w.company} ${w.sub}`.toLowerCase().includes(query))
+    let list = workspaces
+      .filter((w) => !deleted.includes(w.id))
+      .filter((w) => `${w.name} ${w.company} ${w.sub}`.toLowerCase().includes(query))
     if (sort === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name))
     else if (sort === 'files') list = [...list].sort((a, b) => b.fileCount - a.fileCount)
     return list
-  }, [workspaces, query, sort])
+  }, [workspaces, query, sort, deleted])
 
   const sortLabels: Record<WsSortKey, string> = {
     updated: dict.workspace.sortUpdated,
@@ -51,17 +112,77 @@ export function WorkspacePicker() {
     files: dict.workspace.sortFiles,
   }
 
-  function createWorkspace() {
-    const id = addWorkspace(dict.workspace.untitled)
-    router.push(`/app/workspace/${id}`)
+  async function createWorkspace() {
+    if (creating) return
+    setCreating(true)
+    // Cleared first, so a retry that succeeds does not sit under a stale
+    // failure — and a retry that fails again replaces rather than accumulates.
+    setCreateError(null)
+    try {
+      const { workspace } = await createWorkspaceReq(dict.workspace.untitled)
+      router.push(`/app/workspace/${workspace.id}`)
+    } catch (e) {
+      // Rendered, never swallowed. A dead "New workspace" button that silently
+      // does nothing is the defect this chapter's predecessor was gated on.
+      setCreateError(e)
+      setCreating(false)
+    }
+  }
+
+  /**
+   * Open the confirmation, then go and find out what it is about to destroy.
+   *
+   * The COUNTS ARE FETCHED, not derived from the grid. `w.fileCount` is right
+   * here on screen, but it counts only the shelf — the working document and the
+   * saved conversation are the two things a user would most regret losing and
+   * neither is in this component's props. A dialog that listed the one number it
+   * happened to have would read as a complete inventory.
+   */
+  function askDelete(w: { id: string; name: string }) {
+    setConfirm({ id: w.id, name: w.name })
+    setCounts(null)
+    setDeleteError(null)
+    void fetchWorkspaceCounts(w.id)
+      .then((r) => {
+        // Guarded: the dialog may have been cancelled and REOPENED on another
+        // workspace while this was in flight, and arriving late with the first
+        // one's numbers would describe the wrong room.
+        setConfirm((cur) => {
+          if (cur?.id === w.id) setCounts(r.counts)
+          return cur
+        })
+      })
+      .catch((e: unknown) => setDeleteError(e))
+  }
+
+  async function doDelete() {
+    const target = confirm
+    if (!target || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteWorkspaceReq(target.id)
+      setDeleted((d) => [...d, target.id])
+      setConfirm(null)
+      // Resync with the server, so a second tab's view and this one agree.
+      router.refresh()
+    } catch (e) {
+      // The dialog STAYS OPEN on failure. Closing it would leave the card in the
+      // grid with no explanation, which reads as a dead button.
+      setDeleteError(e)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const newBtn =
     'flex items-center gap-[7px] rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper transition-opacity hover:opacity-90'
 
   return (
+    // No DemoBanner: these workspaces are real rows belonging to the signed-in
+    // account. Claiming "demo" over persisted data is untrue in the other
+    // direction, and the banner's whole job is to be believed.
     <div className="flex h-full min-h-0 flex-col">
-      <DemoBanner />
       <div className="atscroll min-h-0 flex-1 overflow-y-auto px-12 pb-[120px] pt-11">
         <div className="mx-auto w-full max-w-[960px]">
           <div className="flex items-start justify-between gap-5">
@@ -114,6 +235,32 @@ export function WorkspacePicker() {
           </div>
           <p className="mb-[22px] mt-2 max-w-[620px] text-[14px] text-ink-muted">{dict.workspace.subtitle}</p>
 
+          {/* BOTH failures render, never one instead of the other: a create
+              that fails while a load has already failed would otherwise be an
+              invisible dead click. Each ErrorLine owns its own block box, so
+              this flex column cannot blockify the <bdi> inside it. */}
+          {(loadError !== null || createError !== null) && (
+            <div
+              role="alert"
+              className="mb-[22px] flex flex-col gap-1 rounded-[10px] border border-hairline bg-paper px-3.5 py-2.5 text-[13px] text-ink"
+            >
+              {loadError !== null && (
+                <ErrorLine
+                  template={dict.workspace.loadFailed}
+                  error={loadError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
+              {createError !== null && (
+                <ErrorLine
+                  template={dict.workspace.createFailed}
+                  error={createError}
+                  auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                />
+              )}
+            </div>
+          )}
+
           <div className="relative mb-[22px]">
             <SearchIcon
               size={17}
@@ -131,35 +278,65 @@ export function WorkspacePicker() {
           {visible.length > 0 ? (
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => router.push(`/app/workspace/${w.id}`)}
-                  className="flex min-h-[152px] flex-col gap-3.5 rounded-xl border border-hairline bg-paper p-[18px] text-start transition-colors hover:bg-subtle/50"
-                >
-                  <div className="flex items-center justify-between">
-                    <Monogram name={w.initial} size={38} fontSize={16} radius={9} />
-                    <span className="font-mono-num text-[11px] text-ink-ghost" dir="ltr">
-                      {w.updatedLabel}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <div
-                      className="mb-[3px] text-[15px] font-semibold tracking-[-0.01em] text-ink"
-                      dir="auto"
-                    >
-                      {w.name}
+                // A WRAPPER, because the delete control cannot live inside the
+                // card: the card is a <button>, and a button inside a button is
+                // invalid HTML that browsers resolve by dropping one of them.
+                // Siblings in a `relative` box keep both real controls, both
+                // keyboard-reachable, with the card still filling the cell.
+                <div key={w.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/app/workspace/${w.id}`)}
+                    className="flex min-h-[152px] w-full flex-col gap-3.5 rounded-xl border border-hairline bg-paper p-[18px] text-start transition-colors hover:bg-subtle/50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Monogram name={w.initial} size={38} fontSize={16} radius={9} />
+                      <span className="font-mono-num text-[11px] text-ink-ghost" dir="ltr">
+                        {w.updatedLabel}
+                      </span>
                     </div>
-                    <div className="text-[12.5px] text-ink-muted" dir="auto">
-                      {w.company} · {w.sub}
+                    {/* NOT dir="auto" on either line — 4th occurrence of the rule
+                      in .claude/rules/app.md, and the first where real data made
+                      it bite. `dir` resolves the WHOLE line from its FIRST
+                      strong character, and presentWorkspace now feeds these real
+                      Hebrew issuer names beside a Latin-or-Hebrew source count:
+                      in EN a Hebrew company flipped the line to RTL and rendered
+                      "4 · ןארידת sources"; in HE a Latin company flipped it to
+                      LTR and rendered "Qualitau · 4 תורוקמ". <bdi> per run lets
+                      each resolve on its own and the container keeps the page's
+                      direction. The parent is a block div, not flex, so these
+                      stay inline rather than blockifying. */}
+                    <div className="flex-1">
+                      <div className="mb-[3px] text-[15px] font-semibold tracking-[-0.01em] text-ink">
+                        <bdi>{w.name}</bdi>
+                      </div>
+                      <div className="text-[12.5px] text-ink-muted">
+                        <bdi>{w.company}</bdi> · <bdi>{w.sub}</bdi>
+                      </div>
                     </div>
-                  </div>
-                  <div className="font-mono-num text-[11.5px] text-ink-faint">
-                    <bdi dir="ltr">
-                      {w.fileCount} {w.fileCount === 1 ? dict.workspace.fileOne : dict.workspace.files}
-                    </bdi>
-                  </div>
-                </button>
+                    <div className="font-mono-num text-[11.5px] text-ink-faint">
+                      <bdi dir="ltr">
+                        {w.fileCount} {w.fileCount === 1 ? dict.workspace.fileOne : dict.workspace.files}
+                      </bdi>
+                    </div>
+                  </button>
+                  {/* `end-*`, not `right-*`: a logical property, so the control
+                    sits in the card's trailing corner in both locales rather
+                    than colliding with the Hebrew source count.
+                    Hidden until hover on pointer devices — a delete button is
+                    not something a grid of workspaces should wear all the time —
+                    but ALWAYS shown where there is no hover, or it would be an
+                    invisible tap target sitting on top of a real card. */}
+                  <button
+                    type="button"
+                    onClick={() => askDelete(w)}
+                    title={dict.workspace.deleteWorkspace}
+                    aria-label={`${dict.workspace.deleteWorkspace} — ${w.name}`}
+                    className="absolute bottom-3.5 end-3.5 flex h-7 w-7 items-center justify-center rounded-[7px] text-ink-ghost opacity-0 transition-opacity hover:bg-subtle hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                  >
+                    <TrashIcon size={14} strokeWidth={1.8} />
+                  </button>
+                </div>
               ))}
             </div>
           ) : (
@@ -179,6 +356,26 @@ export function WorkspacePicker() {
           )}
         </div>
       </div>
+
+      {confirm && (
+        <ConfirmDialog
+          title={dict.workspace.deleteWorkspaceTitle}
+          titleValue={confirm.name}
+          // Until the counts land the dialog says it is still looking, rather
+          // than showing an inventory it does not have yet. Delete stays
+          // clickable — the user's intent does not depend on the numbers, and a
+          // disabled button on a slow request is its own kind of dead control.
+          lines={counts ? deleteWorkspaceLines(counts, dict) : [dict.common.loading]}
+          confirmLabel={dict.workspace.confirmDelete}
+          pending={deleting}
+          error={deleteError}
+          onConfirm={() => void doDelete()}
+          onCancel={() => {
+            setConfirm(null)
+            setDeleteError(null)
+          }}
+        />
+      )}
     </div>
   )
 }

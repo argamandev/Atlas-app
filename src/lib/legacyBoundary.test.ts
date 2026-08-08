@@ -16,6 +16,17 @@ const ATLAS_ROOTS = [
   // Added 2026-08-02: this folder existed for a day outside the guard, so its
   // files could have imported Timlul and nothing would have said so.
   'src/components/projects',
+  // Added 2026-08-08 (cold review). The workspace + MAYA chapters wrote roughly
+  // five thousand lines across these four roots while the guard's list still
+  // stopped at `components/projects` — so the largest body of new Atlas code on
+  // the branch sat outside the boundary the guard exists to hold. Clean by grep
+  // when added, which is exactly when a list like this should grow: the cost of
+  // a missing root is invisible until the day something imports Timlul from it
+  // and nothing says so.
+  'src/components/workspace',
+  'src/components/agents',
+  'src/lib/workspace',
+  'src/lib/maya',
 ]
 
 // Legacy folders Atlas may not depend on.

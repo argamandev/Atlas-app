@@ -11,12 +11,14 @@ import { ChevronLeftIcon } from '@/components/ds/icons'
 // loaded, except the transcript page itself. Click → back to that call's transcript (the
 // player keeps playing the whole time). Disappears when the player is closed (Feature 4).
 export function ReturnToTranscriptChip() {
-  const { call, viewingId } = usePlayer()
+  const { call, viewingIds } = usePlayer()
   const pathname = usePathname()
   const { dict } = useI18n()
   if (!call) return null
   const href = `/app/live/${call.id}`
-  if (pathname === href || viewingId === call.id) return null // already on the transcript (URL or inline swap)
+  // Already showing those words — by URL, by the inline live→finished swap, or in a
+  // workspace pane. Any of the three makes this chip an offer to go where you are.
+  if (pathname === href || viewingIds.includes(call.id)) return null
 
   return (
     <Link

@@ -29,8 +29,9 @@ import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Fac
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
-import { usePlayer, usePlayerTimeDerived } from '@/lib/player/PlayerProvider'
+import { usePlayer, usePlayerTimeDerived, useViewingCall } from '@/lib/player/PlayerProvider'
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
+import { transcriptSync, playbackStarted } from '@/lib/live/syncMode'
 import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
 import type { ChatSnip } from '@/lib/api/chat'
@@ -63,6 +64,15 @@ export function LiveTranscriptView({
   const flat = useMemo(() => flattenWords(call.transcript), [call.transcript])
   const activeIndex = usePlayerTimeDerived((t) => (isActiveCall ? activeWordIndex(flat, t) : -1))
   const clockSec = usePlayerTimeDerived((t) => (isActiveCall ? Math.floor(t) : 0))
+  // Karaoke and its follow chip are ONE mode, entered by STARTING the recording — see
+  // lib/live/syncMode. Note this page loads the call into the player on mount (below),
+  // so "is the player's track" is true on arrival and would not have gated anything.
+  // clockSec, not the raw 60fps clock: a whole-second tick is enough to know we left zero.
+  const sync = transcriptSync({
+    hasWordTimings: call.transcript.hasWordTimings,
+    isActiveTrack: isActiveCall,
+    started: playbackStarted({ playing, positionSec: clockSec }),
+  })
   // remember the last playhead so the "Open audio bar" chip can resume where the user closed it
   // (second granularity is plenty — clockSec keeps this off the 60fps tick)
   const lastPosRef = useRef(0)
@@ -72,10 +82,7 @@ export function LiveTranscriptView({
 
   // Tell the player this call is being displayed (URL-independent) so the Return-to-transcript chip
   // hides while we're on it — including the inline live→finished swap, where the URL stays /app/live/live.
-  useEffect(() => {
-    player.setViewing(call.id)
-    return () => player.setViewing(null)
-  }, [call.id, player.setViewing])
+  useViewingCall(call.id)
 
   const [tab, setTab] = useState('transcript')
   // V2 (Claude Design): call view is dark-first with a Light toggle; Single|Multi facets.
@@ -731,9 +738,9 @@ export function LiveTranscriptView({
                   <TranscriptBody
                     transcript={call.transcript}
                     activeIndex={activeIndex}
-                    autoScroll={autoScroll}
+                    autoScroll={autoScroll && sync.follow}
                     onWordClick={seek}
-                    karaoke={call.transcript.hasWordTimings && isActiveCall}
+                    karaoke={sync.karaoke}
                     onRenameSpeaker={renameSpeaker}
                     searchMatches={matches}
                     activeMatch={matches[matchPos] ?? -1}
@@ -894,27 +901,28 @@ export function LiveTranscriptView({
           </div>
         )}
 
-        {/* "Open audio bar" — reopen the docked bar after ✕. If the call is still loaded
-            (the ✕ only hides the bar now — audio may well still be playing) this is a pure
-            un-hide; otherwise reload the call at the last playhead. */}
-        {call.audioUrl && (!isActiveCall || player.barHidden) && (
+        {/* START this call — it is not the loaded track, so there is nothing to un-hide;
+            load it at the last playhead this view saw.
+            REOPENING a hidden bar left here on 2026-08-05: it now lives in the shell
+            (components/app/PlayerHiddenChip), because a bar dismissed on THIS page kept
+            playing on every other one with no control anywhere. Two chips saying "open
+            audio bar" on the same screen is the confusion that fix exists to end. */}
+        {call.audioUrl && !isActiveCall && (
           <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center">
             <button
               type="button"
               onClick={() =>
-                isActiveCall
-                  ? player.showBar()
-                  : player.load({
-                      id: call.id,
-                      companyId: call.companyId,
-                      title: name,
-                      subtitle: call.quarter,
-                      logoUrl: call.logoUrl,
-                      audioUrl: call.audioUrl!,
-                      isLive: false,
-                      duration: call.transcript.durationSec || undefined,
-                      startAt: lastPosRef.current,
-                    })
+                player.load({
+                  id: call.id,
+                  companyId: call.companyId,
+                  title: name,
+                  subtitle: call.quarter,
+                  logoUrl: call.logoUrl,
+                  audioUrl: call.audioUrl!,
+                  isLive: false,
+                  duration: call.transcript.durationSec || undefined,
+                  startAt: lastPosRef.current,
+                })
               }
               className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white shadow-popover transition-opacity hover:opacity-90"
             >

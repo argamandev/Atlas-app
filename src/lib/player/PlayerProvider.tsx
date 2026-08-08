@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { addViewer, removeViewer, type ViewerCounts } from './viewers'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global audio player (Feature 4). Lifts the recorded-call player out of the
@@ -54,10 +55,14 @@ interface PlayerApi {
   barHidden: boolean
   hideBar: () => void
   showBar: () => void
+  /** the current source failed to load — nothing will play until another is chosen */
+  loadFailed: boolean
   getCurrentTime: () => number
   subscribeTime: (cb: () => void) => () => void
-  viewingId: string | null
-  setViewing: (id: string | null) => void
+  /** call ids some surface is currently DISPLAYING — see `useViewingCall` */
+  viewingIds: string[]
+  addViewing: (id: string) => void
+  removeViewing: (id: string) => void
   /** the in-transcript side chat is open → the docked bar narrows to sit left of it */
   chatOpen: boolean
   setChatOpen: (v: boolean) => void
@@ -90,21 +95,88 @@ export function usePlayerTimeDerived<T extends number | string | boolean>(comput
   )
 }
 
+/**
+ * "This component is SHOWING that call's words right now."
+ *
+ * Registers on mount, releases on unmount, so the floating "Return to transcript"
+ * chip never offers to carry you somewhere you already are. Founder, 2026-08-05:
+ * playing a call from a workspace pane raised that chip — and following it would
+ * have thrown away the panes he had arranged, to reach a transcript already open
+ * in front of him.
+ *
+ * Pass `null` when there is nothing to declare (a pane with no recording).
+ */
+export function useViewingCall(callId: string | null) {
+  const { addViewing, removeViewing } = usePlayer()
+  useEffect(() => {
+    if (!callId) return
+    addViewing(callId)
+    return () => removeViewing(callId)
+  }, [callId, addViewing, removeViewing])
+}
+
+/**
+ * The list form: "all of these calls are reachable HERE, without navigating."
+ *
+ * A workspace holding a call as a labelled tab is the case this exists for. The
+ * analyst switches from the transcript to the report while the audio keeps
+ * playing; the chip has no business appearing then, because its offer — go to
+ * the call page — would empty the workspace he built to reach words that are one
+ * visible tab away.
+ *
+ * Keyed on the joined ids so a re-render with an equal list does not re-register.
+ * Call ids never contain the separator (uuids and YouTube ids).
+ */
+export function useViewingCalls(callIds: string[]) {
+  const { addViewing, removeViewing } = usePlayer()
+  const key = callIds.join('|')
+  useEffect(() => {
+    const ids = key ? key.split('|') : []
+    ids.forEach(addViewing)
+    return () => ids.forEach(removeViewing)
+  }, [key, addViewing, removeViewing])
+}
+
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [call, setCall] = useState<PlayerCall | null>(null)
   const [playing, setPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(1)
-  const [viewingId, setViewingId] = useState<string | null>(null) // call a LiveTranscriptView is displaying (URL-independent)
+  // Calls some surface is DISPLAYING right now (URL-independent) — a workspace pane
+  // or a LiveTranscriptView. Counted, not flagged: see lib/player/viewers.ts.
+  const [viewingIds, setViewingIds] = useState<string[]>([])
+  const viewerCounts = useRef<ViewerCounts>(new Map())
   const [chatOpen, setChatOpen] = useState(false) // in-transcript side chat open → narrow the docked bar
   const [barHidden, setBarHidden] = useState(false) // bar UI dismissed while audio keeps playing
+  /** the current source failed to load — the bar says so instead of sitting mute */
+  const [loadFailed, setLoadFailed] = useState(false)
 
   // time store — a mutable ref + listener set, driven by rAF while playing + timeupdate.
   const timeRef = useRef(0)
   const listeners = useRef(new Set<() => void>())
   const rafRef = useRef(0)
   const pendingSeekRef = useRef<number | null>(null)
+  /**
+   * A PRESS OF PLAY CAN ARRIVE BEFORE THE <audio> HAS A SOURCE.
+   *
+   * `load()` only sets React state; the element is pointed at the new URL in an
+   * effect one render LATER. A surface that loads and plays in the same handler
+   * — the workspace's "Play the recording", and clicking a word to hear it —
+   * therefore called `play()` on a source-less element, which rejects, and then
+   * the effect ran `a.load()`, which would have aborted it anyway. Nothing
+   * played until the button was pressed a SECOND time.
+   *
+   * It survived because it was invisible: the pane lit up its karaoke on the
+   * press regardless, so the only tell was silence. Gating the karaoke on real
+   * playback (lib/live/syncMode) is what exposed it.
+   *
+   * So the intent is remembered and replayed on `canplay` — the same shape as
+   * `pendingSeekRef` above, for the same reason. ONE SHOT: the flag is cleared
+   * before the retry, and by any pause/close, so a remembered press can never
+   * become a standing order that starts audio the user has since stopped.
+   */
+  const pendingPlayRef = useRef(false)
   const notify = useCallback(() => listeners.current.forEach((l) => l()), [])
   const subscribeTime = useCallback((cb: () => void) => {
     listeners.current.add(cb)
@@ -158,18 +230,40 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const load = useCallback((c: PlayerCall) => {
     setCall((prev) => (prev?.id === c.id ? prev : c))
     setBarHidden(false) // loading (or re-summoning) a call always surfaces the bar
+    setLoadFailed(false) // a new source has not failed yet
   }, [])
   const hideBar = useCallback(() => setBarHidden(true), [])
   const showBar = useCallback(() => setBarHidden(false), [])
   const play = useCallback(() => {
-    void audioRef.current?.play().catch(() => {})
+    pendingPlayRef.current = true
+    const a = audioRef.current
+    if (!a) return
+    void a
+      .play()
+      .then(() => {
+        pendingPlayRef.current = false
+      })
+      .catch(() => {}) // left pending on purpose — onCanPlay retries once
   }, [])
-  const pause = useCallback(() => audioRef.current?.pause(), [])
+  const pause = useCallback(() => {
+    pendingPlayRef.current = false
+    audioRef.current?.pause()
+  }, [])
   const toggle = useCallback(() => {
     const a = audioRef.current
     if (!a) return
-    if (a.paused) void a.play().catch(() => {})
-    else a.pause()
+    if (a.paused) {
+      pendingPlayRef.current = true
+      void a
+        .play()
+        .then(() => {
+          pendingPlayRef.current = false
+        })
+        .catch(() => {})
+    } else {
+      pendingPlayRef.current = false
+      a.pause()
+    }
   }, [])
   const seek = useCallback(
     (t: number) => {
@@ -195,12 +289,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (a) a.volume = v
     setVolumeState(v)
   }, [])
-  const setViewing = useCallback((id: string | null) => setViewingId(id), [])
+  const addViewing = useCallback((id: string) => setViewingIds(addViewer(viewerCounts.current, id)), [])
+  const removeViewing = useCallback((id: string) => setViewingIds(removeViewer(viewerCounts.current, id)), [])
   const close = useCallback(() => {
+    pendingPlayRef.current = false
     audioRef.current?.pause()
     setCall(null)
     setPlaying(false)
     setDuration(0)
+    // Ending the call ends the HIDDEN state with it. Leaving it set would carry
+    // "the bar is dismissed" across to a call the user has not started yet.
+    setBarHidden(false)
+    setLoadFailed(false)
   }, [])
 
   const api: PlayerApi = {
@@ -221,8 +321,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     showBar,
     getCurrentTime,
     subscribeTime,
-    viewingId,
-    setViewing,
+    loadFailed,
+    viewingIds,
+    addViewing,
+    removeViewing,
     chatOpen,
     setChatOpen,
   }
@@ -244,7 +346,29 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             notify()
           }
         }}
-        onPlay={() => setPlaying(true)}
+        onCanPlay={(e) => {
+          if (!pendingPlayRef.current) return
+          pendingPlayRef.current = false // one shot, before the retry
+          void e.currentTarget.play().catch(() => {})
+        }}
+        // A SOURCE THAT WILL NEVER LOAD MUST NOT LOOK LIKE ONE STILL LOADING.
+        //
+        // `canplay` never fires for a 404 or an expired URL, so without this the
+        // remembered press sits in `pendingPlayRef` forever: "Play the recording"
+        // does nothing, no karaoke starts, and nothing anywhere says why. That is
+        // the same invisible-failure shape the pendingPlay mechanism was written
+        // to fix (rules/app.md, 2026-08-05) reappearing through the one door it
+        // left open. Clearing the flag is what makes the next press try again
+        // instead of being swallowed by a stale intent.
+        onError={() => {
+          pendingPlayRef.current = false
+          setPlaying(false)
+          setLoadFailed(true)
+        }}
+        onPlay={() => {
+          setLoadFailed(false)
+          setPlaying(true)
+        }}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
         onTimeUpdate={(e) => {

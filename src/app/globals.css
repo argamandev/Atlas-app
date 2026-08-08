@@ -849,3 +849,112 @@
 .atlas-doc [data-demo] {
   color: #8a6a2f;
 }
+/* THE SOURCE LINE UNDER A QUOTED PASSAGE. Same vocabulary as <cite> above; a
+   separate class because the quote's words and its provenance live in ONE block
+   body, so a copy-paste takes the attribution with it. */
+.atlas-doc .atlas-quote-cite {
+  display: block;
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #9c9c9c;
+}
+/* A CITATION WHOSE SOURCE WAS REMOVED FROM THE SHELF.
+   `source_item_id` is `on delete set null`, so the writing survives its source
+   and this is what that looks like: the words and the label stay, and the block
+   stops presenting itself as something you can go and check. Struck-through
+   accent rather than a hidden or deleted block — founder decision 2026-08-01,
+   "a citation cannot quietly become a lie", and an absent one you can see beats
+   a live-looking one that resolves to nothing. */
+.atlas-doc blockquote[data-citation='missing'] {
+  border-inline-start-style: dashed;
+  border-inline-start-color: #b4a08c;
+  background: #faf8f5;
+}
+.atlas-doc blockquote[data-citation='missing'] .atlas-quote-cite {
+  color: #8a6a2f;
+  text-decoration: line-through;
+}
+.atlas-doc blockquote[data-citation='missing'] .atlas-quote-cite::after {
+  content: ' · ' attr(data-absent);
+  text-decoration: none;
+}
+/* A CLIPPING CUT FROM A SOURCE (founder 2026-08-05). The image is evidence, so
+   it is framed like the blockquote above — same hairline vocabulary — and its
+   caption says where it came from. max-width, because a clip of a wide table can
+   be far wider than the 720px column and must not push the document sideways. */
+.atlas-doc figure.atlas-clip {
+  margin: 18px 0;
+}
+.atlas-doc figure.atlas-clip img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ebebeb;
+  border-radius: 8px;
+}
+.atlas-doc figure.atlas-clip figcaption {
+  margin-top: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #9c9c9c;
+}
+
+/* What Atlas made OF a clipping — the numbers read out of it, the table built
+   from it — carrying the same source line the image would have carried. */
+.atlas-doc .atlas-clip-derived {
+  margin: 18px 0;
+}
+.atlas-doc .atlas-clip-cite {
+  margin-top: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #9c9c9c;
+}
+/* Tables became insertable on 2026-08-05 ("create my own table from it"), so the
+   document has to know how to draw one. Hairlines only — this is a research
+   document, not a dashboard. */
+.atlas-doc table {
+  width: 100%;
+  margin: 12px 0;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.atlas-doc th,
+.atlas-doc td {
+  border: 1px solid #ebebeb;
+  padding: 6px 9px;
+  text-align: start;
+  vertical-align: top;
+}
+.atlas-doc th {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+/* ATLAS WORKING, QUIETLY. Founder, 2026-08-05: the writing state must be
+   "more smooth, more in the background" — so it is a line that breathes, not a
+   panel that opens. */
+.atlas-writing-line {
+  display: block;
+  height: 2px;
+  width: 100%;
+  min-width: 40px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ebebeb 0%, #c9c9c9 50%, #ebebeb 100%);
+  background-size: 200% 100%;
+  animation: atwriting 1.4s ease-in-out infinite;
+}
+@keyframes atwriting {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-writing-line {
+    animation: none;
+  }
+}
