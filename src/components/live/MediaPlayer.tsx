@@ -20,7 +20,8 @@ import {
 export interface MediaPlayerProps {
   logoUrl?: string | null
   title: string
-  subtitle: string
+  /** Nullable: a live session may not know its period — render nothing rather than a guess. */
+  subtitle?: string | null
   chapter?: string
   currentTime: number
   duration: number
@@ -71,7 +72,9 @@ export function MediaPlayer(props: MediaPlayerProps) {
           <Logo src={props.logoUrl} name={props.title} size={34} />
           <div className="min-w-0 leading-tight">
             <div className="truncate text-sm font-bold text-player-ink">{props.title}</div>
-            <div className="truncate text-2xs text-player-faint">{props.subtitle}</div>
+            {props.subtitle ? (
+              <div className="truncate text-2xs text-player-faint">{props.subtitle}</div>
+            ) : null}
           </div>
         </div>
 

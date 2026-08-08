@@ -21,10 +21,12 @@ export default async function LivePage({
     const d = searchParams.delay ? Number(searchParams.delay) : LIVE_BUFFER_SEC
     return (
       <AppPage>
+        {/* No `quarter` prop: it was the literal "Q2 2026" for every broadcast, whatever
+            the date. The live engine's /state does not report a period, so the honest
+            value is none and every display site omits it. */}
         <LiveSession
           companyName={company?.displayName ?? 'תמיס'}
           companyId={company?.id ?? null}
-          quarter="Q2 2026"
           logoUrl={company?.logoUrl ?? null}
           delaySec={Number.isFinite(d) && d > 0 ? d : LIVE_BUFFER_SEC}
         />

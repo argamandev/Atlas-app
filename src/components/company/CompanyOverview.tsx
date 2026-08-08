@@ -8,19 +8,9 @@ import { EntityRow } from '@/components/ds/EntityRow'
 import { SectionHeader } from '@/components/ds/SectionHeader'
 import { Monogram } from '@/components/ds/Monogram'
 import { LiveBeamAvatar } from '@/components/ds/LiveBeamAvatar'
-import {
-  CalendarIcon,
-  ClockIcon,
-  PlayIcon,
-  ChevronRightIcon,
-  SparkleIcon,
-  TranscriptIcon,
-  SlidesIcon,
-  FileIcon,
-} from '@/components/ds/icons'
+import { CalendarIcon, ClockIcon, PlayIcon, ChevronRightIcon } from '@/components/ds/icons'
 import { formatDate, formatTime, formatRelativeDays } from '@/lib/i18n/format'
 import { companyLiveDisplay } from '@/lib/live/liveTiming'
-import { companyOverviewStub, type AnnouncementStub } from '@/lib/company/overview-stub'
 import { fetchCompanies } from '@/lib/api/companies'
 import { companyDisplayName, type Company, type ScheduledCall } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
@@ -92,9 +82,10 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
   const showLive = data.liveEnabled ? engineLive : !!liveHref
   const liveLink = data.liveEnabled ? '/app/live/live' : liveHref
 
-  // Density modules (design lines 672-745): stub-fed reported quarter + announcements,
-  // and real peer companies for the Related grid.
-  const stub = companyOverviewStub(data.companyId)
+  // Related companies — real peers from the companies feed. The two density modules
+  // that used to sit here (a "latest reported quarter" with an invented CEO quote and
+  // four invented announcements) were DELETED 2026-08-09: they were the same fabricated
+  // content for every real TASE issuer, with nothing on screen saying so.
   const [peers, setPeers] = useState<Company[]>([])
   useEffect(() => {
     let alive = true
@@ -109,13 +100,6 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
     }
   }, [data.companyId])
 
-  const tagLabel: Record<AnnouncementStub['tag'], string> = {
-    IMMEDIATE: dict.company.tagImmediate,
-    TRANSACTION: dict.company.tagTransaction,
-    FINANCIALS: dict.company.tagFinancials,
-  }
-  const jumpClock = `${Math.floor(stub.reported.jumpSeconds / 60)}:${String(stub.reported.jumpSeconds % 60).padStart(2, '0')}`
-  const [jumpPre, jumpPost] = dict.company.jumpToTranscript.split('{t}')
   // "Next scheduled" = the nearest FUTURE call (the calls feed can contain stale past rows)
   const future = calls
     .filter((c) => new Date(c.scheduledAt).getTime() > Date.now())
@@ -274,144 +258,6 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
           </div>
         </section>
       )}
-
-      {/* latest reported quarter (design lines 672-704) — stub-fed until real extraction */}
-      <section className="flex animate-fade-up flex-col gap-3.5" style={{ animationDelay: '0.12s' }}>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#767676]">
-          {dict.company.latestReportedQuarter} ·{' '}
-          <span className="normal-nums text-ink" dir="ltr">
-            {stub.reported.quarter}
-          </span>
-        </span>
-        <div
-          className="overflow-hidden rounded-[16px] border border-[#DEDEDE] bg-[#F7F7F7]"
-          style={{ boxShadow: '0 1px 3px rgba(28,24,14,.045), 0 14px 34px -26px rgba(28,24,14,.14)' }}
-        >
-          <div className="flex items-center justify-between gap-3.5 border-b border-[#EAEAEA] px-[22px] py-[17px]">
-            <div className="flex min-w-0 items-center gap-3">
-              <Monogram name={companyName} size={34} fontSize={15} radius={9} />
-              <div className="min-w-0 text-start">
-                <div className="text-[15px] font-semibold text-ink">{dict.company.reportedResults}</div>
-                <div className="mt-0.5 font-mono-num text-[11.5px] text-[#767676]" dir="ltr">
-                  {dict.company.reportedOn} {formatDate(stub.reported.reportedAtIso, locale)} ·{' '}
-                  {dict.company.readFromCall}
-                </div>
-              </div>
-            </div>
-            <span className="inline-flex flex-none items-center gap-[7px] rounded-full border border-[#DBDBDB] bg-[#F4F4F4] px-3 py-1.5 text-[12.5px] text-ink">
-              <span>▴</span>
-              {dict.company.outlookRaised}
-            </span>
-          </div>
-          <div
-            className="px-[22px] py-5"
-            /* Harvey: the warm #F2EEE6 wash maps to #F4F4F4 per the design's own
-               translation table (Atlas MVP.dc.html line 154) — missed by the hex sweep
-               because it is an rgba() literal, not a hex. */
-            style={{ background: 'linear-gradient(180deg, rgba(244,244,244,.5), rgba(244,244,244,0))' }}
-          >
-            <div className="mb-3 flex items-center gap-[9px] font-mono-num text-[10px] uppercase tracking-[0.18em] text-[#767676]">
-              {dict.company.fromTheCall}
-              <span className="h-px flex-1 bg-[#DBDBDB]" />
-            </div>
-            <p
-              dir="rtl"
-              className="max-w-[62ch] font-display text-[20px] leading-[1.55] tracking-[-0.01em] text-ink"
-            >
-              <span className="text-[#A6A6A6]">״</span>
-              {stub.reported.quoteHe}
-              <span className="text-[#A6A6A6]">״</span>
-            </p>
-            <div className="mt-3.5 flex items-center gap-3.5">
-              <span className="font-mono-num text-[11px] uppercase tracking-[0.05em] text-[#767676]">
-                {dict.company.speakerLabel} · {stub.reported.speakerRole}
-              </span>
-              {latest && (
-                <Link
-                  href={`/app/live/${latest.id}`}
-                  className="hov-borderi inline-flex items-center gap-1.5 border-b border-[#DBDBDB] font-mono-num text-[11.5px] text-ink"
-                >
-                  <ChevronRightIcon size={12} strokeWidth={1.8} className="rtl:rotate-180" />
-                  {jumpPre}
-                  <span dir="ltr">{jumpClock}</span>
-                  {jumpPost}
-                </Link>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 border-t border-[#EAEAEA] px-[22px] py-[13px]">
-            {latest ? (
-              <Link
-                href={`/app/live/${latest.id}`}
-                className="hov-doc inline-flex items-center gap-2 rounded-[9px] border border-[#DEDEDE] px-[13px] py-2 text-[13px] text-ink"
-              >
-                <TranscriptIcon size={14} className="text-[#767676]" />
-                {dict.company.transcript}
-              </Link>
-            ) : (
-              <span className="inline-flex items-center gap-2 rounded-[9px] border border-dashed border-[#DEDEDE] px-[13px] py-2 text-[13px] text-ink-faint">
-                <TranscriptIcon size={14} />
-                {dict.company.transcript}
-              </span>
-            )}
-            <span className="inline-flex items-center gap-2 rounded-[9px] border border-dashed border-[#DEDEDE] px-[13px] py-2 text-[13px] text-ink-faint">
-              <SlidesIcon size={14} />
-              {dict.company.slides}
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-[9px] border border-dashed border-[#DEDEDE] px-[13px] py-2 text-[13px] text-ink-faint">
-              <FileIcon size={14} />
-              {dict.live.report}
-            </span>
-            <Link
-              href={`/app/chat?company=${data.companyId}`}
-              className="hov-ink ms-auto inline-flex items-center gap-[7px] text-[13px] text-[#767676]"
-            >
-              <SparkleIcon size={20} />
-              {dict.company.askAboutResults}
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* latest announcements (design lines 706-722) — stub-fed until the MAYA feed */}
-      <section className="animate-fade-up" style={{ animationDelay: '0.15s' }}>
-        <div className="mb-3.5 flex items-baseline justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#767676]">
-            {dict.company.latestAnnouncements}
-          </span>
-          <button
-            type="button"
-            className="hov-ink flex items-center gap-1 text-[12.5px] font-medium text-[#575757]"
-          >
-            {dict.company.viewAll}
-            <ChevronRightIcon size={13} strokeWidth={1.8} className="rtl:rotate-180" />
-          </button>
-        </div>
-        <div className="overflow-hidden rounded-card border border-[#DEDEDE] bg-paper">
-          {stub.announcements.map((a) => (
-            <button
-              key={a.dateIso + a.titleHe}
-              type="button"
-              className="hov-fill flex w-full items-center gap-[13px] border-b border-[#EAEAEA] px-4 py-3 text-start last:border-b-0"
-            >
-              <span className="w-[72px] flex-none font-mono-num text-[11px] text-[#8A8A8A]" dir="ltr">
-                {formatDate(a.dateIso, locale)}
-              </span>
-              <span className="flex-none whitespace-nowrap rounded-[5px] border border-[#D5D5D5] px-2 py-[2px] text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-[#767676]">
-                {tagLabel[a.tag]}
-              </span>
-              <span dir="auto" className="min-w-0 flex-1 truncate text-[13.5px] text-ink">
-                {a.titleHe}
-              </span>
-              <ChevronRightIcon
-                size={15}
-                strokeWidth={1.7}
-                className="flex-none text-[#BCBCBC] rtl:rotate-180"
-              />
-            </button>
-          ))}
-        </div>
-      </section>
 
       {/* related companies (design lines 724-745) — real peers from the companies feed */}
       {peers.length > 0 && (

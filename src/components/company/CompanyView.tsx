@@ -22,7 +22,6 @@ import {
   VideoIcon,
 } from '@/components/ds/icons'
 import { Monogram } from '@/components/ds/Monogram'
-import { companyOverviewStub } from '@/lib/company/overview-stub'
 import { AddInvestorCall } from './AddInvestorCall'
 import { AdminCallControls } from './AdminCallControls'
 import { CompanyOverview } from './CompanyOverview'
@@ -73,11 +72,13 @@ export function CompanyView({
   const [chatOpen, setChatOpen] = useState(false)
 
   const name = companyDisplayName(company, locale)
-  // design-demo identity extras + density modules (IR name, index chips) — stub feed
-  const stub = companyOverviewStub(company.id)
   const industry = [company.sector, company.subSector].filter(Boolean).join(' · ')
   const openInChat = () => setChatOpen(true)
-  const isLiveCompany = company.ticker === '1097229' // תמיס — the live-demo company
+  // THE LIVE BANNER FOLLOWS A REAL LIVE ROW, not a hardcoded ticker. This read
+  // `company.ticker === '1097229'` (תמיס, the live-demo company) until 2026-08-09,
+  // which meant the banner could never appear for any other issuer no matter what
+  // the engine was doing, and always polled for that one.
+  const liveCall = calls.find((c) => c.status === 'live') ?? null
   const transcriptsByQuarter = groupByQuarter(transcripts)
   const onQuoteRemoved = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id))
 
@@ -130,30 +131,20 @@ export function CompanyView({
                 <h1 className="font-display text-[27px] font-medium leading-[1.1] tracking-[-0.02em] text-ink">
                   <span dir="auto">{name}</span>
                 </h1>
-                <div className="mt-1.5 flex flex-wrap items-center gap-[9px]">
-                  <span className="font-mono-num text-[12.5px] text-[#767676]">
-                    {[
-                      industry,
-                      company.ticker ? `TASE ${company.ticker}` : null,
-                      `${dict.company.irLabel}: ${stub.irName}`,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                  <span className="h-3 w-px flex-none bg-[#D2D2D2]" />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#9C9C9C]">
-                    {dict.company.indices}
-                  </span>
-                  {stub.indices.map((ix) => (
-                    <span
-                      key={ix}
-                      className="rounded-full border border-[#DEDEDE] bg-paper px-[9px] py-[2px] font-mono-num text-[11px] text-[#575757]"
-                      dir="ltr"
-                    >
-                      {ix}
+                {/* Identity line: sector and ticker, both REAL columns. The IR contact
+                    and the index-membership chips that used to sit here were invented
+                    ("Zvika Rabin", TA-125/TA-90) and identical for every issuer — deleted
+                    2026-08-09. MAYA publishes neither, so there is nothing to restore
+                    them from; they come back only with a feed that has them. */}
+                {(industry || company.ticker) && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-[9px]">
+                    <span className="font-mono-num text-[12.5px] text-[#767676]">
+                      {[industry, company.ticker ? `TASE ${company.ticker}` : null]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </span>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-none flex-col items-end gap-[13px]">
@@ -205,8 +196,8 @@ export function CompanyView({
                 logoUrl: company.logoUrl,
                 calls,
                 transcripts,
-                liveEnabled: isLiveCompany,
-                liveQuarter: isLiveCompany ? 'Q2 2026' : null,
+                liveEnabled: !!liveCall,
+                liveQuarter: liveCall?.quarter ?? null,
               }}
             />
           )}

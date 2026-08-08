@@ -24,7 +24,10 @@ export default async function HomePage() {
 
   // Live Now: auto-appears when the live engine reports a call in progress (LiveNowPanel polls
   // /api/live/state). In a collapsible side panel so the main search recenters when collapsed.
-  const panel = <LiveNowPanel companyName={tamis?.displayName ?? 'תמיס'} quarter="Q2 2026" />
+  // `quarter={null}`: this was the literal "Q2 2026" regardless of date. LiveNowPanel
+  // already falls back to the LIVE badge when it has no period, which is the truth —
+  // the live engine reports no quarter.
+  const panel = <LiveNowPanel companyName={tamis?.displayName ?? 'תמיס'} quarter={null} />
 
   return (
     <CollapsiblePanel title={dict.home.liveNow} panel={panel}>
