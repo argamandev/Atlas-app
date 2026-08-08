@@ -1,17 +1,34 @@
-// CLI: npx tsx scripts/maya-refresh-issuers.ts
+// CLI: npx tsx scripts/maya-refresh-issuers.ts [--sweep] [--from N] [--to N]
 //
 // Builds the name -> issuer-number directory that lets a user type "תיגבור" and
-// have Atlas ask MAYA about issuer 1460. Re-runnable; roughly 50 seconds.
+// have Atlas ask MAYA about issuer 1460. Re-runnable.
 //
 // WHY THIS EXISTS AS A SCRIPT AND NOT A LOOKUP: MAYA publishes no "list all
-// issuers" endpoint. The only route to a directory is the reporting schedule,
-// which is keyed by issuerId, plus one `by-issuer` call per id to read the name.
-// That is ~470 requests against a 10-per-2-seconds budget — fine once, absurd
-// per user question.
+// issuers" endpoint. The only route to a directory is one `by-issuer` call per
+// id — fine once, absurd per user question.
 //
-// COVERAGE CAVEAT, PRINTED AT THE END BECAUSE IT MATTERS: this finds only
-// companies that announced a reporting date. A listed company that never
-// scheduled one will not be in here and will not resolve by name.
+// TWO MODES, because the founder's company universe has two tiers
+// (decision 2026-08-08):
+//
+//   default   ids come from the reporting schedule. ~230 issuers, ~1 minute.
+//             These are the companies that HOLD investor calls — tier 1, and
+//             everything the calendar needs.
+//
+//   --sweep   walk the issuer-id space directly. Measured 2026-08-09 by
+//             sampling 240 ids across 16 bands: issuers live in roughly
+//             200-2,600, with ZERO hits at ids 1-15, 3000, 5000, 10000 and
+//             50000. ~2,600 requests, ~9 minutes, and it finds the companies
+//             that file reports but never schedule a call — tier 2, which the
+//             company pages need. Run monthly; the calendar does not need it.
+//
+// THE SWEEP'S UPPER BOUND IS MEASURED, NOT GUARANTEED. Density was still 80% at
+// id 2500 and 0% at 3000, so the boundary sits somewhere between. The run prints
+// the highest id it actually found and SHOUTS if that equals `--to`, because
+// that means the universe may continue past where we stopped looking.
+//
+// COVERAGE CAVEAT, PRINTED AT THE END BECAUSE IT MATTERS: in default mode this
+// finds only companies that announced a reporting date. A listed company that
+// never scheduled one will not be in here and will not resolve by name.
 import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,37 +55,66 @@ for (const f of ['.env.local', '.env']) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const thisYear = new Date().getFullYear()
 
+const flag = (name: string) => process.argv.includes(`--${name}`)
+function numArg(name: string, fallback: number): number {
+  const i = process.argv.indexOf(`--${name}`)
+  const v = i >= 0 ? Number(process.argv[i + 1]) : NaN
+  return Number.isFinite(v) ? v : fallback
+}
+
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required')
   const db = createClient(url, key)
 
-  // ── 1. every issuer that has scheduled a report ───────────────────────────
-  // The schedule feed carries no names, only ids. It goes back to 2025; asking
-  // for 2024 returns zero rows, so there is no point looking further back.
+  // ── 1. which issuer ids to ask about ──────────────────────────────────────
+  const sweep = flag('sweep')
+  const sweepFrom = numArg('from', 1)
+  const sweepTo = numArg('to', 2600)
   const ids = new Set<number>()
-  for (const year of [thisYear - 1, thisYear, thisYear + 1]) {
-    const res = await mayaGet<MayaEnvelope<MayaScheduleRow>>(PATH_SCHEDULE_BY_YEAR, { year })
-    if (!res.ok) {
-      console.error(`  schedule ${year}: FAILED (${res.failure.kind}) — skipping this year`)
-      continue
-    }
-    for (const row of res.data.data ?? []) if (row.issuerId) ids.add(row.issuerId)
+
+  if (sweep) {
+    // Tier 2: probe the id space itself. Phase 2 below already does one
+    // `by-issuer` call per id and reads the name out of it, so an id that
+    // returns filings IS a discovered issuer — no separate existence check.
+    for (let i = sweepFrom; i <= sweepTo; i++) ids.add(i)
     console.log(
-      `  schedule ${year}: ${(res.data.data ?? []).length} rows, ${ids.size} distinct issuers so far`
+      `  sweep mode: probing ids ${sweepFrom}-${sweepTo} (${ids.size} requests, ~${Math.round((ids.size * MAYA_MIN_REQUEST_GAP_MS) / 60000)} min)`
     )
-    await sleep(MAYA_MIN_REQUEST_GAP_MS)
+  } else {
+    // Tier 1: the schedule feed carries no names, only ids. It holds 2025 and
+    // 2026 only — asking for 2024 or 2027 returns zero rows (verified
+    // 2026-08-09), so there is no point looking further out in either direction.
+    for (const year of [thisYear - 1, thisYear, thisYear + 1]) {
+      const res = await mayaGet<MayaEnvelope<MayaScheduleRow>>(PATH_SCHEDULE_BY_YEAR, { year })
+      if (!res.ok) {
+        console.error(`  schedule ${year}: FAILED (${res.failure.kind}) — skipping this year`)
+        continue
+      }
+      for (const row of res.data.data ?? []) if (row.issuerId) ids.add(row.issuerId)
+      console.log(
+        `  schedule ${year}: ${(res.data.data ?? []).length} rows, ${ids.size} distinct issuers so far`
+      )
+      await sleep(MAYA_MIN_REQUEST_GAP_MS)
+    }
+    if (ids.size === 0) throw new Error('no issuers found — refusing to write an empty directory')
   }
 
-  if (ids.size === 0) throw new Error('no issuers found — refusing to write an empty directory')
-
   // ── 2. a name for each ────────────────────────────────────────────────────
-  // A 30-day window keeps each payload tiny; we only want `issuer[].issuerName`.
-  // An issuer that filed nothing in that window yields no name, so the window
-  // is deliberately recent-and-wide-ish rather than a single day.
-  const from = `${thisYear - 1}-01-01`
-  const to = `${thisYear - 1}-12-31`
+  // We only want `issuer[].issuerName`, but an issuer that filed nothing in the
+  // window yields no name at all — so the window decides who is discoverable.
+  //
+  // A ROLLING 12 MONTHS, not a fixed past year (changed 2026-08-09). The old
+  // window was all of LAST year, which cannot see a company that listed this
+  // year: it would file steadily and still be invisible to the directory. A
+  // rolling year answers "who is filing now", which is the question a company
+  // directory is actually asking. 365 days is also the API's own maximum range.
+  const today = new Date()
+  const yearAgo = new Date(today.getTime() - 364 * 24 * 3600 * 1000)
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
+  const from = iso(yearAgo)
+  const to = iso(today)
 
   const rows: { issuer_id: number; name_he: string | null; name_en: string | null }[] = []
   let named = 0
@@ -134,14 +180,29 @@ async function main() {
   }
 
   console.log(
-    `\nDIRECTORY: ${withNames.length} issuers written (${ids.size} seen, ${ids.size - withNames.length} had no name in the window).`
+    `\nDIRECTORY: ${withNames.length} issuers written (${ids.size} ids probed, ${ids.size - withNames.length} returned no name in ${from}..${to}).`
   )
   console.log(`COMPANIES: ${backfilled} backfilled with a tase_issuer_id.`)
-  console.log(
-    `\nCOVERAGE CAVEAT: this directory is built from the reporting schedule, so it holds only\n` +
-      `companies that ANNOUNCED a reporting date. A listed company that never scheduled one is\n` +
-      `not in here and will not resolve by name.`
-  )
+
+  if (sweep) {
+    // THE BOUND IS MEASURED, NOT GUARANTEED — say so out loud rather than
+    // letting a truncated universe read as a complete one.
+    const highest = withNames.reduce((max, r) => Math.max(max, r.issuer_id), 0)
+    console.log(`SWEEP: highest issuer found = ${highest} (searched to ${sweepTo}).`)
+    if (highest >= sweepTo) {
+      console.log(
+        `\n⚠  THE HIGHEST ISSUER FOUND IS AT THE EDGE OF THE SEARCH. There are very likely\n` +
+          `   more above ${sweepTo}. Re-run with --to ${sweepTo + 1000} before treating this\n` +
+          `   directory as the whole universe.`
+      )
+    }
+  } else {
+    console.log(
+      `\nCOVERAGE CAVEAT: this directory is built from the reporting schedule, so it holds only\n` +
+        `companies that ANNOUNCED a reporting date. A listed company that never scheduled one is\n` +
+        `not in here and will not resolve by name. Run with --sweep to find those too.`
+    )
+  }
 }
 
 main().catch((e) => {

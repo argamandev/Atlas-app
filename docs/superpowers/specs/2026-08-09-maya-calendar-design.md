@@ -63,7 +63,9 @@ Two consequences that drive the whole design:
 
 ## Data model
 
-### Migration `20260809_018_scheduled_calls_maya.sql` — additive only
+### Migration `20260809_021_scheduled_calls_maya.sql` — additive only
+
+*(numbered 021: the tree already holds 018–020 from the workspace chapter)*
 
 ```sql
 alter table public.scheduled_calls
