@@ -5,6 +5,38 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-08 — Atlas is DEPLOYED (founder + supervisor): live on Railway at `www.timlul-ai.com`, replacing the old Timlul deploy
+
+- **The old product was retired, not paralleled — founder's call.** The existing Railway service
+  was repointed from `argamandev/Investor-Transcript` to `argamandev/Atlas-app` on `main`. The
+  supervisor had recommended standing up a SECOND service to protect the old deploy, then withdrew
+  it when the founder said nobody uses that product: a recommendation whose entire justification
+  has disappeared is a habit, not a recommendation. Repointing also preserves the service's
+  variables and domain, so the shared Supabase credentials never had to be re-sourced — which
+  matters because `.env*` is hook-blocked and the assistant could not have recovered them.
+- **Verified by probe on the live host, not by the founder's report.** Iron rule 3 applied to a
+  deploy: anonymous `/app/home`, `/app/workspaces`, `/app/company/abc` and `/print/abc` all `307`
+  to `https://www.timlul-ai.com/?next=…`; `/api/workspaces` and `/api/projects` return `401`. The
+  redirect resolving to the PUBLIC host is the meaningful part — it proves `NEXT_PUBLIC_SITE_HOST`
+  is set and `resolveOrigin` honoured `x-forwarded-host`, so the Railway trap filed in
+  `rules/app.md` (origin resolving to internal `localhost:8080`) did not bite. First production
+  confirmation of a rule that until today had only ever been reasoned about.
+- **Deploying did NOT publish the fabricated company data, and that distinction moved a deadline.**
+  Every company page is behind the login gate, so `companyOverviewStub`'s invented IR contacts and
+  index memberships are visible only to accounts the founder creates. The honesty pass (Lane M
+  slice 0) was written as the deploy's blocker; its deadline is now **before the first invited
+  account**. The founder challenged the supervisor's "honesty pass first" ordering on exactly this
+  point and was right — deployed is not published.
+- **`LIVE_ENGINE_URL` is UNSET, verified rather than assumed:** `/api/live/state` on the live host
+  returns `offline:true`. That is what keeps the two allowlisted-unauthenticated live endpoints
+  (`/api/live/{state,pcm}`) inert. The rule tightens accordingly — a deployed environment now
+  exists, so gating them must land in the SAME change that ever sets that variable.
+- **Open, and filed rather than remembered:** whether Atlas keeps `timlul-ai.com` (the product is
+  no longer called Timlul); the cold meta-review, which was scheduled to fire immediately BEFORE
+  the deploy and did not; and the live-calls hardening (no ws reconnect, ~230MB PCM per 2h) that
+  must land before a real two-hour investor call runs on this host. Deploying is not the same as
+  running a live call on it.
+
 ## 2026-08-08 — Workspace V1 + the MAYA layer SHIPPED (Lane M): a workspace persists, and Atlas can fetch a filing off TASE
 
 - **Workspace stopped being demo state.** Four owned tables (`workspaces`, `workspace_items`,

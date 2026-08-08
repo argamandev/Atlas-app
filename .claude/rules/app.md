@@ -6,7 +6,11 @@
 - **Sign-out stays a plain `<a href="/api/auth/signout">`** — a z-index overlap once let
   `<main>` swallow the click on a dropdown. Don't reintroduce a dropdown.
 - **Railway redirects** must derive origin from `x-forwarded-host`/`x-forwarded-proto`, never
-  `request.url` (resolves to internal `localhost:8080`).
+  `request.url` (resolves to internal `localhost:8080`). **Confirmed in production 2026-08-08** —
+  the first time this was observed rather than reasoned about: anonymous `/app/home` on the live
+  host 307s to `https://www.timlul-ai.com/?next=%2Fapp%2Fhome`, the public host. It works only
+  because `NEXT_PUBLIC_SITE_HOST` is set to match — `resolveOrigin` REFUSES the header when it
+  does not, so an unset or stale value silently reintroduces the bug on the next domain change.
 - **`bin/yt-dlp.exe` goes stale fast** — YouTube 403s builds a few weeks old; fix = its own
   self-updater (`bin/yt-dlp.exe -U`), per checkout (git-ignored). Railway installs fresh at build.
 - **PUT /api/transcripts/[id] validation is intentionally lenient** (`.passthrough()`,
@@ -65,6 +69,12 @@
   unset, which is deploy-time configuration, not a property of the code. **⇒ gate them BEFORE
   `LIVE_ENGINE_URL` is ever set in a deployed environment.** Doing it safely needs a live run with
   the engine up (`rules/live.md`) and a latency measurement on `/pcm`, which is polled continuously.
+  **A DEPLOYED ENVIRONMENT NOW EXISTS (2026-08-08, `www.timlul-ai.com`), so the sentence above
+  stopped describing a future.** Verified on that host the same day: `/api/live/state` returns
+  `offline:true`, so the variable is unset and both endpoints are inert. The bound is now one
+  dashboard field wide, and the reason someone will want to set it — pointing Atlas at a tunnelled
+  engine for a real call — is scheduled work, not a hypothetical. **Gate them in the SAME change
+  that sets it. A follow-up is not a plan, it is the window.**
 - **Gating an endpoint changes every caller's ERROR path, not just its happy path — enumerate the
   callers before you merge the guard.** Filed after `fix/api-security` hit it FOUR times in one
   branch. Removing an anonymous fallback makes a 401 reachable where it never was, and the callers

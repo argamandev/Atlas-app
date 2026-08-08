@@ -24,14 +24,16 @@ Live calls on-platform (Recall → buffered audio + karaoke captions), polished 
 
 ## Parallel work
 
-You may be one of several sessions. Lane, port, branch and duties come from your opening prompt +
+Lane, port, branch and duties come from your opening prompt +
 `.claude/rules/parallel-work.md`. Shared brain, any worktree:
 `C:/Users/Sagi/Desktop/Atlas/agent-memory/` → `BOARD.md` · `cross-cutting.md` · `ready-queue.md`
 (the last two append-only).
 
 ## Stack & commands
 
-Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — localhost only.
+Next.js 14 App Router + TypeScript + Supabase + Tailwind. **LIVE on Railway →
+`www.timlul-ai.com`** since 2026-08-08 — a mistake on main is no longer local. Keep
+`LIVE_ENGINE_URL` UNSET (`rules/app.md`).
 
 - `npm run dev -- -p <your port>` · `npm test` · `npx tsc --noEmit` · `npm run build`
 - Live: TWO engines share :8788 (`live-broadcast.mjs` Recall / `live-ivrit-broadcast.ts` IVRIT)
@@ -40,14 +42,14 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
 ## Doc map
 
 - `ARCHITECTURE.md` — the codebase, file by file
-- `docs/DATA-MODEL.md` — **shared corpus vs personal layer** (founder, 2026-08-01): company data
-  is the same for everyone, everything a user makes is theirs. Read before designing any table.
+- `docs/DATA-MODEL.md` — **shared corpus vs personal layer**: company data is the same for
+  everyone, everything a user makes is theirs. Read before designing any table.
 - `docs/VISION.md` — product vision, V1 description, roadmap
-- `docs/product/` — founder briefs. Projects · Workspace · Agents: frontend 2026-08-01, Projects
-  backend 08-02, Workspace V1 + MAYA layer 08-08. **Agents** is what's left; it needs the deploy.
-- `docs/MAYA-API.md` — the TASE Data Hub feed, LIVE since 2026-08-06. `Accept-Language: he-IL` is
-  mandatory (the English feed returns `title: null`). Read before writing a MAYA call.
-- `docs/VISION.md` · `docs/ENVIRONMENT.md` · `docs/LAUNCH-KIT.md` (fleet setup + lane prompts) ·
+- `docs/product/` — founder briefs for Projects · Workspace · Agents. **Agents** is what's left;
+  the deploy it was blocked on now exists.
+- `docs/MAYA-API.md` — the TASE Data Hub feed. `Accept-Language: he-IL` is mandatory (English
+  returns `title: null`). Read before any MAYA call.
+- `docs/ENVIRONMENT.md` · `docs/LAUNCH-KIT.md` (fleet setup + lane prompts) ·
   `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` · `docs/audits/` · `docs/evidence/<branch>/`
 - `PROGRESS.md` — decision log (append at ship time; old eras → `docs/archive/`)
 - `.claude/rules/` — parallel-work · db · live · app (read before touching those areas)

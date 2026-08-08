@@ -7,15 +7,16 @@
 
 > **Seat map, current as of 2026-08-03** — the folder names are historical; what a seat DOES
 > comes from its prompt in Step 3, not from its folder. `Atlas-multiview` (:3003) is
-> **Lane M — workspace-backend**, on chapter 2 (Workspace), and is **the only lane the
-> founder wants live right now**. `Atlas-frontend` (:3001) holds the **Lane S — api-security**
+> **Lane M — workspace-backend**, on chapter 3 (MAYA across the product), and is **the only lane
+> the founder wants live right now**. `Atlas-frontend` (:3001) holds the **Lane S — api-security**
 > prompt but is **NOT open** (see the box below). `Atlas-ivrit` (:3002) is **Lane I**, parked.
 > Ports are governed by `.claude/rules/parallel-work.md`, which is the single source of truth.
 >
 > **🪙 SEQUENTIAL MODE — founder decision 2026-08-03.** "Three sessions in parallel" is the
 > kit's original shape and is currently SUSPENDED to save tokens. The order he set is:
-> **(1) Lane M finishes Workspace → (2) Railway deploy**, with the remaining API-security
-> holes finished by the SUPERVISOR alongside, on its own branch, reviewed by `atlas-reviewer`
+> **(1) Lane M finishes Workspace → (2) Railway deploy** — **BOTH DONE 2026-08-08**; the order
+> runs on into chapter 3's slices. The remaining API-security holes were finished by the
+> SUPERVISOR on its own branch, reviewed by `atlas-reviewer`
 > like any lane's work (the supervisor still does not self-review). So: open ONE lane session,
 > not three. Step 2's three-terminal instruction below is the parallel shape — under sequential
 > mode open only the Atlas-multiview terminal.
@@ -220,13 +221,14 @@ surface; if a surface needs a shape maya/ does not have, add it to maya/ generic
 
 MISSION (chapter 3): MAKE THE MAYA DATA CORRECT ON THE REST OF THE PRODUCT, so Atlas V1 is
 finishable. Founder's framing, filed 2026-08-08: Atlas V1 = Workspace v1 (done) + calendar, company
-pages and chat being RIGHT + deployed to Railway. After the deploy, real feedback starts, and the
-product improves against real use instead of guesses.
+pages and chat being RIGHT + deployed to Railway. THE DEPLOY IS DONE — Atlas has been live at
+www.timlul-ai.com since 2026-08-08, replacing the old Timlul deploy rather than running beside it.
+So this chapter is the last thing between here and V1, and every slice you merge now lands on a
+PRODUCTION host. Real feedback starts as soon as slice 0 lets the founder invite anyone.
 
 SLICES, EACH MERGED BEFORE THE NEXT BEGINS. This is a founder decision, not a suggestion —
 chapter 2 was 69 commits in one branch and needed three review rounds.
   SLICE 0  THE HONESTY PASS  → /ship → merge   ← START HERE, and read why below
-  ————— the supervisor + founder then DEPLOY TO RAILWAY —————
   SLICE 1  the schema — ONE migration
   SLICE 2  CALENDAR          → /ship → merge
   SLICE 3  COMPANY PAGES     → /ship → merge
@@ -235,11 +237,13 @@ BRAINSTORM EACH SLICE WITH THE FOUNDER BEFORE BUILDING IT (superpowers:brainstor
 plan in docs/superpowers/). That step was skipped on the branches that went badly. Slice 0 is the
 exception — it is small, fully specified below, and it is what the deploy is waiting on.
 
-SLICE 0 — THE HONESTY PASS. THE DEPLOY IS WAITING ON THIS ONE, so it comes before the schema.
-Founder decision 2026-08-08, revised the same day once the supervisor actually verified the company
-pages: Atlas deploys to Railway BEFORE the MAYA slices, so real feedback starts three slices
-earlier and the deploy is debugged at minimum surface area. The ONLY thing blocking that is that
-Atlas would publish invented facts about REAL TASE COMPANIES with nothing on screen saying so.
+SLICE 0 — THE HONESTY PASS. It is still first, but ITS DEADLINE MOVED and you should know why.
+This slice was written as the deploy's blocker. The deploy then went ahead without it, and that was
+correct, on a distinction the supervisor VERIFIED rather than assumed: every company page sits
+behind the login gate — probed on the live host 2026-08-08, anonymous /app/company/abc returns 307
+to the login page. So DEPLOYING DID NOT PUBLISH the invented facts. THE FIRST INVITED ACCOUNT WILL.
+That is the deadline now: this merges before anyone but the founder can sign in. Otherwise Atlas
+shows invented facts about REAL TASE COMPANIES to a real analyst with nothing on screen saying so.
 That is a labelling job, not a MAYA job, and none of it is throwaway — slice 3's rule is already
 "a REAL feed or a VISIBLE marker", so every module that will not have a real feed by V1 needs the
 marker anyway. You are just doing that part first.
@@ -258,9 +262,11 @@ Removing a module is a legitimate answer and often the better one — an empty s
 "no data yet" beats a badge on a fabrication. Decide with the founder where each lands; that is a
 five-minute conversation, not a brainstorm.
 NOT IN SLICE 0: the two live endpoints. GET /api/live/{state,pcm} are unauthenticated and must be
-gated BEFORE LIVE_ENGINE_URL is ever set in a deployed environment — but they fall back to
-localhost:8788, which does not exist on Railway, so leaving that variable UNSET keeps them harmless
-and the deploy is not blocked on them. That gate travels with whichever slice first wants live calls
+gated BEFORE LIVE_ENGINE_URL is ever set in a deployed environment. THAT ENVIRONMENT NOW EXISTS, so
+read this as live rather than hypothetical. Verified on the deployed host 2026-08-08:
+/api/live/state returns offline:true, i.e. the variable is unset and both endpoints are inert. The
+day anyone sets it — to point Atlas at a tunnelled engine for a real call — they are open to the
+internet. GATE THEM IN THE SAME CHANGE THAT SETS IT, never in a follow-up. That gate travels with whichever slice first wants live calls
 working on the deployed instance, and it needs a live engine run (rules/live.md, :8788 is
 SINGLE-OWNER — claim it in cross-cutting) plus a latency measurement on /pcm, which is polled
 continuously.
@@ -326,7 +332,8 @@ NOT IN SCOPE, deliberately:
 - The workspace intake's standing-proposal durability (ARCHITECTURE.md §8.6) — YOUR finding, and it
   is item 1 of the next INTAKE branch, not this one. Its fix is the design question that opened a new
   door in each of two consecutive rounds; it gets its own round with cold eyes.
-- Workspace v2, agent execution (needs the deploy), and the Railway move itself.
+- Workspace v2 and agent execution. The deploy they were blocked on now exists, which UNBLOCKS them
+  but does not move them into this chapter. The Railway move itself is done.
 - The four NITs from your round-3 verdict — fix them only if you are already in that file.
 
 PROCESS: small labeled commits, stage paths explicitly (never git add -A), battery before every
