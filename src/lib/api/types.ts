@@ -4,6 +4,9 @@
 // Type-only, and erased at build. `chat.ts` imports nothing from this file, so
 // there is no cycle — the status lives beside the header that produces it.
 import type { ProjectContextStatus } from './chat'
+// Type-only as well. `lib/calendar/event-meta` imports nothing, so no cycle; the
+// calendar's kind vocabulary is defined once, beside its colours and filter chips.
+import type { EventKind } from '@/lib/calendar/event-meta'
 
 // DELETED 2026-08-03 — `DEMO_USER_ID = '00000000-…'`, the id used "when there is no auth session
 // (public demo)". Its old comment argued it was safe to persist because supabaseAdmin bypasses
@@ -45,6 +48,17 @@ export interface ScheduledCall {
   source: CallSource
   transcriptId: string | null
   company?: CompanyLite
+  /** What kind of diary entry this is. The calendar's filter chips read it. */
+  kind: EventKind
+  /**
+   * FALSE when MAYA published a date and no time — which is EVERY report
+   * publication (0 of 472 carry one, measured 2026-08-09). `scheduledAt` still
+   * holds an instant because the column is NOT NULL, but it is midnight Israel
+   * time used as a bucket, not something anyone announced.
+   *
+   * ⇒ Never render a clock for this row. It is the reason the field exists.
+   */
+  timeKnown: boolean
 }
 
 export interface QuoteAnchor {

@@ -76,7 +76,9 @@ export default async function HomePage() {
                     name={call.company ? companyDisplayName(call.company, locale) : ''}
                     sub={`${call.quarter} · ${dict.home.investorCall}`}
                     dateLabel={formatDate(call.scheduledAt, locale, { day: 'numeric', month: 'short' })}
-                    timeLabel={formatTime(call.scheduledAt, locale)}
+                    // Report-publication rows carry a date and no time; showing the
+                    // bucketed midnight would invent an appointment nobody announced.
+                    timeLabel={call.timeKnown ? formatTime(call.scheduledAt, locale) : ''}
                     relLabel={formatRelativeDays(call.scheduledAt, locale)}
                   />
                 ))}

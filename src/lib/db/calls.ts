@@ -3,7 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { resolveCompanyLogo } from '@/lib/db/companies'
 import type { CompanyLite, ScheduledCall } from '@/lib/api/types'
 
-const CALL_COLS = 'id, company_id, scheduled_at, quarter, zoom_url, status, source, transcript_id'
+const CALL_COLS =
+  'id, company_id, scheduled_at, quarter, zoom_url, status, source, transcript_id, kind, time_known'
 const LITE_COLS = 'id, name, display_name, name_en, logo_url, tase_security_id'
 
 type Row = Record<string, unknown>
@@ -31,22 +32,40 @@ function mapCall(r: Row): ScheduledCall {
     source: (r.source as ScheduledCall['source']) ?? 'mock',
     transcriptId: (r.transcript_id as string) ?? null,
     company: mapLite(r.companies as Row),
+    // Defaults match migration 021's column defaults, so a row written before it
+    // (the four `source='mock'` seeds) reads as a timed investor call, which is
+    // what those rows are.
+    kind: (r.kind as ScheduledCall['kind']) ?? 'call',
+    timeKnown: r.time_known === undefined || r.time_known === null ? true : Boolean(r.time_known),
   }
 }
 
 export interface ListCallsOptions {
   scope?: 'all' | 'upcoming' | 'live'
   companyId?: string
+  /**
+   * Include the four `source='mock'` seed rows. Defaults to FALSE.
+   *
+   * Founder decision 2026-08-08 was to remove the mock data, and these are
+   * fabricated June-2026 investor calls for real TASE issuers. They cannot be
+   * DELETED — `delete` is hook-blocked and this database is shared with
+   * production Timlul — so filtering them at the only read path is the
+   * equivalent that is available, and it is reversible.
+   */
+  includeMock?: boolean
 }
 
-export async function listCalls({ scope = 'all', companyId }: ListCallsOptions = {}): Promise<
-  ScheduledCall[]
-> {
+export async function listCalls({
+  scope = 'all',
+  companyId,
+  includeMock = false,
+}: ListCallsOptions = {}): Promise<ScheduledCall[]> {
   let query = supabaseAdmin
     .from('scheduled_calls')
     .select(`${CALL_COLS}, companies(${LITE_COLS})`)
     .order('scheduled_at', { ascending: true })
 
+  if (!includeMock) query = query.neq('source', 'mock')
   if (companyId) query = query.eq('company_id', companyId)
   if (scope === 'live') query = query.eq('status', 'live')
   if (scope === 'upcoming') {

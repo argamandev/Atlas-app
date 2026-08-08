@@ -41,16 +41,33 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   const [kinds, setKinds] = useState<Set<EventKind>>(new Set(EVENT_KINDS))
   const [dropActive, setDropActive] = useState(false)
 
-  // default to the month of the earliest call (the seeded Q2 calls), else today
+  // OPEN ON THIS MONTH. This used to open on the month of the EARLIEST call,
+  // which was harmless with four seeded rows and wrong the moment real data
+  // landed: the feed starts in January 2025, so the calendar would have opened
+  // nineteen months in the past and looked empty.
   const initialMonth = useMemo(() => {
-    const first = calls.map((c) => new Date(c.scheduledAt)).sort((a, b) => a.getTime() - b.getTime())[0]
-    const d = first ?? new Date()
-    return new Date(d.getFullYear(), d.getMonth(), 1)
-  }, [calls])
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  }, [])
   const [month, setMonth] = useState(initialMonth)
 
   const visible = (mode === 'mine' ? calls.filter((c) => followed.has(c.id)) : calls).filter((c) =>
     kinds.has(eventKind(c))
+  )
+
+  // ONLY OFFER A FILTER THAT CAN MATCH SOMETHING. The design has three chips;
+  // the data has two kinds today (webinars are a later slice, founder decision
+  // 2026-08-09). A chip for a kind with no rows is a claim that Atlas tracks
+  // something it does not, and clicking it just empties the grid.
+  const presentKinds = useMemo(() => new Set(calls.map((c) => eventKind(c))), [calls])
+
+  const monthCount = useMemo(
+    () =>
+      visible.filter((c) => {
+        const d = new Date(c.scheduledAt)
+        return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth()
+      }).length,
+    [visible, month]
   )
   const byDay = useMemo(() => {
     const m = new Map<string, ScheduledCall[]>()
@@ -189,31 +206,33 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
           </div>
           <div className="flex items-center gap-2">
             {/* design chip order (line 281 demo data): Reports · Investor calls · Webinars */}
-            {(['report', 'call', 'webinar'] as const).map((k) => {
-              const Icon = KIND_ICON[k]
-              const on = kinds.has(k)
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => toggleKind(k)}
-                  className={cn(
-                    'flex items-center gap-[7px] rounded-full border py-[5px] pe-2.5 ps-[11px] text-[12.5px] transition-colors',
-                    on
-                      ? 'border-[#D5D5D5] bg-[#F0F0F0] font-semibold text-ink'
-                      : 'border-[#DEDEDE] bg-transparent font-medium text-[#767676]'
-                  )}
-                >
-                  <span className="flex" style={{ color: EVENT_KIND_META[k].accent }}>
-                    <Icon size={13} />
-                  </span>
-                  {kindLabel[k]}
-                  <span className={cn('flex', on ? 'text-ink' : 'text-[#ADADAD]')}>
-                    {on ? <CloseIcon size={12} strokeWidth={2} /> : <PlusIcon size={12} strokeWidth={2} />}
-                  </span>
-                </button>
-              )
-            })}
+            {(['report', 'call', 'webinar'] as const)
+              .filter((k) => presentKinds.has(k))
+              .map((k) => {
+                const Icon = KIND_ICON[k]
+                const on = kinds.has(k)
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => toggleKind(k)}
+                    className={cn(
+                      'flex items-center gap-[7px] rounded-full border py-[5px] pe-2.5 ps-[11px] text-[12.5px] transition-colors',
+                      on
+                        ? 'border-[#D5D5D5] bg-[#F0F0F0] font-semibold text-ink'
+                        : 'border-[#DEDEDE] bg-transparent font-medium text-[#767676]'
+                    )}
+                  >
+                    <span className="flex" style={{ color: EVENT_KIND_META[k].accent }}>
+                      <Icon size={13} />
+                    </span>
+                    {kindLabel[k]}
+                    <span className={cn('flex', on ? 'text-ink' : 'text-[#ADADAD]')}>
+                      {on ? <CloseIcon size={12} strokeWidth={2} /> : <PlusIcon size={12} strokeWidth={2} />}
+                    </span>
+                  </button>
+                )
+              })}
           </div>
         </div>
 
@@ -284,9 +303,15 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         <span className="min-w-0 flex-1 truncate text-start text-[11px] text-ink">
                           <span dir="auto">{name}</span>
                         </span>
-                        <span className="flex-none font-mono-num text-[10px] text-[#767676]" dir="ltr">
-                          {isLive ? dict.live.liveBadge : formatTime(c.scheduledAt, locale)}
-                        </span>
+                        {/* A CLOCK ONLY WHEN ONE WAS PUBLISHED. Report dates carry no
+                            time at all (0 of 472 rows), and `scheduledAt` holds midnight
+                            Israel time for them purely as a bucket — printing it would
+                            invent a 00:00 appointment for every report on the calendar. */}
+                        {(isLive || c.timeKnown) && (
+                          <span className="flex-none font-mono-num text-[10px] text-[#767676]" dir="ltr">
+                            {isLive ? dict.live.liveBadge : formatTime(c.scheduledAt, locale)}
+                          </span>
+                        )}
                         <button
                           type="button"
                           onClick={() => follow(c.id, !isFollowed)}
@@ -307,10 +332,31 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                           >
                             {kindSingular[kind]}
                           </div>
-                          <div className="text-[11.5px] leading-[1.5] text-[#2A2A2A]" dir="auto">
-                            {name} · {c.quarter} · {formatDate(c.scheduledAt, locale)} ·{' '}
-                            {isLive ? dict.live.liveBadge : formatTime(c.scheduledAt, locale)}
-                            {isFollowed ? ` · ${dict.calendar.inCalendar}` : ''}
+                          {/* EACH RUN GETS ITS OWN <bdi>, direction on the container.
+                              This line mixes a Hebrew company name with Latin quarter,
+                              date and time runs; `dir="auto"` on the whole line resolves
+                              from its FIRST strong character, so one Hebrew name flipped
+                              every trailing Latin run's punctuation to the far side.
+                              Third filing of this defect — rules/app.md. */}
+                          <div className="text-[11.5px] leading-[1.5] text-[#2A2A2A]">
+                            {[
+                              name,
+                              c.quarter,
+                              formatDate(c.scheduledAt, locale),
+                              isLive
+                                ? dict.live.liveBadge
+                                : c.timeKnown
+                                  ? formatTime(c.scheduledAt, locale)
+                                  : null,
+                              isFollowed ? dict.calendar.inCalendar : null,
+                            ]
+                              .filter(Boolean)
+                              .map((part, idx) => (
+                                <span key={idx}>
+                                  {idx > 0 ? ' · ' : ''}
+                                  <bdi>{part}</bdi>
+                                </span>
+                              ))}
                           </div>
                         </div>
                       </div>
@@ -324,6 +370,12 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
 
         {mode === 'mine' && visible.length === 0 && (
           <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noFollowed}</p>
+        )}
+        {/* A MONTH WITH NOTHING IN IT SAYS SO. An empty grid is ambiguous between
+            "nothing is scheduled" and "the feed did not load"; MAYA only holds
+            2025-2026, so an analyst paging outside that range will meet this often. */}
+        {mode === 'all' && monthCount === 0 && (
+          <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noEventsThisMonth}</p>
         )}
       </div>
     </div>

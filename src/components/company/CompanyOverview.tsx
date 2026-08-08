@@ -219,8 +219,15 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
                   <div className="text-[14.5px] font-semibold text-ink">
                     {[nextCall.quarter, dict.home.investorCall].filter(Boolean).join(' · ')}
                   </div>
+                  {/* No clock unless MAYA published one — a report date carries a day
+                      and nothing more, and `scheduledAt` holds midnight as a bucket. */}
                   <div className="mt-0.5 font-mono-num text-[12.5px] text-ink-faint" dir="ltr">
-                    {formatDate(nextCall.scheduledAt, locale)} · {formatTime(nextCall.scheduledAt, locale)}
+                    {[
+                      formatDate(nextCall.scheduledAt, locale),
+                      nextCall.timeKnown ? formatTime(nextCall.scheduledAt, locale) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </div>
                 </div>
               </div>
@@ -252,7 +259,7 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
                 name={companyName}
                 secondaryIcon={<CalendarIcon size={13} className="text-ink-faint" />}
                 secondary={`${call.quarter} · ${formatDate(call.scheduledAt, locale)}`}
-                meta={<span dir="ltr">{formatTime(call.scheduledAt, locale)}</span>}
+                meta={call.timeKnown ? <span dir="ltr">{formatTime(call.scheduledAt, locale)}</span> : null}
               />
             ))}
           </div>

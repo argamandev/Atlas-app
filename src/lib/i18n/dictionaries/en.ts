@@ -454,6 +454,7 @@ export const en = {
     ctxKindWebinar: 'Webinar',
     addToCalendar: 'Add to my calendar',
     noFollowed: 'You are not following any calls yet',
+    noEventsThisMonth: 'Nothing scheduled this month',
   },
   chat: {
     title: 'Chat',

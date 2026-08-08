@@ -360,6 +360,7 @@ export const he: Dictionary = {
     ctxKindWebinar: 'וובינר',
     addToCalendar: 'הוספה ליומן שלי',
     noFollowed: 'עדיין אינכם עוקבים אחר שיחות',
+    noEventsThisMonth: 'אין אירועים מתוכננים בחודש זה',
   },
   chat: {
     title: "צ'אט",
