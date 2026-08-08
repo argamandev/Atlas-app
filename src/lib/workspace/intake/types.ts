@@ -108,9 +108,13 @@ export type IntakeSelection = {
   /**
    * Ids the model says the user asked to TAKE OUT of the agreed set.
    *
-   * Explicit because OMISSION IS NOT REMOVAL — see `reconcileSelection`. A file
-   * that was agreed to and then merely left out of the next payload has not been
-   * declined by anyone, so only a removal stated here can drop it.
+   * ⚠ THIS USED TO CITE `reconcileSelection` FOR THE RULE "OMISSION IS NOT
+   * REMOVAL", and both the function and the rule are gone (2026-08-08): merging
+   * an omitted file back in is what silently restored filings the analyst had
+   * narrowed away. A shorter set from the model is now honoured AS a decision —
+   * see `resolveSelection`. This field survives because an EXPLICIT removal is
+   * still worth stating separately from a re-listing, and it applies at both
+   * statuses.
    */
   removedIds: string[]
   dropped: string[]
@@ -160,4 +164,25 @@ export type IntakeResponse = {
    * date, so this is a real and expected outcome, not only a typo.
    */
   unknownCompany?: string | null
+  /**
+   * ATLAS COULD NOT WORK OUT WHICH FILES, SO IT ATTACHED NONE — and says which
+   * of the two ways it failed.
+   *
+   * THE INVARIANT THIS EXISTS TO EXPRESS: `status: 'ready'` with an empty
+   * `selected` is a lie, and the route can no longer emit one (see `respond`).
+   * It emitted one for a day. `selectSources.ts` requires the model's `ready`
+   * sentence to say it is pulling the files in, so the panel printed *"great,
+   * I'm pulling them in now"* above no file, no spinner and no notice — the
+   * fourth occurrence on this branch of the standing law in `rules/app.md` that
+   * degradation must be VISIBLE.
+   *
+   * `nothing_selected` — resolution came out empty. Nothing is claimed about
+   *   WHY; the panel asks the analyst to name the files, which is the only
+   *   honest next step. It is deliberately NOT the "model did not answer"
+   *   wording: the model answered.
+   * `narrowing_conflict` — the model's prose narrowed the set and its ids did
+   *   not. The disagreement is INFORMATION, and it goes to the analyst rather
+   *   than being resolved internally by picking whichever half is easier.
+   */
+  unresolved?: 'nothing_selected' | 'narrowing_conflict' | null
 }

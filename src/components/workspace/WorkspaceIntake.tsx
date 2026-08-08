@@ -115,6 +115,19 @@ export function WorkspaceIntake({
       const { result } = await intakeSearchReq(workspaceId, next)
       setThinking(false)
 
+      // ATLAS COULD NOT WORK OUT WHICH FILES, AND SAYS SO IN ITS OWN WORDS.
+      //
+      // The server decides WHICH failure this is; the wording lives here, where
+      // both locales are. Never `intakeNotInterpreted` on these two paths — the
+      // model DID answer, so "I could not work that out" names a failure that
+      // did not happen, and `rules/app.md` forbids inventing a cause.
+      const unresolvedLine =
+        result.unresolved === 'narrowing_conflict'
+          ? dict.workspace.intakeSelectionConflict
+          : result.unresolved === 'nothing_selected'
+            ? dict.workspace.intakeSelectionUnclear
+            : null
+
       // Deterministic, from the server. `unknownCompany` first: if the company
       // was never resolved, saying MAYA was unreachable would be a second,
       // wrong explanation for the same missing result.
@@ -125,7 +138,12 @@ export function WorkspaceIntake({
             ? dict.workspace.intakeMayaUnreachable
             : result.sourceError === 'request_not_understood'
               ? dict.workspace.intakeRequestNotUnderstood
-              : null
+              : // Only when the model's OWN sentence is being shown, so the
+                // conflict is never said twice: with `reply === null` the same
+                // line becomes the spoken turn below.
+                result.reply !== null
+                ? unresolvedLine
+                : null
       )
 
       const ready = result.status === 'ready' && result.selected.length > 0
@@ -143,12 +161,17 @@ export function WorkspaceIntake({
       // MACHINE acknowledging, and the thing being built here is a colleague
       // answering. The sentence is written here rather than asked for, so it
       // still costs nothing and still arrives instantly.
+      //
+      // `intakeNotInterpreted` is now the LAST resort rather than the only one.
+      // It is true for exactly one cause — the model did not answer — and the
+      // server distinguishes that from "it answered and nothing resolved", which
+      // used to arrive here wearing the same sentence.
       const spoken =
         result.reply !== null
           ? result.reply
           : ready
             ? dict.workspace.intakePullingNow
-            : dict.workspace.intakeNotInterpreted
+            : (unresolvedLine ?? dict.workspace.intakeNotInterpreted)
 
       // THE PROPOSED SET RIDES WITH THE SENTENCE. Atlas names files in prose;
       // these are the same files as ids, so the next turn can act on what was

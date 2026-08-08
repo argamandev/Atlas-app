@@ -103,6 +103,20 @@ export const en = {
     // something worse — the previous copy claimed "keyword matches", which the
     // conversation no longer shows.
     intakeNotInterpreted: 'I could not work that out just now — my model did not answer. Try again?',
+    // NOTHING WAS SELECTED, SO NOTHING WAS ATTACHED — and this says exactly that
+    // and nothing more. It replaces `intakeNotInterpreted` on this path, which
+    // was the wrong cause: the model answered, so "I could not work that out"
+    // blamed a failure that did not happen. `rules/app.md` forbids inventing a
+    // cause, and a wrong one is worse than a generic one because the analyst
+    // acts on it — here they would retry an unchanged request.
+    intakeSelectionUnclear:
+      "I didn't end up with a file to add, so I've added nothing. Tell me which ones you want and I'll bring them in.",
+    // THE MODEL'S PROSE AND ITS IDS DISAGREED. Said as the disagreement it is,
+    // because that is something the analyst can settle in one sentence — and
+    // because picking one half silently is what reverted a narrowing they had
+    // explicitly asked for.
+    intakeSelectionConflict:
+      "I read that as narrowing the list, but what came back was still all of them — so I've added nothing rather than guess. Which ones should I bring in?",
     // COVERAGE FAILURES, SAID OUT LOUD. Without these the panel would show a
     // list drawn only from Atlas's own library and nothing would tell the
     // analyst that MAYA was never reached — an answer that looks complete and

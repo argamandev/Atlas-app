@@ -19,7 +19,8 @@ import {
   agreedToStandingSet,
   narrowsSelection,
 } from '@/lib/workspace/intake/agreement'
-import type { IntakeTurn, ProposedRemote } from '@/lib/workspace/intake/types'
+import { intakeResult } from '@/lib/workspace/intake/respond'
+import type { IntakeResponse, IntakeTurn, ProposedRemote } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
 import { resolveIssuer } from '@/lib/maya/issuers'
 import { listDisclosures } from '@/lib/maya/disclosures'
@@ -165,7 +166,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // `reply: null` with `ready` means "no sentence needed" — the panel is
       // already showing that it is pulling. It deliberately does not invent a
       // Hebrew or English sentence server-side; the client owns its own wording.
-      return json({
+      return respond({
         reply: null,
         status: 'ready',
         selected: [...remoteSelected, ...selected],
@@ -306,7 +307,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // company's filings are reachable whether or not Atlas holds anything, so
     // the question is only answerable here.
     if (candidates.length === 0) {
-      return json({
+      return respond({
         reply: null,
         status: 'clarifying',
         selected: [],
@@ -356,8 +357,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       )
       const status = promoted ? ('ready' as const) : selection.status
 
-      const ids = resolveSelection(
-        status,
+      const resolution = resolveSelection(
         proposal,
         selection.selectedIds,
         selection.removedIds,
@@ -366,8 +366,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // for three filings again.
         latest?.role === 'user' ? narrowsSelection(latest.content) : false
       )
-      const { selected } = orderBySelection(candidates, ids)
-      return json({
+      const { selected } = orderBySelection(candidates, resolution.ids)
+      return respond({
         // A PROMOTED TURN THROWS THE MODEL'S SENTENCE AWAY, and must.
         //
         // The reply belongs to the status the model CHOSE, and the prompt
@@ -392,6 +392,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // sentence rather than leaving the gap invisible.
         sourceError,
         unknownCompany,
+        // THE MODEL'S WORDS AND ITS IDS DISAGREED — said out loud, not settled
+        // internally. The analyst asked for less, the prose agreed with them and
+        // the id list did not, and nothing here can know which half was meant.
+        // Picking one silently is how a narrowing got reverted in the first
+        // place; the disagreement is information they can act on in one sentence.
+        unresolved: resolution.conflict ? ('narrowing_conflict' as const) : null,
       })
     }
 
@@ -400,7 +406,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // interpreted:false, which is what makes the panel state that these are
     // keyword matches rather than an understood request.
     const degraded = parseModelRequest('', text)
-    return json({
+    return respond({
       reply: null,
       status: 'clarifying',
       selected: [],
@@ -413,8 +419,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 }
 
-function json(result: unknown) {
-  return NextResponse.json({ result }, { headers: { 'Cache-Control': 'no-store' } })
+/**
+ * THE ONE EXIT FROM THIS ROUTE. Every result leaves through here, so the
+ * ready/empty invariant holds without any call site remembering it — see
+ * `intakeResult`, which owns that invariant and is unit-tested on it.
+ */
+function respond(result: IntakeResponse) {
+  return NextResponse.json({ result: intakeResult(result) }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 /** The conversation, from an untrusted body. Caps the history so a long thread
@@ -466,8 +477,6 @@ function readProposedRemote(raw: unknown): ProposedRemote | null {
   return { mayaReportId, issuerId, publishedISO, title }
 }
 
-/** The most recent set Atlas put on the table, or []. Later turns win — an
- *  earlier proposal has already been superseded by the one after it. */
 /**
  * The MOST RECENT assistant turn, whatever it holds.
  *
@@ -499,6 +508,22 @@ function lastAssistantTurn(turns: IntakeTurn[]): IntakeTurn | null {
   return null
 }
 
+/**
+ * The set Atlas last put on the table, or [].
+ *
+ * ⚠ NOT "the most recent turn that HAD a set" — that scan-back is the bug
+ * documented above. A turn that offered nothing offered nothing.
+ *
+ * The cost, worth stating plainly because it is reachable without the analyst
+ * doing anything wrong: ONE FAILED SELECTION TURN NOW ERASES AN AGREED SET. If
+ * `askModel` times out at 7s the response carries no `proposed`, that becomes
+ * the last assistant turn, and a set agreed two turns earlier is gone — the old
+ * scan-back would have preserved it. The panel is honest about it (it says the
+ * request was not understood, and nothing claims files are coming), so the
+ * analyst restates rather than being misled. Accepted deliberately: the
+ * alternative is a lookup that can resurrect a set the analyst discarded, which
+ * is the failure that gated this branch.
+ */
 function lastProposal(turns: IntakeTurn[]): string[] {
   return lastAssistantTurn(turns)?.proposed ?? []
 }
