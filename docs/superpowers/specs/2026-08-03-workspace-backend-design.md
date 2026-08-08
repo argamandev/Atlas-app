@@ -1,4 +1,6 @@
 # Workspace backend — design
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in
+> ARCHITECTURE.md + PROGRESS.md
 
 **Date:** 2026-08-03 · **Lane:** M · **Branch:** `feat/workspace-tables` (off `c27995a`)
 **Chapter:** the second half of the Projects · Workspace · Agents brief — the frontend shipped

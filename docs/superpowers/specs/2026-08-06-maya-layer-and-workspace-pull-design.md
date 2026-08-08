@@ -1,4 +1,6 @@
 # MAYA layer + workspace document pull — design
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in
+> ARCHITECTURE.md + PROGRESS.md
 
 **Date:** 2026-08-06 · **Branch:** `feat/workspace-tables` · **Lane:** multiview (port 3003)
 

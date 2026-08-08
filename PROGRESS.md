@@ -5,6 +5,53 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-08 — Workspace V1 + the MAYA layer SHIPPED (Lane M): a workspace persists, and Atlas can fetch a filing off TASE
+
+- **Workspace stopped being demo state.** Four owned tables (`workspaces`, `workspace_items`,
+  `workspace_threads`, `workspace_doc_blocks`) under the ownership law in `.claude/rules/db.md`,
+  with composite FKs `(id, user_id)` so referential integrity cannot reach across owners — RLS
+  protects rows, but a plain FK would not have. Fourteen `/api/workspaces*` routes and a data
+  layer that queries through the **caller's own** client, so RLS is load-bearing rather than
+  decorative. Shelf, panes, the working document's blocks and citations, and the intake
+  conversation all survive a reload. The `LegalDueDiligence` demo pane and the workspace demo
+  constants are deleted, not left dormant.
+- **A MAYA platform layer that knows nothing about workspaces** (`src/lib/maya/`, 18 modules,
+  four future consumers). Name a company and a period in the intake and Atlas queries TASE,
+  offers the filings it found, downloads the PDF, extracts it and shelves it. `maya_issuers` is
+  a shared-corpus table read-only to members; `companies_tase_issuer_uniq` exists because
+  `ensureCompanyForIssuer` is check-then-insert and two analysts pulling the same new company
+  concurrently would otherwise create two rows for one issuer.
+- **The intake's agreement logic is now code, not a prompt** — and that took THREE review rounds,
+  which is the part worth recording. Round 1: `resolveSelection` unioned the agreed set at status
+  `ready`, so "כן, רק את הראשון" ("yes, only the first") silently attached all three and fetched
+  them into the shared corpus. Round 2: the fix for that returned an empty set while the route
+  still said `ready`, so Atlas announced *"I'm pulling them in now"* over nothing — and it fired
+  on ordinary agreements too, because the narrowing vocabulary holds `לא`/`no`. Round 3 stopped
+  patching vocabularies and **bought the invariant instead**: the route has ONE exit, and
+  `intakeResult` makes `ready` + an empty selection unrepresentable. A resolution failure now
+  asks a question, in both locales, naming which of the two ways it failed.
+- **The lesson that outlived the bug: a classifier over an OPEN vocabulary will keep being wrong,
+  so buy visible failure rather than a longer word list.** Each of the first two rounds' fixes
+  opened the next round's door, both times by deciding *more precisely* what the analyst meant.
+  The third round instead made being wrong ask a question. `rules/app.md` already carried this as
+  standing law — degradation must be VISIBLE, never success UI for content the server dropped —
+  and this branch is its fourth occurrence.
+- **Filed, not fixed, and the deferral was reviewed rather than assumed:** the standing proposal
+  is not durable — any non-empty model selection replaces it however far it diverges, so Atlas can
+  name three filings in prose and store a different two (measured 6/6 turns substituting a file,
+  one never named to the analyst). The lane found this ITSELF while verifying its own fix and
+  reported it rather than burying it. It is deferred because its fix is the same design question
+  that opened a door in each of the two preceding rounds, and it is item 1 of the next intake
+  branch (ARCHITECTURE.md §8.6). Also deferred with a checked reason: `ingestFiling`'s upsert key
+  needs DDL, so it travels with the publication-date column in the MAYA phase.
+- **Verification.** Two independent gates per round — a cold `atlas-reviewer` on a worktree pinned
+  at the reviewed commit (never the live lane's checkout) plus the supervisor's own pass — for
+  three rounds; rounds 1 and 2 returned CHANGES and were NOT merged. Battery on the real merge
+  result, which was byte-identical to the reviewed commit because the merge-base was main's tip:
+  **556/556 tests across 63 files · tsc exit 0 · build green · Middleware 81.8 kB**. 69 commits.
+  Migration 020 retires two indexes migration 018 had created in error — applied by the founder by
+  hand, because `drop index` is hook-blocked on both doors and the guard has no approval override.
+
 ## 2026-08-02 — Projects backend SHIPPED (Lane M): a project is real, its chats persist, and `getSession()` is gone
 
 - **Projects stopped being demo state.** `projects` + `project_sources` are real tables under

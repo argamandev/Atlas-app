@@ -1,0 +1,54 @@
+-- 020 — retire migration 018's two redundant unique indexes on workspace_items.
+--
+-- WHAT THIS RECORDS. Migration 018 (2026-08-06) created
+-- `workspace_items_unique_transcript` and `workspace_items_unique_document`,
+-- which duplicated EXACTLY the partial unique indexes migration 016/017 had
+-- already created as `workspace_items_transcript_uniq` and
+-- `workspace_items_document_uniq`. Verified against the live database at the
+-- time: `pg_indexes` returned byte-identical definitions for each pair, and
+-- neither duplicate backed any constraint (`pg_constraint.conindid`). They
+-- enforced nothing the originals did not, and cost write time and storage on
+-- every insert. 018's own file said so and left removal to the founder.
+--
+-- APPLIED BY THE FOUNDER, BY HAND, 2026-08-08, in the Supabase SQL editor,
+-- after explicit approval at the `feat/workspace-tables` merge gate. This file
+-- is the record of a change that was already made, NOT a pending instruction —
+-- so the statements are idempotent and re-running it is a no-op.
+--
+-- WHY IT WAS APPLIED BY HAND rather than by an agent: `drop index` is blocked
+-- by `.claude/hooks/pre-bash-gate.mjs` on BOTH doors (Bash and the Supabase
+-- MCP), because this database is shared with production Timlul and the law is
+-- additive-only. The guard has no founder-approval override, which is correct.
+-- The removal was announced in `agent-memory/cross-cutting.md` before it was
+-- applied, per `.claude/rules/db.md`.
+--
+-- REVERSAL, if it is ever wanted, needs no hook-blocked SQL — it is the two
+-- `create unique index` statements at the bottom of this file, commented out.
+--
+-- ⚠ DO NOT "TIDY" THIS INTO MIGRATION 018. It must sort AFTER 018, or a replay
+-- from scratch would create the duplicates and then never remove them.
+
+drop index if exists public.workspace_items_unique_transcript;
+drop index if exists public.workspace_items_unique_document;
+
+-- Verification actually run after applying (must return exactly the two
+-- originals, plus the pkey/unique/FK-supporting indexes):
+--
+--   select indexname from pg_indexes
+--   where schemaname='public' and tablename='workspace_items'
+--   order by indexname;
+--
+-- Result 2026-08-08: workspace_items_document_uniq · workspace_items_id_user_id_key
+-- · workspace_items_id_workspace_user_key · workspace_items_pkey
+-- · workspace_items_storage_uniq · workspace_items_transcript_uniq
+-- · workspace_items_user_id_idx · workspace_items_workspace_id_idx
+-- The two duplicates are gone; both originals are intact.
+--
+-- REVERSAL (kept so it never has to be re-derived):
+--
+--   create unique index if not exists workspace_items_unique_transcript
+--     on public.workspace_items (workspace_id, transcript_id)
+--     where transcript_id is not null;
+--   create unique index if not exists workspace_items_unique_document
+--     on public.workspace_items (workspace_id, document_id)
+--     where document_id is not null;

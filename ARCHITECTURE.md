@@ -85,11 +85,12 @@ Proxy routes the browser talks to: /api/live/state, /api/live/finish, /api/live/
 | `app/app/agents/page.tsx` | `/app/agents` | **Agents** — agent list, dock, create-agent. UI only. |
 | `app/app/settings/page.tsx` | `/app/settings` | Profile & settings. |
 
-> **"UI only" is literal on the four rows above** (merged 2026-08-01, `feat/surfaces-import`).
-> These surfaces have **no backend**: nothing persists, no route writes a row, and every
-> control that would need one renders disabled with a stated reason. Session-only state lives
-> in `lib/demo/DemoStateProvider`. Backends are the next chapter — see `docs/DATA-MODEL.md`
-> for the ownership rules any new table must satisfy before it can back these screens.
+> **⚠ THIS BLOCK SAID ALL FOUR SURFACES HAD NO BACKEND. TWO OF THEM NOW DO** — Projects since
+> 2026-08-02, Workspace since 2026-08-08. Both persist, both write rows, and both query through
+> the caller's own client with RLS load-bearing. **`/app/agents` is the one still UI-only**: it
+> is demo-fed from `lib/demo/DemoStateProvider`, carries its `DemoBanner`, and every control
+> that would need a backend renders disabled with a stated reason — agent execution needs the
+> deploy. `docs/DATA-MODEL.md` holds the ownership rules any new table must satisfy.
 
 ### Gateway + shared
 | File | Route | What it does |
@@ -132,6 +133,15 @@ yet). API routes are gated per-route and inconsistently — read the
 | `documents/[id]/file/route.ts` | Auth-gated PDF bytes from the private `company-documents` bucket (`private, no-store` — re-ingests must invalidate viewers). |
 | `auth/signout/route.ts` | Sign out (plain link target — do not turn into a dropdown). |
 | `access-request/route.ts`, `admin/requests/route.ts` | Request access + admin review. |
+| `workspaces/route.ts`, `workspaces/[id]/route.ts` | List/create workspaces; get/patch/delete one. Every one queries through the **caller's own** client, so RLS is load-bearing (the `lib/db/projects.ts` pattern, not `supabaseAdmin`). |
+| `workspaces/sources/route.ts` | The attachable corpus (transcripts + documents) for the intake panel. |
+| `workspaces/[id]/items/route.ts`, `items/[itemId]/route.ts` | Add/list shelf items; patch layout / remove one. |
+| `workspaces/[id]/items/[itemId]/content/route.ts` | An item's rendered content (pages / transcript lines) for the pane. |
+| `workspaces/[id]/items/from-maya/route.ts` | Attach a MAYA filing Atlas does not hold yet: downloads the PDF, extracts it, ingests into the **shared corpus**, then shelves it. The only user-reachable writer of that corpus — see Known gaps. |
+| `workspaces/[id]/intake/route.ts` | The conversational intake: interpret → select → agree → attach. **One exit** (`respond()` → `intakeResult`), which is what makes "`ready` with an empty selection" unrepresentable. |
+| `workspaces/[id]/thread/route.ts`, `counts/route.ts` | Persisted intake conversation; shelf/thread counts for the picker. |
+| `workspaces/[id]/chat/route.ts`, `compose/route.ts` | Workspace chat over the shelf; compose a document section from it. |
+| `workspaces/[id]/blocks/route.ts`, `blocks/[blockId]/route.ts` | The working document's blocks + citations. |
 
 ---
 
@@ -195,7 +205,10 @@ yet). API routes are gated per-route and inconsistently — read the
 | `ui/dotted-surface.tsx` | ⚠️ GATEWAY (Wave 2) — the only file left in `ui/`. |
 
 ### The three surfaces — `components/workspace/`, `components/projects/`, `components/agents/`
-Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behind any of them.**
+Imported 2026-08-01 (`feat/surfaces-import`) as frontend only. **Two of the three now have real
+backends: Projects since 2026-08-02, Workspace since 2026-08-08 (`feat/workspace-tables`).**
+`components/agents/` is still demo-fed and still carries its `DemoBanner` — agent execution needs
+the deploy, which comes after this chapter.
 
 | File | What it does |
 |---|---|
@@ -203,10 +216,13 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `workspace/WorkspaceRoute.tsx` | Routes an id to the shell, or to intake when the workspace is empty. |
 | `workspace/WorkspaceShell.tsx` | The workspace frame — tab bar, panes, detail column. |
 | `workspace/WorkspaceIntake.tsx` | "What are we working on today?" — the new-workspace screen. |
-| `workspace/WorkingDocument.tsx` | The deliverable. `contentEditable` + `execCommand` (deliberately no editor library — a real document model would lock in citation storage before the backend chapter decides it). Both exports disabled. |
+| `workspace/WorkingDocument.tsx` | The deliverable. `contentEditable` + `execCommand` (deliberately no editor library). Blocks + citations now PERSIST via `/blocks`. Export is still disabled and says so on screen. |
 | `workspace/WorkspaceDocs.tsx` | The document/file pane. |
 | `workspace/WorkspaceDetailColumn.tsx` | Right-hand detail column (threads, agents, sessions). |
-| `workspace/LegalDueDiligence.tsx` | The legal-DD demo pane (severity-tagged findings). |
+| `workspace/WorkspaceChat.tsx` | Chat over the shelf — the workspace's own conversation, distinct from global chat. |
+| `workspace/SourceDocument.tsx` | Renders a shelved source (PDF pages / transcript lines) inside a pane. |
+| `workspace/ConfirmDialog.tsx` | The destructive-action confirm (delete workspace, remove source). Its `<bdi>` handling is the reference example for mixed Hebrew/Latin lines — 32 combinations measured, 6 differ. |
+| ~~`workspace/LegalDueDiligence.tsx`~~ | **Deleted 2026-08-08** with the rest of the workspace demo content. |
 | `projects/ProjectsList.tsx`, `projects/ProjectView.tsx` | Project list + detail (files, context, composer). Backed by the real API since 2026-08-02 — no longer demo state. |
 | `projects/ProjectChat.tsx` | Mounts `ChatView` with `projectId` set and hands it `renderMain`, so a project's composer drives the ONE chat engine (streaming, persistence, citations) instead of a second implementation. `renderMain` also receives `open(id)`, which is the only route back into a project's past conversations — they are deliberately excluded from global Recent Chats. |
 | `agents/AgentsPage.tsx`, `agents/AgentDock.tsx`, `agents/CommandDeck.tsx`, `agents/CreateAgent.tsx` | The agents surface: list, dock, deck, and the create-agent flow. |
@@ -264,7 +280,12 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `i18n/` | `config`, `LocaleProvider`, `server`, `format`, `dictionaries/{en,he,index}`. |
 | `design/tokens.ts` | Design tokens in code — ONE light theme ("Harvey", 2026-08-01); the theme cycle and the dark-call token family are gone. `railText` `#85817A` is a DELIBERATE deviation from the design import (WCAG AA 5.109:1 vs the design's ~3.6:1) — do not let a parity probe revert it. |
 | `design/anim.ts` | Animation helpers (keyframe curves, spring config) for `AnimCanvas`. Unit-tested. |
-| `workspace/data.ts` | Design-demo workspace feed (typed stub, to be replaced by real feed). Unit-tested. |
+| `workspace/` | **Workspace V1 (2026-08-08) — the real thing, ~19 modules.** Pure rules that need no database: `validate` (every write shape), `present`/`derive`, `blocks`, `panes` (the pane cap), `thread`, `clip`, `tabLabel`. `data.ts` is now the ATTACHABLE-SOURCE feed, not a demo stub — the only demo constants left feed `/app/agents`, and `data.test.ts` fails if anything re-exports them. |
+| `workspace/intake/` | **The conversational intake, 14 modules** — `parseRequest` → `findSources` → `selectSources` (the model picks from a list it was given; it can never invent a file) → `agreement` (bare-yes recognised in CODE, not asked of a model) → `respond` (`intakeResult`: `ready` + empty selection is downgraded to an honest question). Three review rounds live in `agreement.ts`'s header comments — read them before changing a word list. |
+| `workspace/chat/` | Workspace chat: `context`, `compose`, `prompt`, `plan`. |
+| `maya/` | **The MAYA platform layer (2026-08-06), 18 modules — knows nothing about workspaces** (four future consumers). `client` (typed `MayaResult`, never throws into a route), `disclosures`, `filings`, `issuers` (`resolveIssuer`), `dates`/`events`/`layering`, `files`, `ingestFiling`. |
+| `db/workspaces.ts` | The workspace data layer. Queries through the **caller's own** Supabase client with a comment at each site saying RLS is load-bearing — the pattern to copy, alongside `db/projects.ts`. |
+| `time/relative.ts` | Relative-time formatting ("2 hours ago") in both locales. |
 | `agents/data.ts` | Design-demo agents feed (typed stub, to be replaced by real feed). Unit-tested. |
 | `projects/data.ts` | Design-demo projects feed (typed stub, to be replaced by real feed). Unit-tested. |
 | `demo/DemoStateProvider.tsx` + `demo/reducer.ts` | **Session-only** state for the three surfaces — the reason nothing on them persists. Deliberate: a real store would have locked in shapes before the data model was decided. Unit-tested (`demoState.test.ts`). |
@@ -284,7 +305,7 @@ Merged 2026-08-01 (`feat/surfaces-import`). **Frontend only — no backend behin
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **229 tests across 37 files** as of 2026-08-03; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **556 tests across 63 files** as of 2026-08-08; the list in `package.json` is explicit — add new test files there)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -366,6 +387,13 @@ run a file cannot tell you it is missing.
 | `20260614_011_speaker_edits` | `transcripts.speaker_edits` (diarization overlay) |
 | `20260714_012_company_documents` | **`company_documents` + `document_pages`** (RLS, read=authenticated) + private `company-documents` bucket — Multiview M1 |
 | `20260716_013_user_quotes_rls` | RLS enable on parked `user_quotes` (Advisor finding; applied founder-side) |
+| `20260801_014_transcripts_shared_corpus` | `transcripts` RLS as a **shared corpus** read (`for select to authenticated using (true)`) — see `docs/DATA-MODEL.md` |
+| `20260802_015_projects` | **`projects`** + project messages (Projects backend) |
+| `20260803_016_workspaces` | **`workspaces`, `workspace_items`, `workspace_threads`, `workspace_doc_blocks`** — all four ownership-law points at CREATE TABLE, composite FKs `(id, user_id)` so referential integrity cannot reach across owners |
+| `20260803_017_workspace_integrity` | Three holes in 016: kind-matches-source, storage uniqueness, and a citation that could reach across workspaces |
+| `20260806_018_workspace_items_unique_source` | Two unique indexes that **duplicated 016/017's exactly** — applied in error, disclosed in its own file, retired by 020 |
+| `20260806_019_maya` | **`maya_issuers`** (shared corpus, read-only to members) + `companies_tase_issuer_uniq` + `company_documents.maya_report_id` |
+| `20260808_020_remove_redundant_workspace_item_indexes` | Retires 018's two duplicates. **Applied by the founder by hand** — `drop index` is hook-blocked on both doors and has no approval override; the file is the record, not an instruction |
 
 `supabase/config.toml` = Supabase CLI config. **The DB is shared with the frozen old repo —
 additive migrations only.**
@@ -417,12 +445,18 @@ inputs: `design-import/` (Claude Design export), `local-assets/` (demo PDF). Fle
 The 2026-07 cleanup resolved the old "two products in one tree" clutter. What remains is a short,
 honest list:
 
-1. **API auth is not verification-strength** — `getRequestUserId`/`getCurrentUser`/`requireAdmin`
-   resolve the user with `getSession()`, which reads it out of the cookie with no signature check.
-   Switching those three to `getUser()` is the top security item (filed 2026-08-01, top of
-   `.claude/rules/app.md`). Three routes have no auth at all: `PATCH …/speakers`,
-   `PATCH …/diarization`, `POST /api/live/finish`. The PAGE gate (item resolved 2026-08-01,
-   `src/middleware.ts`) does not cover direct API calls.
+1. ✅ **CLOSED — this item was STALE and is corrected here (2026-08-08).** It claimed
+   `getSession()` was still resolving users and that `PATCH …/speakers`, `PATCH …/diarization`
+   and `POST /api/live/finish` had no auth at all. Both were fixed on 2026-08-02/03 and this
+   document was never updated. Verified by command at this merge: `git grep "auth.getSession()"
+   -- src` returns **0**, and all three routes resolve a user. Auth is now enforced by a TEST —
+   `src/lib/apiAuthBoundary.test.ts` fails the battery for any handler that resolves no user.
+   **What remains true and is NOT closed:** authentication is not authorisation. `supabaseAdmin`
+   bypasses RLS, and the older `lib/db/` modules (`conversations`, `quotes`, `quoteFolders`,
+   `transcripts`, …) still use it and do their own ownership filtering in application code.
+   `lib/db/workspaces.ts` and `lib/db/projects.ts` are the pattern to copy. Also still open by
+   design: `GET /api/live/{state,pcm}` are allowlisted — **gate them before `LIVE_ENGINE_URL`
+   is ever set in a deployed environment.**
 2. **Wave 2 gateway** — 4 legacy-styled files serve login until Atlas has its own (see `LEGACY.md`).
 3. **`LiveAudioProvider` re-render pattern** — 10fps values in context; port `PlayerProvider`'s
    `useSyncExternalStore` pattern before adding more consumers (reviewer flag, 2026-06-27).
@@ -431,3 +465,23 @@ honest list:
 5. **Inert legacy DB tables** (watchlist/alerts/etc. in shared Supabase) — harmless; clean up at
    deployment time, coordinated with the old repo's retirement. (The 4 foreign tables from a
    non-Timlul project were founder-DROPPED 2026-07-16.)
+6. **The workspace intake's standing proposal is not durable** (filed 2026-08-08 at the
+   `feat/workspace-tables` merge, by the lane itself while verifying its own fix). Any non-empty
+   model selection replaces the standing set however far it diverges, so Atlas can name three
+   filings in prose while storing a different two — measured 6/6 turns substituting a file, one
+   never named to the analyst. A bare "כן" then pulls that stored set verbatim. **It is the first
+   item of the next intake branch**, and it is a design decision (when may a model selection
+   replace an agreed set?), which is exactly the question that opened a new door in each of the
+   two preceding fix rounds — hence deferred deliberately rather than patched at the end of one.
+   Bounded, not unbounded: the shipped `intakeResult` invariant means a resolution failure asks a
+   question instead of announcing a pull.
+7. **`lib/maya/ingestFiling.ts` upserts on `(company_id, quarter, doc_type)`**, so a different
+   filing mapping to the same period+type replaces the SHARED-corpus row in place while other
+   users' `workspace_items.name` keeps the old title. Now reachable by any authenticated user via
+   `POST /items/from-maya`. The correct key is `maya_report_id`, whose unique index is PARTIAL,
+   which PostgREST's `onConflict` cannot express — so the fix is DDL and travels with the
+   publication-date column in the MAYA phase. One migration, one review.
+8. **`components/agents/` is still demo-fed** and carries its `DemoBanner`; agent execution needs
+   the deploy. Same for the company-overview extras (`lib/company/overview-stub.ts`) and the
+   hardcoded "Q2 2026" quarter tag on Home — fabricated demo facts on real pages, owed real feeds
+   or demo markers before launch.

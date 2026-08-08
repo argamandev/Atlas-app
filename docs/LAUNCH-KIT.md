@@ -194,6 +194,31 @@ with word timings → karaoke renders in sync, with the invariants unit-tested.
 > Rewritten 2026-08-03 for CHAPTER 2 — WORKSPACE. Chapter 1 (Projects: tables, RLS, routes,
 > project-scoped chat, and the `getSession()` → `getUser()` auth fix) shipped 2026-08-02 across
 > two merges. The chapter-1 prompt lives in git history.
+>
+> ## ⛔ DO NOT PASTE THIS PROMPT AS-IS — CHAPTER 2 IS MERGED (supervisor, 2026-08-08)
+>
+> `feat/workspace-tables` merged to main on 2026-08-08 (69 commits, three review rounds). This
+> prompt is kept as the record of the chapter that produced it, and **several of its statements
+> are now false.** A session born on it would do already-done work on a branch that no longer
+> needs creating:
+>
+> - *"start Workspace, on a FRESH BRANCH… `git checkout -b feat/workspace-tables`"* — that
+>   branch exists and is merged.
+> - *"Today it persists NOTHING — `src/lib/workspace/data.ts` is a typed stub… gone on reload"*
+>   — Workspace persists. Four tables, fourteen routes, `lib/db/workspaces.ts` through the
+>   user's client with RLS load-bearing. `data.ts` is now the attachable-source feed.
+> - *"that API is not connected yet"* (MAYA) — connected. `src/lib/maya/` is a real platform
+>   layer and `POST /items/from-maya` fetches, extracts and shelves a TASE filing.
+> - The `⛔ FIRST` block about `fix/projects-honesty` — that merged on 2026-08-03.
+>
+> **The next mission is phase 2, MAYA across the whole product** (Home company search,
+> Calendar's upcoming calls, chat answering off the DB), then Railway, then Workspace v2 —
+> founder's order, filed 2026-08-07. Per the re-mission runbook in the `ship` skill, the new
+> prompt is written AFTER the founder's brainstorm and its spec, **not before**, which is why
+> this one is banner-marked rather than rewritten here. Its first task is already known: the
+> publication-date column on `company_documents`, travelling with `ingestFiling`'s upsert key
+> (ARCHITECTURE.md §8.7). And item 1 of the next INTAKE branch is §8.6, the standing proposal's
+> durability.
 
 ```
 You are Lane M — workspace-backend — of the Atlas fleet. Your worktree is

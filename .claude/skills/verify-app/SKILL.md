@@ -48,7 +48,12 @@ console clean + tests green.
 
 **Frontend import:** screenshot each imported page vs its reference in design-import/ —
 side-by-side compare (structure, spacing, typography, colors). Check both EN and HE (RTL flip).
-Workspace/Agents pages must render fully from stub data (no backend calls).
+**⚠ UPDATED 2026-08-08 — this line used to say "Workspace/Agents pages must render fully from
+stub data (no backend calls)", and for Workspace that recipe now passes on the wrong thing.**
+`/app/agents` is still stub-fed, so it still holds there. **Workspace has a real backend**: it
+persists, it calls its own routes, and it is behind the login gate — so verifying it means
+signing in and checking a row SURVIVES A RELOAD, not that a page renders. A workspace that
+renders beautifully from a failed fetch is the failure mode, not the pass.
 Parity laws (graduated from the 7-round 2026-07 grind): (1) verify against the RENDERED
 design only — serve it locally, probe computed styles / canvas measureText; bundle CSS and
 template text LIE (rules/app.md has the two-font-stack story). (2) Measure the FRAME first

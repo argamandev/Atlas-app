@@ -44,8 +44,9 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — loca
   company data is the same for everyone; everything a user makes is theirs. Read before
   designing any table or touching Maya/retrieval/agents.
 - `docs/VISION.md` — product vision, V1 description, roadmap
-- `docs/product/` — founder briefs. The Projects · Workspace · Agents brief is HALF spent:
-  frontend shipped 2026-08-01, **backends are the open half**.
+- `docs/product/` — founder briefs. On the Projects · Workspace · Agents brief: frontend shipped
+  2026-08-01, **Projects backend 2026-08-02, Workspace V1 backend + the MAYA layer 2026-08-08**.
+  What is left of it is **Agents**, which needs the deploy.
 - `docs/MAYA-API.md` — the TASE Data Hub / MAYA feed. **LIVE since 2026-08-06** — base URL
   `datawise.tase.co.il`, header `apikey`, and `Accept-Language: he-IL` is mandatory (the
   English feed returns `title: null`). Read it before writing a single MAYA call.

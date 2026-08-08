@@ -1,4 +1,6 @@
 # Spec — The Workspace experience (2026-08-04)
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in
+> ARCHITECTURE.md + PROGRESS.md
 
 > STATUS: APPROVED by the founder, section by section, in the 2026-08-04 brainstorm.
 > Lane M (multiview) · port 3003 · branch `feat/workspace-tables` (continues; the tables and
