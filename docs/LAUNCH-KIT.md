@@ -191,6 +191,126 @@ with word timings → karaoke renders in sync, with the invariants unit-tested.
 
 ### 📑 Lane M — paste into the Atlas-multiview session
 
+> **CURRENT — written 2026-08-08 for CHAPTER 3: MAYA ACROSS THE PRODUCT.** Chapter 2 (Workspace
+> V1 + the MAYA platform layer) merged 2026-08-08 at `713c114` after three review rounds. The
+> chapter-2 prompt is kept below, banner-marked, as the record.
+
+```
+You are Lane M — the Atlas fleet's build lane — in worktree C:\Users\Sagi\Desktop\Atlas-multiview,
+dev port 3003 (npm run dev -- -p 3003). Restart any server already running there: a stale server
+serves the old build and your verification will lie to you.
+
+FIRST, BEFORE ANY CODE. Read CLAUDE.md, .claude/rules/parallel-work.md, .claude/rules/db.md,
+.claude/rules/app.md, docs/DATA-MODEL.md, and the board at
+C:/Users/Sagi/Desktop/Atlas/agent-memory/BOARD.md. Your own memory is
+C:/Users/Sagi/Desktop/Atlas/agent-memory/state-multiview.md — read at start, write before walking
+away. Its final two lines are a supervisor marker: everything above them is chapter 2 HISTORY,
+not current state.
+
+YOUR WORKTREE STILL HOLDS THE MERGED BRANCH. Start clean:
+git fetch origin && git checkout main && git pull && git checkout -b feat/maya-calendar
+
+WHAT YOU JUST SHIPPED, so you never redo it: Workspace V1 — four owned tables under the ownership
+law with composite (id,user_id) FKs, fourteen /api/workspaces* routes, lib/db/workspaces.ts through
+the USER's client with RLS load-bearing, the working document's blocks and citations, and the
+conversational intake. Plus the MAYA PLATFORM LAYER at src/lib/maya/ (client, config, dates,
+disclosures, events, files, filings, ingestFiling, issuers, types) — it knows nothing about
+workspaces and has four future consumers. THIS CHAPTER IS THREE OF THEM. Do not couple it to one
+surface; if a surface needs a shape maya/ does not have, add it to maya/ generically.
+
+MISSION (chapter 3): MAKE THE MAYA DATA CORRECT ON THE REST OF THE PRODUCT, so Atlas V1 is
+finishable. Founder's framing, filed 2026-08-08: Atlas V1 = Workspace v1 (done) + calendar, company
+pages and chat being RIGHT + deployed to Railway. After the deploy, real feedback starts, and the
+product improves against real use instead of guesses.
+
+FOUR SLICES, EACH MERGED BEFORE THE NEXT BEGINS. This is a founder decision, not a suggestion —
+chapter 2 was 69 commits in one branch and needed three review rounds.
+  SLICE 0  the schema — ONE migration (below)
+  SLICE 1  CALENDAR        → /ship → merge
+  SLICE 2  COMPANY PAGES   → /ship → merge
+  SLICE 3  CHAT answering off the DB → /ship → merge
+  then the supervisor takes it to Railway.
+BRAINSTORM EACH SLICE WITH THE FOUNDER BEFORE BUILDING IT (superpowers:brainstorming → spec →
+plan in docs/superpowers/). That step was skipped on the branches that went badly.
+
+SLICE 0 — THE SCHEMA, FIRST AND ONCE.
+Two known items, same table, ONE migration:
+  (a) a PUBLICATION-DATE column on company_documents. Verified against the live DB 2026-08-08, the
+      table has exactly: id, company_id, quarter, doc_type, title, source, storage_path, page_count,
+      lang, created_at, updated_at, maya_report_id. There is no publication date, so a filing's real
+      date cannot be shown or sorted on.
+  (b) the deferred ingestFiling upsert key. lib/maya/ingestFiling.ts upserts on
+      (company_id, quarter, doc_type), so a DIFFERENT filing mapping to the same period+type
+      replaces the SHARED-corpus row in place while other users' workspace_items keep the old title
+      over the new pages. The correct key is maya_report_id, whose unique index is PARTIAL
+      (where maya_report_id is not null), which PostgREST's onConflict cannot express — so this
+      needs the schema change or a lookup-then-write path in a function the manual upload also uses.
+      You deferred it last round with that reasoning and the reasoning was ACCEPTED.
+LAW, and it is the one irreversible class here: write the migration FILE, push the branch, have it
+reviewed as a FILE, and only then apply. Append to cross-cutting.md BEFORE applying. Additive only.
+Do not dribble one migration per slice.
+
+SLICE 1 — CALENDAR. Read this before you plan it, because the supervisor got it wrong once and
+corrected it: src/lib/calendar/event-meta.ts is NOT fabricated data. All 23 lines are EVENT_KINDS,
+probed accent colours, label keys and an eventKind() hint reader; the calendar already renders REAL
+scheduled_calls rows. ARCHITECTURE.md's "design-demo event metadata (typed stub)" row oversells it
+and should be corrected at merge. So this slice ADDS a feed rather than removing fakes: MAYA
+report/webinar events alongside the real calls, which is exactly what EVENT_KINDS and the filter
+chips were built to receive. Decide with the founder what belongs on the calendar and what does not.
+
+SLICE 2 — COMPANY PAGES. THIS is where the fabricated data is, and it is UNMARKED on screen:
+lib/company/overview-stub.ts feeds CompanyOverview.tsx:97 and CompanyView.tsx:77 with IR contact,
+index memberships, "latest reported quarter" and "latest announcements" — for EVERY company, with
+only a code comment and NOTHING on screen saying so. Also hardcoded: quarter="Q2 2026" at
+app/home/page.tsx:27, app/live/[id]/page.tsx:27 and app/agents/page.tsx:50, and
+isLiveCompany = company.ticker === '1097229' at CompanyView.tsx:80.
+Two acceptable outcomes per module, and only two: a REAL feed, or a VISIBLE demo marker. A third
+outcome — real-looking invented data on a real company page — is the founder's stated intolerable
+class. (For contrast, the live Report pane already does this correctly: its stub card renders
+dict.live.demoContent as a visible marker. Copy that, do not re-invent it.)
+
+BEFORE SLICE 1, WRITE ONE GUARD. A test that fails the battery if a stub/fabricated module can
+render on a real page without a visible demo marker. It is the same shape as apiAuthBoundary.test.ts
+and legacyBoundary.test.ts, and it exists because THIS repo's most-repeated lesson is that a lesson
+written as a paragraph gets violated again and a lesson written as a test does not. State its limits
+in its own header, and PROVE IT BITES before you trust it — a guard that has never been seen to fail
+is not a guard (we shipped one that matched its own identifier inside a comment).
+
+THINGS THAT WILL BITE YOU, none of them guesses:
+- MAYA needs Accept-Language: he-IL. The English feed returns title: null. docs/MAYA-API.md.
+- The corpus is SHARED. Anything you write via ingest is read by every member of the platform —
+  docs/DATA-MODEL.md. Personal layer vs shared corpus decides every table question.
+- supabaseAdmin BYPASSES RLS. Authentication is not authorisation. Copy lib/db/workspaces.ts and
+  lib/db/projects.ts (the user's client, RLS load-bearing); the older lib/db modules are the bad half.
+- Every API route method must resolve a user — enforced by src/lib/apiAuthBoundary.test.ts. If you
+  close a hole and that guard did not fail first, ask why.
+- Gating an endpoint changes every CALLER's error path. git grep the endpoint and answer "what does
+  this do with a 401?" for each — rules/app.md, filed after it bit one branch four times.
+- Hebrew mixed with Latin/numbers needs <bdi> per run, never dir on the container. Look at BOTH
+  locales; an EN-only screenshot pass has never caught this.
+- NEVER run npm run build while a dev server is up in the same checkout.
+
+NOT IN SCOPE, deliberately:
+- The workspace intake's standing-proposal durability (ARCHITECTURE.md §8.6) — YOUR finding, and it
+  is item 1 of the next INTAKE branch, not this one. Its fix is the design question that opened a new
+  door in each of two consecutive rounds; it gets its own round with cold eyes.
+- Workspace v2, agent execution (needs the deploy), and the Railway move itself.
+- The four NITs from your round-3 verdict — fix them only if you are already in that file.
+
+PROCESS: small labeled commits, stage paths explicitly (never git add -A), battery before every
+commit (npm test · npx tsc --noEmit · npm run build), /verify-app with your own eyes in BOTH
+locales, then /ship → append to ready-queue.md. You never push main. Append to cross-cutting.md
+BEFORE any migration or any change to shared types/lib/db shapes. File every founder decision as a
+DECISION line the moment it is made. Five failed attempts at the same problem = STOP, write what you
+tried, append an ALERT to cross-cutting, and hand it up — being stuck is data.
+
+ONE THING THE LAST CHAPTER PROVED, worth carrying in: when a fix keeps opening a new door, the fix
+strategy is wrong, not just the code. Rounds 1 and 2 both tried to decide more precisely what the
+user meant; round 3 made being wrong ASK A QUESTION and the cycle stopped. Prefer an invariant at
+the single choke point every result passes through over a smarter guess in the branch where the bug
+was found.
+```
+
 > Rewritten 2026-08-03 for CHAPTER 2 — WORKSPACE. Chapter 1 (Projects: tables, RLS, routes,
 > project-scoped chat, and the `getSession()` → `getUser()` auth fix) shipped 2026-08-02 across
 > two merges. The chapter-1 prompt lives in git history.
