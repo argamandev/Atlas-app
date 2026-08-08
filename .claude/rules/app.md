@@ -108,6 +108,22 @@
   a >2MB Pinge snip renders as a chip client-side but is silently stripped server-side, model
   answers without the image (FINDING 2026-07-23). Recurring class: degradation must be VISIBLE
   — never render success UI for content the server dropped.
+- **4th occurrence of that class, and it added a rule of its own: when a decision rests on a
+  NATURAL-LANGUAGE CLASSIFIER over an open vocabulary, buy VISIBLE FAILURE, not a longer word
+  list.** `feat/workspace-tables` (merged 2026-08-08) took THREE review rounds on one function,
+  and rounds 1 and 2 each ended with the fix opening the next round's door — both times by trying
+  to decide *more precisely* what the analyst meant. Round 1: a union restored files the analyst
+  had narrowed away. Round 2: the fix returned an empty set while the route still said
+  `status:'ready'`, so Atlas announced *"I'm pulling them in now"* over nothing — and it fired on
+  ordinary agreements, because the narrowing vocabulary holds `לא`/`no`, which open a WIDENING as
+  often as a cut. Round 3 stopped patching vocabularies: the route was given ONE exit
+  (`respond()` → `intakeResult`) that makes `ready` + an empty selection **unrepresentable**, so a
+  resolution failure asks a question naming which of the two ways it failed. **The classifier is
+  still wrong about "לא, את כולם" and that is now acceptable** — Hebrew and English both have
+  unbounded ways to say "only those two", so no list ever closes it; what closes it is that being
+  wrong cannot lie. **The shape to copy: put the invariant at the single choke point every result
+  passes through, never in the branch where the bug was found.** A guard in the branch is a patch
+  wearing an invariant's clothes — it leaves every other path to the same lie open.
 - **`player.load()` does not give the `<audio>` its source until the NEXT render — so `load()`
   then `play()` in one handler plays NOTHING.** `load()` only sets React state; an effect points
   the element at the URL and calls `a.load()` a render later, which rejects (and then aborts) a

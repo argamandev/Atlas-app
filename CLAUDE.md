@@ -6,7 +6,7 @@ Standing facts only. Procedures live in skills; scoped laws in `.claude/rules/`;
 ## What this is
 
 Atlas — the institutional platform for Israeli public-market investor calls ("Quartr for TASE").
-Live calls on-platform (Recall bot → buffered audio + karaoke captions), polished transcripts
+Live calls on-platform (Recall → buffered audio + karaoke captions), polished transcripts
 (IVRIT/RunPod → Gemini 3.5 Flash), quotes, chat over the archive. Full picture: `docs/VISION.md`.
 
 ## Iron rules
@@ -20,41 +20,36 @@ Live calls on-platform (Recall bot → buffered audio + karaoke captions), polis
 4. **Work small.** One independently-testable step at a time.
 5. **RTL discipline:** Hebrew `dir="rtl"`; numbers/tickers `font-mono-num` + `dir="ltr"`; test bidi visually.
 6. **Founder context:** Sagi is a solo non-engineer founder — explain the why in plain language,
-   surface risky steps before taking them, say which branch you're on and what's committed.
+   surface risky steps first, say which branch you're on and what's committed.
 
 ## Parallel work
 
-You may be one of several sessions. Lane, port, branch and duties come from your opening prompt
-+ `.claude/rules/parallel-work.md`. Shared brain (any worktree):
-`C:/Users/Sagi/Desktop/Atlas/agent-memory/` → `BOARD.md` · `cross-cutting.md` +
-`ready-queue.md` (append-only).
+You may be one of several sessions. Lane, port, branch and duties come from your opening prompt +
+`.claude/rules/parallel-work.md`. Shared brain, any worktree:
+`C:/Users/Sagi/Desktop/Atlas/agent-memory/` → `BOARD.md` · `cross-cutting.md` · `ready-queue.md`
+(the last two append-only).
 
 ## Stack & commands
 
 Next.js 14 App Router + TypeScript + Supabase + Tailwind. No deploy yet — localhost only.
 
 - `npm run dev -- -p <your port>` · `npm test` · `npx tsc --noEmit` · `npm run build`
-- Live: TWO engines share :8788 (Recall `live-broadcast.mjs` / IVRIT `live-ivrit-broadcast.ts`)
-  — read `.claude/rules/live.md` before touching live. Replay: `scripts/live-replay-engine.mjs`
+- Live: TWO engines share :8788 (`live-broadcast.mjs` Recall / `live-ivrit-broadcast.ts` IVRIT)
+  — read `.claude/rules/live.md` first. Replay: `scripts/live-replay-engine.mjs`
 
 ## Doc map
 
 - `ARCHITECTURE.md` — the codebase, file by file
-- `docs/DATA-MODEL.md` — **shared corpus vs personal layer** (founder decision 2026-08-01):
-  company data is the same for everyone; everything a user makes is theirs. Read before
-  designing any table or touching Maya/retrieval/agents.
+- `docs/DATA-MODEL.md` — **shared corpus vs personal layer** (founder, 2026-08-01): company data
+  is the same for everyone, everything a user makes is theirs. Read before designing any table.
 - `docs/VISION.md` — product vision, V1 description, roadmap
-- `docs/product/` — founder briefs. On the Projects · Workspace · Agents brief: frontend shipped
-  2026-08-01, **Projects backend 2026-08-02, Workspace V1 backend + the MAYA layer 2026-08-08**.
-  What is left of it is **Agents**, which needs the deploy.
-- `docs/MAYA-API.md` — the TASE Data Hub / MAYA feed. **LIVE since 2026-08-06** — base URL
-  `datawise.tase.co.il`, header `apikey`, and `Accept-Language: he-IL` is mandatory (the
-  English feed returns `title: null`). Read it before writing a single MAYA call.
-- `docs/ENVIRONMENT.md` — how this smart environment works + the dev↔product mapping
-- `docs/LAUNCH-KIT.md` — fleet setup: worktrees + the 3 lane opening prompts
+- `docs/product/` — founder briefs. Projects · Workspace · Agents: frontend 2026-08-01, Projects
+  backend 08-02, Workspace V1 + MAYA layer 08-08. **Agents** is what's left; it needs the deploy.
+- `docs/MAYA-API.md` — the TASE Data Hub feed, LIVE since 2026-08-06. `Accept-Language: he-IL` is
+  mandatory (the English feed returns `title: null`). Read before writing a MAYA call.
+- `docs/VISION.md` · `docs/ENVIRONMENT.md` · `docs/LAUNCH-KIT.md` (fleet setup + lane prompts) ·
+  `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` · `docs/audits/` · `docs/evidence/<branch>/`
 - `PROGRESS.md` — decision log (append at ship time; old eras → `docs/archive/`)
-- `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` — pre-launch security checklist
-- `docs/audits/` — environment audits · `docs/evidence/<branch>/` — ship evidence
 - `.claude/rules/` — parallel-work · db · live · app (read before touching those areas)
 - `LEGACY.md` — the 4-file Wave-2 login gateway (only legacy left)
 - Skills: `/verify-app` · `/ship` · `/fleet-lint` · `/live-test` · `/transcript-review` ·

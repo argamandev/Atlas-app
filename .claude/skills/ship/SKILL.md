@@ -46,6 +46,15 @@ main is always working. Only the supervisor pushes it. There are two roles:
    your own pass over `git diff main...<branch>` for mission fit: does this advance the lane's
    MISSION line on the board? Re-run `npm test` + build yourself. Two independent gates —
    the reviewer's and yours — before anything touches main.
+2b. **If you probe branch code directly, READ THE SIGNATURE AT THAT COMMIT AND INCLUDE A CONTROL
+   WHOSE ANSWER YOU ALREADY KNOW.** Filed 2026-08-08, round 3 of `feat/workspace-tables`: a probe
+   written against the previous round's signature kept running after the function lost a
+   parameter, so every argument shifted one position and it reported five alarming failures that
+   were pure artefact — a near-miss false BLOCKER on a branch already held twice. Nothing errored;
+   the arguments were all the right TYPES. It was caught only because one control case returned
+   something impossible. This is the repo's "a command answers the question you typed, not the
+   question you meant" one turn further on: **when a function's shape changes under you, the
+   command you typed stops being the question you mean, and silently.**
 3. APPEND to the ready queue: the verdict line (`[ts] VERDICT lane/branch — APPROVED/CHANGES`)
    AND every reviewer finding as its own line — the reviewer's `FINDING …` text with YOUR
    timestamp prepended: `[ts] FINDING …` (findings must not evaporate — /fleet-lint greps
