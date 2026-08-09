@@ -151,6 +151,31 @@
   wrong cannot lie. **The shape to copy: put the invariant at the single choke point every result
   passes through, never in the branch where the bug was found.** A guard in the branch is a patch
   wearing an invariant's clothes — it leaves every other path to the same lie open.
+- **5th occurrence, and it is the ADDENDUM the rule above needed: A CHOKE POINT IS ONLY AS HONEST
+  AS ITS INPUTS.** `feat/maya-calendar`'s calendar empty state took **four review rounds** to stop
+  saying *"Nothing scheduled this month"* over months holding real events, and rounds 2–4 each
+  ended with the fix opening the next door. (1) The guard was a JSX condition, `kinds.size > 0`,
+  that could NEVER be false: the filter set is seeded with all three event kinds, webinars have
+  zero rows so no webinar chip is drawn, so `webinar` can never be switched off. (2) Round 2 did
+  the right thing — moved the decision into one testable function — and then handed it a **PROXY**:
+  whole-feed event kinds intersected with the selected ones. That answers *"are any selectable
+  kinds switched on?"* when the question is *"does THIS MONTH hold anything the filter is
+  hiding?"*, so it still lied whenever a month's events were all of the filtered-away kind
+  (`2026-11` holds 2 reports and 0 calls and reproduced it). (3) **The test written beside it
+  asserted that outcome, so the battery DEFENDED the defect** — an untrue sentence certified by a
+  green test is strictly worse than an unguarded one, because the mechanism that catches
+  recurrence is now pointing the wrong way. (4) The supervisor's own fix then said the same untrue
+  thing in the other view mode, inside the commit whose whole subject was this class.
+  **It closed when the function was given the two counts it was actually deciding between**
+  (what survives every filter, and what the month holds before filtering) — the fact itself, not a
+  stand-in for it. ⇒ **Putting the invariant at a choke point is necessary and NOT sufficient. Ask
+  what the question is ABOUT, and pass THAT.** A proxy input makes the choke point decide
+  confidently and wrongly, and the adjacent test makes it permanent.
+  **The second half, which is why it survived three rounds: round 4 was invisible to 610 passing
+  tests, `tsc` exit 0 and a green build**, and was caught by a cold reader. It lived in a state
+  nobody had ever rendered. What finally closed it was driving **nine** states in a browser in
+  both locales — see `docs/evidence/fix-calendar-empty-state/`. Iron rule 3 is not paperwork:
+  for anything that decides what a screen SAYS, enumerate the states and go and look at each one.
 - **`player.load()` does not give the `<audio>` its source until the NEXT render — so `load()`
   then `play()` in one handler plays NOTHING.** `load()` only sets React state; an effect points
   the element at the URL and calls `a.load()` a render later, which rejects (and then aborts) a

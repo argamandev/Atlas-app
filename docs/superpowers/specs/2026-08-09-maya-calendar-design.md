@@ -1,5 +1,9 @@
 # MAYA calendar — design spec
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md +
+> PROGRESS.md. Merged to main 2026-08-09 as `a94f33d`, carrying `feat/maya-calendar`,
+> `feat/company-profiles` and the supervisor's `fix/calendar-empty-state` round.
+
 > **Chapter 3, merge 1.** Founder brainstorm 2026-08-09. Every number in this document came from a
 > live MAYA call or a SQL query run during the brainstorm, not from a prior document.
 > Decisions filed in `agent-memory/cross-cutting.md` (2026-08-08 / 2026-08-09).
