@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 // Company brand mark — a small rounded-square logo tile, treated identically
@@ -37,11 +37,28 @@ export function Logo({
    * never from an origin sending `Referer: https://www.timlul-ai.com`, which is
    * exactly the request a WAF treats differently. Atlas is on that host now.
    *
-   * `useState` keyed by `src` so a re-render pointing at a different company
-   * does not inherit the previous one's failure.
+   * ⚠ WHY `onError` ALONE WAS NOT ENOUGH, which is the half a review round
+   * caught: React attaches `img` error listeners while HYDRATING, and this
+   * `<img>` is server-rendered — so an image that already failed by the time
+   * hydration runs never fires the handler, and that is precisely the
+   * production case above (an above-the-fold logo refused by a WAF). The
+   * durable check is the DOM's own record of the outcome, `complete` with a
+   * zero `naturalWidth`, read once on mount.
+   *
+   * FAILURE IS KEYED TO THE URL, not a boolean reset by an effect. A boolean
+   * cleared in `useEffect` clears AFTER paint, so a `src` changing in place
+   * showed one frame of initials over a perfectly good logo; storing WHICH src
+   * failed makes the answer derived during render, so there is no frame to see.
    */
-  const [failed, setFailed] = useState(false)
-  useEffect(() => setFailed(false), [src])
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const failed = failedSrc !== null && failedSrc === src
+
+  useEffect(() => {
+    const img = imgRef.current
+    if (!src || !img) return
+    if (img.complete && img.naturalWidth === 0) setFailedSrc(src)
+  }, [src])
 
   const showImage = Boolean(src) && !failed
 
@@ -60,11 +77,12 @@ export function Logo({
         // actually visible.
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           src={src as string}
           alt={name}
           loading="lazy"
           decoding="async"
-          onError={() => setFailed(true)}
+          onError={() => setFailedSrc(src as string)}
           className="h-full w-full object-cover"
         />
       ) : (
