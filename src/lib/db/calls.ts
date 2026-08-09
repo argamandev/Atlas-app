@@ -60,12 +60,25 @@ export interface ListCallsOptions {
    * the column default would be the real fix and needs its own migration.
    */
   includeMock?: boolean
+  /**
+   * Restrict to one event kind. Home asks for `'call'` so its "upcoming investor
+   * calls" list holds investor calls and nothing else (founder 2026-08-09).
+   *
+   * FILTERED IN SQL, NOT AFTER THE FACT, because the caller also takes the first
+   * N: slicing a mixed list to ten would return however many calls happened to
+   * be among the ten nearest events, which on this data is usually fewer than
+   * ten and occasionally zero. `kind` is `not null default 'call'` (migration
+   * 021), so `.eq()` cannot miss a row the way it would against a nullable
+   * column that `mapCall` then defaults to 'call'.
+   */
+  kind?: ScheduledCall['kind']
 }
 
 export async function listCalls({
   scope = 'all',
   companyId,
   includeMock = false,
+  kind,
 }: ListCallsOptions = {}): Promise<ScheduledCall[]> {
   // PAGINATED, AND THAT IS NOT PREMATURE. PostgREST applies a server-side
   // max-rows cap (1000 on Supabase by default) and returns a SHORT LIST rather
@@ -87,6 +100,7 @@ export async function listCalls({
       .range(from, from + PAGE - 1)
 
     if (!includeMock) query = query.neq('source', 'mock')
+    if (kind) query = query.eq('kind', kind)
     if (companyId) query = query.eq('company_id', companyId)
     if (scope === 'live') query = query.eq('status', 'live')
     if (scope === 'upcoming') {

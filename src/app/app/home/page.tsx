@@ -16,11 +16,20 @@ import { LiveNowPanel } from '@/components/app/LiveNowPanel'
 import { getCompanyByTicker } from '@/lib/db/companies'
 import { eventKind, kindLabel } from '@/lib/calendar/event-meta'
 
+/** How many upcoming investor calls Home shows before deferring to the calendar. */
+const HOME_UPCOMING_LIMIT = 10
+
 export default async function HomePage() {
   const locale = getLocale()
   const dict = getDictionary(locale)
   const { userId, userName } = await getCurrentUser()
-  const upcoming = await listCalls({ scope: 'upcoming' })
+  // INVESTOR CALLS ONLY, TEN OF THEM (founder 2026-08-09). This panel is headed
+  // "upcoming investor calls" and used to render every upcoming event, so report
+  // publication dates — the MAJORITY of the feed, 99 of 184 upcoming — sat under
+  // a heading that did not describe them. The previous fix made each row say
+  // what it was; this one makes the panel hold what its heading promises.
+  // The full mixed list is one click away, on the calendar this links to.
+  const upcoming = (await listCalls({ scope: 'upcoming', kind: 'call' })).slice(0, HOME_UPCOMING_LIMIT)
   const tamis = await getCompanyByTicker('1097229').catch(() => null) // תמיס — the live demo company
 
   // Live Now: auto-appears when the live engine reports a call in progress (LiveNowPanel polls

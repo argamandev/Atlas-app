@@ -15,7 +15,14 @@ import {
   CalMicIcon,
   CalWebinarIcon,
 } from '@/components/ds/icons'
-import { eventKind, kindLabel, EVENT_KINDS, EVENT_KIND_META, type EventKind } from '@/lib/calendar/event-meta'
+import {
+  eventKind,
+  kindLabel,
+  kindFill,
+  EVENT_KINDS,
+  EVENT_KIND_META,
+  type EventKind,
+} from '@/lib/calendar/event-meta'
 import { cn } from '@/lib/utils'
 
 function dayKey(iso: string): string {
@@ -217,9 +224,14 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                     className={cn(
                       'flex items-center gap-[7px] rounded-full border py-[5px] pe-2.5 ps-[11px] text-[12.5px] transition-colors',
                       on
-                        ? 'border-[#D5D5D5] bg-[#F0F0F0] font-semibold text-ink'
+                        ? 'border-[#D5D5D5] font-semibold text-ink'
                         : 'border-[#DEDEDE] bg-transparent font-medium text-[#767676]'
                     )}
+                    // An ACTIVE chip wears its kind's own fill, so the filter row
+                    // doubles as the legend for the tints below it. An inactive
+                    // chip stays plain: a filter that is off should not look like
+                    // it is colouring anything.
+                    style={on ? { background: kindFill(k) } : undefined}
                   >
                     <span className="flex" style={{ color: EVENT_KIND_META[k].accent }}>
                       <Icon size={13} />
@@ -287,7 +299,13 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         key={c.id}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData('text/plain', c.id)}
-                        className="cal-ev flex w-full cursor-grab items-center gap-[5px] rounded-md border border-[#DEDEDE] bg-white py-1 pe-[5px] ps-[6px]"
+                        // Tinted per kind (founder 2026-08-09: calls and reports
+                        // were too alike to separate at a glance). The icon is
+                        // still there and still carries the accent — colour is a
+                        // SECOND signal, not the only one, so this stays legible
+                        // to anyone who cannot separate blue from green.
+                        className="cal-ev flex w-full cursor-grab items-center gap-[5px] rounded-md border border-[#DEDEDE] py-1 pe-[5px] ps-[6px]"
+                        style={{ background: kindFill(kind) }}
                       >
                         <span className="flex flex-none" style={{ color: EVENT_KIND_META[kind].accent }}>
                           <Icon size={12} />
