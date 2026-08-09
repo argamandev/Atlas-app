@@ -217,6 +217,18 @@ export function CompanyView({
               with a heading is a claim that the company said nothing. */}
           {(company.description || company.website) && (
             <div className="mt-[18px] max-w-[640px] animate-fade-up">
+              {/* LABELLED, BECAUSE AN UNATTRIBUTED PARAGRAPH READS AS ATLAS'S
+                  CLAIM. This text is the issuer's own אודות החברה filing, quoted
+                  verbatim — and MAYA's company data is known to contain errors
+                  (issuer 51 carries another company's URL), so it matters that
+                  the page says whose sentence this is. The `about` key existed
+                  in both dictionaries and was rendered nowhere until the
+                  supervisor's review pointed out the gap. */}
+              {company.description && (
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                  {dict.company.about}
+                </div>
+              )}
               {company.description && (
                 // <bdi> INSIDE, no `dir` ON THE BLOCK — and the difference is
                 // visible, not theoretical. `dir="auto"` on the <p> resolved to

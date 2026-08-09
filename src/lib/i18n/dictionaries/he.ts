@@ -361,6 +361,7 @@ export const he: Dictionary = {
     addToCalendar: 'הוספה ליומן שלי',
     noFollowed: 'עדיין אינכם עוקבים אחר שיחות',
     noEventsThisMonth: 'אין אירועים מתוכננים בחודש זה',
+    allTypesHidden: 'כל סוגי האירועים מוסתרים — הפעילו אחד מהם כדי לראות את החודש.',
   },
   chat: {
     title: "צ'אט",

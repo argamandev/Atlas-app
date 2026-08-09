@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { eventKind, kindLabel, kindFill, EVENT_KIND_META, EVENT_KINDS } from './event-meta'
+import {
+  eventKind,
+  kindLabel,
+  kindFill,
+  calendarEmptyState,
+  EVENT_KIND_META,
+  EVENT_KINDS,
+} from './event-meta'
 
 test('eventKind defaults to call for plain scheduled calls (no kind hint)', () => {
   assert.equal(eventKind({}), 'call')
@@ -94,6 +101,72 @@ test('the guard rejects the palette it replaced', () => {
   const OLD = { call: '#3A3833', report: '#6E7B63', webinar: '#67788A' }
   const greys = Object.entries(OLD).filter(([, hex]) => hsl(hex).s < MIN_SATURATION)
   assert.equal(greys.length, 3, 'all three old accents must fail the saturation floor')
+})
+
+// ── the empty-state guard ────────────────────────────────────────────────────
+// Filed by the supervisor as merge-gating: the previous guard was a JSX
+// condition that could never be false, beside a comment claiming it handled the
+// case and an evidence file claiming it was fixed. These tests are written
+// against the real shape of the data that made it unfireable.
+
+test('a month with events is not an empty state at all', () => {
+  assert.equal(
+    calendarEmptyState({ monthCount: 224, presentKinds: ['call', 'report'], selectedKinds: ['call'] }),
+    'none'
+  )
+})
+
+test('THE DEFECT: switching off every VISIBLE chip is a filter state, not an empty month', () => {
+  // Exactly the live shape — two kinds have rows, `webinar` is selected because
+  // the set is seeded with the whole vocabulary and has no chip to switch off.
+  assert.equal(
+    calendarEmptyState({
+      monthCount: 0,
+      presentKinds: ['call', 'report'],
+      selectedKinds: ['webinar'],
+    }),
+    'all-filters-off'
+  )
+})
+
+test('a kind with no rows can never stand in for a deliberate choice', () => {
+  // The same assertion from the other direction: selecting ONLY absent kinds is
+  // indistinguishable, to a user, from selecting nothing.
+  assert.equal(
+    calendarEmptyState({ monthCount: 0, presentKinds: ['call'], selectedKinds: ['webinar', 'report'] }),
+    'all-filters-off'
+  )
+})
+
+test('a genuinely empty month still says so', () => {
+  // Paging outside 2025-2026, where MAYA has no rows: the filters are untouched.
+  assert.equal(
+    calendarEmptyState({
+      monthCount: 0,
+      presentKinds: ['call', 'report'],
+      selectedKinds: ['call', 'report'],
+    }),
+    'no-events'
+  )
+})
+
+test('an empty feed is a data emptiness, never a filter one', () => {
+  // Nothing to filter, so "you turned everything off" would be untrue.
+  assert.equal(
+    calendarEmptyState({ monthCount: 0, presentKinds: [], selectedKinds: EVENT_KINDS }),
+    'no-events'
+  )
+})
+
+test('one visible chip still on is not an all-filters-off state', () => {
+  assert.equal(
+    calendarEmptyState({
+      monthCount: 0,
+      presentKinds: ['call', 'report'],
+      selectedKinds: ['call', 'webinar'],
+    }),
+    'no-events'
+  )
 })
 
 test('kindFill is a vertical gradient — a horizontal one would flip meaning in RTL', () => {

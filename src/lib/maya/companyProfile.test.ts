@@ -46,9 +46,15 @@ test('missing or malformed sector yields nulls, never an empty string', () => {
   }
 })
 
-test('fewer than three levels still produce something usable', () => {
+test('fewer than three levels still drop the top-level bucket', () => {
+  // A lone value has no hierarchy to strip, so it stands as the label.
   assert.deepEqual(parseSector('ריאלי'), { sector: 'ריאלי', subSector: null })
-  assert.deepEqual(parseSector('ריאלי-תעשייה'), { sector: 'ריאלי', subSector: 'תעשייה' })
+  // TWO parts must not store the bucket as the industry. This asserted the
+  // opposite until the supervisor caught the function disagreeing with its own
+  // docstring. No live row currently has two levels (measured 0 of 234), so the
+  // test is the only thing holding the rule.
+  assert.deepEqual(parseSector('ריאלי-תעשייה'), { sector: 'תעשייה', subSector: null })
+  assert.notEqual(parseSector('ריאלי-תעשייה').sector, 'ריאלי')
 })
 
 // ── website ──────────────────────────────────────────────────────────────────

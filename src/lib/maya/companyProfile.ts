@@ -40,8 +40,17 @@ export function parseSector(raw: string | null | undefined): {
     .filter(Boolean)
 
   if (parts.length === 0) return { sector: null, subSector: null }
+  // One part carries no hierarchy to strip, so it is the best label available.
   if (parts.length === 1) return { sector: parts[0]!, subSector: null }
-  if (parts.length === 2) return { sector: parts[0]!, subSector: parts[1]! }
+  // TWO PARTS DROP THE BUCKET TOO, and this used to return `parts[0]` — the
+  // bucket itself — contradicting the paragraph above. Filed as a nit by the
+  // supervisor with the right objection: whether such values exist was
+  // UNMEASURED, so the branch would have shipped rendering "ריאלי" as an
+  // industry on some unknown number of companies. Measured on the live feed:
+  // 0 of 234 stored sectors have fewer than three levels and 0 are a bare
+  // bucket. So this branch is currently unreachable — which is exactly why it
+  // should agree with the rule rather than quietly disagree until it isn't.
+  if (parts.length === 2) return { sector: parts[1]!, subSector: null }
   return { sector: parts[1]!, subSector: parts.slice(2).join('-') }
 }
 

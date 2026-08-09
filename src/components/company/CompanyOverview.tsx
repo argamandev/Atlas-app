@@ -7,6 +7,7 @@ import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { EntityRow } from '@/components/ds/EntityRow'
 import { SectionHeader } from '@/components/ds/SectionHeader'
 import { Monogram } from '@/components/ds/Monogram'
+import { Logo } from '@/components/ds/Logo'
 import { LiveBeamAvatar } from '@/components/ds/LiveBeamAvatar'
 import { CalendarIcon, ClockIcon, PlayIcon, ChevronRightIcon } from '@/components/ds/icons'
 import { formatDate, formatTime, formatRelativeDays } from '@/lib/i18n/format'
@@ -317,13 +318,26 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
                   href={`/app/company/${p.id}`}
                   className="hov-peer flex items-center gap-3 rounded-[11px] border border-[#DEDEDE] bg-[#F7F7F7] px-[15px] py-3.5 text-start"
                 >
-                  <Monogram name={pName} size={38} fontSize={16} radius={9} />
+                  {/* The peer's own mark, same rule as everywhere else: `Logo`
+                      draws initials when we have no image, never a guess. */}
+                  <Logo src={p.logoUrl} name={pName} size={38} className="rounded-[9px]" />
                   <div className="min-w-0 flex-1">
                     <div dir="auto" className="truncate text-[14px] font-semibold text-ink">
                       {pName}
                     </div>
-                    <div className="mt-0.5 truncate font-mono-num text-[11.5px] text-[#767676]" dir="ltr">
-                      {[p.sector, p.ticker ? `TASE ${p.ticker}` : null].filter(Boolean).join(' · ')}
+                    {/* ⚠ SIXTH FILING OF `rules/app.md`'s MOST-REPEATED RULE, and
+                        the fifth was fixed on this same branch 150 lines away.
+                        This line carried `dir="ltr"` and was CORRECT while it
+                        held a ticker and nothing else — sector was populated on
+                        4 of 234 companies. It is now Hebrew-first on 234 of 234,
+                        so `dir="ltr"` both reverses the Hebrew and drags
+                        alignment: on the Hebrew page the name above (`dir="auto"`)
+                        sits right while this line was forced left.
+                        Per-run <bdi>, direction on the container. */}
+                    <div className="mt-0.5 truncate font-mono-num text-[11.5px] text-[#767676]">
+                      {p.sector && <bdi>{p.sector}</bdi>}
+                      {p.sector && p.ticker && <span> · </span>}
+                      {p.ticker && <bdi>{`TASE ${p.ticker}`}</bdi>}
                     </div>
                   </div>
                   <ChevronRightIcon

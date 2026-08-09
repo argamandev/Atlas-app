@@ -6,9 +6,19 @@
 
 ## Battery
 
+> ⚠️ **THESE NUMBERS DESCRIBE COMMIT `43936cc`, NOT THE BRANCH TIP.** Filed by the supervisor
+> 2026-08-09: `bb8fefb` and `b161909` landed after this table was written, adding 5 tests and
+> changing five source files, so a reader taking "576" as the tip's battery is reading a stale
+> measurement from a durable artifact. The ready-queue entry disclosed the gap; this file did not,
+> which is the same class it already carries a correction for below. **Tip figures, each from a
+> command:** `feat/maya-calendar` @ `b161909` = **581 tests**; `feat/company-profiles` @ its own
+> tip = **608 tests**, `tsc` exit 0. **`npm run build` was NOT re-run after `43936cc` in this
+> checkout** — a dev server holds `.next` here — and the supervisor ran it independently: it
+> passes. Do not read the build row below as covering the tip; read the supervisor's run.
+
 | | |
 |---|---|
-| `npm test` | **576 pass / 0 fail** |
+| `npm test` | **576 pass / 0 fail** *(at `43936cc` — see the note above)* |
 
 Test-count arithmetic, each number from a separate `npm test` run rather than reconstructed:
 **556** at the base commit `55ffdf0` (measured in a throwaway worktree) **− 3** for the deleted
@@ -195,8 +205,17 @@ one:
 holding a different issuer id) fell through silently and was then mis-blamed by a diagnostic telling
 the reader to re-run a script that could not help — now counted, named, and given the right remedy ·
 `schedule.ts`'s bucketing comment claimed the opposite of what the code does for viewers west of
-Jerusalem · the calendar's empty-state no longer says "nothing scheduled" when the user has simply
-switched every filter off · the agents page stopped calling every workspace an "Investor call" ·
+Jerusalem · ~~the calendar's empty-state no longer says "nothing scheduled" when the user has
+simply switched every filter off~~ **← FALSE, AND MERGE-GATING (supervisor, 2026-08-09): the guard
+I wrote can NEVER FIRE.** `kinds` is seeded with all three kinds; `webinar` has zero rows so it
+draws no chip; a chip you cannot see is a kind you cannot switch off; so `kinds.size > 0` is
+permanently true. Turning both visible chips off printed "Nothing scheduled this month" over a
+month holding **224 real events** — the founder's intolerable class, shipped with a code comment
+claiming the case was handled and this sentence asserting it was verified. **I never asked what
+would make the condition false.** Fixed on `feat/company-profiles`: the decision moved to
+`calendarEmptyState()` in `lib/calendar/event-meta.ts` — a pure function over *present* vs
+*selected* kinds, six tests, and the filtered case now names itself instead of impersonating an
+empty month · the agents page stopped calling every workspace an "Investor call" ·
 15 dictionary keys orphaned by the stub deletion removed from both locales, each confirmed at
 **0 usages** by command first · and a comment now records that `scheduled_calls.source` defaults to
 `'mock'`, so any future writer omitting it produces a row invisible on every surface.

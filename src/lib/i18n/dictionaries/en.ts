@@ -455,6 +455,10 @@ export const en = {
     addToCalendar: 'Add to my calendar',
     noFollowed: 'You are not following any calls yet',
     noEventsThisMonth: 'Nothing scheduled this month',
+    // NAMES THE CAUSE AND THE REMEDY. The month is empty because every type is
+    // switched off, not because the month is empty — saying the latter was the
+    // merge-gating defect this key exists to end.
+    allTypesHidden: 'Every event type is switched off — turn one back on to see this month.',
   },
   chat: {
     title: 'Chat',

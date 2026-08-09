@@ -290,8 +290,12 @@ the deploy, which comes after this chapter.
 | `projects/data.ts` | Design-demo projects feed (typed stub, to be replaced by real feed). Unit-tested. |
 | `demo/DemoStateProvider.tsx` + `demo/reducer.ts` | **Session-only** state for the three surfaces — the reason nothing on them persists. Deliberate: a real store would have locked in shapes before the data model was decided. Unit-tested (`demoState.test.ts`). |
 | `demo/seedDocument.ts` | The working document's fabricated seed content, kept out of React so its DEMO markers are unit-testable. **Read the header before touching the quote block** — it invents financials and a quote from a NAMED executive of a real TASE issuer, and its marker cost three review rounds. Unit-tested. |
-| `company/overview-stub.ts` | Design-demo company extras (typed stub, to be replaced). Unit-tested. |
-| `calendar/event-meta.ts` | Design-demo event metadata (typed stub, to be replaced). Unit-tested. |
+| `company/logo.ts` | Which image represents a company — stored `logo_url`, else an EXACT `tase_security_id` map. Pure so it can be tested; it used to live inside `db/companies.ts` behind `server-only`, where a name-substring guess put one issuer's mark on another for months. Unit-tested. |
+| `calendar/event-meta.ts` | Event kinds: label, accent, tint, and `calendarEmptyState` — the single choke point deciding whether an empty month is empty or filtered. Unit-tested. |
+| `maya/companyProfile.ts` | `company-details` row → the `companies` columns: sector hierarchy, website normalisation, logo URL, image magic-byte sniffing. Pure. Unit-tested. |
+| `maya/schedule.ts` | Report-schedule row → calendar event: timezone resolution, `time_known`, dedupe. Pure. Unit-tested. |
+| `maya/types.ts` | MAYA wire types, exactly as the API returns them. |
+| `live/demoCompany.ts` | `LIVE_DEMO_TICKER` — the one place naming which company the live engine broadcasts, pending `/api/live/state` reporting it. |
 | `types.ts` | The `Transcript` shape (= the shape of `formatted_data`). |
 | `utils.ts` | Small helpers (`cn()` class merge, `isValidVideoUrl`). |
 | `legacyBoundary.test.ts` | Build-enforced guard: Atlas roots may not import legacy folders (protects Wave 2). |
@@ -318,7 +322,7 @@ run a file cannot tell you it is missing.
 · `api/messageFlags.test.ts` · `apiAuthBoundary.test.ts` · `auth/gate.test.ts`
 · `auth/verifyUser.test.ts` · `calendar/event-meta.test.ts` · `chat/attachments.test.ts`
 · `chat/documentContext.test.ts` · `chat/history.test.ts` · `chat/projectContext.test.ts`
-· `company/overview-stub.test.ts` · `correction.test.ts` · `db/conversationScope.test.ts`
+· `company/logo.test.ts` · `maya/companyProfile.test.ts` · `correction.test.ts` · `db/conversationScope.test.ts`
 · `demo/demoState.test.ts` · `demo/seedDocument.test.ts` · `design/anim.test.ts`
 · `documents/extract.test.ts` · `documents/snip.test.ts` · `legacyBoundary.test.ts`
 · `live/call-stubs.test.ts` · `live/finishLiveCall.test.ts` · `live/ivritStitcher.test.ts`
@@ -482,6 +486,9 @@ honest list:
    which PostgREST's `onConflict` cannot express — so the fix is DDL and travels with the
    publication-date column in the MAYA phase. One migration, one review.
 8. **`components/agents/` is still demo-fed** and carries its `DemoBanner`; agent execution needs
-   the deploy. Same for the company-overview extras (`lib/company/overview-stub.ts`) and the
-   hardcoded "Q2 2026" quarter tag on Home — fabricated demo facts on real pages, owed real feeds
-   or demo markers before launch.
+   the deploy. **The company-overview extras and the "Q2 2026" quarter tag are CLOSED
+   (2026-08-09): `lib/company/overview-stub.ts` is deleted and all three literals are removed —
+   sector, sub-sector and description are real on 234/234 companies from MAYA `company-details`.**
+   The IR contact and index chips deleted with the stub are both restorable as FACTS from that
+   same endpoint (phone/email/address; `securityIncludedIndices` with weights) and must return as
+   data or not at all.

@@ -20,6 +20,7 @@ import {
   eventKind,
   kindLabel,
   kindFill,
+  calendarEmptyState,
   EVENT_KINDS,
   EVENT_KIND_META,
   type EventKind,
@@ -77,6 +78,14 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
       }).length,
     [visible, month]
   )
+
+  // ONE DECISION, MADE ONCE, TESTABLE. See `calendarEmptyState` for why this is
+  // not a condition written inline at the render site any more.
+  const emptyState = useMemo(
+    () => calendarEmptyState({ monthCount, presentKinds, selectedKinds: kinds }),
+    [monthCount, presentKinds, kinds]
+  )
+
   const byDay = useMemo(() => {
     const m = new Map<string, ScheduledCall[]>()
     for (const c of visible) {
@@ -418,14 +427,22 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
         {mode === 'mine' && visible.length === 0 && (
           <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noFollowed}</p>
         )}
-        {/* A MONTH WITH NOTHING IN IT SAYS SO. An empty grid is ambiguous between
-            "nothing is scheduled" and "the feed did not load"; MAYA only holds
-            2025-2026, so an analyst paging outside that range will meet this often.
-            Gated on `kinds.size` too: with every filter chip switched off the month
-            is empty BECAUSE OF THE FILTER, and saying "nothing scheduled" there
-            would be the message stating something untrue about the data. */}
-        {mode === 'all' && kinds.size > 0 && monthCount === 0 && (
+        {/* A MONTH WITH NOTHING IN IT SAYS WHY. An empty grid is ambiguous between
+            "nothing is scheduled", "the feed did not load" and "you filtered it
+            all out" — and MAYA only holds 2025-2026, so an analyst paging outside
+            that range meets the first one often.
+            ⚠ THE PREVIOUS VERSION OF THIS GATED ON `kinds.size > 0`, WHICH IS
+            PERMANENTLY TRUE: the set is seeded with all three kinds and `webinar`
+            has no rows, so it draws no chip and can never be switched off. Turning
+            both visible chips off printed "nothing scheduled this month" over 224
+            real events. The decision now lives in `calendarEmptyState`, which a
+            test can reach — a JSX condition could not, which is how a guard and a
+            comment claiming it worked survived two review rounds. */}
+        {mode === 'all' && emptyState === 'no-events' && (
           <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noEventsThisMonth}</p>
+        )}
+        {mode === 'all' && emptyState === 'all-filters-off' && (
+          <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.allTypesHidden}</p>
         )}
       </div>
     </div>

@@ -248,9 +248,11 @@ That is a labelling job, not a MAYA job, and none of it is throwaway — slice 3
 "a REAL feed or a VISIBLE marker", so every module that will not have a real feed by V1 needs the
 marker anyway. You are just doing that part first.
 SCOPE, and keep it tight — this is hours, not days:
-  - lib/company/overview-stub.ts feeding CompanyOverview.tsx:97 and CompanyView.tsx:77 (IR contact,
-    index memberships, "latest reported quarter", "latest announcements" — invented for EVERY
-    company, code comment only, NOTHING on screen).
+  - [CLOSED 2026-08-09 on feat/company-profiles — lib/company/overview-stub.ts is DELETED and the
+    invented IR contact / index chips / "latest announcements" went with it. Sector and description
+    are now real on 234/234 companies from MAYA company-details. Do not go looking for this file.]
+  - [CLOSED 2026-08-09 — the hardcoded quarter="Q2 2026" is removed from all three call sites;
+    every surviving occurrence in src is a comment explaining its own removal.]
   - hardcoded quarter="Q2 2026" at app/home/page.tsx:27, app/live/[id]/page.tsx:27,
     app/agents/page.tsx:50.
   - isLiveCompany = company.ticker === '1097229' — [CLOSED 2026-08-09 on feat/maya-calendar: the fabricated liveQuarter beside it was deleted; the ticker itself is a polling gate, now the named LIVE_DEMO_TICKER in src/lib/live/demoCompany.ts, and it retires when /api/live/state reports which company it is broadcasting — live chapter].
@@ -296,8 +298,16 @@ and should be corrected at merge. So this slice ADDS a feed rather than removing
 report/webinar events alongside the real calls, which is exactly what EVENT_KINDS and the filter
 chips were built to receive. Decide with the founder what belongs on the calendar and what does not.
 
-SLICE 3 — COMPANY PAGES. THIS is where the fabricated data is, and it is UNMARKED on screen:
-lib/company/overview-stub.ts feeds CompanyOverview.tsx:97 and CompanyView.tsx:77 with IR contact,
+SLICE 3 — COMPANY PAGES. [LARGELY CLOSED 2026-08-09 by feat/maya-calendar + feat/company-profiles.
+The fabricated data described below is DELETED, not marked: lib/company/overview-stub.ts does not
+exist, the invented IR contact and index chips are gone, and all three quarter="Q2 2026" literals
+are removed. Company pages now carry REAL sector/sub-sector/description on 234/234 and a real logo
+on 220/234, from MAYA company-details. What remains of this slice is the filings catalog.
+STILL RESTORABLE AS FACTS, deliberately not done yet: company-details also returns
+phone/email/address (the IR contact) and securityIncludedIndices with weights (the index chips) —
+each needs its own slice, and neither may come back as a stub.]
+The original scope, kept for the record: lib/company/overview-stub.ts fed
+CompanyOverview.tsx:97 and CompanyView.tsx:77 with IR contact,
 index memberships, "latest reported quarter" and "latest announcements" — for EVERY company, with
 only a code comment and NOTHING on screen saying so. Also hardcoded: quarter="Q2 2026" at
 app/home/page.tsx:27, app/live/[id]/page.tsx:27 and app/agents/page.tsx:50, and

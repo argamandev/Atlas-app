@@ -77,3 +77,48 @@ export function kindLabel(
   if (kind === 'webinar') return d.ctxKindWebinar
   return d.ctxKindCall
 }
+
+/**
+ * Why a calendar month is showing nothing.
+ *
+ * ⚠ THIS EXISTS BECAUSE THE PREVIOUS VERSION WAS A COMMENT, NOT A GUARD, AND IT
+ * COULD NEVER FIRE. `CalendarView` seeds its filter set with the whole
+ * vocabulary (`new Set(EVENT_KINDS)`) but only draws a chip for a kind that has
+ * rows. Webinars have zero rows, so no webinar chip is drawn, so `webinar` can
+ * never be removed from the set, so `kinds.size > 0` was permanently true — and
+ * switching off both visible chips printed "nothing scheduled this month" over
+ * a month holding 224 real events. The comment beside it claimed it guarded
+ * exactly that case, and the evidence file claimed it was fixed. Neither was
+ * checked against the one condition that mattered: what makes this FALSE?
+ *
+ * The remedy is `.claude/rules/app.md`'s: put the invariant at the single choke
+ * point every result passes through. The decision is now one function over the
+ * two sets, so "selected" and "selectable" cannot drift apart inside a
+ * component — and a test can reach it, which a JSX condition could not.
+ */
+export type CalendarEmptyState = 'none' | 'no-events' | 'all-filters-off'
+
+export function calendarEmptyState(input: {
+  /** Events left in the visible month after filtering. */
+  monthCount: number
+  /** Kinds that actually have rows — i.e. the kinds a chip is drawn for. */
+  presentKinds: Iterable<EventKind>
+  /** Kinds currently switched on, which may include kinds that have no chip. */
+  selectedKinds: Iterable<EventKind>
+}): CalendarEmptyState {
+  if (input.monthCount > 0) return 'none'
+
+  const present = new Set(input.presentKinds)
+  const selected = new Set(input.selectedKinds)
+  // Only kinds the user can SEE and TOGGLE count. A selected kind with no rows
+  // is invisible on screen and must never stand in for a deliberate choice.
+  // `Array.from` rather than spread: this repo's tsconfig target predates
+  // downlevel iteration, so `[...set]` is a compile error here.
+  const selectable = Array.from(selected).filter((k) => present.has(k))
+
+  // Emptiness caused by the filter is a different sentence from emptiness
+  // caused by the data, and only one of them is true at a time. When there is
+  // nothing to filter in the first place, the month is empty for a data reason.
+  if (present.size > 0 && selectable.length === 0) return 'all-filters-off'
+  return 'no-events'
+}

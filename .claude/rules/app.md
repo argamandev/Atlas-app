@@ -111,9 +111,17 @@
   uses TWO system stacks — body = SF Pro Text stack (→ Segoe UI on Windows), headlines
   (`fontFamily.head`) = SF Pro Display stack WITHOUT system-ui (→ Arial on Windows). Bundle CSS
   can be a stale iteration of the design.
-- **Company-overview extras + Home quarter tag are STUB-FED** (`lib/company/overview-stub.ts`,
-  hardcoded "Q2 2026" on Home) — fabricated demo facts on real pages. Must gain demo markers /
-  real feeds before launch (FINDINGs filed 2026-07-14). Same class: a failed `/api/documents`
+- **✅ CLOSED 2026-08-09 — the company-overview stubs and the Home quarter tag are GONE, replaced
+  by a real feed rather than by a demo marker.** `lib/company/overview-stub.ts` no longer exists
+  (`git ls-files` confirms) and every surviving "Q2 2026" in `src` is a comment explaining its own
+  removal. The FINDINGs filed 2026-07-14 are closed by `feat/company-profiles`: sector,
+  sub-sector and description now come from MAYA's `company-details` and are populated for
+  **234 of 234** companies. **The rule that outlived them, and the reason this entry stays:** the
+  fabricated IR contact and index chips were *identical for every issuer* and sat on a real page
+  with only a code comment admitting it — nothing on screen. Both are now restorable as facts
+  (`company-details` carries phone/email/address; `securityIncludedIndices` carries index
+  membership with weights), so if they return they return as data. **Do not re-add a stub to
+  fill a designed slot.** Same class, still open: a failed `/api/documents`
   fetch silently falls back to the fabricated stub report in FacetPanes (FINDING 2026-07-17);
   a >2MB Pinge snip renders as a chip client-side but is silently stripped server-side, model
   answers without the image (FINDING 2026-07-23). Recurring class: degradation must be VISIBLE
