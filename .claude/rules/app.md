@@ -113,8 +113,17 @@
   can be a stale iteration of the design.
 - **✅ CLOSED 2026-08-09 — the company-overview stubs and the Home quarter tag are GONE, replaced
   by a real feed rather than by a demo marker.** `lib/company/overview-stub.ts` no longer exists
-  (`git ls-files` confirms) and every surviving "Q2 2026" in `src` is a comment explaining its own
-  removal. The FINDINGs filed 2026-07-14 are closed by `feat/company-profiles`: sector,
+  (`git ls-files` confirms) and the three `quarter="Q2 2026"` CALL SITES — Home, `/app/live/[id]`
+  and the Agents page — are removed.
+  ⚠ **CORRECTED 2026-08-09, same day, and the correction is the point:** this entry first read
+  *"every surviving `Q2 2026` in `src` is a comment explaining its own removal"*. That is FALSE.
+  `git grep -n "Q2 2026" -- src` returns **five live data literals** —
+  `src/data/demo/liveCall.ts:12`, `src/lib/agents/data.ts:98`, `src/lib/live/finishLiveCall.ts:332`
+  and `:363`, `src/lib/workspace/data.ts:82` — in demo/stub fixtures (the Agents page is still
+  stub-fed). Nothing user-facing regressed, but **a scoped law that overstates its own closure is
+  the exact failure this file exists to prevent**, and it was written into two documents before a
+  reviewer ran the grep without a `head` truncation on it. Claim the call sites, never the corpus.
+  The FINDINGs filed 2026-07-14 are closed by `feat/company-profiles`: sector,
   sub-sector and description now come from MAYA's `company-details` and are populated for
   **234 of 234** companies. **The rule that outlived them, and the reason this entry stays:** the
   fabricated IR contact and index chips were *identical for every issuer* and sat on a real page

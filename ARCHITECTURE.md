@@ -309,7 +309,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **556 tests across 63 files** as of 2026-08-08; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **610 tests across 65 files** as of 2026-08-09; the list in `package.json` is explicit — add new test files there)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -322,15 +322,31 @@ run a file cannot tell you it is missing.
 · `api/messageFlags.test.ts` · `apiAuthBoundary.test.ts` · `auth/gate.test.ts`
 · `auth/verifyUser.test.ts` · `calendar/event-meta.test.ts` · `chat/attachments.test.ts`
 · `chat/documentContext.test.ts` · `chat/history.test.ts` · `chat/projectContext.test.ts`
-· `company/logo.test.ts` · `maya/companyProfile.test.ts` · `correction.test.ts` · `db/conversationScope.test.ts`
-· `demo/demoState.test.ts` · `demo/seedDocument.test.ts` · `design/anim.test.ts`
-· `documents/extract.test.ts` · `documents/snip.test.ts` · `legacyBoundary.test.ts`
-· `live/call-stubs.test.ts` · `live/finishLiveCall.test.ts` · `live/ivritStitcher.test.ts`
-· `live/liveTiming.test.ts` · `live/pcmChunker.test.ts` · `live/search.test.ts`
-· `live/snipBridge.test.ts` · `live/syncEngine.test.ts` · `live/wavEncode.test.ts`
-· `projects/data.test.ts` · `projects/derive.test.ts` · `projects/validate.test.ts`
-· `scripts/lib/measure-core.test.ts` · `testRegistry.test.ts` · `transcription.test.ts`
-· `workspace/data.test.ts`.
+· `company/logo.test.ts` · `correction.test.ts` · `db/conversationScope.test.ts`
+· `demo/demoState.test.ts` · `design/anim.test.ts` · `documents/extract.test.ts`
+· `documents/snip.test.ts` · `legacyBoundary.test.ts` · `live/call-stubs.test.ts`
+· `live/finishLiveCall.test.ts` · `live/ivritStitcher.test.ts` · `live/liveTiming.test.ts`
+· `live/pcmChunker.test.ts` · `live/search.test.ts` · `live/snipBridge.test.ts`
+· `live/syncEngine.test.ts` · `live/syncMode.test.ts` · `live/wavEncode.test.ts`
+· `maya/client.test.ts` · `maya/companyProfile.test.ts` · `maya/dates.test.ts`
+· `maya/disclosures.test.ts` · `maya/events.test.ts` · `maya/files.test.ts`
+· `maya/filings.test.ts` · `maya/issuers.test.ts` · `maya/layering.test.ts`
+· `maya/schedule.test.ts` · `player/viewers.test.ts` · `projects/data.test.ts`
+· `projects/derive.test.ts` · `projects/validate.test.ts` · `scripts/lib/measure-core.test.ts`
+· `testRegistry.test.ts` · `transcription.test.ts` · `workspace/blocks.test.ts`
+· `workspace/chat/compose.test.ts` · `workspace/chat/context.test.ts` · `workspace/chat/plan.test.ts`
+· `workspace/chat/prompt.test.ts` · `workspace/clip.test.ts` · `workspace/data.test.ts`
+· `workspace/intake/agreement.test.ts` · `workspace/intake/findSources.test.ts` · `workspace/intake/json.test.ts`
+· `workspace/intake/parseRequest.test.ts` · `workspace/intake/respond.test.ts` · `workspace/intake/selectSources.test.ts`
+· `workspace/panes.test.ts` · `workspace/present.test.ts` · `workspace/tabLabel.test.ts`
+· `workspace/thread.test.ts` · `workspace/validate.test.ts`.
+
+> ⚠ **REGENERATED 2026-08-09 FROM `package.json`, and what it had drifted into is the argument for
+> never hand-editing it.** The previous list held **37 entries against a registered 65** — every
+> `maya/*` and every `workspace/*` test was missing, i.e. two whole chapters of this codebase were
+> invisible here — and it named `demo/seedDocument.test.ts`, which `git ls-files` says does not
+> exist. It sat directly under the sentence below promising it is emitted by a script. The count in
+> the heading was three merges stale for the same reason.
 
 > **This list is emitted from `package.json` by a script, not edited by hand**, and the note that
 > used to sit here is why. It read: *"it previously named `live/syncEngine.test.ts` and
@@ -366,6 +382,16 @@ run a file cannot tell you it is missing.
   text; idempotent per company+quarter+type — its core becomes the MAYA auto-fetch later),
   `retranscribe-call.ts` (CLI: additive re-transcription with karaoke word-timings for
   pre-karaoke rows; writes a NEW `<id>_live` row).
+- **MAYA sync (2026-08-09):** `maya-refresh-issuers.ts` (the issuer universe; `--sweep` reaches
+  tier 2 — the ~500 companies that file but never hold a call, deliberately not synced yet),
+  `sync-maya-calendar.ts` (report schedule → `scheduled_calls`, upserting on the migration-021
+  natural key; re-runnable, proven to produce 0 duplicates on a second full run),
+  `sync-maya-companies.ts` (`company-details` → sector/sub-sector/description/website/logo on
+  `companies`; **never overwrites a human-written value, per FIELD not per row**, detects TASE's
+  shared placeholder logos by uniqueness rather than a pinned hash, and decides what is an image
+  by magic bytes because MAYA's content-type lies). Both take `--dry-run`.
+  ⚠ `tsconfig.json` excludes `scripts/`, so **`npx tsc --noEmit` does NOT typecheck these** —
+  running them against live data is the only gate they get.
 - **Fleet:** `append-log.mjs` — the sanctioned append-only door to `agent-memory/{cross-cutting,ready-queue}.md`
   (allow-listed in `.claude/settings.json`; ad-hoc shell appends are classifier-blocked).
 - **Build/assets:** `install-yt-dlp.js` (runs in `npm run build`), `prep-brand-assets.mjs`

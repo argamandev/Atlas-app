@@ -89,6 +89,15 @@ registered in `package.json`). `npx tsc --noEmit` exit 0.
 ⚠️ **`npm run build` was NOT run** — a dev server is live in this checkout and they share one
 `.next`, which is the documented way to break the running app. The reviewer should run it.
 
+> ⚠️ **CORRECTION 2026-08-09 (supervisor), left in place rather than edited over.** The two
+> statements above were true at `4da867d` and are stale for every later tip, which is exactly the
+> failure this file's own MAYA section is about. Measured by the supervisor: **608 tests** at
+> `98a6d59` (the fix round added `logo.test.ts` and 6 empty-state tests), and **610** at the
+> supervisor's `fix/calendar-empty-state` tip. **`npm run build` HAS now been run — green,
+> Middleware 81.8 kB** — on both `544e6d7` and `98a6d59`, in the supervisor's own checkout, so
+> the "reviewer should run it" caveat is discharged. A battery figure without the commit it was
+> measured at is a number that goes false without anyone editing it.
+
 ## Known limits, stated rather than discovered later
 
 - **MAYA's `website` column contains real errors.** Issuer 51 (הד ארצי) carries
@@ -96,7 +105,15 @@ registered in `package.json`). `npx tsc --noEmit` exit 0.
   catch that; the parser refuses only junk it can see. We faithfully reproduce MAYA here, errors
   included, and 23 companies have no website at all.
 - **14 companies show initials rather than a logo** — 13 placeholders plus תמיס, which has no
-  issuer id. תמיס still renders via the name-based fallback in `resolveCompanyLogo`.
+  issuer id. ~~תמיס still renders via the name-based fallback in `resolveCompanyLogo`.~~
+  > ⚠️ **CORRECTED 2026-08-09 (supervisor).** That sentence is false as of `98a6d59`: the
+  > name-based fallback was DELETED, because `name.includes('רג')` was handing רג"א's logo to
+  > `ארגו פרופרטיז`. A re-gate flagged that deleting it might have stripped תמיס's own logo, since
+  > this file says תמיס has no issuer id. **Measured rather than reasoned about:**
+  > `select tase_security_id from companies where display_name like '%תמיס%'` returns `1097229`,
+  > which IS a key of `BUNDLED_LOGO_BY_SECURITY_ID` — so תמיס resolves to `/logos/tamis.png` by the
+  > **id** path and nothing regressed. Note what the near-miss was: no `tase_issuer_id` does not
+  > mean no `tase_security_id`, and the sentence above conflated them.
 - **`securityIncludedIndices` is fetched but not stored.** Index membership with weights is in
   the response and would restore the index chips deleted as fabricated on `feat/maya-calendar`.
   It needs a table of its own, so it is deliberately out of this slice.

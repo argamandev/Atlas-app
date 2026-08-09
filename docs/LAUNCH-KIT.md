@@ -251,10 +251,14 @@ SCOPE, and keep it tight — this is hours, not days:
   - [CLOSED 2026-08-09 on feat/company-profiles — lib/company/overview-stub.ts is DELETED and the
     invented IR contact / index chips / "latest announcements" went with it. Sector and description
     are now real on 234/234 companies from MAYA company-details. Do not go looking for this file.]
-  - [CLOSED 2026-08-09 — the hardcoded quarter="Q2 2026" is removed from all three call sites;
-    every surviving occurrence in src is a comment explaining its own removal.]
+  - [CLOSED 2026-08-09 — the hardcoded quarter="Q2 2026" is removed from all three call sites.
+    ⚠ CORRECTED the same day: this bullet first added "every surviving occurrence in src is a
+    comment explaining its own removal", which is FALSE — `git grep -n "Q2 2026" -- src` returns
+    five live data literals in demo/stub fixtures (data/demo/liveCall.ts, lib/agents/data.ts,
+    lib/live/finishLiveCall.ts ×2, lib/workspace/data.ts). Claim the call sites, not the corpus.]
   - hardcoded quarter="Q2 2026" at app/home/page.tsx:27, app/live/[id]/page.tsx:27,
-    app/agents/page.tsx:50.
+    app/agents/page.tsx:50 — [CLOSED 2026-08-09 on feat/company-profiles, all three; kept here as
+    the record of what the scope was, NOT as work. The bullet above is the closure.]
   - isLiveCompany = company.ticker === '1097229' — [CLOSED 2026-08-09 on feat/maya-calendar: the fabricated liveQuarter beside it was deleted; the ticker itself is a polling gate, now the named LIVE_DEMO_TICKER in src/lib/live/demoCompany.ts, and it retires when /api/live/state reports which company it is broadcasting — live chapter].
 THE PATTERN ALREADY EXISTS — COPY IT, DO NOT INVENT ONE: components/live/FacetPanes.tsx renders its
 stub card with dict.live.demoContent as a visible badge (line ~388). That is the house solution and
