@@ -629,6 +629,33 @@ THE QUESTIONS, IN ORDER — the ordering is deliberate, do not jump to 4:
       corpus. Same mechanism, one design decision apart. The screen stays deferred; THE INGESTION
       QUESTION UNDERNEATH IT IS YOURS.
 
+  ⚠ AND SEPARATE THREE LAYERS BEFORE YOU DESIGN ANYTHING, because conflating them is what makes
+      this problem feel unanswerable. The founder arrived at this himself on 2026-08-09 ("don't we
+      need a clear database on each company? Year, quarters and document type?") and he is right:
+        LAYER 1 — INVENTORY: what documents EXIST per company, by year · period · doc type. Cheap
+          (metadata only; ~234 companies × ~10 years × 4 periods × 2–3 types is tens of thousands
+          of rows, which Postgres does not notice).
+        LAYER 2 — CONTENT: the actual text of those documents. Expensive (fetch, extract, store,
+          and whatever Q3 decides about search).
+        LAYER 3 — UNDERSTANDING: the distilled per-company memory the founder means by "real
+          memory of that specific company".
+      **LAYER 1 IS THE FOUNDATION AND IT IS THE ONE ATLAS IS MISSING.** Measured 2026-08-09:
+      `scheduled_calls` holds maya_year 2025 (355 events / 213 companies) and 2026 (536 / 189) AND
+      NOTHING EARLIER — it is a TWO-YEAR CALENDAR, not a history. `company_documents` proves the
+      history is reachable, holding FY 2015, FY 2020, FY 2021, FY 2023, FY 2024 among its 12 rows,
+      each one fetched from MAYA when a user opened it.
+      Why layer 1 gates layer 3: **every honest "I have this issuer through Q2 2025" is a claim
+      about the INVENTORY, not about the content.** Without one, an agent can only say "here is
+      what I happened to find", which is exactly what chat does today.
+      THE REAL TRADE, and it is genuinely two-sided — do not treat it as settled: an index buys
+      cross-company questions ("which issuers have not filed since March"), instant coverage
+      answers, and a catalog UI that does not hit MAYA on every page view. It COSTS a sync job and
+      a freshness discipline — "when did we last look" becomes a fact the product must hold and
+      can be wrong about. Listing live from MAYA has NO staleness by construction, and cannot
+      answer anything across companies. Decide it, with the reason, in writing.
+      NOTE FOR SEQUENCING: the deferred catalog UI lists live from MAYA today and could read an
+      index later WITHOUT changing the screen — so neither choice strands the other's work.
+
   Q2. WHAT IS THE CORPUS, EXACTLY? Enumerate what an agent may read and where each piece lives
       TODAY: transcripts (formatted_data JSON), MAYA filings + PDFs (src/lib/maya/, company_
       documents, page text), scheduled_calls and its new MAYA columns (migration 20260809_021),
