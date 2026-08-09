@@ -549,10 +549,17 @@ export const en = {
     quartersLabel: 'quarters',
     liveTase: 'Live · TASE',
     viewAll: 'View all',
+    about: 'About',
+    website: 'Website',
     // NOT "Related": the list is the first four companies the feed returns, and
-    // relatedness is not computable — 4 of 234 companies have a sector. Renamed
-    // 2026-08-09 when the directory went from 5 companies to 234 and "similar"
-    // became a visible claim about four arbitrary issuers.
+    // relatedness is not computable. Renamed 2026-08-09 when the directory went
+    // from 5 companies to 234 and "similar" became a visible claim about four
+    // arbitrary issuers.
+    // ⚠ THE REASON GIVEN HERE HAS EXPIRED, THE NAME HAS NOT. This said
+    // "4 of 234 companies have a sector"; it is now 234 of 234, so relatedness
+    // by sector IS computable and this list could become an honest "Similar
+    // companies". It is not one yet — the list is still the first four rows the
+    // feed returns — so the honest name stays until the query changes.
     relatedCompanies: 'Other companies',
     relatedSub: 'on TASE',
   },

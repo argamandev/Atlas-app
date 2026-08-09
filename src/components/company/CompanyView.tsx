@@ -21,7 +21,7 @@ import {
   SlidesIcon,
   VideoIcon,
 } from '@/components/ds/icons'
-import { Monogram } from '@/components/ds/Monogram'
+import { Logo } from '@/components/ds/Logo'
 import { LIVE_DEMO_TICKER } from '@/lib/live/demoCompany'
 import { AddInvestorCall } from './AddInvestorCall'
 import { AdminCallControls } from './AdminCallControls'
@@ -141,22 +141,39 @@ export function CompanyView({
           </Link>
           <div className="flex animate-fade-up items-start justify-between gap-5">
             <div className="flex min-w-0 items-center gap-3.5">
-              <Monogram name={name} size={48} fontSize={21} radius={11} />
+              {/* The REAL brand mark, falling back to initials. `Logo` renders the
+                  monogram itself when `src` is null, which is what the 14 companies
+                  without one get — MAYA serves a generic placeholder for those and
+                  the sync deliberately stores null rather than a grey square that
+                  would assert an identity. Logos are 80x80 square, so object-cover
+                  crops nothing. */}
+              <Logo src={company.logoUrl} name={name} size={48} className="rounded-[11px]" />
               <div className="min-w-0 text-start">
                 <h1 className="font-display text-[27px] font-medium leading-[1.1] tracking-[-0.02em] text-ink">
                   <span dir="auto">{name}</span>
                 </h1>
-                {/* Identity line: sector and ticker, both REAL columns. The IR contact
-                    and the index-membership chips that used to sit here were invented
-                    ("Zvika Rabin", TA-125/TA-90) and identical for every issuer — deleted
-                    2026-08-09. MAYA publishes neither, so there is nothing to restore
-                    them from; they come back only with a feed that has them. */}
+                {/* Identity line: sector and ticker, both REAL columns — and as of
+                    2026-08-09 sector is populated for 234 of 234 companies rather
+                    than 4.
+                    The IR contact and index-membership chips that used to sit here
+                    were invented ("Zvika Rabin", TA-125/TA-90 identical for every
+                    issuer) and were deleted. ⚠ The note that replaced them said
+                    "MAYA publishes neither" — that is now FALSE: `company-details`
+                    carries phone/email/address, and `securityIncludedIndices` carries
+                    index membership WITH WEIGHTS. Both are restorable as facts; they
+                    are simply not in this slice. Do not read their absence as a
+                    limit of the feed. */}
                 {(industry || company.ticker) && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-[9px]">
                     <span className="font-mono-num text-[12.5px] text-[#767676]">
-                      {[industry, company.ticker ? `TASE ${company.ticker}` : null]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      {/* Sector is Hebrew, the ticker is Latin digits with a Latin
+                          word: one <bdi> per run, direction on the container. A
+                          `dir` on the joined line resolves from its FIRST strong
+                          character and throws the other run's separators to the
+                          wrong end — this repo's most-repeated bug, filed 4 times. */}
+                      {industry && <bdi>{industry}</bdi>}
+                      {industry && company.ticker && <span> · </span>}
+                      {company.ticker && <bdi>{`TASE ${company.ticker}`}</bdi>}
                     </span>
                   </div>
                 )}
@@ -189,6 +206,51 @@ export function CompanyView({
               </div>
             </div>
           </div>
+
+          {/* WHAT THE COMPANY DOES, IN ITS OWN FILING. `description` is MAYA's
+              `about` — the text its own company page prints under אודות החברה —
+              and it is present for 234 of 234 companies. This block replaces
+              nothing: the two sections deleted from the overview on
+              feat/maya-calendar were an invented CEO quote and four invented
+              announcements. This one is a fact with a source.
+              Rendered only when there is something to render — an empty panel
+              with a heading is a claim that the company said nothing. */}
+          {(company.description || company.website) && (
+            <div className="mt-[18px] max-w-[640px] animate-fade-up">
+              {company.description && (
+                // <bdi> INSIDE, no `dir` ON THE BLOCK — and the difference is
+                // visible, not theoretical. `dir="auto"` on the <p> resolved to
+                // RTL from the Hebrew text and took ALIGNMENT with it, so on the
+                // English page the description hugged x=1199 while its own
+                // website link sat at x=559: one paragraph flying to the far side
+                // of a left-aligned page. Measured, not guessed.
+                // The container keeps the page's direction so the block aligns
+                // with everything around it; the <bdi> resolves the text's own
+                // direction so the Hebrew still reads correctly and a Latin
+                // company name inside it cannot flip the line.
+                <p className="text-[13.5px] leading-[1.55] text-ink-muted">
+                  <bdi>{company.description}</bdi>
+                </p>
+              )}
+              {company.website && (
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hov-ink mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-[#575757]"
+                >
+                  {/* The label is Hebrew or English by locale; the host is always
+                      Latin. Its own <bdi>, or the host's dots and slashes land at
+                      the wrong end of an RTL line. */}
+                  <span>{dict.company.website}</span>
+                  <bdi className="font-mono-num text-[#767676]">
+                    {company.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                  </bdi>
+                </a>
+              )}
+            </div>
+          )}
+
           <Tabs
             className="mt-[22px]"
             activeKey={tab}

@@ -456,6 +456,10 @@ export const he: Dictionary = {
     liveTase: 'Live · TASE',
     viewAll: 'הצגת הכול',
     // ראו ההערה ב-en.ts: הרשימה אינה "דומות" — אין לנו נתוני ענף כדי לחשב דמיון.
+    // MAYA's own company page heads this section אודות החברה — same words, so a
+    // user moving between the two reads one label, not a translation of one.
+    about: 'אודות החברה',
+    website: 'אתר החברה',
     relatedCompanies: 'חברות נוספות',
     relatedSub: 'בבורסה',
   },
