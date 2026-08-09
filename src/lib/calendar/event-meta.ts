@@ -1,3 +1,5 @@
+import { israelDayKey } from '@/lib/i18n/format'
+
 // Calendar event kinds — the design's three event types (investor calls, report
 // publications, webinars).
 //
@@ -133,4 +135,34 @@ export function calendarEmptyState(input: {
   // The month HAS events and none of them survived the filter. Saying "nothing
   // is scheduled" here is a statement about the data that the data contradicts.
   return 'filtered-away'
+}
+
+/**
+ * IS THIS EVENT STILL AHEAD OF US — decided in ISRAEL time, for every viewer.
+ *
+ * Extracted from `CompanyOverview` rather than left inline, because this lane's
+ * last two defects both survived precisely by living somewhere no test could
+ * reach (a JSX condition, and a module behind `server-only`). The "next
+ * scheduled" line on every company page is decided here.
+ *
+ * TWO KINDS OF ROW, TWO KINDS OF FACT:
+ *  - `timeKnown` — the issuer published a clock, so the INSTANT is the fact and
+ *    a plain comparison is already timezone-independent.
+ *  - no time — the DATE is the fact and the stored clock is a storage artefact
+ *    (these rows sit at midnight Israel). Comparing instants would call a report
+ *    due TODAY "past" from one minute after midnight, so the comparison is
+ *    between Israel day KEYS. `YYYY-MM-DD` sorts chronologically as a string,
+ *    which is why this needs no offset arithmetic at all.
+ *
+ * ⚠ The bug this replaces: `startOfToday.setHours(0,0,0,0)` floored to the
+ * VIEWER's local midnight, so west of Israel a report due today read as past for
+ * the hours the two dates disagree, and the page named a later event as "next".
+ */
+export function isFutureEvent(
+  event: { scheduledAt: string; timeKnown: boolean },
+  now: Date = new Date()
+): boolean {
+  return event.timeKnown
+    ? new Date(event.scheduledAt).getTime() > now.getTime()
+    : israelDayKey(event.scheduledAt) >= israelDayKey(now)
 }

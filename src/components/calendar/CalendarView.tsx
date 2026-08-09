@@ -64,8 +64,12 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   // landed: the feed starts in January 2025, so the calendar would have opened
   // nineteen months in the past and looked empty.
   const initialMonth = useMemo(() => {
-    const now = new Date()
-    return new Date(now.getFullYear(), now.getMonth(), 1)
+    // ISRAEL's current month, not the viewer's. A viewer east of Israel at
+    // 01:00 on the 1st is still in the PREVIOUS month in Tel Aviv, and would
+    // otherwise open on a month Israel has not reached — with the previous
+    // month's events, the ones they came to see, a click away.
+    const p = israelMonthParts(new Date())
+    return new Date(p.year, p.month, 1)
   }, [])
   const [month, setMonth] = useState(initialMonth)
 
@@ -204,7 +208,12 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   ]
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const today = new Date()
+  // TODAY IN ISRAEL, as the same kind of key the grid buckets events by. The
+  // pill used to compare the viewer's local Y/M/D, so west of Israel it lit the
+  // wrong cell for the hours the two dates disagree. Comparing against the very
+  // key `byDay` is keyed by means the highlighted cell and the events inside it
+  // can no longer be decided in two different timezones.
+  const todayKey = israelDayKey(new Date())
 
   return (
     // design calendar (line 265) is FULL WIDTH — padding only, no max-width column
@@ -331,11 +340,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
             {cells.map((day, i) => {
               const k = day ? localKey(year, monthIdx, day) : `blank-${i}`
               const dayCalls = day ? (byDay.get(k) ?? []) : []
-              const isToday =
-                day != null &&
-                year === today.getFullYear() &&
-                monthIdx === today.getMonth() &&
-                day === today.getDate()
+              const isToday = day != null && k === todayKey
               return (
                 <div
                   key={k}
