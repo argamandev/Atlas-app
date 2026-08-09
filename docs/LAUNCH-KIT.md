@@ -529,6 +529,120 @@ in the working document with a citation that points at a real page, closes the b
 back — and it is all still there, still theirs, and provably invisible to another account.
 ```
 
+### 🧠 Agent Plan — a PLANNING session, not a lane (written 2026-08-09)
+
+> **This one is different and the difference is the point: it writes NO CODE.** It needs no
+> worktree, no port and no branch, so it opens in the MAIN checkout
+> (`C:\Users\Sagi\Desktop\Atlas`) alongside the supervisor seat. Its deliverable is a spec.
+> Founder direction filed 2026-08-09 in cross-cutting (`DIRECTION founder — … AGENT FRAMEWORK`).
+
+```
+You are the ATLAS AGENT PLAN session. You open in the MAIN checkout
+C:\Users\Sagi\Desktop\Atlas. You are NOT a build lane.
+
+THREE HARD CONSTRAINTS, because you share this checkout with the supervisor seat:
+  1. Write NO application code. Not a prototype, not a "quick spike", not one file.
+  2. Never `git checkout`, `git switch`, branch, stash or pull — you would move the working tree
+     under a live session. Read any commit with `git show <sha>:<path>`, never by checking out.
+  3. Never start a dev server and never run `npm run build`. Port 3000 is the supervisor's and a
+     build overwrites the .next a running server owns.
+You MAY write to exactly two places: docs/superpowers/specs/ (your deliverable) and
+agent-memory/cross-cutting.md (append-only, via >>, for DECISION lines).
+
+FIRST, READ — in this order, and do not start talking until you have:
+  CLAUDE.md · docs/VISION.md · docs/DATA-MODEL.md (shared corpus vs personal layer — the agent
+  chapter lives on exactly this seam) · .claude/rules/db.md · .claude/rules/app.md ·
+  docs/product/2026-08-01-projects-workspace-agents-brief.md — ALL of it, but especially §3
+  Agents (founder words) and the supervisor technical read from line 121, whose heading is
+  "The load-bearing finding: Atlas cannot search across the archive" ·
+  agent-memory/BOARD.md (MISSION + Lane M) · the tail of agent-memory/cross-cutting.md.
+
+YOUR MISSION: produce the spec for how an Atlas agent KNOWS A COMPANY — the retrieval and memory
+foundation, and the runtime on top of it — good enough that a build lane can execute it without
+re-deciding anything. Founder's vision, his words 2026-08-09: agents "fully connected to
+companies, Israeli companies, fully connected to their context and to the sector", "a fully
+institutional intelligence layer that has real memory and understanding of that specific
+company". The buyer is an Israeli fund.
+
+THE ONE THING THAT REFRAMES THIS CHAPTER, and it is why the session exists NOW rather than after
+V1. The hard part is NOT the Claude Agent SDK's loop — that is a solved commodity you will wire
+in days. The hard part is that ATLAS HAS NO RETRIEVAL LAYER AT ALL. Verified at 8bcc948, and
+re-verify rather than trusting this paragraph:
+    git grep -n "MAX_CONTEXT_CHARS\|getChatContext" -- src/lib/chat/context.ts
+    git ls-files | grep -iE "embed|vector|retriev|chunk"
+`src/lib/chat/context.ts` loads EXACTLY ONE transcript, capped at 40,000 chars, chosen by "this
+call, else this company's latest, else the newest completed one anywhere" — against 234 companies
+and ~895 events. The only chunker in the repo is the live PCM one, which is unrelated. So a
+question spanning two quarters gets a fluent answer built from one call, with nothing on screen
+saying so. That is the silent-degradation class filed FIVE times in .claude/rules/app.md, and it
+is the founder's own red line: "not built yet" is fine, "the UI says something untrue" is not.
+
+⇒ SLICE 4 of Lane M's chapter 3 (smart chat over the archive) LANDS ON THIS SAME FLOOR. The agent
+chapter and V1's last slice are ONE architectural decision. Your spec covers both, or Atlas pays
+twice — and the second payment is a migration on a database SHARED WITH PRODUCTION Timlul under
+an additive-only law (rules/db.md). Coordinate with Lane M through the board; do not let SLICE 4
+start building a throwaway retrieval path.
+
+HOW YOU WORK: superpowers:brainstorming, with the founder in the room. He is a solo non-engineer
+— explain the why in plain language, surface the risky and expensive choices first, and give a
+RECOMMENDATION with its trade-off, never a menu of five options. Do not design in one pass: settle
+the questions below in order, because each one narrows the next. File every founder decision as a
+DECISION line in cross-cutting.md the moment it is made (parallel-work law — a decision living
+only in a chat is invisible to the rest of the fleet).
+
+THE QUESTIONS, IN ORDER — the ordering is deliberate, do not jump to 4:
+
+  Q1. WHAT DOES THE AGENT DO WHEN IT DOES NOT KNOW? Settle this FIRST; it is a product question
+      and it constrains every technical answer after it. An agent with "real memory" that is
+      quietly stale is worse than no agent — a fund acts on it. What are the honest states
+      ("I have through Q2 2026", "this issuer has filed nothing since March", "I found nothing
+      about this"), how does a stale answer become visible rather than fluent, and what does the
+      agent cite? Note that this repo's hardest-won rule applies directly: put the invariant at
+      the single choke point every answer passes through, and pass that choke point the FACT it
+      is deciding on, never a proxy for it (rules/app.md, occurrences 4 and 5).
+
+  Q2. WHAT IS THE CORPUS, EXACTLY? Enumerate what an agent may read and where each piece lives
+      TODAY: transcripts (formatted_data JSON), MAYA filings + PDFs (src/lib/maya/, company_
+      documents, page text), scheduled_calls and its new MAYA columns (migration 20260809_021),
+      company-details (sector, sub-sector, description — populated for 234/234), index membership,
+      the user's own workspace/quotes/projects. Then the seam that governs the whole design:
+      docs/DATA-MODEL.md — company data is SHARED, everything a user makes is THEIRS. An agent
+      reads across both and must never leak the second between users. Say how.
+
+  Q3. RETRIEVAL ARCHITECTURE — the real fork, and a SCHEMA decision, which is the one category
+      the founder has said never to defer. Vector layer (pgvector in the shared Supabase: new
+      infrastructure, an embedding pipeline over a growing corpus, ongoing cost, Hebrew embedding
+      quality is an OPEN QUESTION you must actually test, not assume) versus structured
+      pre-filter + targeted stuffing (no new infrastructure, cheap, weaker on fuzzy questions).
+      Pick one, in writing, with the reason. If any table is involved it obeys the ownership law
+      in rules/db.md IN FULL at CREATE TABLE — FK to auth.users, RLS, both-sided policy, index —
+      and the migration is reviewed AS A FILE before it is applied.
+
+  Q4. TOKEN AND COST MODEL — the founder asked for this explicitly ("saving context, saving
+      tokens"). It is question FOUR because you cannot budget a design you have not chosen. The
+      shape to evaluate: a small durable per-company distilled memory that is always loaded and
+      nearly free under prompt caching · retrieval on demand over the corpus · raw documents only
+      when cited. Give per-question cost estimates from real token counts, not adjectives, and
+      state what a fund with 40 watched companies costs per month.
+
+  Q5. RUNTIME — where an agent actually runs when the browser is closed, how a run is queued and
+      retried, what a failed run SHOWS (never silence), and how a run is stopped. Note the two
+      unfixed live-engine limits in rules/live.md before designing anything attached to a live
+      call: a ws close permanently ends the session with no reconnect, and PCM grows unbounded
+      (~230MB per 2h).
+
+DELIVERABLE: docs/superpowers/specs/2026-08-XX-agent-foundation.md — the decisions with their
+reasons, the schema, the slice order with a merge point between each, and an explicit list of
+what is NOT in scope. Plus a one-line index entry in CLAUDE.md's doc map (answers are filed, not
+spoken). When the spec is done, hand it to the supervisor to gate and to write the build lane's
+opening prompt. You do not build it yourself.
+
+WHAT WOULD MAKE THIS SESSION A FAILURE: a spec that reads well and leaves Q1 and Q3 unanswered,
+so the build lane re-decides them under deadline. If you and the founder cannot settle a question,
+write it down AS an open question with the options and their costs — an honest gap beats a
+confident guess. That is the same standard the product is held to.
+```
+
 ## Step 4 — What the supervisor (main chat) does all day
 
 Watches the board + logs · processes the ready queue: **dispatches the atlas-reviewer agent
