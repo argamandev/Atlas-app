@@ -605,6 +605,30 @@ THE QUESTIONS, IN ORDER — the ordering is deliberate, do not jump to 4:
       the single choke point every answer passes through, and pass that choke point the FACT it
       is deciding on, never a proxy for it (rules/app.md, occurrences 4 and 5).
 
+  ⚠⚠ BEFORE Q2, KNOW THIS, BECAUSE IT OUTRANKS EVERY OTHER ITEM HERE AND IT CHANGES WHAT Q2 AND
+      Q3 ARE EVEN ASKING. **THE CORPUS IS NEARLY EMPTY.** Atlas has the companies and their
+      CALENDAR; it does not have their CONTENT. Measured against the live DB 2026-08-09 —
+      re-measure, do not trust this block:
+          companies 234 · scheduled_calls 895 (467 report + 428 call) · transcripts completed 56
+          └ completed transcripts carrying a company_id: **5, across TWO distinct companies**
+          └ completed transcripts with NO company_id at all: **51** — orphaned, so no
+            company-scoped query reaches them even though the text exists
+          └ company_documents: 12 rows across 3 companies
+      A COMPANY-SCOPED AGENT CAN FIND READABLE CONTENT FOR 2 OF 234 COMPANIES. This was invisible
+      because `getChatContext()`'s fallback ends at "the newest completed transcript ANYWHERE", so
+      chat has always looked like it works — it answers from whatever it can find. The 234 figure
+      is companies + event METADATA from MAYA (name, ticker, sector, description, schedule).
+      ⇒ SO THE FIRST QUESTION IS NOT "HOW DOES AN AGENT SEARCH THE CORPUS" BUT "WHAT IS THE
+      CORPUS, AND HOW DOES CONTENT GET IN" — ingestion, attribution (those orphaned 51), and
+      coverage per company. **A retrieval architecture chosen against 5 attributed transcripts is
+      chosen against nothing.** Settle coverage before you spend a decision on pgvector; an
+      embedding pipeline over an empty corpus is an expensive way to build the same silence.
+      ⇒ It also reframes the DEFERRED filings catalog (founder deferred the SCREEN 2026-08-09,
+      correctly): fetch-on-demand is a RENDERING path for a human reader, but whether that fetch
+      also STORES AND ATTRIBUTES what it pulled is the difference between a document viewer and a
+      corpus. Same mechanism, one design decision apart. The screen stays deferred; THE INGESTION
+      QUESTION UNDERNEATH IT IS YOURS.
+
   Q2. WHAT IS THE CORPUS, EXACTLY? Enumerate what an agent may read and where each piece lives
       TODAY: transcripts (formatted_data JSON), MAYA filings + PDFs (src/lib/maya/, company_
       documents, page text), scheduled_calls and its new MAYA columns (migration 20260809_021),
@@ -617,13 +641,15 @@ THE QUESTIONS, IN ORDER — the ordering is deliberate, do not jump to 4:
       columns are id, company_id, quarter(text), doc_type, title, source, storage_path, page_count,
       lang, created_at, updated_at, maya_report_id. `created_at` is when ATLAS INGESTED the row,
       a different fact: the 12 live rows were ingested over three weeks and say nothing about when
-      the issuer published. Every honest Q1 answer ("I have this issuer through Q2 2026", "nothing
-      filed since March") IS A CLAIM ABOUT PUBLICATION DATES, so freshness read off `created_at`
-      would call a 2024 filing ingested yesterday current. The founder deferred the catalog SCREEN
-      on 2026-08-09; the COLUMN travels with your foundation instead — 12 rows across 3 companies,
-      11 carrying maya_report_id, so MAYA can supply the real date. It is the cheapest it will
-      ever be, and the DB is shared with production under an additive-only law. Decide the column
-      and `lib/maya/ingestFiling.ts`'s upsert key here.
+      the issuer published, so freshness read off it would call a 2024 filing ingested yesterday
+      current. Take the column while the table is 12 rows (11 carry maya_report_id, so MAYA can
+      supply the real date) — on a production-shared, additive-only DB this is the cheapest it
+      will ever be — and decide `lib/maya/ingestFiling.ts`'s upsert key with it.
+      **Calibration, so you do not over-weight this:** an earlier supervisor entry called this
+      column the thing the agent's honesty rests on. It overstated it. `scheduled_calls` already
+      carries 467 report events with real dates plus maya_year / maya_period_type_id /
+      maya_report_type_id (migration 021), so "has this issuer filed since March" is largely
+      answerable today. This is one input. The block above it is the finding that matters.
 
   Q3. RETRIEVAL ARCHITECTURE — the real fork, and a SCHEMA decision, which is the one category
       the founder has said never to defer. Vector layer (pgvector in the shared Supabase: new
