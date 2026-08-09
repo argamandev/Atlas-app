@@ -28,8 +28,13 @@ export function Logo({
       style={{ width: size, height: size }}
     >
       {src ? (
+        // LAZY + ASYNC because the calendar month view renders one of these per
+        // event — 224 in a busy month — and they are fetched from an external
+        // host (mayafiles) that `docs/MAYA-API.md` records answering a 200 with
+        // a WAF interstitial under load. Deferring the offscreen ones keeps the
+        // burst down to what is actually visible.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={name} className="h-full w-full object-cover" />
+        <img src={src} alt={name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
       ) : (
         <span className="font-semibold" style={{ fontSize: Math.round(size * 0.36) }}>
           {initialsOf(name)}

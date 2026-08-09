@@ -15,6 +15,7 @@ import {
   CalMicIcon,
   CalWebinarIcon,
 } from '@/components/ds/icons'
+import { Logo } from '@/components/ds/Logo'
 import {
   eventKind,
   kindLabel,
@@ -307,9 +308,28 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         className="cal-ev flex w-full cursor-grab items-center gap-[5px] rounded-md border border-[#DEDEDE] py-1 pe-[5px] ps-[6px]"
                         style={{ background: kindFill(kind) }}
                       >
+                        {/* KIND FIRST, THEN IDENTITY. The icon stays: it is the
+                            only NON-COLOUR signal of what an event is, and the
+                            tint behind it is deliberately faint. Replacing it
+                            with the logo would leave kind encoded in colour
+                            alone, which is the thing the previous commit
+                            explicitly refused to do. */}
                         <span className="flex flex-none" style={{ color: EVENT_KIND_META[kind].accent }}>
                           <Icon size={12} />
                         </span>
+                        {/* ⚠ NO LOGO IN THE PILL, AND IT WAS TRIED TWICE.
+                            Rendered at 14px and again at 20px against real data:
+                            both read as blank white squares, because these are
+                            WORDMARKS — an 80x80 image of a company's name has
+                            nothing left at 20px. A blank tile is worse than no
+                            tile: it looks like a broken image rather than a
+                            company, and it cost ~14px of a pill whose names were
+                            already truncating.
+                            The month grid carries up to 15 events per day cell,
+                            so the pill cannot afford a size where a wordmark
+                            survives. The logo moved to the hover card below,
+                            which has room for 28px, and Home's 40px rows show
+                            them properly. */}
                         {isLive && (
                           <span
                             className="h-[6px] w-[6px] flex-none rounded-full bg-live"
@@ -342,11 +362,17 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         </button>
                         {/* hover context card (design lines 327-332) */}
                         <div className="cal-ctx">
-                          <div
-                            className="mb-[5px] text-[9.5px] font-semibold uppercase tracking-[0.1em]"
-                            style={{ color: EVENT_KIND_META[kind].accent }}
-                          >
-                            {kindLabel(kind, dict.calendar)}
+                          <div className="mb-[5px] flex items-center gap-2">
+                            {/* 28px — the smallest size at which these wordmarks
+                                are actually readable. The pill above cannot
+                                spare it; this card can. */}
+                            <Logo src={c.company?.logoUrl} name={name} size={28} className="rounded-[5px]" />
+                            <span
+                              className="text-[9.5px] font-semibold uppercase tracking-[0.1em]"
+                              style={{ color: EVENT_KIND_META[kind].accent }}
+                            >
+                              {kindLabel(kind, dict.calendar)}
+                            </span>
                           </div>
                           {/* EACH RUN GETS ITS OWN <bdi>, direction on the container.
                               This line mixes a Hebrew company name with Latin quarter,
