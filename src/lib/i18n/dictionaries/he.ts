@@ -522,6 +522,10 @@ export const he: Dictionary = {
     slidesEmpty: 'המצגת תופיע כאן כשתקושר לשיחה.',
     reportEmpty: 'הדוח הרבעוני יופיע כאן כשיקושר.',
     reportFreely: 'PDF · קריאה חופשית',
+    // The panes state their own condition now — there is no stub behind them.
+    docLoading: 'מביא את המסמך מהבורסה…',
+    docFailed: 'לא הצלחנו להביא את המסמך',
+    noDocument: 'אין מסמך לתקופה זו',
     demoContent: 'תוכן הדגמה — לא נתוני חברה אמיתיים',
     viewLabel: 'תצוגה',
     viewSingle: 'יחיד',

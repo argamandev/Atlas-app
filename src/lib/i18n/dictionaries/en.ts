@@ -640,6 +640,10 @@ export const en = {
     slidesEmpty: 'Slides will appear here when linked to this call.',
     reportEmpty: 'The quarterly report will appear here when linked.',
     reportFreely: 'PDF · read freely',
+    // The panes state their own condition now — there is no stub behind them.
+    docLoading: 'Fetching the document from TASE…',
+    docFailed: 'We could not fetch this document',
+    noDocument: 'No document for this period',
     demoContent: 'Demo content — not real company data',
     viewLabel: 'View',
     viewSingle: 'Single',
