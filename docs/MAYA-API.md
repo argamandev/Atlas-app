@@ -122,6 +122,96 @@ same class as the 0-byte-PDF-pinned-by-cache incident in `.claude/rules/app.md`:
 degradation must be visible, and a "successful" 212-byte report would be stored, cached,
 and shown as a document.
 
+## ⚠️ THE CATALOG HAS 41 PRODUCTS. WE ARE SUBSCRIBED TO ONE VERSION OF ONE OF THEM.
+
+Filed 2026-08-09 after the founder refused a claim of mine. I had written, in four places,
+that "MAYA publishes no sector / description / website / logo". **That was false, and the way
+it was produced is the repo's oldest error: I probed guessed paths, read the failures as
+absence, and never opened the catalogue that lists what exists.** The founder's objection was
+simply "I can see the sector and the logo on the MAYA website, so the data exists" — which is
+evidence, and my probes were not.
+
+Read off the portal (`datahubapi.tase.co.il`, SSO, `sagi.arg@gmail.com`) on 2026-08-09:
+
+| | |
+|---|---|
+| Products in the catalog | **41** |
+| Products Atlas subscribes to | **1** — `Market Announcements feed - MAYA` |
+| Apps | `Atlas` → **pending** · `Atlas - second application` → **approved 2026-08-05** |
+| Version both registered against | **`Market Announcements feed - MAYA 2.0.0`** (`863643bf-…`) |
+
+**That product has TWO versions, and they are different APIs, not a version bump.**
+
+| Version | Path family | Endpoints |
+|---|---|---|
+| **2.0.0** ← ours | `/api/v2/market-announcements/…` | the 5 in the table above, and only those |
+| **1.0.0** ← NOT ours | `/v1/maya-reports-online/…` + `/v1/corporate-actions/…` | **10**, including `company-details` |
+
+### `GET /v1/maya-reports-online/company-details` — the endpoint the founder was right about
+
+Summary in its own spec: *"general details about the companies listed on the Tel Aviv Stock
+Exchange"*. Response `CompanyDetailsResponse.getCompanyDetails.result[]` carries
+**`issuerId`, `issuerName`, `sector`, `address`, `website`**, plus phone and email.
+`issuerId` is **`required: false`** — so one call with no parameter returns the whole list.
+
+Two consequences, both large:
+
+1. **`sector`, `website`, `address`, `phone`, `email` are a subscription away, not a scrape
+   away.** Keyed on `issuerId`, which we already store for 233 of 234 companies.
+2. **"MAYA publishes no company-directory endpoint" — the finding the whole calendar sync was
+   designed around — is true only of version 2.0.0.** The one-call directory exists in 1.0.0.
+   `scripts/maya-refresh-issuers.ts` spends ~230 requests (or ~2,600 with `--sweep`) building
+   by hand what one request would return. It is not wrong, and it still works; it is just no
+   longer the only way, and the sweep in particular should be reconsidered before it is run.
+
+**THE FIELD LIST ABOVE COMES FROM THE SPEC, WHICH IS A DOCUMENT.** Every other fact in this
+file came from a live 200. This one cannot until the registration exists, and the distinction
+is the whole point of this file — do not let it decay into "verified" on a re-read.
+**Registering is an account action and belongs to the founder**, in the portal:
+`Catalog → Market Announcements feed - MAYA → version 1.0.0 → Register`.
+
+### The three-way probe result, which is the reusable part
+
+Guessing paths against `datawise.tase.co.il` cannot tell you whether an endpoint exists,
+because two different systems answer:
+
+| Request | Answer | What it proves |
+|---|---|---|
+| `/api/v1/basic-securities/companies-list` | **F5 WAF**, `text/html`, "Request Rejected … support ID" | nothing — the gateway was never reached |
+| `/v1/maya-reports-online/company-details` | **Kong**, `application/json`, `{"message":"You cannot consume this service","request_id":…}` | the route EXISTS, our key reached it, we are not subscribed |
+| `/api/v2/market-announcements/…` | `200` + data | subscribed |
+
+The WAF answer is the trap: it is indistinguishable from "no such thing" unless you already
+know the right prefix. **A path list is configuration. Read it from the portal's spec, never
+deduce it** — the same sentence this file already carries about the base URL, which did not
+stop me from repeating the mistake one level down.
+
+## Company logos — SOLVED, public, no key, no subscription
+
+`https://mayafiles.tase.co.il/logos/he-IL/{issuerId padded to 6}.jpg` — e.g. issuer 1460 →
+`…/logos/he-IL/001460.jpg`. Same public host as the filing attachments. Found by reading the
+`<img>` sources on MAYA's own home page and pairing them with each row's `/he/companies/{id}`
+link, so the id in the filename is confirmed to be `issuerId`, not a security id.
+
+**Measured 2026-08-09 against all 233 companies in our DB that carry a `tase_issuer_id`:**
+
+| | |
+|---|---|
+| real, distinct logo | **220** (94%) — 219 JPEG + 1 PNG |
+| generic placeholder | 13 — one byte-identical 2,037-byte PNG shared by all 13 |
+| HTTP not-200 | **0** |
+
+Three traps for whoever ingests these:
+
+- **The content-type lies.** Issuer 2356 is served `content-type: image/jpeg` and is a PNG.
+  Sniff magic bytes (`ffd8ff` / `89504e47`), never trust the header or the `.jpg` extension.
+- **A 200 is not a logo.** There are TWO distinct placeholders: `000000.jpg` (2,325-byte JPEG,
+  what MAYA uses for non-company rows like exchange notices) and the 2,037-byte PNG above.
+  Hash-compare against both, or 13 companies get a meaningless grey square presented as their
+  identity — the "degradation must be visible" rule in `.claude/rules/app.md`.
+- Re-fetched 3× each: byte-identical every time, so these are stable absences and **not** the
+  intermittent WAF interstitial documented above. Do not conflate the two.
+
 ## What the two blocked sessions got wrong, so it is not repeated
 
 The base URL was assumed to be `https://openapigw.tase.co.il/tase/prod` — TASE's published

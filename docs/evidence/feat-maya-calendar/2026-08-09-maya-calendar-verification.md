@@ -214,11 +214,24 @@ measurements), and two `docs/LAUNCH-KIT.md` references to a line this branch del
 - **The key cannot hold two real events for one company/period/type.** Issuer 1916 runs the same
   call in Hebrew and English; one row survives.
 - **Only 2025–2026 exist** in the schedule feed. No historical calendar is possible from this API.
-- **~230 companies have a name and nothing else.** MAYA publishes no sector, description, website or
-  logo — verified by dumping every field of a filing. The calendar renders a monogram; real logos
-  need a different source entirely (TASE's own sites answered **403 Incapsula** to three probes,
-  while a company's own favicon returned a real PNG — so logos need company websites, which MAYA
-  also does not provide).
+- **~230 companies have a name and nothing else** *in what this branch ingests*. The calendar
+  renders a monogram.
+  **CORRECTED 2026-08-09, and the correction is left visible because the original was stated far
+  too strongly.** This bullet used to read "MAYA publishes no sector, description, website or logo
+  — verified by dumping every field of a filing", and it was **wrong**. Dumping every field of a
+  *filing* proves something about the filings endpoint, not about MAYA. The founder pushed back
+  with the obvious evidence — the MAYA website shows both — and looking properly found:
+  - **Logos exist, are public, need no key and no subscription**:
+    `mayafiles.tase.co.il/logos/he-IL/{issuerId:6}.jpg`. Measured across all 233 companies here:
+    **220 real, 13 placeholder, 0 missing.**
+  - **`sector`, `website`, `address`, `phone`, `email` exist** on
+    `GET /v1/maya-reports-online/company-details`, in **version 1.0.0 of the very product we are
+    already subscribed to** — we are registered against 2.0.0, which does not expose it. Field
+    list is from the OpenAPI spec, not a live 200; registering is the founder's to do.
+  - The "403 Incapsula" probes in the original sentence proved nothing: those were an F5 WAF
+    answering a wrong path prefix, not TASE withholding data.
+
+  Full account, including the reusable three-way probe distinction, in `docs/MAYA-API.md`.
 - **Tier 2 (~500 more companies that file but never hold a call) was NOT run.** `maya-refresh-issuers
   --sweep` exists and is measured (~2,600 ids, ~9 min), but inserting 500 companies nothing renders
   yet belongs to the company-pages merge.
