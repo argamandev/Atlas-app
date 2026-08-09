@@ -104,69 +104,65 @@ test('the guard rejects the palette it replaced', () => {
 })
 
 // ── the empty-state guard ────────────────────────────────────────────────────
-// Filed by the supervisor as merge-gating: the previous guard was a JSX
-// condition that could never be false, beside a comment claiming it handled the
-// case and an evidence file claiming it was fixed. These tests are written
-// against the real shape of the data that made it unfireable.
+// TWO merge-gating rounds died here, and the second one is why these tests are
+// phrased as claims about the SCREEN rather than about the filter chips.
+//
+// Round 1: the decision was a JSX condition that could never be false.
+// Round 2: it moved into `calendarEmptyState` (right) but was fed whole-feed
+// chip sets (wrong), and the test written beside it ASSERTED the surviving lie
+// — so the battery defended the defect. That test is the one now inverted
+// below, marked THE SECOND DEFECT.
+//
+// The rule these encode: the message may only say "nothing is scheduled" when
+// the month really holds nothing. Anything else the filter is responsible for.
 
-test('a month with events is not an empty state at all', () => {
-  assert.equal(
-    calendarEmptyState({ monthCount: 224, presentKinds: ['call', 'report'], selectedKinds: ['call'] }),
-    'none'
-  )
+test('a month with events on screen is not an empty state at all', () => {
+  assert.equal(calendarEmptyState({ visibleCount: 224, monthTotal: 224 }), 'none')
 })
 
-test('THE DEFECT: switching off every VISIBLE chip is a filter state, not an empty month', () => {
-  // Exactly the live shape — two kinds have rows, `webinar` is selected because
-  // the set is seeded with the whole vocabulary and has no chip to switch off.
-  assert.equal(
-    calendarEmptyState({
-      monthCount: 0,
-      presentKinds: ['call', 'report'],
-      selectedKinds: ['webinar'],
-    }),
-    'all-filters-off'
-  )
+test('THE FIRST DEFECT: every visible chip off is a filter state, not an empty month', () => {
+  // November 2026 with both chips off: 2 events exist, none survive the filter.
+  assert.equal(calendarEmptyState({ visibleCount: 0, monthTotal: 2 }), 'filtered-away')
 })
 
-test('a kind with no rows can never stand in for a deliberate choice', () => {
-  // The same assertion from the other direction: selecting ONLY absent kinds is
-  // indistinguishable, to a user, from selecting nothing.
-  assert.equal(
-    calendarEmptyState({ monthCount: 0, presentKinds: ['call'], selectedKinds: ['webinar', 'report'] }),
-    'all-filters-off'
-  )
+test('THE SECOND DEFECT: a PARTIAL filter that hides the whole month is still the filter', () => {
+  // Measured on the live feed: 2026-11 holds 2 reports and 0 calls, 2027-03
+  // holds 1 and 0. Switch "Reports" off with "Investor calls" still ON and the
+  // month empties — the previous version returned 'no-events' here, and its
+  // test asserted that, so "Nothing scheduled this month" printed over real
+  // report dates. One chip being on says nothing about what the month holds.
+  assert.equal(calendarEmptyState({ visibleCount: 0, monthTotal: 2 }), 'filtered-away')
 })
 
 test('a genuinely empty month still says so', () => {
-  // Paging outside 2025-2026, where MAYA has no rows: the filters are untouched.
-  assert.equal(
-    calendarEmptyState({
-      monthCount: 0,
-      presentKinds: ['call', 'report'],
-      selectedKinds: ['call', 'report'],
-    }),
-    'no-events'
-  )
+  // Paging outside 2025-2026, where MAYA has no rows at all: the filters are
+  // irrelevant because there is nothing for them to hide.
+  assert.equal(calendarEmptyState({ visibleCount: 0, monthTotal: 0 }), 'no-events')
 })
 
 test('an empty feed is a data emptiness, never a filter one', () => {
-  // Nothing to filter, so "you turned everything off" would be untrue.
-  assert.equal(
-    calendarEmptyState({ monthCount: 0, presentKinds: [], selectedKinds: EVENT_KINDS }),
-    'no-events'
-  )
+  assert.equal(calendarEmptyState({ visibleCount: 0, monthTotal: 0 }), 'no-events')
 })
 
-test('one visible chip still on is not an all-filters-off state', () => {
-  assert.equal(
-    calendarEmptyState({
-      monthCount: 0,
-      presentKinds: ['call', 'report'],
-      selectedKinds: ['call', 'webinar'],
-    }),
-    'no-events'
-  )
+test('a single hidden event is enough to make the month a filter state', () => {
+  // The boundary. `monthTotal` of 1 is the smallest month the filter can lie
+  // about, and 2027-03 is exactly that month in the live feed.
+  assert.equal(calendarEmptyState({ visibleCount: 0, monthTotal: 1 }), 'filtered-away')
+})
+
+test('the guard never reports a filter state while something is on screen', () => {
+  // A partially-filtered month that still shows rows is not an empty state at
+  // all — this is what stops the new message appearing over a populated grid.
+  assert.equal(calendarEmptyState({ visibleCount: 1, monthTotal: 50 }), 'none')
+})
+
+test('THE PROXY THAT FAILED: no kind vocabulary can reach this decision', () => {
+  // Round 2's inputs were the chip sets, which cannot distinguish these two —
+  // both have one chip on and an empty screen, and they need OPPOSITE answers.
+  // Keeping them adjacent is the point: if a future refactor can no longer tell
+  // them apart, it has reintroduced the defect.
+  assert.equal(calendarEmptyState({ visibleCount: 0, monthTotal: 0 }), 'no-events')
+  assert.equal(calendarEmptyState({ visibleCount: 0, monthTotal: 2 }), 'filtered-away')
 })
 
 test('kindFill is a vertical gradient — a horizontal one would flip meaning in RTL', () => {

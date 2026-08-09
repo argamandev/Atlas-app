@@ -455,10 +455,16 @@ export const en = {
     addToCalendar: 'Add to my calendar',
     noFollowed: 'You are not following any calls yet',
     noEventsThisMonth: 'Nothing scheduled this month',
-    // NAMES THE CAUSE AND THE REMEDY. The month is empty because every type is
-    // switched off, not because the month is empty — saying the latter was the
-    // merge-gating defect this key exists to end.
-    allTypesHidden: 'Every event type is switched off — turn one back on to see this month.',
+    // NAMES THE CAUSE AND THE REMEDY: the grid is empty because the filter is
+    // hiding this month's events, not because the month has none — saying the
+    // latter was the merge-gating defect this key exists to end.
+    // ⚠ RENAMED FROM `allTypesHidden`, AND THE NAME MATTERED. That key said
+    // "every event type is switched off", which is only true in one of the two
+    // cases that reach here: a month whose events are ALL of a single
+    // filtered-away kind is hidden with a chip still switched on. Copy that
+    // narrates the wrong cause is the same defect class as copy that denies it.
+    monthHiddenByFilter:
+      "This month's events are all hidden by the type filter — turn a type back on to see them.",
   },
   chat: {
     title: 'Chat',

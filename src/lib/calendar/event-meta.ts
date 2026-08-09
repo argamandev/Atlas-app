@@ -81,44 +81,56 @@ export function kindLabel(
 /**
  * Why a calendar month is showing nothing.
  *
- * ⚠ THIS EXISTS BECAUSE THE PREVIOUS VERSION WAS A COMMENT, NOT A GUARD, AND IT
- * COULD NEVER FIRE. `CalendarView` seeds its filter set with the whole
- * vocabulary (`new Set(EVENT_KINDS)`) but only draws a chip for a kind that has
- * rows. Webinars have zero rows, so no webinar chip is drawn, so `webinar` can
- * never be removed from the set, so `kinds.size > 0` was permanently true — and
- * switching off both visible chips printed "nothing scheduled this month" over
- * a month holding 224 real events. The comment beside it claimed it guarded
- * exactly that case, and the evidence file claimed it was fixed. Neither was
- * checked against the one condition that mattered: what makes this FALSE?
+ * ⚠ TWO REVIEW ROUNDS DIED HERE. Read both before changing the signature.
  *
- * The remedy is `.claude/rules/app.md`'s: put the invariant at the single choke
- * point every result passes through. The decision is now one function over the
- * two sets, so "selected" and "selectable" cannot drift apart inside a
- * component — and a test can reach it, which a JSX condition could not.
+ * ROUND 1 — the decision was a JSX condition, `kinds.size > 0`, that could never
+ * be false: `CalendarView` seeds its filter set with the whole vocabulary
+ * (`new Set(EVENT_KINDS)`) but only draws a chip for a kind that HAS rows.
+ * Webinars have zero rows, so no webinar chip is drawn, so `webinar` can never
+ * be removed, so the set is never empty. Switching off both visible chips
+ * printed "nothing scheduled this month" over a month holding 224 real events.
+ *
+ * ROUND 2 — the fix moved the decision here, which was right, and then fed it a
+ * PROXY: whole-feed `presentKinds` intersected with the selected kinds. That
+ * answers "are any selectable kinds switched on?" when the question is "does
+ * THIS MONTH have anything the filter is hiding?". With one chip off and a month
+ * whose events are all of the filtered-away kind, it still returned 'no-events'
+ * — measured live: 2026-11 holds 2 reports and 0 calls, 2027-03 holds 1 and 0,
+ * so switching "Reports" off in November 2026 printed the same false sentence
+ * one click away. Worse, the test beside it ASSERTED that outcome, so the
+ * battery defended the defect.
+ *
+ * ⇒ THE INPUT IS NOW THE FACT ITSELF, not a stand-in for it. Two counts over the
+ * same month and the same non-kind scope: what survives every filter, and what
+ * the month holds before the kind chips are applied. Their relationship IS the
+ * answer, so there is no vocabulary, no set arithmetic, and nothing that can
+ * drift out of step with what is on screen.
+ *
+ * THE LESSON, which is an addendum to `.claude/rules/app.md`'s choke-point rule:
+ * a choke point is only as honest as its inputs. Given a proxy for the fact it
+ * is deciding about, it will decide confidently and wrongly — and a test written
+ * beside it will make that permanent.
  */
-export type CalendarEmptyState = 'none' | 'no-events' | 'all-filters-off'
+export type CalendarEmptyState = 'none' | 'no-events' | 'filtered-away'
 
 export function calendarEmptyState(input: {
-  /** Events left in the visible month after filtering. */
-  monthCount: number
-  /** Kinds that actually have rows — i.e. the kinds a chip is drawn for. */
-  presentKinds: Iterable<EventKind>
-  /** Kinds currently switched on, which may include kinds that have no chip. */
-  selectedKinds: Iterable<EventKind>
+  /** Events in the displayed month that survive EVERY filter — what is on screen. */
+  visibleCount: number
+  /**
+   * Events in the displayed month before the KIND chips are applied, within the
+   * same mode scope as `visibleCount` (all calls, or only followed ones).
+   * Must be counted over the same month window, or the comparison is meaningless.
+   */
+  monthTotal: number
 }): CalendarEmptyState {
-  if (input.monthCount > 0) return 'none'
+  // Something is on screen, so no empty state applies.
+  if (input.visibleCount > 0) return 'none'
 
-  const present = new Set(input.presentKinds)
-  const selected = new Set(input.selectedKinds)
-  // Only kinds the user can SEE and TOGGLE count. A selected kind with no rows
-  // is invisible on screen and must never stand in for a deliberate choice.
-  // `Array.from` rather than spread: this repo's tsconfig target predates
-  // downlevel iteration, so `[...set]` is a compile error here.
-  const selectable = Array.from(selected).filter((k) => present.has(k))
+  // The month genuinely holds nothing — MAYA only covers 2025-2026, so an
+  // analyst paging outside that range meets this often and it is the truth.
+  if (input.monthTotal <= 0) return 'no-events'
 
-  // Emptiness caused by the filter is a different sentence from emptiness
-  // caused by the data, and only one of them is true at a time. When there is
-  // nothing to filter in the first place, the month is empty for a data reason.
-  if (present.size > 0 && selectable.length === 0) return 'all-filters-off'
-  return 'no-events'
+  // The month HAS events and none of them survived the filter. Saying "nothing
+  // is scheduled" here is a statement about the data that the data contradicts.
+  return 'filtered-away'
 }

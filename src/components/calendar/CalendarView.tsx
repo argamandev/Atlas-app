@@ -60,9 +60,13 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   }, [])
   const [month, setMonth] = useState(initialMonth)
 
-  const visible = (mode === 'mine' ? calls.filter((c) => followed.has(c.id)) : calls).filter((c) =>
-    kinds.has(eventKind(c))
-  )
+  // TWO SETS, ON PURPOSE. `inScope` is everything the current MODE covers before
+  // the kind chips are applied; `visible` is what survives them. The difference
+  // between their per-month counts is the only honest way to tell "nothing is
+  // scheduled" apart from "the filter is hiding it" — see `calendarEmptyState`,
+  // where deciding that from the chip sets instead cost two review rounds.
+  const inScope = mode === 'mine' ? calls.filter((c) => followed.has(c.id)) : calls
+  const visible = inScope.filter((c) => kinds.has(eventKind(c)))
 
   // ONLY OFFER A FILTER THAT CAN MATCH SOMETHING. The design has three chips;
   // the data has two kinds today (webinars are a later slice, founder decision
@@ -79,11 +83,23 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
     [visible, month]
   )
 
+  // The same month window over `inScope`, i.e. before the kind chips. Counted
+  // here rather than derived, so it cannot drift from `monthCount` above.
+  const monthTotal = useMemo(
+    () =>
+      inScope.filter((c) => {
+        const d = new Date(c.scheduledAt)
+        return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth()
+      }).length,
+    [inScope, month]
+  )
+
   // ONE DECISION, MADE ONCE, TESTABLE. See `calendarEmptyState` for why this is
-  // not a condition written inline at the render site any more.
+  // not a condition written inline at the render site any more — and why it is
+  // fed these two counts rather than the chip sets.
   const emptyState = useMemo(
-    () => calendarEmptyState({ monthCount, presentKinds, selectedKinds: kinds }),
-    [monthCount, presentKinds, kinds]
+    () => calendarEmptyState({ visibleCount: monthCount, monthTotal }),
+    [monthCount, monthTotal]
   )
 
   const byDay = useMemo(() => {
@@ -424,26 +440,29 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
           </div>
         </div>
 
-        {mode === 'mine' && visible.length === 0 && (
+        {/* ONE PRECEDENCE CHAIN, BOTH MODES. An empty grid is ambiguous between
+            "you follow nothing", "nothing is scheduled" and "your filter hid it",
+            and exactly one of those is true at a time — so they are answered in
+            order rather than as independent conditions that can both fire or
+            both stay silent.
+            ⚠ TWO ROUNDS OF HISTORY, because the next person to touch this will be
+            tempted by the same shortcuts. Round 1 gated on `kinds.size > 0`,
+            which is PERMANENTLY true (the set is seeded with all three kinds and
+            `webinar` has no rows, so it draws no chip and can never be switched
+            off) — both visible chips off printed "nothing scheduled" over 224 real
+            events. Round 2 moved the decision into `calendarEmptyState` (right)
+            and fed it the chip sets (wrong), which still lied whenever a month's
+            events were ALL of the filtered-away kind. It now takes two counts.
+            ⚠ AND `noFollowed` NO LONGER KEYS ON `visible`: that was kind-filtered,
+            so switching the chips off told a user who follows calls that they
+            follow none. It keys on `inScope`, which is the actual claim. */}
+        {mode === 'mine' && inScope.length === 0 ? (
           <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noFollowed}</p>
-        )}
-        {/* A MONTH WITH NOTHING IN IT SAYS WHY. An empty grid is ambiguous between
-            "nothing is scheduled", "the feed did not load" and "you filtered it
-            all out" — and MAYA only holds 2025-2026, so an analyst paging outside
-            that range meets the first one often.
-            ⚠ THE PREVIOUS VERSION OF THIS GATED ON `kinds.size > 0`, WHICH IS
-            PERMANENTLY TRUE: the set is seeded with all three kinds and `webinar`
-            has no rows, so it draws no chip and can never be switched off. Turning
-            both visible chips off printed "nothing scheduled this month" over 224
-            real events. The decision now lives in `calendarEmptyState`, which a
-            test can reach — a JSX condition could not, which is how a guard and a
-            comment claiming it worked survived two review rounds. */}
-        {mode === 'all' && emptyState === 'no-events' && (
+        ) : emptyState === 'no-events' ? (
           <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noEventsThisMonth}</p>
-        )}
-        {mode === 'all' && emptyState === 'all-filters-off' && (
-          <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.allTypesHidden}</p>
-        )}
+        ) : emptyState === 'filtered-away' ? (
+          <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.monthHiddenByFilter}</p>
+        ) : null}
       </div>
     </div>
   )
