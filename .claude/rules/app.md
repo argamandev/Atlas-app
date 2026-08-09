@@ -176,6 +176,29 @@
   nobody had ever rendered. What finally closed it was driving **nine** states in a browser in
   both locales — see `docs/evidence/fix-calendar-empty-state/`. Iron rule 3 is not paperwork:
   for anything that decides what a screen SAYS, enumerate the states and go and look at each one.
+- **NEVER FORMAT AN INSTANT WITHOUT A `timeZone`. A SERVER COMPONENT FORMATS ON THE SERVER, AND
+  THE SERVER IS NOT IN ISRAEL.** Found 2026-08-09 by opening the deployed site: `www.timlul-ai.com`
+  Home listed **every investor call three hours early** — יעקב פיננסים's Q2 call read `07:00`
+  against a DB row of `2026-08-10T07:00Z`, which is `10:00` in Jerusalem — while `/app/calendar`
+  rendered the same event as `10:00`. **Two surfaces, one event, three hours apart, live.**
+  The mechanism is the part to remember: `formatTime`/`formatDate` pinned no `timeZone`, so they
+  used the RUNTIME's. Home is a **Server Component**, so it formatted on Railway in UTC and passed
+  the client a **finished string**, which the browser never re-formats — while `CalendarView` is
+  `'use client'` and formatted in the viewer's browser, correctly. **So the bug was invisible on
+  every machine it was developed on, because they are all in Israel**, and invisible to `tsc`, to
+  the build, and to 610 passing tests.
+  **THE LAW (founder decision 2026-08-09, filed in cross-cutting): Atlas renders ISRAEL TIME for
+  every viewer in every timezone** — TASE and Israeli issuers publish that way, and it makes it
+  impossible for two surfaces to disagree. `src/lib/i18n/format.ts` pins `ISRAEL_TZ` and exports
+  `israelDayKey` / `israelMonthParts`; **use those for any day/month bucketing**, because local
+  date parts put a report stored at Israel midnight on the previous day for any viewer west of
+  Israel and a late call on the next day for any viewer east.
+  **⇒ THE TEST DISCIPLINE THIS EARNS, and it generalises past timezones: run the battery under
+  `TZ=UTC` as well as locally.** A test that only ever runs in one environment asserts that
+  environment, not the property — the whole battery passed while production was wrong. It is green
+  in both now (618/618), and removing the pin turns 7 of the 8 new `format.test.ts` cases red under
+  `TZ=UTC`. Same class, still open and filed: `lib/db/calls.ts` `scope:'upcoming'` floors at UTC
+  midnight, and the calendar's today-pill still reads the viewer's local day.
 - **`player.load()` does not give the `<audio>` its source until the NEXT render — so `load()`
   then `play()` in one handler plays NOTHING.** `load()` only sets React state; an effect points
   the element at the URL and calls `a.load()` a render later, which rejects (and then aborts) a
