@@ -561,6 +561,16 @@ export const en = {
     reportPdf: 'Report PDF',
     slides: 'Slides',
     noReports: 'No calls on record yet.',
+    // The documents catalog (2026-08-09): years listed, a year fetched only when opened.
+    documentsHint: 'Pick a year to see the reports and presentations filed in it',
+    yearLoading: 'Loading filings from TASE…',
+    yearEmpty: 'No filings found for this year',
+    yearFailed: 'We could not load this year',
+    retry: 'Try again',
+    annual: 'Annual',
+    openingDoc: 'Fetching the document from TASE…',
+    openFailed: 'We could not fetch this document',
+    noDocsThisPeriod: 'No documents for this period',
     webinarsExplainer:
       'Zoom webinars the company hosted outside its quarterly cycle — dated, not tied to a quarter. Each opens as a live-synced transcript with karaoke playback.',
     noWebinars: 'No webinars on record yet.',

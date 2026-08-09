@@ -452,6 +452,16 @@ export const he: Dictionary = {
     reportPdf: 'דוח PDF',
     slides: 'מצגת',
     noReports: 'אין עדיין שיחות מתועדות.',
+    // The documents catalog (2026-08-09): years listed, a year fetched only when opened.
+    documentsHint: 'בחרו שנה כדי לראות את הדוחות והמצגות שפורסמו',
+    yearLoading: 'טוען מסמכים מהבורסה…',
+    yearEmpty: 'לא נמצאו דוחות לשנה זו',
+    yearFailed: 'לא הצלחנו לטעון את השנה הזו',
+    retry: 'נסו שוב',
+    annual: 'שנתי',
+    openingDoc: 'מביא את המסמך מהבורסה…',
+    openFailed: 'לא הצלחנו להביא את המסמך',
+    noDocsThisPeriod: 'אין מסמכים לתקופה זו',
     webinarsExplainer:
       'וובינרים בזום שהחברה קיימה מחוץ למחזור הרבעוני — מתוארכים, לא משויכים לרבעון. כל אחד נפתח כתמלול חי עם נגינת קריוקי.',
     noWebinars: 'אין עדיין וובינרים מתועדים.',
