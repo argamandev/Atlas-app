@@ -13,11 +13,7 @@ import {
 } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 import { Tabs } from '@/components/ds/Tabs'
-import {
-  SparkleIcon,
-  ChevronLeftIcon,
-  VideoIcon,
-} from '@/components/ds/icons'
+import { SparkleIcon, ChevronLeftIcon, VideoIcon } from '@/components/ds/icons'
 import { Logo } from '@/components/ds/Logo'
 import { LIVE_DEMO_TICKER } from '@/lib/live/demoCompany'
 import { AddInvestorCall } from './AddInvestorCall'
@@ -83,7 +79,6 @@ export function CompanyView({
   const isLiveCompany = company.ticker === LIVE_DEMO_TICKER
   const onQuoteRemoved = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id))
 
-
   return (
     <div className="flex min-h-0 flex-1">
       <div className="atscroll min-w-0 flex-1 overflow-y-auto pb-dock">
@@ -138,19 +133,12 @@ export function CompanyView({
               </div>
             </div>
             <div className="flex flex-none flex-col items-end gap-[13px]">
-              {/* market status ornament (design lines 603-609) */}
-              <span className="flex items-center gap-[7px]">
-                <span className="font-mono-num text-[10px] uppercase tracking-[0.16em] text-live" dir="ltr">
-                  {dict.company.liveTase}
-                </span>
-                <span className="relative inline-flex h-[6px] w-[6px]">
-                  <span className="absolute inset-0 rounded-full bg-live" />
-                  <span
-                    className="absolute -inset-1 rounded-full border border-live opacity-50"
-                    style={{ animation: 'atping 1.9s ease-out infinite' }}
-                  />
-                </span>
-              </span>
+              {/* The "LIVE · TASE" ornament that used to sit here is GONE (founder,
+                  2026-08-09). It was a design decoration that rendered for every
+                  company on every visit, with a pulsing dot, and it was wired to
+                  NOTHING — not to market hours, not to `isLiveCompany`, not to any
+                  broadcast. A permanent indicator that always says LIVE is telling
+                  the reader something Atlas never checked. */}
               <div className="flex items-center gap-2.5">
                 <AddInvestorCall companyId={company.id} />
                 <button
