@@ -577,11 +577,15 @@ question spanning two quarters gets a fluent answer built from one call, with no
 saying so. That is the silent-degradation class filed FIVE times in .claude/rules/app.md, and it
 is the founder's own red line: "not built yet" is fine, "the UI says something untrue" is not.
 
-⇒ SLICE 4 of Lane M's chapter 3 (smart chat over the archive) LANDS ON THIS SAME FLOOR. The agent
-chapter and V1's last slice are ONE architectural decision. Your spec covers both, or Atlas pays
-twice — and the second payment is a migration on a database SHARED WITH PRODUCTION Timlul under
-an additive-only law (rules/db.md). Coordinate with Lane M through the board; do not let SLICE 4
-start building a throwaway retrieval path.
+⇒ SLICE 4 of Lane M's chapter 3 (smart chat over the archive) LANDS ON THIS SAME FLOOR, and the
+FOUNDER HAS DECIDED THEY ARE ONE PIECE OF WORK (cross-cutting 2026-08-09 18:05, his words: "I want
+to create here something amazing that will work amazingly for the two of them"). So SMART CHAT IS
+A FIRST-CLASS DELIVERABLE OF THIS SPEC, not a downstream consumer of it. Design the foundation so
+that chat is the FIRST thing standing on it — it is the smaller surface, it ships sooner, and it
+is how you find out whether the retrieval design is any good BEFORE an agent runtime is built on
+top of a wrong one. If the spec cannot say how chat answers "which companies talked about M&A last
+quarter", it is not finished. Atlas otherwise pays for retrieval twice, and the second payment is
+a migration on a database SHARED WITH PRODUCTION Timlul under an additive-only law (rules/db.md).
 
 HOW YOU WORK: superpowers:brainstorming, with the founder in the room. He is a solo non-engineer
 — explain the why in plain language, surface the risky and expensive choices first, and give a
@@ -608,6 +612,18 @@ THE QUESTIONS, IN ORDER — the ordering is deliberate, do not jump to 4:
       the user's own workspace/quotes/projects. Then the seam that governs the whole design:
       docs/DATA-MODEL.md — company data is SHARED, everything a user makes is THEIRS. An agent
       reads across both and must never leak the second between users. Say how.
+      ⚠ ONE CONCRETE SCHEMA GAP IS ALREADY KNOWN AND IT IS YOURS, NOT THE DEFERRED CATALOG'S.
+      `company_documents` HAS NO PUBLICATION DATE — verified against the live DB 2026-08-09; the
+      columns are id, company_id, quarter(text), doc_type, title, source, storage_path, page_count,
+      lang, created_at, updated_at, maya_report_id. `created_at` is when ATLAS INGESTED the row,
+      a different fact: the 12 live rows were ingested over three weeks and say nothing about when
+      the issuer published. Every honest Q1 answer ("I have this issuer through Q2 2026", "nothing
+      filed since March") IS A CLAIM ABOUT PUBLICATION DATES, so freshness read off `created_at`
+      would call a 2024 filing ingested yesterday current. The founder deferred the catalog SCREEN
+      on 2026-08-09; the COLUMN travels with your foundation instead — 12 rows across 3 companies,
+      11 carrying maya_report_id, so MAYA can supply the real date. It is the cheapest it will
+      ever be, and the DB is shared with production under an additive-only law. Decide the column
+      and `lib/maya/ingestFiling.ts`'s upsert key here.
 
   Q3. RETRIEVAL ARCHITECTURE — the real fork, and a SCHEMA decision, which is the one category
       the founder has said never to defer. Vector layer (pgvector in the shared Supabase: new
