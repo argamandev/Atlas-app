@@ -84,7 +84,10 @@ export default async function PeriodPage({
         companyNameEn: company.nameEn,
         logoUrl: company.logoUrl,
         quarter: period,
-        date: '',
+        // No call happened, so there is no call date — the honest date for this
+        // screen is when the issuer PUBLISHED what it is showing. Empty when we
+        // could not list the catalog, which formatDate renders as nothing.
+        date: entry?.report?.publishedISO ?? entry?.slides?.publishedISO ?? '',
         isLive: false,
         audioUrl: null,
         companyId: company.id,

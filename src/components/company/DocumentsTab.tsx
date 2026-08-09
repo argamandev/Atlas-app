@@ -117,9 +117,11 @@ export function DocumentsTab({
           <span className="text-xs text-ink-faint">{label}</span>
         </span>
         {dateISO && (
-          <span className="font-mono-num flex-none text-xs text-ink-faint" dir="ltr">
-            {formatDate(dateISO, locale)}
-          </span>
+          // <bdi>, NOT dir="ltr". The Hebrew date is "31 במרץ 2024" — a MIXED
+          // run, and forcing LTR on it transposed the day and the month to
+          // "במרץ 31 2024". rules/app.md, and this is its 4th occurrence:
+          // dir belongs on the container, each mixed run gets its own <bdi>.
+          <bdi className="flex-none text-xs text-ink-faint">{formatDate(dateISO, locale)}</bdi>
         )}
       </Link>
       {trailing}
@@ -150,10 +152,12 @@ export function DocumentsTab({
                 <span className="font-mono-num text-sm font-semibold text-ink" dir="ltr">
                   {year}
                 </span>
-                {isOpen && state?.status === 'ready' && state.periods.length > 0 && (
-                  <span className="font-mono-num text-xs text-ink-faint" dir="ltr">
+                {/* Shown only for 2+, so the English never reads "1 quarters".
+                    <bdi> because the count sits beside a Hebrew word. */}
+                {isOpen && state?.status === 'ready' && state.periods.length > 1 && (
+                  <bdi className="text-xs text-ink-faint">
                     · {state.periods.length} {dict.company.quartersLabel}
-                  </span>
+                  </bdi>
                 )}
               </button>
 

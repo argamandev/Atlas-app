@@ -102,14 +102,34 @@ export function greetingKey(date = new Date()): GreetingKey {
   return 'evening'
 }
 
+/**
+ * AN INSTANT WE DO NOT HAVE FORMATS AS NOTHING, NOT AS A CRASH.
+ *
+ * `Intl.DateTimeFormat().format(new Date(''))` throws `RangeError: Invalid time
+ * value`, which takes down whatever is rendering — and a missing date is
+ * ordinary: a period reached from the documents catalog with no transcript has
+ * no call date at all. Found 2026-08-09 when that route 500'd behind 649
+ * passing tests, a clean tsc and a green build.
+ *
+ * Empty is also what the call sites were already written for: both read
+ * `[a, formatDate(...)].filter(Boolean)`. Returning '' is not hiding a failure —
+ * it is the honest rendering of "no date", and the alternative of inventing one
+ * (today, the epoch) is the fabrication class this codebase refuses.
+ */
+function isRealDate(d: Date): boolean {
+  return !Number.isNaN(d.getTime())
+}
+
 export function formatTime(d: Date | string, locale: Locale): string {
+  const date = asDate(d)
+  if (!isRealDate(date)) return ''
   // V2 (Claude Design): times are mono data — always 24h ("14:00"), both locales.
   return new Intl.DateTimeFormat(localeTag[locale], {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
     timeZone: ISRAEL_TZ,
-  }).format(asDate(d))
+  }).format(date)
 }
 
 export function formatDate(
@@ -117,9 +137,11 @@ export function formatDate(
   locale: Locale,
   opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
 ): string {
+  const date = asDate(d)
+  if (!isRealDate(date)) return '' // see isRealDate — a missing date is not a crash
   // `timeZone` last so it cannot be overridden by a caller's opts — a report
   // stored at Israel midnight reads as the PREVIOUS day in UTC.
-  return new Intl.DateTimeFormat(localeTag[locale], { ...opts, timeZone: ISRAEL_TZ }).format(asDate(d))
+  return new Intl.DateTimeFormat(localeTag[locale], { ...opts, timeZone: ISRAEL_TZ }).format(date)
 }
 
 export function formatMonthYear(d: Date, locale: Locale): string {

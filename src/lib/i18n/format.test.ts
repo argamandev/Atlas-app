@@ -138,3 +138,31 @@ test('israelDayStart: every day of 2026 starts at its own first instant (DST inc
   }
   assert.equal(checked, 365)
 })
+
+// A DATE WE DO NOT HAVE MUST NOT TAKE THE PAGE DOWN.
+//
+// Found 2026-08-09 by opening a period the catalog can reach: a quarter with a
+// report and a deck but NO transcript has no call date, and the viewer header
+// formats one. `Intl.DateTimeFormat().format(new Date(''))` throws
+// `RangeError: Invalid time value`, so the whole route 500'd — invisible to 649
+// passing tests, a clean tsc and a green build, because it lived in a state
+// nobody had rendered.
+//
+// Both call sites already wrote `[a, formatDate(...)].filter(Boolean)`, i.e.
+// they were built expecting an empty string. The formatter simply never
+// returned one. Empty is the honest answer for an instant we do not have;
+// crashing is not, and neither is inventing a date.
+test('formatDate returns empty for an instant we do not have, rather than throwing', () => {
+  assert.equal(formatDate('', 'en'), '')
+  assert.equal(formatDate('', 'he'), '')
+  assert.equal(formatDate('not a date', 'en'), '')
+})
+
+test('formatTime returns empty for an instant we do not have', () => {
+  assert.equal(formatTime('', 'en'), '')
+  assert.equal(formatTime('not a date', 'he'), '')
+})
+
+test('a real instant is unaffected', () => {
+  assert.equal(formatDate('2026-08-09T09:00:00Z', 'en'), 'Aug 9, 2026')
+})
