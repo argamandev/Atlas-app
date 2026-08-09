@@ -277,6 +277,25 @@
   The wider lesson is the same one this file keeps filing: **a green typecheck/build is not
   evidence that a page renders.** Load the route in a browser, or at minimum watch the dev-server
   log return 200 for that exact URL.
+- **THIS REPO HAS NO `.gitattributes` WHILE `core.autocrlf=true`, SO A WORKING TREE CAN BE CRLF
+  WHILE EVERY BLOB IS LF — AND A SCRIPTED EDIT WILL SILENTLY MATCH NOTHING.** Graduated by
+  fleet-lint 2026-08-10 after TWO distinct defects with this one root cause inside a single
+  chapter (`feat/documents-catalog`), neither caught by tsc, tests or the build:
+  (1) **a multi-line scripted edit did not apply at all**, and the lane committed a message
+  asserting the fix — the pattern was written with `\n` and the file held `\r\n`, so it matched
+  zero times and reported success. Caught only in a browser, afterwards.
+  (2) **both i18n dictionaries were committed CRLF into the LF repo**, each carrying one BARE
+  `\r` (a CR *not* followed by LF) that welded two keys onto one physical line. A bare CR is a
+  legal TypeScript line terminator, so it typechecks and runs — it just turns a 30-line change
+  into **2774 lines of diff** and collides with any other lane touching the same file.
+  **The two commands, and neither is optional after a scripted edit:** `git diff --stat` against
+  `git diff -w --stat` — if they disagree wildly you rewrote line endings, not content; and
+  **grep for the RESULT you intended**, because a no-op edit and a perfect edit produce the same
+  silence. Same family as the `TZ=`/MSYS trap above and the "a count comes from a command" law:
+  the tool answered the question you typed, and the question you typed was not the one you meant.
+  **STILL OPEN, deliberately — it needs a founder/fleet decision, not a feature branch:** adding
+  `* text=auto eol=lf` would normalise this structurally, but it is a repo-wide behavioural change
+  and must not ride in on a feature merge.
 - **Mutable private resources are served `no-store`** — a bad response + long max-age once
   pinned a 0-byte PDF past the server-side fix; hard refresh does NOT purge fetch()-cached
   entries (purge needs `fetch(url,{cache:'reload'})`). Storage paths are stable per
