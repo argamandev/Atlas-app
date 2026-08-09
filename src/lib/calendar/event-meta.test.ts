@@ -5,6 +5,7 @@ import {
   kindLabel,
   kindFill,
   calendarEmptyState,
+  isFutureEvent,
   EVENT_KIND_META,
   EVENT_KINDS,
 } from './event-meta'
@@ -204,4 +205,43 @@ test('each kind gets its own name', () => {
 test('every kind in the vocabulary has a label — no kind falls through to a default', () => {
   const seen = new Set(EVENT_KINDS.map((k) => kindLabel(k, D)))
   assert.equal(seen.size, EVENT_KINDS.length)
+})
+
+// ── isFutureEvent — "next scheduled" on every company page ───────────────────
+//
+// Added by fix/israel-time-residue. This rule was inline in CompanyOverview and
+// floored to the VIEWER's local midnight, so no test could reach it and it was
+// wrong for anyone outside Israel. These assertions must hold under ANY TZ the
+// test process runs in — that is the property that was missing.
+
+test('isFutureEvent: a report due TODAY in Israel is still upcoming all day', () => {
+  // The row sits at Israel midnight on the 10th (= 21:00Z on the 9th) and has no
+  // published clock. "Now" is 08:00 Israel the same day.
+  // THE OLD CODE, RUN IN UTC, CALLED THIS PAST: its floor was 2026-08-10T00:00Z,
+  // three hours after the row's own timestamp.
+  const report = { scheduledAt: '2026-08-09T21:00:00Z', timeKnown: false }
+  const now = new Date('2026-08-10T05:00:00Z') // 08:00 Israel
+  assert.equal(isFutureEvent(report, now), true)
+})
+
+test("isFutureEvent: yesterday's report is past, even minutes into the new Israel day", () => {
+  const report = { scheduledAt: '2026-08-08T21:00:00Z', timeKnown: false } // Israel Aug 9
+  const now = new Date('2026-08-09T21:10:00Z') // 00:10 Israel on Aug 10
+  assert.equal(isFutureEvent(report, now), false)
+})
+
+test('isFutureEvent: a report LATER today counts, one 24h earlier does not', () => {
+  const now = new Date('2026-08-10T05:00:00Z')
+  assert.equal(isFutureEvent({ scheduledAt: '2026-08-09T21:00:00Z', timeKnown: false }, now), true)
+  assert.equal(isFutureEvent({ scheduledAt: '2026-08-10T21:00:00Z', timeKnown: false }, now), true)
+  assert.equal(isFutureEvent({ scheduledAt: '2026-08-07T21:00:00Z', timeKnown: false }, now), false)
+})
+
+test('isFutureEvent: a call WITH a published time is compared by instant, not by day', () => {
+  // 10:00 Israel on the 10th. At 08:00 Israel it is ahead; at 11:00 it is over,
+  // even though both are the same Israel day — which is the difference between
+  // the two branches, and why a day comparison alone would be wrong here.
+  const call = { scheduledAt: '2026-08-10T07:00:00Z', timeKnown: true }
+  assert.equal(isFutureEvent(call, new Date('2026-08-10T05:00:00Z')), true)
+  assert.equal(isFutureEvent(call, new Date('2026-08-10T08:00:00Z')), false)
 })

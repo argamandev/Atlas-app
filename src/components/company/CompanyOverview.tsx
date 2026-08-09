@@ -13,7 +13,7 @@ import { CalendarIcon, ClockIcon, PlayIcon, ChevronRightIcon } from '@/component
 import { formatDate, formatTime, formatRelativeDays } from '@/lib/i18n/format'
 import { companyLiveDisplay } from '@/lib/live/liveTiming'
 import { fetchCompanies } from '@/lib/api/companies'
-import { eventKind, kindLabel } from '@/lib/calendar/event-meta'
+import { eventKind, kindLabel, isFutureEvent } from '@/lib/calendar/event-meta'
 import { companyDisplayName, type Company, type ScheduledCall } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 
@@ -102,21 +102,12 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
     }
   }, [data.companyId])
 
-  // "Next scheduled" = the nearest FUTURE event (the calls feed can contain stale past rows).
-  //
-  // AN EVENT WITH NO PUBLISHED TIME IS COMPARED BY DAY, NOT BY INSTANT. Report
-  // dates are bucketed at midnight Israel time, so an instant comparison calls a
-  // report due TODAY "past" from one minute after midnight — the company page
-  // would skip today's publication all day and name a September event as next.
-  // The date is the fact for those rows; the clock is a storage artefact.
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-  const isFuture = (c: ScheduledCall) => {
-    const t = new Date(c.scheduledAt).getTime()
-    return c.timeKnown ? t > Date.now() : t >= startOfToday.getTime()
-  }
+  // "Next scheduled" = the nearest FUTURE event (the calls feed can contain
+  // stale past rows). The rule itself lives in `isFutureEvent`, which is unit
+  // tested — it used to be inline here, floored to the VIEWER's local midnight,
+  // and no test could reach it.
   const future = calls
-    .filter(isFuture)
+    .filter((c) => isFutureEvent(c))
     .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
   const nextCall = future[0] ?? null
   const restCalls = future.slice(1)

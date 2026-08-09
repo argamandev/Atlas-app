@@ -60,6 +60,37 @@ export function israelMonthParts(d: Date | string): { year: number; month: numbe
   return { year: p.year, month: p.month - 1 }
 }
 
+/** Minutes Israel is AHEAD of UTC at a given instant — +120 (IST) or +180 (IDT). */
+function israelOffsetMinutes(utcMs: number): number {
+  const p = israelParts(new Date(utcMs))
+  const wallAsUTC = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute)
+  // `israelParts` resolves to the minute, so compare against a floored instant
+  // rather than the raw one, or the seconds land in the offset.
+  return Math.round((wallAsUTC - Math.floor(utcMs / 60_000) * 60_000) / 60_000)
+}
+
+/**
+ * The instant at which an Israel calendar day BEGINS, as a real timestamp.
+ *
+ * The inverse of `israelDayKey`, and it exists for the one caller that needs a
+ * genuine instant rather than a key: `listCalls({scope:'upcoming'})` filters in
+ * SQL, and Postgres compares timestamps, not `YYYY-MM-DD` strings. Everywhere
+ * that can compare day KEYS should keep doing that — it needs no offset at all.
+ *
+ * ⚠ THE OFFSET IS PROBED, NEVER HARDCODED. Israel is UTC+2 in winter and UTC+3
+ * under DST, and the transition dates move each year. Reading the offset off the
+ * zone at the moment in question is the only version that survives them. The
+ * second pass settles the edge case where the first guess lands on the far side
+ * of a transition, which is exactly the day this would otherwise be wrong on.
+ */
+export function israelDayStart(dayKey: string): Date {
+  const [y, m, d] = dayKey.split('-').map(Number)
+  const midnightAsUTC = Date.UTC(y, m - 1, d, 0, 0)
+  let ms = midnightAsUTC - israelOffsetMinutes(midnightAsUTC) * 60_000
+  ms = midnightAsUTC - israelOffsetMinutes(ms) * 60_000
+  return new Date(ms)
+}
+
 export type GreetingKey = 'morning' | 'afternoon' | 'evening'
 
 export function greetingKey(date = new Date()): GreetingKey {

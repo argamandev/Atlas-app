@@ -1,6 +1,7 @@
 import 'server-only'
 import { supabaseAdmin } from '@/lib/supabase'
 import { resolveCompanyLogo } from '@/lib/db/companies'
+import { israelDayKey, israelDayStart } from '@/lib/i18n/format'
 import type { CompanyLite, ScheduledCall } from '@/lib/api/types'
 
 const CALL_COLS =
@@ -104,8 +105,13 @@ export async function listCalls({
     if (companyId) query = query.eq('company_id', companyId)
     if (scope === 'live') query = query.eq('status', 'live')
     if (scope === 'upcoming') {
-      const startOfToday = new Date()
-      startOfToday.setHours(0, 0, 0, 0)
+      // "UPCOMING" STARTS AT ISRAEL MIDNIGHT, and this file runs on the SERVER —
+      // where `setHours(0,0,0,0)` meant UTC midnight on Railway. That floor sits
+      // 2-3 hours AFTER the Israel day begins, and report rows are stored AT
+      // Israel midnight (21:00Z or 22:00Z the previous day), so every report due
+      // TODAY fell below the cut-off and no surface listed it. A call scheduled
+      // between midnight and 03:00 Israel time vanished the same way.
+      const startOfToday = israelDayStart(israelDayKey(new Date()))
       query = query.gte('scheduled_at', startOfToday.toISOString()).neq('status', 'ended')
     }
 

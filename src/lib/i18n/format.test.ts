@@ -7,6 +7,7 @@ import {
   greetingKey,
   israelDayKey,
   israelMonthParts,
+  israelDayStart,
 } from './format'
 
 // ── Israel time, always ──────────────────────────────────────────────────────
@@ -88,4 +89,52 @@ test("the greeting follows Israel hours, not the server's", () => {
   assert.equal(greetingKey(new Date('2026-08-09T10:00:00Z')), 'afternoon')
   assert.equal(greetingKey(new Date('2026-08-09T20:00:00Z')), 'evening')
   assert.equal(greetingKey(new Date('2026-08-09T04:00:00Z')), 'morning')
+})
+
+// ── israelDayStart — the inverse of israelDayKey ─────────────────────────────
+//
+// Added by fix/israel-time-residue. The hotfix pinned the FORMATTERS to Israel
+// time; three places that COMPARE dates were left reading the runtime's
+// midnight, and `listCalls({scope:'upcoming'})` was the one that needed a real
+// instant rather than a day key, because it filters in SQL.
+
+test('israelDayStart: an Israel day begins before UTC midnight, by its real offset', () => {
+  // August: Israel is UTC+3, so the day starts at 21:00Z the evening before.
+  assert.equal(israelDayStart('2026-08-10').toISOString(), '2026-08-09T21:00:00.000Z')
+  // January: UTC+2, so 22:00Z. A hardcoded offset gets exactly one of these right.
+  assert.equal(israelDayStart('2026-01-14').toISOString(), '2026-01-13T22:00:00.000Z')
+})
+
+test('israelDayStart: THE BUG — UTC midnight is 2-3 hours LATE, which hid every report due today', () => {
+  // Report rows carry no clock and are stored AT Israel midnight. The old
+  // `setHours(0,0,0,0)` running on Railway floored to UTC midnight, which is
+  // AFTER the row's own timestamp — so today's reports fell below the cut-off
+  // and no surface listed them.
+  const report = Date.parse('2026-08-09T21:00:00Z') // = 2026-08-10T00:00 Israel
+  const utcMidnight = Date.parse('2026-08-10T00:00:00Z')
+  assert.ok(report < utcMidnight, 'precondition: the row sorts BEFORE UTC midnight')
+  assert.ok(
+    report >= israelDayStart('2026-08-10').getTime(),
+    'a report due today must survive the upcoming filter'
+  )
+})
+
+test('israelDayStart: every day of 2026 starts at its own first instant (DST included)', () => {
+  // A PROPERTY, not a table of dates I believe in: the returned instant must be
+  // inside the requested Israel day, and one millisecond earlier must not be.
+  // That is the definition of "the day starts here", and it holds across both
+  // 2026 transitions without this test having to know when they are.
+  let checked = 0
+  for (let t = Date.UTC(2026, 0, 1, 12); t <= Date.UTC(2026, 11, 31, 12); t += 86_400_000) {
+    const key = israelDayKey(new Date(t))
+    const start = israelDayStart(key)
+    assert.equal(israelDayKey(start), key, `${key}: start is not inside its own day`)
+    assert.notEqual(
+      israelDayKey(new Date(start.getTime() - 1)),
+      key,
+      `${key}: the millisecond before the start is still the same day`
+    )
+    checked++
+  }
+  assert.equal(checked, 365)
 })
