@@ -466,7 +466,8 @@ export const he: Dictionary = {
       'וובינרים בזום שהחברה קיימה מחוץ למחזור הרבעוני — מתוארכים, לא משויכים לרבעון. כל אחד נפתח כתמלול חי עם נגינת קריוקי.',
     noWebinars: 'אין עדיין וובינרים מתועדים.',
     askAtlas: 'שאלו את אטלס',
-    quartersLabel: 'רבעונים',    viewAll: 'הצגת הכול',
+    quartersLabel: 'רבעונים',
+    viewAll: 'הצגת הכול',
     // ראו ההערה ב-en.ts: הרשימה אינה "דומות" — אין לנו נתוני ענף כדי לחשב דמיון.
     // MAYA's own company page heads this section אודות החברה — same words, so a
     // user moving between the two reads one label, not a translation of one.

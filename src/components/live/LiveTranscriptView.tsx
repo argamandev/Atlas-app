@@ -486,7 +486,7 @@ export function LiveTranscriptView({
         activeSegmentIndex={activeSegmentIndex}
         onSeek={seek}
         companyName={name}
-        sub={[call.quarter, formatDate(call.date, locale)].filter(Boolean).join(' · ')}
+        subParts={[call.quarter, formatDate(call.date, locale)].filter(Boolean)}
         isLive={call.isLive}
         // stays open when the chat dock slides in (design keeps it; collapsing it too made
         // the whole frame lurch left when Ask Atlas opened)
@@ -504,9 +504,14 @@ export function LiveTranscriptView({
             <span className="call-ink max-w-[460px] truncate text-[13.5px] font-semibold">
               <span dir="auto">{title}</span>
             </span>
-            <span className="call-muted flex-none font-mono-num text-[11.5px]" dir="ltr">
+            {/* <bdi>, NOT dir="ltr". In Hebrew this is "31 במרץ 2024" — a MIXED
+                run, not a bare numeral, and dir="ltr" throws the day to the wrong
+                end ("במרץ 31 2024"). The period page feeds a filing's publication
+                date straight into this header, so it is the catalog's own screen.
+                5th occurrence of the rule in .claude/rules/app.md. */}
+            <bdi className="call-muted flex-none font-mono-num text-[11.5px]">
               {formatDate(call.date, locale)}
-            </span>
+            </bdi>
             {call.isLive && (
               <span className="flex flex-none items-center gap-1.5">
                 <span

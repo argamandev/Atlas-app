@@ -15,7 +15,7 @@ export function TranscriptSidePanel({
   activeSegmentIndex,
   onSeek,
   companyName,
-  sub,
+  subParts,
   isLive = false,
   collapsed,
   onToggleCollapsed,
@@ -24,7 +24,8 @@ export function TranscriptSidePanel({
   activeSegmentIndex: number
   onSeek: (start: number) => void
   companyName: string
-  sub?: string
+  /** Kept as separate runs, never pre-joined — the line is bidi-mixed. See below. */
+  subParts?: string[]
   isLive?: boolean
   collapsed: boolean
   onToggleCollapsed: () => void
@@ -103,9 +104,19 @@ export function TranscriptSidePanel({
           <h2 className="call-ink truncate text-[13px] font-semibold leading-[1.4]" dir="auto">
             {companyName}
           </h2>
-          {sub && (
-            <div className="call-muted mt-1 truncate font-mono-num text-[11.5px]" dir="ltr">
-              {sub}
+          {/* The parts arrive SEPARATE, not pre-joined, because this line mixes
+              directions: "Q1 2026" is Latin and "31 במרץ 2024" is Hebrew. dir="ltr"
+              on the line threw the Hebrew date's day to the wrong end. Each run gets
+              its own <bdi> (which is dir="auto", so each resolves independently) and
+              the container keeps the locale's direction. rules/app.md. */}
+          {subParts && subParts.length > 0 && (
+            <div className="call-muted mt-1 truncate font-mono-num text-[11.5px]">
+              {subParts.map((part, i) => (
+                <span key={part}>
+                  {i > 0 && ' · '}
+                  <bdi>{part}</bdi>
+                </span>
+              ))}
             </div>
           )}
         </div>

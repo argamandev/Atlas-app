@@ -575,7 +575,8 @@ export const en = {
       'Zoom webinars the company hosted outside its quarterly cycle — dated, not tied to a quarter. Each opens as a live-synced transcript with karaoke playback.',
     noWebinars: 'No webinars on record yet.',
     askAtlas: 'Ask Atlas',
-    quartersLabel: 'quarters',    viewAll: 'View all',
+    quartersLabel: 'quarters',
+    viewAll: 'View all',
     about: 'About',
     website: 'Website',
     // NOT "Related": the list is the first four companies the feed returns, and
