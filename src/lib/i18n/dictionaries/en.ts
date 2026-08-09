@@ -454,6 +454,26 @@ export const en = {
     ctxKindWebinar: 'Webinar',
     addToCalendar: 'Add to my calendar',
     noFollowed: 'You are not following any calls yet',
+    noEventsThisMonth: 'Nothing scheduled this month',
+    // NAMES THE CAUSE AND THE REMEDY: the grid is empty because the filter is
+    // hiding this month's events, not because the month has none — saying the
+    // latter was the merge-gating defect this key exists to end.
+    // ⚠ RENAMED FROM `allTypesHidden`, AND THE NAME MATTERED. That key said
+    // "every event type is switched off", which is only true in one of the two
+    // cases that reach here: a month whose events are ALL of a single
+    // filtered-away kind is hidden with a chip still switched on. Copy that
+    // narrates the wrong cause is the same defect class as copy that denies it.
+    monthHiddenByFilter:
+      "This month's events are all hidden by the type filter — turn a type back on to see them.",
+    // ⚠ THE `Mine` PAIR EXISTS BECAUSE A SCOPED VIEW NEEDS A SCOPED SENTENCE.
+    // In "My calendar" the month is measured over FOLLOWED calls only, so the
+    // two strings above — which speak about the schedule itself — are false
+    // whenever the month holds events the analyst does not follow. Naming the
+    // scope is the fix; suppressing the message in that mode was the previous
+    // behaviour and it traded a false sentence for an ambiguous blank.
+    noEventsThisMonthMine: 'Nothing in your calendar this month',
+    monthHiddenByFilterMine:
+      "Your calendar's events this month are all hidden by the type filter — turn a type back on to see them.",
   },
   chat: {
     title: 'Chat',
@@ -546,25 +566,21 @@ export const en = {
     noWebinars: 'No webinars on record yet.',
     askAtlas: 'Ask Atlas',
     quartersLabel: 'quarters',
-    indices: 'Indices',
     liveTase: 'Live · TASE',
-    irLabel: 'IR',
-    latestReportedQuarter: 'Latest reported quarter',
-    reportedResults: 'Reported results',
-    reportedOn: 'Reported',
-    readFromCall: 'read from the call',
-    fromTheCall: 'From the call',
-    speakerLabel: 'Speaker',
-    jumpToTranscript: 'Jump to {t} in transcript',
-    outlookRaised: 'Full-year outlook raised',
-    latestAnnouncements: 'Latest announcements',
     viewAll: 'View all',
-    askAboutResults: 'Ask Atlas about these results',
-    relatedCompanies: 'Related companies',
+    about: 'About',
+    website: 'Website',
+    // NOT "Related": the list is the first four companies the feed returns, and
+    // relatedness is not computable. Renamed 2026-08-09 when the directory went
+    // from 5 companies to 234 and "similar" became a visible claim about four
+    // arbitrary issuers.
+    // ⚠ THE REASON GIVEN HERE HAS EXPIRED, THE NAME HAS NOT. This said
+    // "4 of 234 companies have a sector"; it is now 234 of 234, so relatedness
+    // by sector IS computable and this list could become an honest "Similar
+    // companies". It is not one yet — the list is still the first four rows the
+    // feed returns — so the honest name stays until the query changes.
+    relatedCompanies: 'Other companies',
     relatedSub: 'on TASE',
-    tagImmediate: 'Immediate',
-    tagTransaction: 'Transaction',
-    tagFinancials: 'Financials',
   },
   live: {
     overview: 'Overview',

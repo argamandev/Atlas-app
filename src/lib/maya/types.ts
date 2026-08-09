@@ -50,6 +50,42 @@ export type MayaEnvelope<T> = {
 }
 
 /**
+ * A company profile row from `company-details` (MAYA product version 1.0.0).
+ *
+ * EVERY FIELD IS OPTIONAL ON PURPOSE. Measured across all 1,630 rows on
+ * 2026-08-09: `sector` was present on every one, `website` on 1,005, and
+ * `email`/`incorporation`/`securityIncludedIndices` are null on plenty. Typing
+ * the sparse ones as required would make the parser lie about the feed.
+ */
+export type MayaCompanyDetail = {
+  issuerId: number
+  issuerName?: string | null
+  /** Space-padded and hierarchical: `"ריאלי-מסחר ושרותים-שרותים          "`. */
+  sector?: string | null
+  /** The business description MAYA's own company page prints under אודות החברה. */
+  about?: string | null
+  /** Bare host, no scheme: `"www.tigbur.co.il"`. */
+  website?: string | null
+  address?: string | null
+  zip?: string | null
+  phone?: string | null
+  fax?: string | null
+  email?: string | null
+  incorporation?: string | null
+  /** Index membership with weights. Not consumed yet — it needs a table of its own. */
+  securityIncludedIndices?: { securityId: number; indexCd: number; weight: number; factor: number }[] | null
+}
+
+/**
+ * `company-details` does NOT use `MayaEnvelope`. It answers
+ * `{ getCompanyDetails: { result: [...], total: n } }`, which is why this has
+ * its own type rather than reusing the one every other endpoint shares.
+ */
+export type MayaCompanyDetailsResponse = {
+  getCompanyDetails?: { result?: MayaCompanyDetail[] | null; total?: number } | null
+}
+
+/**
  * Why a call did not produce data.
  *
  * A DISCRIMINATED UNION RATHER THAN AN Error, because the callers must answer

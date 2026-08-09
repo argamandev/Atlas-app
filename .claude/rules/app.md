@@ -111,9 +111,26 @@
   uses TWO system stacks — body = SF Pro Text stack (→ Segoe UI on Windows), headlines
   (`fontFamily.head`) = SF Pro Display stack WITHOUT system-ui (→ Arial on Windows). Bundle CSS
   can be a stale iteration of the design.
-- **Company-overview extras + Home quarter tag are STUB-FED** (`lib/company/overview-stub.ts`,
-  hardcoded "Q2 2026" on Home) — fabricated demo facts on real pages. Must gain demo markers /
-  real feeds before launch (FINDINGs filed 2026-07-14). Same class: a failed `/api/documents`
+- **✅ CLOSED 2026-08-09 — the company-overview stubs and the Home quarter tag are GONE, replaced
+  by a real feed rather than by a demo marker.** `lib/company/overview-stub.ts` no longer exists
+  (`git ls-files` confirms) and the three `quarter="Q2 2026"` CALL SITES — Home, `/app/live/[id]`
+  and the Agents page — are removed.
+  ⚠ **CORRECTED 2026-08-09, same day, and the correction is the point:** this entry first read
+  *"every surviving `Q2 2026` in `src` is a comment explaining its own removal"*. That is FALSE.
+  `git grep -n "Q2 2026" -- src` returns **five live data literals** —
+  `src/data/demo/liveCall.ts:12`, `src/lib/agents/data.ts:98`, `src/lib/live/finishLiveCall.ts:332`
+  and `:363`, `src/lib/workspace/data.ts:82` — in demo/stub fixtures (the Agents page is still
+  stub-fed). Nothing user-facing regressed, but **a scoped law that overstates its own closure is
+  the exact failure this file exists to prevent**, and it was written into two documents before a
+  reviewer ran the grep without a `head` truncation on it. Claim the call sites, never the corpus.
+  The FINDINGs filed 2026-07-14 are closed by `feat/company-profiles`: sector,
+  sub-sector and description now come from MAYA's `company-details` and are populated for
+  **234 of 234** companies. **The rule that outlived them, and the reason this entry stays:** the
+  fabricated IR contact and index chips were *identical for every issuer* and sat on a real page
+  with only a code comment admitting it — nothing on screen. Both are now restorable as facts
+  (`company-details` carries phone/email/address; `securityIncludedIndices` carries index
+  membership with weights), so if they return they return as data. **Do not re-add a stub to
+  fill a designed slot.** Same class, still open: a failed `/api/documents`
   fetch silently falls back to the fabricated stub report in FacetPanes (FINDING 2026-07-17);
   a >2MB Pinge snip renders as a chip client-side but is silently stripped server-side, model
   answers without the image (FINDING 2026-07-23). Recurring class: degradation must be VISIBLE

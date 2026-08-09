@@ -45,9 +45,14 @@ export default async function AgentsRoute() {
     })),
     Company: companies.map((c) => ({ id: `company:${c}`, label: c, meta: 'TASE' })),
     Sector: sectors.map((s) => ({ id: `sector:${s}`, label: s, meta: 'TASE' })),
+    // The label carried a hardcoded "Q2 2026" until 2026-08-09 — a period nothing
+    // here knows — and then briefly "<company> — Investor call", which names an
+    // event type a WORKSPACE may not be. A workspace has neither a quarter nor an
+    // event kind, so the target is named by its company and typed by the scope
+    // heading it already sits under.
     Call: workspaces.map((w) => ({
       id: `call:${w.id}`,
-      label: `${w.company} — Q2 2026 call`,
+      label: w.company,
       meta: w.updatedLabel,
     })),
     Report: Array.from(reports.values()),

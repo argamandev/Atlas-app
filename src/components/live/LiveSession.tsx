@@ -14,10 +14,12 @@ import { loginRedirectTarget } from '@/lib/auth/gate'
 export function LiveSession(props: {
   companyName: string
   companyId: string | null
-  quarter: string
   logoUrl: string | null
   delaySec: number
 }) {
+  // NOTE: this used to take a `quarter` prop that no line in this file ever read,
+  // and its only call site passed the hardcoded string "Q2 2026". Removed 2026-08-09
+  // rather than wired up — the live engine's /state carries no quarter to wire.
   const [phase, setPhase] = useState<'live' | 'finished'>('live')
   const [finishStatus, setFinishStatus] = useState<'idle' | 'processing' | 'ready' | 'failed'>('idle')
   const [finishedCall, setFinishedCall] = useState<LiveCall | null>(null)

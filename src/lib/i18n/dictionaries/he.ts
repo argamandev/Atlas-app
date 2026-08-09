@@ -360,6 +360,11 @@ export const he: Dictionary = {
     ctxKindWebinar: 'וובינר',
     addToCalendar: 'הוספה ליומן שלי',
     noFollowed: 'עדיין אינכם עוקבים אחר שיחות',
+    noEventsThisMonth: 'אין אירועים מתוכננים בחודש זה',
+    monthHiddenByFilter: 'אירועי החודש מוסתרים על ידי סינון הסוגים — הפעילו סוג כדי לראות אותם.',
+    noEventsThisMonthMine: 'אין אירועים ביומן שלכם בחודש זה',
+    monthHiddenByFilterMine:
+      'אירועי היומן שלכם בחודש זה מוסתרים על ידי סינון הסוגים — הפעילו סוג כדי לראות אותם.',
   },
   chat: {
     title: "צ'אט",
@@ -452,25 +457,15 @@ export const he: Dictionary = {
     noWebinars: 'אין עדיין וובינרים מתועדים.',
     askAtlas: 'שאלו את אטלס',
     quartersLabel: 'רבעונים',
-    indices: 'מדדים',
     liveTase: 'Live · TASE',
-    irLabel: 'IR',
-    latestReportedQuarter: 'הרבעון המדווח האחרון',
-    reportedResults: 'תוצאות שדווחו',
-    reportedOn: 'דווח',
-    readFromCall: 'נקרא מתוך השיחה',
-    fromTheCall: 'מתוך השיחה',
-    speakerLabel: 'דובר',
-    jumpToTranscript: 'מעבר ל־{t} בתמלול',
-    outlookRaised: 'התחזית השנתית הועלתה',
-    latestAnnouncements: 'הודעות אחרונות',
     viewAll: 'הצגת הכול',
-    askAboutResults: 'שאלו את אטלס על התוצאות',
-    relatedCompanies: 'חברות דומות',
+    // ראו ההערה ב-en.ts: הרשימה אינה "דומות" — אין לנו נתוני ענף כדי לחשב דמיון.
+    // MAYA's own company page heads this section אודות החברה — same words, so a
+    // user moving between the two reads one label, not a translation of one.
+    about: 'אודות החברה',
+    website: 'אתר החברה',
+    relatedCompanies: 'חברות נוספות',
     relatedSub: 'בבורסה',
-    tagImmediate: 'מיידי',
-    tagTransaction: 'עסקה',
-    tagFinancials: 'כספים',
   },
   live: {
     overview: 'סקירה',

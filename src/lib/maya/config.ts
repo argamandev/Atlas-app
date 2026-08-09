@@ -46,6 +46,28 @@ export const MAYA_MAX_PDF_BYTES = 40_000_000
 /** The disclosure catalog for one issuer. */
 export const PATH_DISCLOSURES_BY_ISSUER = '/api/v2/market-announcements/companies-disclosures/by-issuer'
 
+/**
+ * Company profiles — sector, description, website, contact.
+ *
+ * ⚠ NOTE THE PREFIX: `/v1/…`, with NO `/api`. This endpoint belongs to version
+ * **1.0.0** of the same MAYA product whose 2.0.0 serves every other path in this
+ * file, and the two versions are different APIs rather than a version bump. A
+ * `/api/v1/…` guess reaches an F5 WAF that answers 403 in HTML, which reads
+ * exactly like "no such endpoint" and is why this was believed not to exist for
+ * a day. See `docs/MAYA-API.md`.
+ *
+ * `issuerId` is OPTIONAL: omitting it returns all 1,630 companies in one
+ * request (~1.3 MB), which is the entire company universe and a strict superset
+ * of what `maya-refresh-issuers.ts --sweep` spends ~2,600 requests finding.
+ */
+export const PATH_COMPANY_DETAILS = '/v1/maya-reports-online/company-details'
+
+/**
+ * The public logo host. No API key, no cookie — the same host that serves
+ * filing attachments. Path is the issuer id zero-padded to six digits.
+ */
+export const MAYA_LOGO_BASE = 'https://mayafiles.tase.co.il/logos/he-IL'
+
 /** The reporting schedule — consumers ③ (calendar) and ④ (live calls). */
 export const PATH_SCHEDULE_BY_YEAR = '/api/v2/market-announcements/financial-report-schedule/by-report-year'
 export const PATH_SCHEDULE_BY_DATE = '/api/v2/market-announcements/financial-report-schedule/by-schedule-date'

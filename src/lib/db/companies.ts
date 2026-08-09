@@ -7,22 +7,13 @@ const COLS =
 
 type Row = Record<string, unknown>
 
-// Fallback logo mapping for seeds whose logo_url isn't set in the DB yet
-// (the תמיס/Themis logo was added late — see CLAUDE.md). Exported so call lists reuse it.
-export function resolveCompanyLogo(r: Row): string | null {
-  if (typeof r.logo_url === 'string' && r.logo_url) return r.logo_url
-  const byId: Record<string, string> = {
-    '1105022': '/logos/tigbur.jpg',
-    '1083955': '/logos/qualitau.png',
-    '1097229': '/logos/tamis.png',
-  }
-  const tid = typeof r.tase_security_id === 'string' ? r.tase_security_id : ''
-  if (tid && byId[tid]) return byId[tid]
-  const name = `${r.display_name ?? ''} ${r.name ?? ''}`
-  if (name.includes('רג')) return '/logos/rga.png'
-  if (name.includes('תמיס') || name.toLowerCase().includes('themis')) return '/logos/tamis.png'
-  return null
-}
+// Re-exported from `lib/company/logo.ts`, which is pure and therefore TESTED.
+// It lived here, behind this file's `server-only` import, where no test could
+// reach it — and the name-substring guess it used to contain put one company's
+// brand mark on another for months without failing a single gate. See that
+// file for the measurement and the rule.
+import { resolveCompanyLogo } from '@/lib/company/logo'
+export { resolveCompanyLogo }
 
 function mapCompany(r: Row): Company {
   return {

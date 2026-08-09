@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { companyDisplayName, type ScheduledCall } from '@/lib/api/types'
 import { setFollowCall } from '@/lib/api/calls'
@@ -15,7 +15,16 @@ import {
   CalMicIcon,
   CalWebinarIcon,
 } from '@/components/ds/icons'
-import { eventKind, EVENT_KINDS, EVENT_KIND_META, type EventKind } from '@/lib/calendar/event-meta'
+import { Logo } from '@/components/ds/Logo'
+import {
+  eventKind,
+  kindLabel,
+  kindFill,
+  calendarEmptyState,
+  EVENT_KINDS,
+  EVENT_KIND_META,
+  type EventKind,
+} from '@/lib/calendar/event-meta'
 import { cn } from '@/lib/utils'
 
 function dayKey(iso: string): string {
@@ -41,17 +50,83 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   const [kinds, setKinds] = useState<Set<EventKind>>(new Set(EVENT_KINDS))
   const [dropActive, setDropActive] = useState(false)
 
-  // default to the month of the earliest call (the seeded Q2 calls), else today
+  // OPEN ON THIS MONTH. This used to open on the month of the EARLIEST call,
+  // which was harmless with four seeded rows and wrong the moment real data
+  // landed: the feed starts in January 2025, so the calendar would have opened
+  // nineteen months in the past and looked empty.
   const initialMonth = useMemo(() => {
-    const first = calls.map((c) => new Date(c.scheduledAt)).sort((a, b) => a.getTime() - b.getTime())[0]
-    const d = first ?? new Date()
-    return new Date(d.getFullYear(), d.getMonth(), 1)
-  }, [calls])
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  }, [])
   const [month, setMonth] = useState(initialMonth)
 
-  const visible = (mode === 'mine' ? calls.filter((c) => followed.has(c.id)) : calls).filter((c) =>
-    kinds.has(eventKind(c))
+  // TWO SETS, ON PURPOSE. `inScope` is everything the current MODE covers before
+  // the kind chips are applied; `visible` is what survives them. The difference
+  // between their per-month counts is the only honest way to tell "nothing is
+  // scheduled" apart from "the filter is hiding it" — see `calendarEmptyState`,
+  // where deciding that from the chip sets instead cost two review rounds.
+  const inScope = mode === 'mine' ? calls.filter((c) => followed.has(c.id)) : calls
+  const visible = inScope.filter((c) => kinds.has(eventKind(c)))
+
+  // ONLY OFFER A FILTER THAT CAN MATCH SOMETHING. The design has three chips;
+  // the data has two kinds today (webinars are a later slice, founder decision
+  // 2026-08-09). A chip for a kind with no rows is a claim that Atlas tracks
+  // something it does not, and clicking it just empties the grid.
+  const presentKinds = useMemo(() => new Set(calls.map((c) => eventKind(c))), [calls])
+
+  // ONE MONTH WINDOW, USED BY BOTH COUNTS. `calendarEmptyState`'s whole
+  // correctness rests on its two inputs being measured over the same window, so
+  // the window is defined once rather than written twice and kept in step by
+  // hand — the round's own lesson applied to the round's own caller.
+  const inThisMonth = useCallback(
+    (c: ScheduledCall) => {
+      const d = new Date(c.scheduledAt)
+      return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth()
+    },
+    [month]
   )
+
+  const monthCount = useMemo(() => visible.filter(inThisMonth).length, [visible, inThisMonth])
+  /** The same window over `inScope`, i.e. before the kind chips. */
+  const monthTotal = useMemo(() => inScope.filter(inThisMonth).length, [inScope, inThisMonth])
+
+  // ONE DECISION, MADE ONCE, TESTABLE. See `calendarEmptyState` for why this is
+  // not a condition written inline at the render site any more — and why it is
+  // fed these two counts rather than the chip sets.
+  const emptyState = useMemo(
+    () => calendarEmptyState({ visibleCount: monthCount, monthTotal }),
+    [monthCount, monthTotal]
+  )
+
+  /**
+   * ⚠ THE SENTENCE MUST NAME THE SCOPE IT IS TRUE IN.
+   *
+   * In "My calendar" both counts are measured over FOLLOWED calls only, so the
+   * unqualified "Nothing scheduled this month" — a claim about the feed — is
+   * false the moment the month holds events the analyst simply does not follow.
+   * Follow one call in December, page to November 2026, and the app would state
+   * that nothing is scheduled in a month the feed holds events for.
+   *
+   * That is this module's own defect one dimension over, and it was introduced
+   * by the fix for it: the previous version suppressed these messages outside
+   * `mode === 'all'`, which was silent but never wrong. A visible toggle does
+   * not excuse an unscoped claim about the data — so the copy carries the
+   * scope rather than the condition being narrowed back to one mode.
+   */
+  const scoped = mode === 'mine'
+  const emptyMessage =
+    scoped && inScope.length === 0
+      ? dict.calendar.noFollowed
+      : emptyState === 'no-events'
+        ? scoped
+          ? dict.calendar.noEventsThisMonthMine
+          : dict.calendar.noEventsThisMonth
+        : emptyState === 'filtered-away'
+          ? scoped
+            ? dict.calendar.monthHiddenByFilterMine
+            : dict.calendar.monthHiddenByFilter
+          : null
+
   const byDay = useMemo(() => {
     const m = new Map<string, ScheduledCall[]>()
     for (const c of visible) {
@@ -95,17 +170,15 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
     })
   }
 
-  const kindLabel: Record<EventKind, string> = {
+  const chipLabel: Record<EventKind, string> = {
     call: dict.calendar.kindCalls,
     report: dict.calendar.kindReports,
     webinar: dict.calendar.kindWebinars,
   }
-  // hover context card uses the singular type name (design demo: "Investor call")
-  const kindSingular: Record<EventKind, string> = {
-    call: dict.calendar.ctxKindCall,
-    report: dict.calendar.ctxKindReport,
-    webinar: dict.calendar.ctxKindWebinar,
-  }
+  // hover context card uses the singular type name (design demo: "Investor call").
+  // Through the shared `kindLabel` so Home, the company page and this card cannot
+  // drift — Home held its own hardcoded string and called every report an
+  // investor call until 2026-08-09.
 
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
@@ -189,31 +262,38 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
           </div>
           <div className="flex items-center gap-2">
             {/* design chip order (line 281 demo data): Reports · Investor calls · Webinars */}
-            {(['report', 'call', 'webinar'] as const).map((k) => {
-              const Icon = KIND_ICON[k]
-              const on = kinds.has(k)
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => toggleKind(k)}
-                  className={cn(
-                    'flex items-center gap-[7px] rounded-full border py-[5px] pe-2.5 ps-[11px] text-[12.5px] transition-colors',
-                    on
-                      ? 'border-[#D5D5D5] bg-[#F0F0F0] font-semibold text-ink'
-                      : 'border-[#DEDEDE] bg-transparent font-medium text-[#767676]'
-                  )}
-                >
-                  <span className="flex" style={{ color: EVENT_KIND_META[k].accent }}>
-                    <Icon size={13} />
-                  </span>
-                  {kindLabel[k]}
-                  <span className={cn('flex', on ? 'text-ink' : 'text-[#ADADAD]')}>
-                    {on ? <CloseIcon size={12} strokeWidth={2} /> : <PlusIcon size={12} strokeWidth={2} />}
-                  </span>
-                </button>
-              )
-            })}
+            {(['report', 'call', 'webinar'] as const)
+              .filter((k) => presentKinds.has(k))
+              .map((k) => {
+                const Icon = KIND_ICON[k]
+                const on = kinds.has(k)
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => toggleKind(k)}
+                    className={cn(
+                      'flex items-center gap-[7px] rounded-full border py-[5px] pe-2.5 ps-[11px] text-[12.5px] transition-colors',
+                      on
+                        ? 'border-[#D5D5D5] font-semibold text-ink'
+                        : 'border-[#DEDEDE] bg-transparent font-medium text-[#767676]'
+                    )}
+                    // An ACTIVE chip wears its kind's own fill, so the filter row
+                    // doubles as the legend for the tints below it. An inactive
+                    // chip stays plain: a filter that is off should not look like
+                    // it is colouring anything.
+                    style={on ? { background: kindFill(k) } : undefined}
+                  >
+                    <span className="flex" style={{ color: EVENT_KIND_META[k].accent }}>
+                      <Icon size={13} />
+                    </span>
+                    {chipLabel[k]}
+                    <span className={cn('flex', on ? 'text-ink' : 'text-[#ADADAD]')}>
+                      {on ? <CloseIcon size={12} strokeWidth={2} /> : <PlusIcon size={12} strokeWidth={2} />}
+                    </span>
+                  </button>
+                )
+              })}
           </div>
         </div>
 
@@ -270,11 +350,41 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         key={c.id}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData('text/plain', c.id)}
-                        className="cal-ev flex w-full cursor-grab items-center gap-[5px] rounded-md border border-[#DEDEDE] bg-white py-1 pe-[5px] ps-[6px]"
+                        // Tinted per kind (founder 2026-08-09: calls and reports
+                        // were too alike to separate at a glance). The icon is
+                        // still there and still carries the accent — colour is a
+                        // SECOND signal, not the only one, so this stays legible
+                        // to anyone who cannot separate blue from green.
+                        className="cal-ev flex w-full cursor-grab items-center gap-[5px] rounded-md border border-[#DEDEDE] py-1 pe-[5px] ps-[6px]"
+                        style={{ background: kindFill(kind) }}
                       >
+                        {/* KIND FIRST, THEN IDENTITY. The icon stays: it is the
+                            only NON-COLOUR signal of what an event is, and the
+                            tint behind it is deliberately faint. Replacing it
+                            with the logo would leave kind encoded in colour
+                            alone, which is the thing the previous commit
+                            explicitly refused to do. */}
                         <span className="flex flex-none" style={{ color: EVENT_KIND_META[kind].accent }}>
                           <Icon size={12} />
                         </span>
+                        {/* 16px, AND THE SIZE IS MEASURED RATHER THAN GUESSED.
+                            The pill is 27px tall: 8px of padding around a ~19px
+                            content box set by the 11px line. So anything up to
+                            ~17px costs NOTHING in height — my first attempt used
+                            14px and left 3px unused for no reason, then I removed
+                            the logo entirely calling it illegible.
+                            That verdict was overturned by the founder, who had
+                            watched it render: I had judged it on קומפיוגן and
+                            פרודלים, two of the weakest wordmarks in the set, and
+                            generalised from them. Marks with colour or shape —
+                            Perion, Camtek, Scodix, Nayax — are identifiable at
+                            this size, which is the whole job here: an investor
+                            spotting a company without reading.
+                            Wordmark-only logos DO stay faint at 16px. That is a
+                            property of an 80x80 picture of a name, not something
+                            a larger square fixes without costing rows. The week
+                            view is where they get real room. */}
+                        <Logo src={c.company?.logoUrl} name={name} size={16} className="rounded-[3px]" />
                         {isLive && (
                           <span
                             className="h-[6px] w-[6px] flex-none rounded-full bg-live"
@@ -284,9 +394,15 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         <span className="min-w-0 flex-1 truncate text-start text-[11px] text-ink">
                           <span dir="auto">{name}</span>
                         </span>
-                        <span className="flex-none font-mono-num text-[10px] text-[#767676]" dir="ltr">
-                          {isLive ? dict.live.liveBadge : formatTime(c.scheduledAt, locale)}
-                        </span>
+                        {/* A CLOCK ONLY WHEN ONE WAS PUBLISHED. Report dates carry no
+                            time at all (0 of 472 rows), and `scheduledAt` holds midnight
+                            Israel time for them purely as a bucket — printing it would
+                            invent a 00:00 appointment for every report on the calendar. */}
+                        {(isLive || c.timeKnown) && (
+                          <span className="flex-none font-mono-num text-[10px] text-[#767676]" dir="ltr">
+                            {isLive ? dict.live.liveBadge : formatTime(c.scheduledAt, locale)}
+                          </span>
+                        )}
                         <button
                           type="button"
                           onClick={() => follow(c.id, !isFollowed)}
@@ -301,16 +417,43 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         </button>
                         {/* hover context card (design lines 327-332) */}
                         <div className="cal-ctx">
-                          <div
-                            className="mb-[5px] text-[9.5px] font-semibold uppercase tracking-[0.1em]"
-                            style={{ color: EVENT_KIND_META[kind].accent }}
-                          >
-                            {kindSingular[kind]}
+                          <div className="mb-[5px] flex items-center gap-2">
+                            {/* 28px — the smallest size at which these wordmarks
+                                are actually readable. The pill above cannot
+                                spare it; this card can. */}
+                            <Logo src={c.company?.logoUrl} name={name} size={28} className="rounded-[5px]" />
+                            <span
+                              className="text-[9.5px] font-semibold uppercase tracking-[0.1em]"
+                              style={{ color: EVENT_KIND_META[kind].accent }}
+                            >
+                              {kindLabel(kind, dict.calendar)}
+                            </span>
                           </div>
-                          <div className="text-[11.5px] leading-[1.5] text-[#2A2A2A]" dir="auto">
-                            {name} · {c.quarter} · {formatDate(c.scheduledAt, locale)} ·{' '}
-                            {isLive ? dict.live.liveBadge : formatTime(c.scheduledAt, locale)}
-                            {isFollowed ? ` · ${dict.calendar.inCalendar}` : ''}
+                          {/* EACH RUN GETS ITS OWN <bdi>, direction on the container.
+                              This line mixes a Hebrew company name with Latin quarter,
+                              date and time runs; `dir="auto"` on the whole line resolves
+                              from its FIRST strong character, so one Hebrew name flipped
+                              every trailing Latin run's punctuation to the far side.
+                              Third filing of this defect — rules/app.md. */}
+                          <div className="text-[11.5px] leading-[1.5] text-[#2A2A2A]">
+                            {[
+                              name,
+                              c.quarter,
+                              formatDate(c.scheduledAt, locale),
+                              isLive
+                                ? dict.live.liveBadge
+                                : c.timeKnown
+                                  ? formatTime(c.scheduledAt, locale)
+                                  : null,
+                              isFollowed ? dict.calendar.inCalendar : null,
+                            ]
+                              .filter(Boolean)
+                              .map((part, idx) => (
+                                <span key={idx}>
+                                  {idx > 0 ? ' · ' : ''}
+                                  <bdi>{part}</bdi>
+                                </span>
+                              ))}
                           </div>
                         </div>
                       </div>
@@ -322,9 +465,23 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
           </div>
         </div>
 
-        {mode === 'mine' && visible.length === 0 && (
-          <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noFollowed}</p>
-        )}
+        {/* ONE PRECEDENCE CHAIN, BOTH MODES. An empty grid is ambiguous between
+            "you follow nothing", "nothing is scheduled" and "your filter hid it",
+            and exactly one of those is true at a time — so they are answered in
+            order rather than as independent conditions that can both fire or
+            both stay silent.
+            ⚠ TWO ROUNDS OF HISTORY, because the next person to touch this will be
+            tempted by the same shortcuts. Round 1 gated on `kinds.size > 0`,
+            which is PERMANENTLY true (the set is seeded with all three kinds and
+            `webinar` has no rows, so it draws no chip and can never be switched
+            off) — both visible chips off printed "nothing scheduled" over 224 real
+            events. Round 2 moved the decision into `calendarEmptyState` (right)
+            and fed it the chip sets (wrong), which still lied whenever a month's
+            events were ALL of the filtered-away kind. It now takes two counts.
+            ⚠ AND `noFollowed` NO LONGER KEYS ON `visible`: that was kind-filtered,
+            so switching the chips off told a user who follows calls that they
+            follow none. It keys on `inScope`, which is the actual claim. */}
+        {emptyMessage && <p className="mt-6 text-center text-sm text-ink-faint">{emptyMessage}</p>}
       </div>
     </div>
   )

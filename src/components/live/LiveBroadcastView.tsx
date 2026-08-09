@@ -53,7 +53,13 @@ export function LiveBroadcastView({
 }: {
   companyName: string
   companyId: string | null
-  quarter: string
+  /**
+   * OPTIONAL BECAUSE A LIVE SESSION MAY NOT KNOW ITS PERIOD. The live engine's
+   * `/state` carries no quarter, and the one call site used to pass the literal
+   * "Q2 2026" for every broadcast regardless of date. Every display site below
+   * omits it when absent rather than printing a period we were not told.
+   */
+  quarter?: string | null
   logoUrl: string | null
   delaySec?: number
   persistKey?: string
@@ -126,7 +132,9 @@ export function LiveBroadcastView({
 
   // Start the engine on mount (idempotent — a no-op if we navigated back to a still-running call).
   useEffect(() => {
-    start({ companyName, companyId, quarter, logoUrl, delaySec, persistKey })
+    // '' is the provider's own "unknown period" value (it initialises to '' and
+    // renders nothing for it), so an absent quarter maps onto a state it already models.
+    start({ companyName, companyId, quarter: quarter ?? '', logoUrl, delaySec, persistKey })
   }, [start, companyName, companyId, quarter, logoUrl, delaySec, persistKey])
 
   // Tell the provider this view is displaying the call → the global bar + return chip hide while here.
@@ -242,7 +250,10 @@ export function LiveBroadcastView({
   // The on-screen captions as plain text — fed to "Ask Atlas" so it answers about THIS live call
   // (not a DB lookup that could hit a different company). Undefined until the first captions arrive.
   const liveCaptionsText = useMemo(
-    () => (words.length ? `${companyName} — ${quarter}\n\n${words.map((w) => w.text).join(' ')}` : undefined),
+    () =>
+      words.length
+        ? `${[companyName, quarter].filter(Boolean).join(' — ')}\n\n${words.map((w) => w.text).join(' ')}`
+        : undefined,
     [words, companyName, quarter]
   )
 
@@ -369,9 +380,7 @@ export function LiveBroadcastView({
           <div className="flex min-w-0 items-center gap-2.5" dir="ltr">
             <Logo src={logoUrl} name={companyName} size={30} className="rounded-[7px]" />
             <span className="call-ink max-w-[460px] truncate text-[13.5px] font-semibold">
-              <span dir="auto">
-                {companyName} — {quarter}
-              </span>
+              <span dir="auto">{[companyName, quarter].filter(Boolean).join(' — ')}</span>
             </span>
             <span className="call-muted flex-none font-mono-num text-[11.5px]" dir="ltr">
               {formatDate(new Date().toISOString(), locale)}
