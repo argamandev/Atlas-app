@@ -46,7 +46,9 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. **LIVE on Railway →
   everyone, everything a user makes is theirs. Read before designing any table.
 - `docs/VISION.md` — product vision, V1 description, roadmap
 - `docs/product/` — founder briefs for Projects · Workspace · Agents. **Agents** is what's left;
-  the deploy it was blocked on now exists.
+  the deploy it was blocked on now exists. Also `2026-08-09-documents-catalog-findings.md` — the
+  measured MAYA facts behind the documents catalog (rate limit, the announcement filings, what a
+  period really contains).
 - `docs/MAYA-API.md` — the TASE Data Hub feed. `Accept-Language: he-IL` is mandatory (English
   returns `title: null`). Read before any MAYA call.
 - `docs/ENVIRONMENT.md` · `docs/LAUNCH-KIT.md` (fleet setup + lane prompts) ·
