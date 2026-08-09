@@ -465,6 +465,15 @@ export const en = {
     // narrates the wrong cause is the same defect class as copy that denies it.
     monthHiddenByFilter:
       "This month's events are all hidden by the type filter — turn a type back on to see them.",
+    // ⚠ THE `Mine` PAIR EXISTS BECAUSE A SCOPED VIEW NEEDS A SCOPED SENTENCE.
+    // In "My calendar" the month is measured over FOLLOWED calls only, so the
+    // two strings above — which speak about the schedule itself — are false
+    // whenever the month holds events the analyst does not follow. Naming the
+    // scope is the fix; suppressing the message in that mode was the previous
+    // behaviour and it traded a false sentence for an ambiguous blank.
+    noEventsThisMonthMine: 'Nothing in your calendar this month',
+    monthHiddenByFilterMine:
+      "Your calendar's events this month are all hidden by the type filter — turn a type back on to see them.",
   },
   chat: {
     title: 'Chat',

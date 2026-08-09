@@ -342,11 +342,18 @@ run a file cannot tell you it is missing.
 · `workspace/thread.test.ts` · `workspace/validate.test.ts`.
 
 > ⚠ **REGENERATED 2026-08-09 FROM `package.json`, and what it had drifted into is the argument for
-> never hand-editing it.** The previous list held **37 entries against a registered 65** — every
-> `maya/*` and every `workspace/*` test was missing, i.e. two whole chapters of this codebase were
-> invisible here — and it named `demo/seedDocument.test.ts`, which `git ls-files` says does not
-> exist. It sat directly under the sentence below promising it is emitted by a script. The count in
-> the heading was three merges stale for the same reason.
+> never hand-editing it.** Measured by diffing the old list against the registered set:
+> **38 names listed, of which 1 is a phantom** (`demo/seedDocument.test.ts`, which `git ls-files`
+> says does not exist) — so 37 real entries against a registered **65**, with **28 missing**:
+> 9 of the 10 `maya/*` tests, 17 of the 18 `workspace/*` tests, plus `live/syncMode.test.ts` and
+> `player/viewers.test.ts`. It sat directly under the sentence below promising it is emitted by a
+> script, and the count in the heading was three merges stale for the same reason.
+>
+> ⚠ **CORRECTED, because the first version of this very blockquote got its own numbers wrong** —
+> it said "37 entries" and "every `maya/*` and every `workspace/*` test was missing", both
+> hand-derived and both false (one of each was present). A cold reviewer caught it in a commit
+> titled *"four claims that a command contradicts"*. **Third filing of the same law: a count in a
+> document comes from a command, and that applies to the count you write while fixing a count.**
 
 > **This list is emitted from `package.json` by a script, not edited by hand**, and the note that
 > used to sit here is why. It read: *"it previously named `live/syncEngine.test.ts` and
@@ -389,7 +396,8 @@ run a file cannot tell you it is missing.
   `sync-maya-companies.ts` (`company-details` → sector/sub-sector/description/website/logo on
   `companies`; **never overwrites a human-written value, per FIELD not per row**, detects TASE's
   shared placeholder logos by uniqueness rather than a pinned hash, and decides what is an image
-  by magic bytes because MAYA's content-type lies). Both take `--dry-run`.
+  by magic bytes because MAYA's content-type lies). **The two sync scripts** take `--dry-run`;
+  `maya-refresh-issuers.ts` does not (`[--sweep] [--from N] [--to N]`).
   ⚠ `tsconfig.json` excludes `scripts/`, so **`npx tsc --noEmit` does NOT typecheck these** —
   running them against live data is the only gate they get.
 - **Fleet:** `append-log.mjs` — the sanctioned append-only door to `agent-memory/{cross-cutting,ready-queue}.md`

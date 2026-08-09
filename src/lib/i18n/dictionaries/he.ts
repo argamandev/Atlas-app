@@ -362,6 +362,9 @@ export const he: Dictionary = {
     noFollowed: 'עדיין אינכם עוקבים אחר שיחות',
     noEventsThisMonth: 'אין אירועים מתוכננים בחודש זה',
     monthHiddenByFilter: 'אירועי החודש מוסתרים על ידי סינון הסוגים — הפעילו סוג כדי לראות אותם.',
+    noEventsThisMonthMine: 'אין אירועים ביומן שלכם בחודש זה',
+    monthHiddenByFilterMine:
+      'אירועי היומן שלכם בחודש זה מוסתרים על ידי סינון הסוגים — הפעילו סוג כדי לראות אותם.',
   },
   chat: {
     title: "צ'אט",

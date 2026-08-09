@@ -131,6 +131,15 @@ test('THE SECOND DEFECT: a PARTIAL filter that hides the whole month is still th
   // month empties — the previous version returned 'no-events' here, and its
   // test asserted that, so "Nothing scheduled this month" printed over real
   // report dates. One chip being on says nothing about what the month holds.
+  //
+  // ⚠ THE INPUTS HERE ARE DELIBERATELY IDENTICAL TO THE TEST ABOVE, and that is
+  // the point rather than an oversight: after the rewrite, "all chips off" and
+  // "one chip off, month is all of the other kind" are THE SAME QUESTION at
+  // this boundary — an empty screen over a non-empty month. The distinction
+  // that used to matter lived in the kind sets, and removing it from the
+  // signature is what closed the defect. Which chips produced it is
+  // `CalendarView`'s business, and `CalendarView` has no test — the eyes-on
+  // pass in the evidence file is what covers that half.
   assert.equal(calendarEmptyState({ visibleCount: 0, monthTotal: 2 }), 'filtered-away')
 })
 

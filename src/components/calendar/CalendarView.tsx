@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { companyDisplayName, type ScheduledCall } from '@/lib/api/types'
 import { setFollowCall } from '@/lib/api/calls'
@@ -74,25 +74,21 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   // something it does not, and clicking it just empties the grid.
   const presentKinds = useMemo(() => new Set(calls.map((c) => eventKind(c))), [calls])
 
-  const monthCount = useMemo(
-    () =>
-      visible.filter((c) => {
-        const d = new Date(c.scheduledAt)
-        return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth()
-      }).length,
-    [visible, month]
+  // ONE MONTH WINDOW, USED BY BOTH COUNTS. `calendarEmptyState`'s whole
+  // correctness rests on its two inputs being measured over the same window, so
+  // the window is defined once rather than written twice and kept in step by
+  // hand — the round's own lesson applied to the round's own caller.
+  const inThisMonth = useCallback(
+    (c: ScheduledCall) => {
+      const d = new Date(c.scheduledAt)
+      return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth()
+    },
+    [month]
   )
 
-  // The same month window over `inScope`, i.e. before the kind chips. Counted
-  // here rather than derived, so it cannot drift from `monthCount` above.
-  const monthTotal = useMemo(
-    () =>
-      inScope.filter((c) => {
-        const d = new Date(c.scheduledAt)
-        return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth()
-      }).length,
-    [inScope, month]
-  )
+  const monthCount = useMemo(() => visible.filter(inThisMonth).length, [visible, inThisMonth])
+  /** The same window over `inScope`, i.e. before the kind chips. */
+  const monthTotal = useMemo(() => inScope.filter(inThisMonth).length, [inScope, inThisMonth])
 
   // ONE DECISION, MADE ONCE, TESTABLE. See `calendarEmptyState` for why this is
   // not a condition written inline at the render site any more — and why it is
@@ -101,6 +97,35 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
     () => calendarEmptyState({ visibleCount: monthCount, monthTotal }),
     [monthCount, monthTotal]
   )
+
+  /**
+   * ⚠ THE SENTENCE MUST NAME THE SCOPE IT IS TRUE IN.
+   *
+   * In "My calendar" both counts are measured over FOLLOWED calls only, so the
+   * unqualified "Nothing scheduled this month" — a claim about the feed — is
+   * false the moment the month holds events the analyst simply does not follow.
+   * Follow one call in December, page to November 2026, and the app would state
+   * that nothing is scheduled in a month the feed holds events for.
+   *
+   * That is this module's own defect one dimension over, and it was introduced
+   * by the fix for it: the previous version suppressed these messages outside
+   * `mode === 'all'`, which was silent but never wrong. A visible toggle does
+   * not excuse an unscoped claim about the data — so the copy carries the
+   * scope rather than the condition being narrowed back to one mode.
+   */
+  const scoped = mode === 'mine'
+  const emptyMessage =
+    scoped && inScope.length === 0
+      ? dict.calendar.noFollowed
+      : emptyState === 'no-events'
+        ? scoped
+          ? dict.calendar.noEventsThisMonthMine
+          : dict.calendar.noEventsThisMonth
+        : emptyState === 'filtered-away'
+          ? scoped
+            ? dict.calendar.monthHiddenByFilterMine
+            : dict.calendar.monthHiddenByFilter
+          : null
 
   const byDay = useMemo(() => {
     const m = new Map<string, ScheduledCall[]>()
@@ -456,13 +481,7 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
             ⚠ AND `noFollowed` NO LONGER KEYS ON `visible`: that was kind-filtered,
             so switching the chips off told a user who follows calls that they
             follow none. It keys on `inScope`, which is the actual claim. */}
-        {mode === 'mine' && inScope.length === 0 ? (
-          <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noFollowed}</p>
-        ) : emptyState === 'no-events' ? (
-          <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.noEventsThisMonth}</p>
-        ) : emptyState === 'filtered-away' ? (
-          <p className="mt-6 text-center text-sm text-ink-faint">{dict.calendar.monthHiddenByFilter}</p>
-        ) : null}
+        {emptyMessage && <p className="mt-6 text-center text-sm text-ink-faint">{emptyMessage}</p>}
       </div>
     </div>
   )
