@@ -26,8 +26,9 @@ Live calls on-platform (Recall → buffered audio + karaoke captions), polished 
 
 Lane, port, branch and duties come from your opening prompt +
 `.claude/rules/parallel-work.md`. Shared brain, any worktree:
-`C:/Users/Sagi/Desktop/Atlas/agent-memory/` → `BOARD.md` · `cross-cutting.md` · `ready-queue.md`
-(the last two append-only).
+`C:/Users/Sagi/Desktop/Atlas/agent-memory/` → `BOARD.md` · `DECISIONS.md` (every founder decision,
+permanent) · `cross-cutting.md` · `ready-queue.md` (the last two append-only, CURRENT ERA ONLY —
+older entries are verbatim in `docs/archive/`, so search there too before saying "no prior art").
 
 ## Stack & commands
 

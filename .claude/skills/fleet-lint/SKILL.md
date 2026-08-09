@@ -19,9 +19,15 @@ steps) — never just listed.
    fresh session this system is built for.
 2. **Queue hygiene** — unprocessed entries in `agent-memory/ready-queue.md` older than a
    day? VERDICTs missing? CHANGES verdicts never followed up?
-3. **Repeated findings → rules** — `grep "FINDING" agent-memory/ready-queue.md`: has the
-   same class of defect appeared 2-3 times? Then it graduates into the relevant rule or
-   skill NOW (that's the Catch→Distill link).
+3. **Repeated findings → rules** — has the same class of defect appeared 2-3 times? Then it
+   graduates into the relevant rule or skill NOW (that's the Catch→Distill link).
+   **⚠ GREP THE ARCHIVE TOO, or this check silently stops working.** Since the 2026-08-10
+   compaction the live queue holds only the current era, so `grep "FINDING"
+   agent-memory/ready-queue.md` alone sees a few days and will report "first occurrence" about a
+   class on its fifth. The command is:
+   `grep -c "<pattern>" agent-memory/ready-queue.md docs/archive/ready-queue-*.md`
+   Then check each recurring class against `.claude/rules/` before concluding it is un-graduated —
+   that cross-check is what found CRLF (2 defects, one chapter, zero rule coverage) on run 5.
 4. **Un-graduated lessons** — read every `agent-memory/state-*.md` "Lessons learned":
    anything general still sitting there? Graduate it to the right skill/rule.
 5. **Doc-vs-code drift** — spot-check ARCHITECTURE.md and docs/ENVIRONMENT.md claims against
@@ -38,8 +44,10 @@ steps) — never just listed.
    births a lane with a dead mission (re-mission runbook in /ship owns the fix).
 7. **Decision capture (evidence-based — a cold supervisor knows no conversations)** — grep
    the board + PROGRESS.md + ready-queue for founder verdicts/approvals ("founder decided/
-   approved/verdict/gate passed") and diff against `grep DECISION agent-memory/cross-cutting.md`:
-   any verdict mentioned anywhere that has no DECISION line is a capture failure — file it now.
+   approved/verdict/gate passed") and diff against **`agent-memory/DECISIONS.md`** (the permanent
+   one-line-each record, since 2026-08-10) plus `grep DECISION` over cross-cutting AND
+   `docs/archive/cross-cutting-*.md`: any verdict mentioned anywhere with no decision line is a
+   capture failure — file it now, in DECISIONS.md.
 8. **PROGRESS.md compaction** — `wc -l PROGRESS.md` > 1000? Propose a compaction to the
    founder: distill the oldest era into a short "era summary" section at the bottom and move
    its raw entries to `docs/archive/PROGRESS-<from>-<to>.md` (linked from the summary).
@@ -53,10 +61,24 @@ steps) — never just listed.
    `docs/superpowers/` root too — stray result/report files either get the banner or an
    index entry, not limbo.
 10. **Log compaction thresholds** — `wc -l` on cross-cutting.md and ready-queue.md: either
-    >400 lines → propose era-compaction to the founder (same shape as check 8: distilled
-    summary stays in the log's head-era, raw entries verbatim to
-    `docs/archive/<log>-<from>-<to>.md`). Append-only stays law for the current era; only
-    the old tail ever moves, only with founder approval, and only AFTER a snapshot (below).
+    >400 lines → propose compaction to the founder. Append-only stays law; compaction happens
+    only with founder approval and only AFTER a verified snapshot (below).
+    **THREE THINGS RUN 5 (2026-08-10) LEARNED THE HARD WAY — read before proposing:**
+    · **MEASURE THE ERA SPLIT BEFORE PROMISING IT.** This skill used to prescribe moving the old
+      tail out by date. Measured, July was **88 of 978** cross-cutting lines and **192 of 1764**
+      queue lines — archiving the entire previous month would have bought **9%**. The bulk is
+      always the current era, because that is where the work is. Date is usually the WRONG axis.
+    · **THE ARCHIVE IS A COMPLETE VERBATIM COPY OF THE WHOLE FILE, and the live log is rebuilt as
+      an extract from it.** Not "the old tail moves out" — a full copy first means a parsing bug
+      in the extractor cannot lose an entry. Verify with `cmp`, not with a clean exit code.
+    · **DO NOT FILTER BY INFERRED STATUS.** Run 5's first build kept queue entries matching
+      `/NOT fixed|STILL OPEN|…/` and dropped genuinely open findings written as "which is why it
+      was filed rather than fixed". Findings carry no status field, so any such regex is a PROXY
+      at the choke point deciding what a lane sees — see the rule in `rules/app.md`. **Keep by
+      DATE, which is a fact.** Verify by naming the known-open items and grepping for each.
+    **YOU CANNOT PLACE THE RESULT.** `Write`/`Edit` on both logs are denied in `settings.json` and
+    every bash door (`>`, `sed -i`, `tee`, `cp`, `mv`, `writeFileSync`, `rm`, `dd`) is blocked by
+    `pre-bash-gate.mjs`. Prepare + verify, then hand the founder the commands.
 11. **Snapshot the brain** — copy `agent-memory/BOARD.md` + the two logs to
     `docs/archive/agent-memory-snapshots/<today>/` (they're small; this is the ONLY backup
     of every founder DECISION ever made — agent-memory is git-ignored, one disk, one copy).
