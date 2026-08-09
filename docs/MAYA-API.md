@@ -88,9 +88,13 @@ Response row shape, verified against Tigbur:
 ```
 
 Event ids seen so far: **270 מצגת** · 104 דוח רבעון 1 · 101 דוח תקופתי ושנתי ·
-233 Conference Call · 113 Statements Release Date. Treat this list as a sample, not
-the vocabulary — there is no endpoint for the full disclosure-event table, only the
-two-row `event-types` lookup, which is the *schedule* vocabulary and a different thing.
+233 Conference Call · 113 Statements Release Date.
+
+~~Treat this list as a sample, not the vocabulary — there is no endpoint for the full
+disclosure-event table.~~ **CORRECTED 2026-08-09: that endpoint exists**, it is
+`GET /v1/maya-reports-online/events/company` in version 1.0.0, and it returns all **227**
+company event types. The sentence was true of the endpoints we could reach, and was written as
+though it were true of MAYA — the same error, on the same day, as the sector/logo claim below.
 
 ## `IssuerId` is NOT `tase_security_id`, and we do not have it yet
 
@@ -164,11 +168,49 @@ Two consequences, both large:
    by hand what one request would return. It is not wrong, and it still works; it is just no
    longer the only way, and the sweep in particular should be reconsidered before it is run.
 
-**THE FIELD LIST ABOVE COMES FROM THE SPEC, WHICH IS A DOCUMENT.** Every other fact in this
-file came from a live 200. This one cannot until the registration exists, and the distinction
-is the whole point of this file — do not let it decay into "verified" on a re-read.
-**Registering is an account action and belongs to the founder**, in the portal:
-`Catalog → Market Announcements feed - MAYA → version 1.0.0 → Register`.
+### ✅ REGISTERED AND VERIFIED — founder approved 1.0.0 on 2026-08-09, same day
+
+The paragraph that stood here warned that the field list came from the spec rather than a live
+200. It now comes from a live 200, and the response is **richer than the spec advertised**:
+
+```
+GET /v1/maya-reports-online/company-details      → 1,630 companies, 1.28 MB, ONE request
+GET /v1/maya-reports-online/company-details?issuerId=1460   → just that issuer
+```
+
+| Field | Coverage across all 1,630 |
+|---|---|
+| `issuerId`, `issuerName`, `sector` | **1,630 / 1,630** — 67 distinct sectors |
+| `website` | 1,005 (62%) |
+| `about` | a real Hebrew business description, e.g. Tigbur: *"החברה עוסקת בשירותי כח-אדם וסיעוד…"* |
+| `address`, `zip`, `phone`, `fax`, `email`, `incorporation` | present, not measured per-field |
+| `securityIncludedIndices` | index membership **with weights** — `{securityId, indexCd, weight, factor}` |
+
+Three things that follow, none of them small:
+
+1. **`securityIncludedIndices` is a real source for the index chips** that were deleted from the
+   company page on `feat/maya-calendar` as fabricated. They can come back as facts.
+2. **1,630 companies arrive in one request.** `maya-refresh-issuers.ts --sweep` walks ~2,600 ids
+   over ~9 minutes to find a strict subset of this. **Do not run the sweep; retire it.**
+3. **`sector` is space-padded and hierarchical** — `"ריאלי-מסחר ושרותים-שרותים        "`. Trim it,
+   and split on `-` for super-sector / sector / sub-sector (the same three levels the
+   `Securities - Basic` product exposes as separate fields).
+
+### The other nine endpoints in 1.0.0, probed the same day
+
+| Path | What came back |
+|---|---|
+| `…/events/company` | **227 event types** — the full company disclosure vocabulary |
+| `…/events/tase` | 44 exchange-notice types |
+| `…/latest-companies-disclosures` | the 30 most recent filings, live |
+| `/v1/corporate-actions/assembly/by-dates` | **500** with no parameters — it wants dates |
+
+**Event ids that matter for the calendar**, now read from the vocabulary rather than sampled:
+`233 שיחת ועידה` · `108 שיחות ועידה` (plural — a distinct code) · `270 מצגת` ·
+**`271 אירועי משקיעים` ("investor events")**, which is the most likely structured home of the
+webinars the calendar still lacks. **What it does NOT yet establish is whether a webinar's DATE
+is structured or lives in the announcement's Hebrew prose — that is the first question of the
+webinar slice, and it decides whether that slice is plumbing or extraction.**
 
 ### The three-way probe result, which is the reusable part
 
