@@ -16,6 +16,8 @@ export interface CompanyDocument {
   storagePath: string
   pageCount: number
   lang: string
+  /** MAYA's own id for the filing this row holds — the identity a caller clicked. */
+  mayaReportId: number | null
 }
 
 type Row = {
@@ -27,6 +29,7 @@ type Row = {
   storage_path: string
   page_count: number
   lang: string
+  maya_report_id: number | null
 }
 
 const fromRow = (r: Row): CompanyDocument => ({
@@ -38,12 +41,13 @@ const fromRow = (r: Row): CompanyDocument => ({
   storagePath: r.storage_path,
   pageCount: r.page_count,
   lang: r.lang,
+  mayaReportId: r.maya_report_id ?? null,
 })
 
 export async function getDocumentsFor(companyId: string, quarter: string): Promise<CompanyDocument[]> {
   const { data } = await supabaseAdmin
     .from('company_documents')
-    .select('id, company_id, quarter, doc_type, title, storage_path, page_count, lang')
+    .select('id, company_id, quarter, doc_type, title, storage_path, page_count, lang, maya_report_id')
     .eq('company_id', companyId)
     .eq('quarter', quarter)
     .order('doc_type')
@@ -53,7 +57,7 @@ export async function getDocumentsFor(companyId: string, quarter: string): Promi
 export async function getDocumentMeta(id: string): Promise<CompanyDocument | null> {
   const { data } = await supabaseAdmin
     .from('company_documents')
-    .select('id, company_id, quarter, doc_type, title, storage_path, page_count, lang')
+    .select('id, company_id, quarter, doc_type, title, storage_path, page_count, lang, maya_report_id')
     .eq('id', id)
     .maybeSingle()
   return data ? fromRow(data as Row) : null
@@ -71,4 +75,22 @@ export async function getPageText(
     .in('page_no', pages)
     .order('page_no')
   return (data ?? []).map((r) => ({ pageNo: r.page_no as number, text: r.text as string }))
+}
+
+/**
+ * A stored document BY ITS MAYA FILING, not by period.
+ *
+ * `maya_report_id` carries its own unique index (`company_documents_maya_report_uniq`,
+ * partial on NOT NULL), so one MAYA filing can exist as at most one row in the
+ * whole table and this is a point read. That index is also why an ingest of a
+ * filing we already hold under a different period label would be refused by the
+ * database rather than duplicated — checking here means we never provoke it.
+ */
+export async function getDocumentByMayaReportId(mayaReportId: number): Promise<CompanyDocument | null> {
+  const { data } = await supabaseAdmin
+    .from('company_documents')
+    .select('id, company_id, quarter, doc_type, title, storage_path, page_count, lang, maya_report_id')
+    .eq('maya_report_id', mayaReportId)
+    .maybeSingle()
+  return data ? fromRow(data as Row) : null
 }
