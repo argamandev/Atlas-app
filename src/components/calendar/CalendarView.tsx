@@ -317,19 +317,24 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
                         <span className="flex flex-none" style={{ color: EVENT_KIND_META[kind].accent }}>
                           <Icon size={12} />
                         </span>
-                        {/* ⚠ NO LOGO IN THE PILL, AND IT WAS TRIED TWICE.
-                            Rendered at 14px and again at 20px against real data:
-                            both read as blank white squares, because these are
-                            WORDMARKS — an 80x80 image of a company's name has
-                            nothing left at 20px. A blank tile is worse than no
-                            tile: it looks like a broken image rather than a
-                            company, and it cost ~14px of a pill whose names were
-                            already truncating.
-                            The month grid carries up to 15 events per day cell,
-                            so the pill cannot afford a size where a wordmark
-                            survives. The logo moved to the hover card below,
-                            which has room for 28px, and Home's 40px rows show
-                            them properly. */}
+                        {/* 16px, AND THE SIZE IS MEASURED RATHER THAN GUESSED.
+                            The pill is 27px tall: 8px of padding around a ~19px
+                            content box set by the 11px line. So anything up to
+                            ~17px costs NOTHING in height — my first attempt used
+                            14px and left 3px unused for no reason, then I removed
+                            the logo entirely calling it illegible.
+                            That verdict was overturned by the founder, who had
+                            watched it render: I had judged it on קומפיוגן and
+                            פרודלים, two of the weakest wordmarks in the set, and
+                            generalised from them. Marks with colour or shape —
+                            Perion, Camtek, Scodix, Nayax — are identifiable at
+                            this size, which is the whole job here: an investor
+                            spotting a company without reading.
+                            Wordmark-only logos DO stay faint at 16px. That is a
+                            property of an 80x80 picture of a name, not something
+                            a larger square fixes without costing rows. The week
+                            view is where they get real room. */}
+                        <Logo src={c.company?.logoUrl} name={name} size={16} className="rounded-[3px]" />
                         {isLive && (
                           <span
                             className="h-[6px] w-[6px] flex-none rounded-full bg-live"
