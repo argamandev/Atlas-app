@@ -573,7 +573,13 @@ export function LiveBroadcastView({
           {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}
           {(view === 'multi' ? multiFacets.has('slides') : facet === 'slides') && (
             <SlidesPane
+              companyId={companyId}
               quarter={quarter}
+              onAskSelection={onReportAsk}
+              onSnip={onReportSnip}
+              onSnipError={(reason) =>
+                setToast({ text: reason === 'toolarge' ? dict.chat.snipTooBig : dict.chat.snipFailed })
+              }
               style={view === 'multi' ? { flex: `${colFlex.slides} 1 0px` } : undefined}
             />
           )}

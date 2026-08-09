@@ -25,7 +25,15 @@ import {
   SlidesIcon,
   FileIcon,
 } from '@/components/ds/icons'
-import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Facet } from './FacetPanes'
+import {
+  PaneHeader,
+  PaneCard,
+  SlidesPane,
+  ReportPane,
+  useFacetColumns,
+  type Facet,
+  type DocumentSource,
+} from './FacetPanes'
 import { TranscriptBody } from './TranscriptBody'
 import { TranscriptSidePanel } from './TranscriptSidePanel'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
@@ -44,10 +52,24 @@ export function LiveTranscriptView({
   call,
   initialSeek,
   initialSegmentId,
+  initialView,
+  availableFacets,
+  backHref,
+  documentSources,
 }: {
   call: LiveCall
   initialSeek?: number
   initialSegmentId?: string
+  /** The catalog opens a period in Multi — two documents side by side is the
+   *  thing that distinguishes Atlas from downloading a PDF off MAYA. */
+  initialView?: 'single' | 'multi'
+  /** Which facets EXIST here. A period Atlas holds no recording for offers two
+   *  panes and no transcript chip — not a third pane apologising for itself. */
+  availableFacets?: Facet[]
+  /** Where "back" goes. Without it, the company overview, as before. */
+  backHref?: string
+  /** Set when arriving from the catalog: the exact filings the user chose. */
+  documentSources?: { report?: DocumentSource | null; slides?: DocumentSource | null }
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -84,14 +106,17 @@ export function LiveTranscriptView({
   // hides while we're on it — including the inline live→finished swap, where the URL stays /app/live/live.
   useViewingCall(call.id)
 
-  const [tab, setTab] = useState('transcript')
+  // Single view starts on the first facet this call actually has.
+  const [tab, setTab] = useState<string>(availableFacets?.[0] ?? 'transcript')
   // V2 (Claude Design): call view is dark-first with a Light toggle; Single|Multi facets.
-  const [view, setView] = useState<'single' | 'multi'>('single')
+  const [view, setView] = useState<'single' | 'multi'>(initialView ?? 'single')
+  // Which facets this call HAS. A period reached from the documents catalog with
+  // no transcript offers only the two documents, so nothing on screen implies a
+  // recording exists (founder decision 2026-08-09).
+  const facets: Facet[] = availableFacets ?? ['transcript', 'slides', 'report']
   // Multi view composes facets: ALL chips are ×-removable (founder round-3: transcript too —
   // audio keeps playing without it); the last visible facet can't be removed.
-  const [multiFacets, setMultiFacets] = useState<Set<Facet>>(
-    () => new Set<Facet>(['transcript', 'slides', 'report'])
-  )
+  const [multiFacets, setMultiFacets] = useState<Set<Facet>>(() => new Set<Facet>(facets))
   const { colFlex, facetDivider } = useFacetColumns()
   const [autoScroll] = useState(true) // always on; the scroll-pause + "back to current" chip manages it
   const [panelCollapsed, setPanelCollapsed] = useState(false) // user's manual minimize of the speaker panel
@@ -236,7 +261,11 @@ export function LiveTranscriptView({
   // Tabs: "Back to Overview" routes to the company page; the rest switch in-page.
   function onTab(key: string) {
     if (key === 'overview') {
-      if (call.companyId) router.push(`/app/company/${call.companyId}`)
+      // `backHref` carries the tab, year and period the user came from, so
+      // returning from a document lands on the open drill-down rather than on
+      // the Overview tab with the user's place lost.
+      if (backHref) router.push(backHref)
+      else if (call.companyId) router.push(`/app/company/${call.companyId}`)
       else router.back()
       return
     }
@@ -433,11 +462,15 @@ export function LiveTranscriptView({
     window.open(`/print/${call.id}`, '_blank', 'noopener')
   }
 
-  const facetTabs = [
-    { key: 'transcript', label: dict.live.transcript },
-    { key: 'slides', label: dict.live.slides },
-    { key: 'report', label: dict.live.report },
-  ]
+  // Only facets this call HAS get a chip. A chip for a pane that can never
+  // hold anything is a control that lies about what is available.
+  const facetTabs = (
+    [
+      { key: 'transcript', label: dict.live.transcript },
+      { key: 'slides', label: dict.live.slides },
+      { key: 'report', label: dict.live.report },
+    ] as const
+  ).filter((ft) => facets.includes(ft.key))
 
   const segTogBtn = (on: boolean) =>
     `rounded-pill px-3 py-[5px] text-xs font-medium transition-colors ${
@@ -753,7 +786,14 @@ export function LiveTranscriptView({
           {view === 'multi' && multiFacets.has('transcript') && multiFacets.has('slides') && facetDivider}
           {(view === 'multi' ? multiFacets.has('slides') : tab === 'slides') && (
             <SlidesPane
+              companyId={call.companyId}
               quarter={call.quarter}
+              source={documentSources?.slides}
+              onAskSelection={onReportAsk}
+              onSnip={onReportSnip}
+              onSnipError={(reason) =>
+                setToast({ text: reason === 'toolarge' ? dict.chat.snipTooBig : dict.chat.snipFailed })
+              }
               style={view === 'multi' ? { flex: `${colFlex.slides} 1 0px` } : undefined}
             />
           )}
@@ -765,6 +805,7 @@ export function LiveTranscriptView({
             <ReportPane
               companyId={call.companyId}
               quarter={call.quarter}
+              source={documentSources?.report}
               onAskSelection={onReportAsk}
               onSnip={onReportSnip}
               onSnipError={(reason) =>

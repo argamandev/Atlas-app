@@ -13,7 +13,7 @@ export default async function CompanyPage({
   searchParams,
 }: {
   params: { id: string }
-  searchParams: { tab?: string }
+  searchParams: { tab?: string; year?: string; period?: string }
 }) {
   const company = await getCompany(params.id)
   if (!company) notFound()
@@ -44,6 +44,8 @@ export default async function CompanyPage({
         quotes={quotes}
         folders={folders}
         initialTab={initialTab}
+        initialYear={searchParams.year}
+        initialPeriod={searchParams.period}
         isAdmin={user.isAdmin}
       />
     </AppPage>

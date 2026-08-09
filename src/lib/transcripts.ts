@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import type { RecentTranscript, TranscriptStatus } from '@/lib/types'
+import { israelDayKey } from '@/lib/i18n/format'
 
 // Transcripts are SHARED CORPUS — one archive, the same for every user (docs/DATA-MODEL.md).
 // There is deliberately no per-user reader here.
@@ -30,7 +31,11 @@ export async function listCompanyTranscripts(companyId: string): Promise<RecentT
       company: fd?.company ?? (row.youtube_title as string) ?? 'שיחת משקיעים',
       ticker: fd?.ticker ?? '',
       quarter: fd?.quarter ?? '',
-      date: fd?.date ?? (row.created_at as string).split('T')[0],
+      // THE ISRAEL DAY, NOT THE UTC DAY. Splitting the ISO string takes the UTC
+      // date, so a transcript created between midnight and 03:00 Israel time
+      // rendered as the PREVIOUS day — on the very rows the documents tab shows.
+      // Filed at the fix/israel-time-residue merge; rules/app.md is the law.
+      date: fd?.date ?? israelDayKey(row.created_at as string),
       duration: (row.duration as string) ?? '',
       status: row.status as TranscriptStatus,
       createdAt: row.created_at as string,
