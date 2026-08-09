@@ -196,9 +196,27 @@
   **⇒ THE TEST DISCIPLINE THIS EARNS, and it generalises past timezones: run the battery under
   `TZ=UTC` as well as locally.** A test that only ever runs in one environment asserts that
   environment, not the property — the whole battery passed while production was wrong. It is green
-  in both now (618/618), and removing the pin turns 7 of the 8 new `format.test.ts` cases red under
-  `TZ=UTC`. Same class, still open and filed: `lib/db/calls.ts` `scope:'upcoming'` floors at UTC
-  midnight, and the calendar's today-pill still reads the viewer's local day.
+  in both now (625/625), and removing the pin turns 7 of the 8 new `format.test.ts` cases red under
+  `TZ=UTC`. **✅ The three gaps this entry used to list as open are CLOSED 2026-08-09 by
+  `fix/israel-time-residue`** — `lib/db/calls.ts` now floors at `israelDayStart(israelDayKey(now))`,
+  the today-pill compares the very key `byDay` is keyed by, and `isFuture` moved out of
+  `CompanyOverview` into the unit-tested `isFutureEvent` (`lib/calendar/event-meta.ts`) precisely
+  because inline-in-JSX is where the last two defects on this lane survived. **Same class, STILL
+  OPEN and user-visible: `src/lib/transcripts.ts:33`** — `(row.created_at).split('T')[0]` takes the
+  UTC day, so a transcript created 00:00–03:00 Israel renders a day early on the company page. Also
+  open, not user-visible: `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`, server-local
+  `{Y0}/{Y1}`) and `lib/maya/events.ts:83` (`getUTCFullYear` labelling "FY 2024").
+  **⇒ AND THE TEST DISCIPLINE ABOVE HAS A TRAP THAT SILENTLY DISARMS IT ON THIS MACHINE, FOUND
+  2026-08-09 BY A COLD REVIEWER AFTER IT FOOLED BOTH THE LANE AND THE SUPERVISOR:** in Git Bash,
+  a `TZ=` prefix whose value contains a `/` is **silently dropped** by MSYS path conversion —
+  `TZ=America/New_York npm test` runs in `Asia/Jerusalem` and prints a reassuring green. Only
+  slash-free names (`UTC`) survive. Both the branch's evidence doc and the supervisor's own merge
+  report claimed four-to-five-zone coverage that never happened; the underlying result held, but
+  the *method* certified nothing. **Verify the zone, never the command:** print
+  `Intl.DateTimeFormat().resolvedOptions().timeZone` inside the run, or set it from PowerShell
+  (`$env:TZ='America/New_York'`) which passes it intact. This is the same law as everywhere else
+  in this file, one level down — a count comes from a command, and *a command's environment comes
+  from the process, not from what you typed*.
 - **`player.load()` does not give the `<audio>` its source until the NEXT render — so `load()`
   then `play()` in one handler plays NOTHING.** `load()` only sets React state; an effect points
   the element at the URL and calls `a.load()` a render later, which rejects (and then aborts) a

@@ -61,16 +61,35 @@ far side of a transition.
 
 ## Verification
 
-### The battery, in four timezones
+### The battery, in five timezones
 
-| TZ | result |
+> ⚠ **CORRECTED AT MERGE, 2026-08-09, and the correction is worth more than the table.**
+> This section originally listed four zones run as `TZ=Asia/Jerusalem npm test` and friends from
+> Git Bash. **Three of those four never happened.** MSYS path conversion silently DROPS a `TZ=`
+> value containing a `/`, so `TZ=America/New_York` and `TZ=Australia/Sydney` both executed in
+> `Asia/Jerusalem`; only `UTC` (no slash) survived. The supervisor's own merge check repeated the
+> same mistake an hour later with New York and Tokyo, which is how it was caught — by a cold
+> reviewer who checked the *environment*, not the command.
+> The numbers below are the RE-RUN, from PowerShell (`$env:TZ=…`, which passes the value intact),
+> with the resolved zone printed inside each run and confirmed to match. **The original result was
+> true; the method proved nothing.** A green certified by a disarmed check is worse than no check,
+> because it is the thing that is supposed to notice.
+
+| TZ (verified via `Intl.DateTimeFormat().resolvedOptions().timeZone`) | result |
 |---|---|
-| `Asia/Jerusalem` | **625 / 625**, 0 fail |
 | `UTC` | **625 / 625**, 0 fail |
-| `America/New_York` | **625 / 625**, 0 fail |
-| `Australia/Sydney` | **625 / 625**, 0 fail |
+| `America/New_York` (west) | **625 / 625**, 0 fail |
+| `Asia/Tokyo` (east) | **625 / 625**, 0 fail |
+| `Australia/Sydney` (east) | **625 / 625**, 0 fail |
+| `Pacific/Honolulu` (far west) | **625 / 625**, 0 fail |
 
 `npx tsc --noEmit` exit 0 · `npm run build` green · Middleware 81.8 kB.
+
+**`israelDayStart` probed independently of the battery** (supervisor, at merge): every day of 2026
+and 2027 — **730 / 730** — begins at exactly `00:00` Israel when formatted back in `Asia/Jerusalem`,
+the minute after belongs to that day and the minute before does not. That range crosses all four
+DST transitions. The probe carried a control whose answer was already known (offset 120 in January,
+180 in August) so that a probe measuring nothing could not print the same reassuring result.
 
 ### The guards were proven to FAIL on the bug first
 
