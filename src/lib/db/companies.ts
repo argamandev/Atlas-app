@@ -22,6 +22,9 @@ function mapCompany(r: Row): Company {
     displayName: String(r.display_name ?? r.name ?? ''),
     nameEn: (r.name_en as string) ?? null,
     ticker: (r.tase_security_id as string) ?? null,
+    // Already selected by COLS and previously dropped here. The catalog lists a
+    // company's filings BY ISSUER ID, which is not the ticker (docs/MAYA-API.md).
+    taseIssuerId: (r.tase_issuer_id as string) ?? null,
     sector: (r.sector as string) ?? null,
     subSector: (r.sub_sector as string) ?? null,
     logoUrl: resolveCompanyLogo(r),

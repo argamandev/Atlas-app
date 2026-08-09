@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon } from '@/components/ds/icons'
-import { slideStubs, reportStub } from '@/lib/live/call-stubs'
 import { setSnipTarget } from '@/lib/live/snipBridge'
 import { PdfViewer } from './PdfViewer'
 import type { ChatSnip } from '@/lib/api/chat'
@@ -97,70 +96,138 @@ export function PaneCard({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function SlidesPane({ quarter, style }: { quarter?: string | null; style?: React.CSSProperties }) {
-  const { dict } = useI18n()
-  const [slideIdx, setSlideIdx] = useState(0)
-  const slides = slideStubs()
-  const slide = slides[slideIdx % slides.length]
-  return (
-    <div
-      data-facet="slides"
-      style={style}
-      className="flex min-w-[280px] flex-1 flex-col gap-1.5 overflow-hidden"
-    >
-      <PaneHeader
-        label={dict.live.slides}
-        right={
-          <span className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSlideIdx((i) => (i - 1 + slides.length) % slides.length)}
-              className="call-muted flex p-1 transition-colors hover:call-ink"
-            >
-              <ChevronLeftIcon size={16} strokeWidth={1.7} className="rtl:rotate-180" />
-            </button>
-            <span className="call-ink min-w-[64px] text-center text-[11.5px] font-medium" dir="auto">
-              {dict.live.slideLabel} {slideIdx + 1}
-            </span>
-            <button
-              type="button"
-              onClick={() => setSlideIdx((i) => (i + 1) % slides.length)}
-              className="call-muted flex p-1 transition-colors hover:call-ink"
-            >
-              <ChevronRightIcon size={16} strokeWidth={1.7} className="rtl:rotate-180" />
-            </button>
-          </span>
-        }
-      />
-      <PaneCard>
-        <div className="atscroll flex-1 overflow-auto p-[22px]">
-          <div
-            dir="rtl"
-            data-ask="1"
-            className="call-hair call-ink flex min-h-[260px] flex-col justify-center rounded-lg border bg-white p-[34px]"
-          >
-            <div className="call-muted mb-3 font-mono-num text-[11px] uppercase tracking-[0.14em]" dir="rtl">
-              {[quarter, `${dict.live.slideLabel} ${slideIdx + 1}`].filter(Boolean).join(' · ')}
-            </div>
-            <div className="mb-3.5 font-display text-[23px]">{slide.title}</div>
-            <div className="text-[14.5px] leading-[1.9]">{slide.body}</div>
-          </div>
-        </div>
-      </PaneCard>
-    </div>
-  )
+// ─────────────────────────────────────────────────────────────────────────────
+// HOW A PANE FINDS ITS DOCUMENT, and the only three ways it may end: a real
+// document, an empty period, or a STATED failure.
+//
+// There is no fourth branch. What used to sit here was reportStub() and
+// slideStubs() — invented content shown for a real issuer, including as the
+// silent fallback of a failed fetch. See rules/app.md: degradation must be
+// visible, and success UI must never stand in for content the server dropped.
+//
+// TWO ENTRANCES, because there are two ways to arrive at a document:
+//   • from the CATALOG — the user clicked one exact filing, so fetch-and-store
+//     THAT one (POST /api/documents/open, which re-derives the URL server-side).
+//   • from a CALL — no filing was named, so show whatever Atlas already holds
+//     for this company and period.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type DocumentSource = { mayaReportId: number; year: number }
+
+type DocState = { id: string; title: string; pageCount: number } | null
+
+function useDocument(
+  docType: 'report' | 'slides',
+  companyId?: string | null,
+  quarter?: string | null,
+  source?: DocumentSource | null
+) {
+  const [doc, setDoc] = useState<DocState>(null)
+  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const srcId = source?.mayaReportId ?? null
+  const srcYear = source?.year ?? null
+
+  useEffect(() => {
+    // A company/period change must never leave a stale PDF rendering while the
+    // next lookup is in flight — clear before anything else runs.
+    setDoc(null)
+    if (!companyId) {
+      setState('idle')
+      return
+    }
+    let dead = false
+    setState('loading')
+
+    const settle = (d: DocState) => {
+      if (dead) return
+      setDoc(d)
+      setState(d ? 'ready' : 'idle')
+    }
+    const fail = () => {
+      if (!dead) setState('error')
+    }
+
+    if (srcId != null && srcYear != null) {
+      fetch('/api/documents/open', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ companyId, mayaReportId: srcId, year: srcYear }),
+      })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((j) => settle({ id: j.documentId, title: '', pageCount: j.pageCount }))
+        .catch(fail)
+      return () => {
+        dead = true
+      }
+    }
+
+    if (!quarter) {
+      setState('idle')
+      return
+    }
+    fetch(
+      `/api/documents?companyId=${encodeURIComponent(companyId)}&quarter=${encodeURIComponent(quarter)}`,
+      { credentials: 'include' }
+    )
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j) => settle(j?.documents?.find((x: { docType: string }) => x.docType === docType) ?? null))
+      .catch(fail)
+    return () => {
+      dead = true
+    }
+  }, [docType, companyId, quarter, srcId, srcYear])
+
+  return { doc, state }
 }
 
-export function ReportPane({
+type PaneProps = {
+  companyId?: string | null
+  quarter?: string | null
+  source?: DocumentSource | null
+  onAskSelection?: (
+    text: string,
+    pages: number[],
+    documentId: string,
+    anchor: { top: number; left: number }
+  ) => void
+  onSnip?: (snip: ChatSnip, anchor: { top: number; left: number }) => void
+  onSnipError?: (reason: 'capture' | 'toolarge') => void
+  style?: React.CSSProperties
+}
+
+/** The report pane. */
+export function ReportPane(props: PaneProps) {
+  return <DocumentPane facet="report" {...props} />
+}
+
+/**
+ * The slides pane — the SAME viewer as the report, because an investor
+ * presentation arrives from MAYA as a PDF exactly like a report does. It used
+ * to be four invented Hebrew slides with ‹ N › navigation, rendered for every
+ * call of every company.
+ */
+export function SlidesPane(props: PaneProps) {
+  return <DocumentPane facet="slides" {...props} />
+}
+
+function DocumentPane({
+  facet,
   companyId,
   quarter,
+  source,
   onAskSelection,
   onSnip,
   onSnipError,
   style,
 }: {
+  /** Which pane this is. A deck is a PDF like a report, so the two differ only
+   *  in their label, their minimum width, and which docType they resolve. */
+  facet: 'report' | 'slides'
   companyId?: string | null
   quarter?: string | null
+  /** Set when the user arrived from the catalog having clicked one exact filing. */
+  source?: DocumentSource | null
   onAskSelection?: (
     text: string,
     pages: number[],
@@ -173,8 +240,7 @@ export function ReportPane({
   style?: React.CSSProperties
 }) {
   const { dict } = useI18n()
-  const report = reportStub()
-  const [doc, setDoc] = useState<{ id: string; title: string; pageCount: number } | null>(null)
+  const { doc, state } = useDocument(facet, companyId, quarter, source)
   // Chrome-style page zoom (founder round 2): stepped, % label click = back to 100.
   const ZOOM_STEPS = [75, 90, 100, 110, 125, 150, 175, 200]
   const [zoom, setZoom] = useState(100)
@@ -239,35 +305,17 @@ export function ReportPane({
   const panBy = (dir: 1 | -1) =>
     // physical coordinates: positive always moves the view right, in both directions
     scrollRef.current?.scrollBy({ left: dir * scrollRef.current.clientWidth * 0.4, behavior: 'smooth' })
-  useEffect(() => {
-    // A company/quarter change must never leave a stale PDF rendering while the next lookup
-    // is in flight (or finds nothing) — clear before anything else runs.
-    setDoc(null)
-    if (!companyId || !quarter) return
-    let dead = false
-    fetch(
-      `/api/documents?companyId=${encodeURIComponent(companyId)}&quarter=${encodeURIComponent(quarter)}`,
-      { credentials: 'include' }
-    )
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        const d = j?.documents?.find((x: { docType: string }) => x.docType === 'report')
-        if (!dead && d) setDoc({ id: d.id, title: d.title, pageCount: d.pageCount })
-      })
-      .catch((err) => console.warn('[ReportPane] documents fetch failed', err))
-    return () => {
-      dead = true
-    }
-  }, [companyId, quarter])
-
   return (
     <div
-      data-facet="report"
-      style={style}
-      className="flex min-w-[300px] flex-1 flex-col gap-1.5 overflow-hidden"
+      data-facet={facet}
+      // The floor comes from FACET_MIN so the CSS minimum and the gutter-drag
+      // clamp cannot disagree — they used to be two hand-kept copies of one
+      // number, and only the drag path was reading the constant.
+      style={{ minWidth: FACET_MIN[facet], ...style }}
+      className="flex flex-1 flex-col gap-1.5 overflow-hidden"
     >
       <PaneHeader
-        label={dict.live.report}
+        label={facet === 'report' ? dict.live.report : dict.live.slides}
         right={
           <span className="flex items-center gap-2.5">
             {doc && onSnip && (
@@ -379,23 +427,17 @@ export function ReportPane({
               onSnipError={onSnipError}
             />
           ) : (
-            <div
-              dir="rtl"
-              data-ask="1"
-              className="call-hair call-card-bg call-ink rounded-lg border px-9 py-8"
-            >
-              {/* the stub card is FABRICATED content (also the fetch-error fallback) — always say so */}
-              <span className="call-hair call-muted mb-4 inline-block rounded-full border px-2.5 py-1 text-[11px] font-medium">
-                {dict.live.demoContent}
-              </span>
-              <div className="mb-1.5 font-display text-[21px]">{report.title}</div>
-              <div className="call-muted mb-[18px] text-[12.5px]">{report.dateLine}</div>
-              {report.paragraphs.map((p) => (
-                <p key={p.slice(0, 16)} className="mb-3 text-[14px] leading-[1.95]">
-                  {p}
-                </p>
-              ))}
-              <p className="call-muted text-[14px] leading-[1.95]">{report.hint}</p>
+            // NO DOCUMENT: say which of the three things happened and nothing
+            // more. The fabricated card that used to live here rendered
+            // invented content for a real issuer — and, being the fetch-error
+            // fallback too, it said the loudest thing on screen precisely when
+            // Atlas knew the least.
+            <div className="call-muted flex h-full items-center justify-center px-8 text-center text-[13px]">
+              {state === 'loading'
+                ? dict.live.docLoading
+                : state === 'error'
+                  ? dict.live.docFailed
+                  : dict.live.noDocument}
             </div>
           )}
         </div>

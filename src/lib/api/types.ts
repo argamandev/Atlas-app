@@ -26,6 +26,8 @@ export interface Company {
   displayName: string // short name (e.g. רג"א)
   nameEn: string | null
   ticker: string | null // TASE security id
+  /** MAYA's ISSUER id — NOT the ticker. `docs/MAYA-API.md` opens on that distinction. */
+  taseIssuerId: string | null
   sector: string | null
   subSector: string | null
   logoUrl: string | null

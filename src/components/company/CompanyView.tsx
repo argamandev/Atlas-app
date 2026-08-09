@@ -13,41 +13,19 @@ import {
 } from '@/lib/api/types'
 import type { RecentTranscript } from '@/lib/types'
 import { Tabs } from '@/components/ds/Tabs'
-import {
-  SparkleIcon,
-  ChevronLeftIcon,
-  TranscriptIcon,
-  FileIcon,
-  SlidesIcon,
-  VideoIcon,
-} from '@/components/ds/icons'
+import { SparkleIcon, ChevronLeftIcon, VideoIcon } from '@/components/ds/icons'
 import { Logo } from '@/components/ds/Logo'
 import { LIVE_DEMO_TICKER } from '@/lib/live/demoCompany'
 import { AddInvestorCall } from './AddInvestorCall'
 import { AdminCallControls } from './AdminCallControls'
 import { CompanyOverview } from './CompanyOverview'
+import { DocumentsTab } from './DocumentsTab'
 import { TranscriptChatPanel } from '@/components/live/TranscriptChatPanel'
 import { MyQuotes } from './MyQuotes'
 import { formatDate } from '@/lib/i18n/format'
 import { quarterSortKey } from '@/lib/utils'
 
-function groupByQuarter<T extends { quarter?: string | null }>(items: T[]): [string, T[]][] {
-  const map = new Map<string, T[]>()
-  for (const it of items) {
-    const q = it.quarter || '—'
-    const arr = map.get(q) ?? []
-    arr.push(it)
-    map.set(q, arr)
-  }
-  return Array.from(map.entries()).sort((a, b) => quarterSortKey(b[0]) - quarterSortKey(a[0]))
-}
-
 /** "Q2 2026" → "2026"; unparseable quarters group under "—". */
-function yearOf(quarter: string): string {
-  const m = quarter.match(/(\d{4})/)
-  return m ? m[1] : '—'
-}
-
 export function CompanyView({
   company,
   calls,
@@ -56,6 +34,8 @@ export function CompanyView({
   folders,
   initialTab = 'overview',
   isAdmin = false,
+  initialYear,
+  initialPeriod,
 }: {
   company: Company
   calls: ScheduledCall[]
@@ -64,6 +44,9 @@ export function CompanyView({
   folders: QuoteFolder[]
   initialTab?: string
   isAdmin?: boolean
+  /** Restored from the URL when the reader sends the user back here. */
+  initialYear?: string
+  initialPeriod?: string
 }) {
   const { dict, locale } = useI18n()
   const router = useRouter()
@@ -94,37 +77,7 @@ export function CompanyView({
   // What this branch did remove is the fabricated `liveQuarter: 'Q2 2026'` that
   // rode alongside it, which WAS displayed and was untrue.
   const isLiveCompany = company.ticker === LIVE_DEMO_TICKER
-  const transcriptsByQuarter = groupByQuarter(transcripts)
   const onQuoteRemoved = (id: string) => setQuotes((qs) => qs.filter((q) => q.id !== id))
-
-  // Reports tab: quarters grouped by year, newest first (design lines 561-597).
-  const byYear: [string, [string, RecentTranscript[]][]][] = []
-  for (const [quarter, ts] of transcriptsByQuarter) {
-    const y = yearOf(quarter)
-    const bucket = byYear.find(([yy]) => yy === y)
-    if (bucket) bucket[1].push([quarter, ts])
-    else byYear.push([y, [[quarter, ts]]])
-  }
-
-  const artifactBtn = (key: string, label: string, icon: React.ReactNode, href: string | null) =>
-    href ? (
-      <Link
-        key={key}
-        href={href}
-        title={label}
-        className="grid h-8 w-8 place-items-center rounded-lg border border-subtle-strong bg-canvas text-ink-muted transition-colors hover:text-ink"
-      >
-        {icon}
-      </Link>
-    ) : (
-      <span
-        key={key}
-        title={label}
-        className="grid h-8 w-8 place-items-center rounded-lg border border-dashed border-subtle-strong text-ink-faint/50"
-      >
-        {icon}
-      </span>
-    )
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -180,19 +133,12 @@ export function CompanyView({
               </div>
             </div>
             <div className="flex flex-none flex-col items-end gap-[13px]">
-              {/* market status ornament (design lines 603-609) */}
-              <span className="flex items-center gap-[7px]">
-                <span className="font-mono-num text-[10px] uppercase tracking-[0.16em] text-live" dir="ltr">
-                  {dict.company.liveTase}
-                </span>
-                <span className="relative inline-flex h-[6px] w-[6px]">
-                  <span className="absolute inset-0 rounded-full bg-live" />
-                  <span
-                    className="absolute -inset-1 rounded-full border border-live opacity-50"
-                    style={{ animation: 'atping 1.9s ease-out infinite' }}
-                  />
-                </span>
-              </span>
+              {/* The "LIVE · TASE" ornament that used to sit here is GONE (founder,
+                  2026-08-09). It was a design decoration that rendered for every
+                  company on every visit, with a pulsing dot, and it was wired to
+                  NOTHING — not to market hours, not to `isLiveCompany`, not to any
+                  broadcast. A permanent indicator that always says LIVE is telling
+                  the reader something Atlas never checked. */}
               <div className="flex items-center gap-2.5">
                 <AddInvestorCall companyId={company.id} />
                 <button
@@ -304,80 +250,13 @@ export function CompanyView({
           )}
 
           {tab === 'reports' && (
-            <div className="animate-fade-up">
-              {/* legend (design line 562): what each quarter can carry */}
-              <div className="mb-4 flex items-center gap-4 text-xs text-ink-faint">
-                <span>{dict.company.eachQuarter}</span>
-                <span className="flex items-center gap-1.5">
-                  <TranscriptIcon size={14} /> {dict.company.transcript}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <FileIcon size={14} /> {dict.company.reportPdf}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <SlidesIcon size={14} /> {dict.company.slides}
-                </span>
-              </div>
-              {byYear.length === 0 ? (
-                <div className="rounded-card border border-dashed border-subtle-strong px-5 py-10 text-center text-[13.5px] text-ink-faint">
-                  {dict.company.noReports}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2.5">
-                  {byYear.map(([year, quarters]) => (
-                    <div
-                      key={year}
-                      className="overflow-hidden rounded-card border border-subtle-strong bg-paper"
-                    >
-                      <div className="flex items-center gap-2.5 px-4 py-3">
-                        <span className="text-sm font-semibold text-ink" dir="ltr">
-                          {year}
-                        </span>
-                        <span className="font-mono-num text-xs text-ink-faint" dir="ltr">
-                          · {quarters.length} {dict.company.quartersLabel}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        {quarters.map(([quarter, ts]) =>
-                          ts.map((t) => (
-                            <div
-                              key={t.id}
-                              className="flex items-center justify-between gap-3 border-t border-hairline px-4 py-3"
-                            >
-                              <div className="min-w-0">
-                                <span className="font-mono-num text-sm font-medium text-ink" dir="ltr">
-                                  {quarter}
-                                </span>
-                                <span className="ms-2.5 text-xs text-ink-faint">
-                                  {formatDate(t.date || t.createdAt, locale)}
-                                </span>
-                              </div>
-                              <div className="flex flex-none items-center gap-2">
-                                {artifactBtn(
-                                  'tr',
-                                  dict.company.transcript,
-                                  <TranscriptIcon size={15} />,
-                                  `/app/live/${t.id}`
-                                )}
-                                {artifactBtn('pdf', dict.company.reportPdf, <FileIcon size={15} />, null)}
-                                {artifactBtn('sl', dict.company.slides, <SlidesIcon size={15} />, null)}
-                                {isAdmin && (
-                                  <AdminCallControls
-                                    transcriptId={t.id}
-                                    title={t.company}
-                                    quarter={t.quarter}
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <DocumentsTab
+              companyId={company.id}
+              transcripts={transcripts}
+              isAdmin={isAdmin}
+              initialYear={initialYear}
+              initialPeriod={initialPeriod}
+            />
           )}
 
           {tab === 'webinars' && (

@@ -452,13 +452,21 @@ export const he: Dictionary = {
     reportPdf: 'דוח PDF',
     slides: 'מצגת',
     noReports: 'אין עדיין שיחות מתועדות.',
+    // The documents catalog (2026-08-09): years listed, a year fetched only when opened.
+    documentsHint: 'בחרו שנה כדי לראות את הדוחות והמצגות שפורסמו',
+    yearLoading: 'טוען מסמכים מהבורסה…',
+    yearEmpty: 'לא נמצאו דוחות לשנה זו',
+    yearFailed: 'לא הצלחנו לטעון את השנה הזו',
+    retry: 'נסו שוב',
+    annual: 'שנתי',
+    openingDoc: 'מביא את המסמך מהבורסה…',
+    openFailed: 'לא הצלחנו להביא את המסמך',
+    noDocsThisPeriod: 'אין מסמכים לתקופה זו',
     webinarsExplainer:
       'וובינרים בזום שהחברה קיימה מחוץ למחזור הרבעוני — מתוארכים, לא משויכים לרבעון. כל אחד נפתח כתמלול חי עם נגינת קריוקי.',
     noWebinars: 'אין עדיין וובינרים מתועדים.',
     askAtlas: 'שאלו את אטלס',
-    quartersLabel: 'רבעונים',
-    liveTase: 'Live · TASE',
-    viewAll: 'הצגת הכול',
+    quartersLabel: 'רבעונים',    viewAll: 'הצגת הכול',
     // ראו ההערה ב-en.ts: הרשימה אינה "דומות" — אין לנו נתוני ענף כדי לחשב דמיון.
     // MAYA's own company page heads this section אודות החברה — same words, so a
     // user moving between the two reads one label, not a translation of one.
@@ -512,6 +520,10 @@ export const he: Dictionary = {
     slidesEmpty: 'המצגת תופיע כאן כשתקושר לשיחה.',
     reportEmpty: 'הדוח הרבעוני יופיע כאן כשיקושר.',
     reportFreely: 'PDF · קריאה חופשית',
+    // The panes state their own condition now — there is no stub behind them.
+    docLoading: 'מביא את המסמך מהבורסה…',
+    docFailed: 'לא הצלחנו להביא את המסמך',
+    noDocument: 'אין מסמך לתקופה זו',
     demoContent: 'תוכן הדגמה — לא נתוני חברה אמיתיים',
     viewLabel: 'תצוגה',
     viewSingle: 'יחיד',

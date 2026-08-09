@@ -46,7 +46,30 @@ const PERIOD_BY_EVENT: Record<number, string> = {
   [EVENT_Q3]: 'Q3',
 }
 
+/**
+ * A NOTICE THAT SOMETHING WILL BE PUBLISHED IS NOT THE THING.
+ *
+ * `113 מועד פרסום דוחות` announces a FUTURE filing, and it always carries the
+ * event id of the report it is announcing — that is how it says WHICH report.
+ * Which is exactly why it was being admitted as that report: the rule below is
+ * "any whitelisted event", and `[104, 113]` has one.
+ *
+ * Measured 2026-08-09, 20 issuers over 2022-2026: **80 of the 814 filings
+ * `toRemoteSources` offered carried 113, and every one was a scheduling
+ * notice** — "מועד פרסום דוח רבעון 1 לשנת 2026 ושיחת ועידה ביום 27.5.26". None
+ * was a presentation. A user browsing a company's Q1 2026 could therefore open
+ * "the report" and get a one-page announcement of when the report was due.
+ *
+ * The header of this file has always said these belong to the calendar rather
+ * than to a shelf, and `SCHEDULE_EVENT_IDS` has always held 113. This is the
+ * line that makes the code agree with the sentence.
+ */
+export function isAnnouncement(eventIds: number[]): boolean {
+  return eventIds.includes(EVENT_RELEASE_DATE)
+}
+
 export function isDocumentEvent(eventIds: number[]): boolean {
+  if (isAnnouncement(eventIds)) return false
   return eventIds.some((id) => DOCUMENT_EVENT_IDS.has(id))
 }
 

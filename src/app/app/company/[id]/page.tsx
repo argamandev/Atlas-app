@@ -13,7 +13,7 @@ export default async function CompanyPage({
   searchParams,
 }: {
   params: { id: string }
-  searchParams: { tab?: string }
+  searchParams: { tab?: string; year?: string; period?: string }
 }) {
   const company = await getCompany(params.id)
   if (!company) notFound()
@@ -32,8 +32,13 @@ export default async function CompanyPage({
     ? await Promise.all([listQuotes(user.userId, params.id), listFolders(user.userId, params.id)])
     : [[], []]
 
-  const initialTab =
-    searchParams.tab === 'quotes' || searchParams.tab === 'calls' ? searchParams.tab : 'overview'
+  // 'reports' was NOT in this list, so ?tab=reports — the tab the documents
+  // catalog lives in — fell silently back to Overview. That made the tab
+  // unreachable by URL and lost the user's place on every return from a
+  // document. ('calls' is kept although CompanyView has no such tab; removing it
+  // is a separate question from the one this branch is answering.)
+  const TABS = ['quotes', 'calls', 'reports']
+  const initialTab = TABS.includes(searchParams.tab ?? '') ? searchParams.tab! : 'overview'
 
   return (
     <AppPage>
@@ -44,6 +49,8 @@ export default async function CompanyPage({
         quotes={quotes}
         folders={folders}
         initialTab={initialTab}
+        initialYear={searchParams.year}
+        initialPeriod={searchParams.period}
         isAdmin={user.isAdmin}
       />
     </AppPage>
