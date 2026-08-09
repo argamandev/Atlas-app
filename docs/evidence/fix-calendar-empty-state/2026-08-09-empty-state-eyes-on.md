@@ -59,11 +59,21 @@ than honest.
 
 ### Hebrew (`dir="rtl"`, `lang="he"`)
 
-Both new strings render, and the scoped/unscoped pair is genuinely different:
+**All four strings were rendered and read back from the DOM** — the scoped/unscoped pairs are
+genuinely different, which is the whole point of the change:
 
-- scoped: `אירועי היומן שלכם בחודש זה מוסתרים על ידי סינון הסוגים — הפעילו סוג כדי לראות אותם.`
-- unscoped: `אירועי החודש מוסתרים על ידי סינון הסוגים — הפעילו סוג כדי לראות אותם.`
+- scoped, filtered: `אירועי היומן שלכם בחודש זה מוסתרים על ידי סינון הסוגים — הפעילו סוג כדי לראות אותם.`
+- unscoped, filtered: `אירועי החודש מוסתרים על ידי סינון הסוגים — הפעילו סוג כדי לראות אותם.`
+- **scoped, empty month:** `אין אירועים ביומן שלכם בחודש זה`
 - not-following: `עדיין אינכם עוקבים אחר שיחות`
+
+> ⚠ **The third bullet was added after a cold reviewer caught this section claiming "both new
+> strings render" while exhibiting only one of them.** It was right: at first writing, Hebrew
+> `noEventsThisMonthMine` had been reasoned about, not rendered. It has now been driven — follow a
+> call, switch to היומן שלי, page to the next month — and the string above is what appeared. On a
+> branch whose entire history is claims outrunning observation, the fix was to go and look, not to
+> soften the sentence. That required a second follow/unfollow round-trip; `followed_calls` was
+> re-checked afterwards and again holds only the two June orphan rows.
 
 All three are pure Hebrew with no Latin runs or digits, so no `<bdi>` is required — the `rules/app.md`
 bidi rule applies to MIXED lines, and these are not mixed. Screenshot taken: RTL layout correct

@@ -355,13 +355,25 @@ run a file cannot tell you it is missing.
 > titled *"four claims that a command contradicts"*. **Third filing of the same law: a count in a
 > document comes from a command, and that applies to the count you write while fixing a count.**
 
-> **This list is emitted from `package.json` by a script, not edited by hand**, and the note that
-> used to sit here is why. It read: *"it previously named `live/syncEngine.test.ts` and
-> `live/search.test.ts`, neither of which is in the runner."* That was true when written and was
-> made FALSE by the very commit that left it standing — those two files were registered in it. A
-> hand-maintained enumeration next to a hand-maintained count is two chances to lie about the same
-> thing; `testRegistry.test.ts` now guarantees the SET is right, and this list is regenerated
-> whenever it changes.
+> **This list is DERIVED FROM `package.json` BY A COMMAND, never edited by hand.** Run this and
+> paste the result — it is the only sanctioned way to change the list:
+>
+> ```
+> node -e "const p=require('./package.json');console.log(p.scripts.test.split(/\s+/).filter(s=>s.endsWith('.test.ts')).map(s=>s.replace(/^src\/lib\//,'')).sort().join(' · '))"
+> ```
+>
+> ⚠ **This paragraph used to say the list "is emitted from `package.json` by a script".
+> NO SUCH SCRIPT EXISTS** — `git ls-files scripts/` has never held one, and `testRegistry.test.ts`
+> enforces only `package.json` ↔ disk, never this document ↔ `package.json`. So the sentence
+> promising the list could not be hand-edited was itself the thing letting it rot to 38 entries
+> against 65, and it survived the 2026-08-09 correction of the blockquote directly above it.
+> A claim that a document is machine-generated is a claim like any other: it needs a command.
+>
+> The note that used to sit here is the same lesson one turn earlier. It read: *"it previously
+> named `live/syncEngine.test.ts` and `live/search.test.ts`, neither of which is in the runner."*
+> That was true when written and was made FALSE by the very commit that left it standing — those
+> two files were registered in it. `testRegistry.test.ts` guarantees the SET on disk is right;
+> only the command above keeps THIS list honest.
 
 ---
 
