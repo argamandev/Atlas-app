@@ -382,9 +382,12 @@ export function LiveBroadcastView({
             <span className="call-ink max-w-[460px] truncate text-[13.5px] font-semibold">
               <span dir="auto">{[companyName, quarter].filter(Boolean).join(' — ')}</span>
             </span>
-            <span className="call-muted flex-none font-mono-num text-[11.5px]" dir="ltr">
+            {/* <bdi>, NOT dir="ltr" — a formatted Hebrew date is a MIXED run.
+                Twin of the same header in LiveTranscriptView; found by grepping
+                the construct rather than the component. rules/app.md. */}
+            <bdi className="call-muted flex-none font-mono-num text-[11.5px]">
               {formatDate(new Date().toISOString(), locale)}
-            </span>
+            </bdi>
             {phase === 'playing' && !over && (
               <span
                 className="call-panel-bg call-muted shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-mono-num text-2xs tabular-nums"

@@ -96,16 +96,29 @@
   Whether that caller may touch the row it goes on to read is the `lib/db` modules' job, and most
   of them still query through `supabaseAdmin`, which bypasses RLS. See the `supabaseAdmin`
   paragraph above; `lib/db/projects.ts` is the pattern to copy.
-- **A line that mixes Hebrew and Latin needs `<bdi>`, not `dir` — 3rd occurrence, so it is now
-  a rule.** `dir="auto"` resolves from the line's FIRST strong character, so one Hebrew name at
-  the start flips the whole line and throws every trailing Latin run's punctuation to the far
-  side; `dir="ltr"` on a wrapper does the mirror-image damage to Hebrew. Occurrences: the
-  "sheets 4" metadata line (feat/pinge), a `dir="ltr"` reversing a Hebrew sentence
-  (feat/surfaces-import), and a `<cite>` orphaning an English marker's period
-  (fix/surfaces-export-marker). **The remedy is always the same: wrap each mixed run in its own
-  `<bdi>`** (it defaults to `dir="auto"`, so each run resolves independently) and set direction
-  on the container, never on the mixed line. Iron rule 5's "test bidi visually" means *look at
-  BOTH locales* — every one of these passed typecheck, tests, and an EN-only screenshot pass.
+- **A line that mixes Hebrew and Latin needs `<bdi>`, not `dir` — 5th occurrence as of 2026-08-09,
+  and the last two landed INSIDE the branch that quotes this rule.** `dir="auto"` resolves from the
+  line's FIRST strong character, so one Hebrew name at the start flips the whole line and throws
+  every trailing Latin run's punctuation to the far side; `dir="ltr"` on a wrapper does the
+  mirror-image damage to Hebrew. Occurrences: the "sheets 4" metadata line (feat/pinge), a
+  `dir="ltr"` reversing a Hebrew sentence (feat/surfaces-import), a `<cite>` orphaning an English
+  marker's period (fix/surfaces-export-marker), the publication date reading "במרץ 31 2024"
+  (feat/documents-catalog, found by the lane), and — twenty lines from that fix, in the same
+  branch — the transcript viewer's identity header and the side panel's sub-line, both found by
+  the merge reviewer and fixed at merge. **The remedy is always the same: wrap each mixed run in
+  its own `<bdi>`** (it defaults to `dir="auto"`, so each run resolves independently) and set
+  direction on the container, never on the mixed line. Iron rule 5's "test bidi visually" means
+  *look at BOTH locales* — every one of these passed typecheck, tests, and an EN-only screenshot
+  pass.
+  **⇒ THE ADDENDUM THE 5TH OCCURRENCE EARNED, because fixing one instance is what hid the others:
+  when you fix a bidi defect, GREP THE WHOLE REPO FOR THE CONSTRUCT, not the component.**
+  `git grep -n 'dir="ltr"' -- src` is the command. The lane fixed `DocumentsTab` and wrote a
+  careful comment explaining why, while the identical construct sat on the header its own feature
+  feeds a date into — so the catalog's headline screen rendered "ביולי 2026 16" in Hebrew.
+  **And prove the fix RENDERS differently, in a browser**: a `<bdi>` that changes nothing looks
+  exactly like a `<bdi>` that fixes everything. Set the old `dir` back on the live element and
+  re-measure the runs' x-positions; if the order does not change, you fixed nothing. That control
+  is what confirmed this one (`docs/evidence/feat-documents-catalog/`).
 - **Design parity is verified against the RENDERED design, never bundle CSS** (7-round lesson,
   2026-07-14): probe computed styles / canvas `measureText` on the live design page. The design
   uses TWO system stacks — body = SF Pro Text stack (→ Segoe UI on Windows), headlines
@@ -130,11 +143,18 @@
   with only a code comment admitting it — nothing on screen. Both are now restorable as facts
   (`company-details` carries phone/email/address; `securityIncludedIndices` carries index
   membership with weights), so if they return they return as data. **Do not re-add a stub to
-  fill a designed slot.** Same class, still open: a failed `/api/documents`
-  fetch silently falls back to the fabricated stub report in FacetPanes (FINDING 2026-07-17);
-  a >2MB Pinge snip renders as a chip client-side but is silently stripped server-side, model
-  answers without the image (FINDING 2026-07-23). Recurring class: degradation must be VISIBLE
-  — never render success UI for content the server dropped.
+  fill a designed slot.** ✅ **CLOSED 2026-08-09 by `feat/documents-catalog`, and it closed the
+  RIGHT way — the stubs were DELETED, not gated.** `slideStubs()` and `reportStub()` and their
+  module are gone (`git grep` returns only a comment in `FacetPanes.tsx` explaining what used to
+  sit there), so the FINDING of 2026-07-17 — a failed `/api/documents` fetch silently falling back
+  to a fabricated report — has no fallback left to reach. The panes now end in exactly three
+  states: loading · error · noDocument, each with its own sentence, and the reviewer confirmed
+  there is no fourth branch. Worth knowing WHAT was being rendered: four invented Hebrew slides
+  about אפגלו and Gulf sovereign wealth funds, shown for **every call of every company**, on the
+  live host. Still open, same class: a >2MB Pinge snip renders as a chip client-side but is
+  silently stripped server-side and the model answers without the image (FINDING 2026-07-23).
+  Recurring class: degradation must be VISIBLE — never render success UI for content the server
+  dropped.
 - **4th occurrence of that class, and it added a rule of its own: when a decision rests on a
   NATURAL-LANGUAGE CLASSIFIER over an open vocabulary, buy VISIBLE FAILURE, not a longer word
   list.** `feat/workspace-tables` (merged 2026-08-08) took THREE review rounds on one function,
@@ -201,11 +221,13 @@
   `fix/israel-time-residue`** — `lib/db/calls.ts` now floors at `israelDayStart(israelDayKey(now))`,
   the today-pill compares the very key `byDay` is keyed by, and `isFuture` moved out of
   `CompanyOverview` into the unit-tested `isFutureEvent` (`lib/calendar/event-meta.ts`) precisely
-  because inline-in-JSX is where the last two defects on this lane survived. **Same class, STILL
-  OPEN and user-visible: `src/lib/transcripts.ts:33`** — `(row.created_at).split('T')[0]` takes the
-  UTC day, so a transcript created 00:00–03:00 Israel renders a day early on the company page. Also
-  open, not user-visible: `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`, server-local
-  `{Y0}/{Y1}`) and `lib/maya/events.ts:83` (`getUTCFullYear` labelling "FY 2024").
+  because inline-in-JSX is where the last two defects on this lane survived. **✅ The last
+  user-visible one, `src/lib/transcripts.ts`, was CLOSED 2026-08-09 by `feat/documents-catalog`**
+  — it now reads `israelDayKey(row.created_at)` instead of `(row.created_at).split('T')[0]`, so a
+  transcript created 00:00–03:00 Israel no longer renders a day early. It was fixed on the branch
+  that made those very rows more visible, which is the right reason to widen a scope by one line.
+  Still open, NOT user-visible: `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`,
+  server-local `{Y0}/{Y1}`) and `lib/maya/events.ts:83` (`getUTCFullYear` labelling "FY 2024").
   **⇒ AND THE TEST DISCIPLINE ABOVE HAS A TRAP THAT SILENTLY DISARMS IT ON THIS MACHINE, FOUND
   2026-08-09 BY A COLD REVIEWER AFTER IT FOOLED BOTH THE LANE AND THE SUPERVISOR:** in Git Bash,
   a `TZ=` prefix whose value contains a `/` is **silently dropped** by MSYS path conversion —

@@ -188,9 +188,11 @@ export function CompanyOverview({ data }: { data: CompanyOverviewData }) {
                   <div className="text-[14.5px] font-semibold text-ink">
                     {[latest.quarter, dict.home.investorCall].filter(Boolean).join(' · ')}
                   </div>
-                  <div className="mt-0.5 font-mono-num text-[12.5px] text-ink-faint" dir="ltr">
+                  {/* <bdi>, NOT dir="ltr" — a formatted Hebrew date is a MIXED run.
+                      Same construct as the two call headers. rules/app.md. */}
+                  <bdi className="mt-0.5 block font-mono-num text-[12.5px] text-ink-faint">
                     {formatDate(latest.date || latest.createdAt, locale)}
-                  </div>
+                  </bdi>
                 </div>
               </div>
               <div className="flex items-center gap-[9px] text-ink-muted">

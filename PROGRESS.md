@@ -746,3 +746,61 @@ battery under `TZ=UTC` as well as locally.** A test that only ever runs in one e
 that environment, not the property. Every gate in this repo was green while the live product was
 wrong about the single number it exists to publish — and the only thing that found it was opening
 the deployed site and comparing two pages against the database.
+
+---
+
+## 2026-08-09 — The documents catalog: the loop closed, and the invented slides deleted
+
+`feat/documents-catalog` (Lane M, 12 commits) → main `47bf674`, with merge-time fixes in `227edd5`.
+Reviewed cold by `atlas-reviewer`: **CHANGES, no blockers**.
+
+- **What it does:** a company page now lists the fiscal years it filed in; a year opens to
+  Q1/Q2/Q3/Annual (the Israeli filing calendar has no Q4); a period opens report + presentation +
+  transcript-if-any into the **same `LiveTranscriptView` a live call uses** — so Ask Atlas, the
+  snipping scissors, page navigation, zoom and Single/Multi came for free rather than being rebuilt.
+  Back-navigation returns to the open drill-down because the year and period live in the URL.
+- **No schema, and that is what made it shippable today.** No new table, no new column, no
+  migration — verified by command, not by claim (`git diff --name-only main...HEAD -- supabase/`
+  is empty; no DDL in any added line). The catalog lists **live** from MAYA and stores one PDF only
+  when a user opens it, through the `ingestFiling` path Workspace already ran. **So the screen is
+  also Atlas's ingestion path**: every document a user opens becomes corpus, correctly attributed
+  to its company — which fills the corpus with exactly the documents real users want. The founder's
+  tiebreaker for the chapter, filed verbatim: *the goal is the best possible user experience; the
+  corpus is a by-product, never the objective.*
+- **`slideStubs()` and `reportStub()` are DELETED, not gated.** Four invented Hebrew slides about
+  אפגלו and Gulf sovereign wealth funds had been rendering for **every call of every company on the
+  live host**. The two panes are now one implementation ending in exactly three states —
+  loading · error · noDocument — so a deck gets the real PDF viewer it never had, and a failure
+  says which failure it was. This closes the FINDING of 2026-07-17 the right way: the fallback has
+  no fabricated content left to fall back to.
+- **Three defects the lane found by looking rather than by testing**, all in the evidence:
+  `formatDate('')` threw `RangeError` and **500'd the whole period route for any period with no
+  transcript** — the common case, since 5 of 895 events carry an attributed transcript — and it was
+  invisible to 652 passing tests, a clean tsc and a green build because it lived in a state nobody
+  had rendered. A Hebrew publication date read "במרץ 31 2024". And a scripted edit silently did not
+  apply against a CRLF working tree while its commit message asserted it had.
+- **Two pre-existing bugs fixed in passing**, both on the return path: `?tab=reports` was
+  unreachable by URL, and `listCompanyTranscripts` took the UTC day off `created_at`, so a
+  transcript created 00:00–03:00 Israel rendered a day early — on these very rows. That was the
+  last user-visible survivor of the timezone class filed this morning.
+- **Fixed at merge, by the supervisor:** the `<bdi>` rule's **5th, 6th and 7th occurrences**. The
+  lane fixed the construct in `DocumentsTab` and wrote a careful comment about it, while the
+  identical `dir="ltr"` sat on the transcript viewer's identity header — the one the new period
+  page feeds a publication date into — so the catalog's headline screen rendered "ביולי 2026 16".
+  Grepping the *construct* rather than the *component* then found two more: the live-call header
+  and the company page's latest-call date. Also normalized both i18n dictionaries back to LF; the
+  branch had committed them CRLF with a bare `\r` welding two keys onto one line, turning a
+  30-line change into 2774 lines of diff.
+- **Verified:** battery **652/652 in three genuinely applied timezones** (Asia/Jerusalem, UTC,
+  America/New_York — set from PowerShell with the resolved zone printed inside each run, because a
+  `TZ=` value containing a slash is silently dropped in Git Bash). `tsc` exit 0 · build green ·
+  `/app/company/[id]/period/[period]` compiled · Middleware 81.8 kB unchanged. Eyes-on in Hebrew on
+  a real company: transcript + the real 41-page deck + the real 31-page report, console clean —
+  and the bidi fix proved by **mutation in the live DOM**: restoring `dir="ltr"` on the element
+  re-garbles the date to "ביולי 2026 16", so the fix demonstrably changes rendering rather than
+  merely looking correct.
+
+**The lesson, filed to `rules/app.md`: when you fix a bidi defect, grep the whole repo for the
+CONSTRUCT, not the component — and prove the fix RENDERS differently.** A `<bdi>` that changes
+nothing looks exactly like a `<bdi>` that fixes everything. Fixing one instance is what hid the
+other three; `git grep -n 'dir="ltr"' -- src` found them in seconds.

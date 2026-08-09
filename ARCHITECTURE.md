@@ -78,6 +78,7 @@ Proxy routes the browser talks to: /api/live/state, /api/live/finish, /api/live/
 | `app/app/chat/page.tsx` | `/app/chat` | **Chat** — LLM chat over the transcript DB. |
 | `app/app/company/[id]/page.tsx` | `/app/company/[id]` | **Company page** — header, Overview + Investor-Calls tabs, My Quotes. |
 | `app/app/live/[id]/page.tsx` | `/app/live/[id]` | **Live transcript page** — live karaoke AND finished replay (one view, two modes). |
+| `app/app/company/[id]/period/[period]/page.tsx` | `/app/company/[id]/period/[period]` | **A past period, in the live-call viewer** (2026-08-09) — report + presentation + transcript-if-any for one fiscal period, rendered by the SAME `LiveTranscriptView` a live call uses, so Ask Atlas, snipping and Single/Multi come for free. Synthesizes a call-shaped object when no transcript exists; that state is the common one (5 of 895 events have an attributed transcript) and is what `formatDate('')` used to 500 on. |
 | `app/app/chat/projects/page.tsx` | `/app/chat/projects` | **Projects list** — the project surface inside the chat shell. UI only. |
 | `app/app/chat/projects/[id]/page.tsx` | `/app/chat/projects/[id]` | **Project view** — files, context, composer. UI only. |
 | `app/app/workspace/page.tsx` | `/app/workspace` | **Workspace picker** — the workspace selector. |
@@ -121,6 +122,8 @@ yet). API routes are gated per-route and inconsistently — read the
 | `transcripts/[id]/diarization/route.ts` | Additive speaker-edit overlay (re-segments speakers). |
 | `chat/route.ts` | Chat — streams Gemini SSE → token stream (GPT-4.1 fallback). |
 | `companies/route.ts`, `companies/[id]/route.ts` | List/search companies; single company. |
+| `companies/[id]/filings/route.ts` | ONE fiscal year of a company's filing catalog, listed live from MAYA (nothing stored), behind a 5-minute per-company-year cache (`lib/maya/catalogCache.ts`). Bounds the year to 1990..2100. |
+| `documents/open/route.ts` | Opening a filing STORES it — the ingestion path. **Never accepts a PDF url from the client**: it re-derives the url from MAYA by `mayaReportId` and refuses a filing that is not in that company's catalog. Runs with the service role, so read it adversarially before changing it. |
 | `calls/route.ts`, `calls/follow/route.ts` | Scheduled calls; follow/unfollow (My Calendar). |
 | `conversations/route.ts`, `conversations/[id]/route.ts` | Chat history. |
 | `quotes/route.ts`, `quotes/[id]/route.ts` | Save/list, update/delete quotes. |
@@ -195,6 +198,7 @@ yet). API routes are gated per-route and inconsistently — read the
 | `AddInvestorCall.tsx` | "Add Investor Call" (YouTube link → pipeline). |
 | `MyQuotes.tsx`, `QuoteCard.tsx` | Saved quotes list + a single quote card. |
 | `AdminCallControls.tsx` | Admin pencil/trash beside each finished call (rename/delete). |
+| `DocumentsTab.tsx` | **The documents catalog** (2026-08-09) — fiscal years listed down to a 2015 floor, a year fetched from MAYA only when opened, periods (Q1/Q2/Q3/Annual) inside it, and a click that opens the period in the transcript viewer. The year/period stay in the URL (`?tab=reports&year=&period=`) so back-navigation returns to the open drill-down. |
 
 ### Other
 | File | What it does |
@@ -263,7 +267,6 @@ the deploy, which comes after this chapter.
 | `ivritStitcher.ts` | Stitches overlapping IVRIT chunks into a clean transcript stream. Unit-tested. |
 | `pcmChunker.ts` | Slices PCM audio into silence-aware chunks for IVRIT submission. Unit-tested. |
 | `wavEncode.ts` | Encodes raw PCM to WAV (44-byte header + payload). Unit-tested. |
-| `call-stubs.ts` | Design-demo live-call stubs (typed, to be replaced by real feed). Unit-tested. |
 | `snipBridge.ts` | Tiny global store letting the Ask Atlas composer arm the Report-pane snip crop (`atlas:arm-snip` event + `snippable` state) — the two snip entry points share one path. Unit-tested. |
 
 ### Other lib
@@ -292,6 +295,9 @@ the deploy, which comes after this chapter.
 | `demo/seedDocument.ts` | The working document's fabricated seed content, kept out of React so its DEMO markers are unit-testable. **Read the header before touching the quote block** — it invents financials and a quote from a NAMED executive of a real TASE issuer, and its marker cost three review rounds. Unit-tested. |
 | `company/logo.ts` | Which image represents a company — stored `logo_url`, else an EXACT `tase_security_id` map. Pure so it can be tested; it used to live inside `db/companies.ts` behind `server-only`, where a name-substring guess put one issuer's mark on another for months. Unit-tested. |
 | `calendar/event-meta.ts` | Event kinds: label, accent, tint, and `calendarEmptyState` — the single choke point deciding whether an empty month is empty or filtered. Unit-tested. |
+| `company/documentCatalog.ts` | Pure: MAYA filings → years → periods → which filing fills the report/presentation slot of a period. Knows the Israeli filing calendar has no Q4 (Q1/Q2/Q3 + annual). Unit-tested. |
+| `documents/openFiling.ts` | The `needsIngest` identity guard — what makes "no schema" safe. `company_documents` is unique on `(company_id, quarter, doc_type)` AND on `maya_report_id`, so a Hebrew/English pair or a correction and its original collide on ONE row; a stored row is served only when its `maya_report_id` IS the filing that was clicked, otherwise it is re-ingested. Unit-tested. **Not atomic** — see known gaps. |
+| `maya/catalogCache.ts` | 5-minute per-(company, year) memory cache in front of `listDisclosures`, so re-opening a year does not re-spend the shared 10-req/2s MAYA budget. Unit-tested. |
 | `maya/companyProfile.ts` | `company-details` row → the `companies` columns: sector hierarchy, website normalisation, logo URL, image magic-byte sniffing. Pure. Unit-tested. |
 | `maya/schedule.ts` | Report-schedule row → calendar event: timezone resolution, `time_known`, dedupe. Pure. Unit-tested. |
 | `maya/types.ts` | MAYA wire types, exactly as the API returns them. |
@@ -309,7 +315,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **610 tests across 65 files** as of 2026-08-09; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **652 tests across 69 files** as of 2026-08-09; the list in `package.json` is explicit — add new test files there)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -320,26 +326,34 @@ run a file cannot tell you it is missing.
 
 `agents/data.test.ts` · `api/contextStatus.test.ts` · `api/errorShape.test.ts`
 · `api/messageFlags.test.ts` · `apiAuthBoundary.test.ts` · `auth/gate.test.ts`
-· `auth/verifyUser.test.ts` · `calendar/event-meta.test.ts` · `chat/attachments.test.ts`
-· `chat/documentContext.test.ts` · `chat/history.test.ts` · `chat/projectContext.test.ts`
-· `company/logo.test.ts` · `correction.test.ts` · `db/conversationScope.test.ts`
-· `demo/demoState.test.ts` · `design/anim.test.ts` · `documents/extract.test.ts`
-· `documents/snip.test.ts` · `legacyBoundary.test.ts` · `live/call-stubs.test.ts`
-· `live/finishLiveCall.test.ts` · `live/ivritStitcher.test.ts` · `live/liveTiming.test.ts`
+· `auth/verifyUser.test.ts` · `calendar/event-meta.test.ts`
+· `chat/attachments.test.ts` · `chat/documentContext.test.ts`
+· `chat/history.test.ts` · `chat/projectContext.test.ts`
+· `company/documentCatalog.test.ts` · `company/logo.test.ts`
+· `correction.test.ts` · `db/conversationScope.test.ts` · `demo/demoState.test.ts`
+· `design/anim.test.ts` · `documents/extract.test.ts`
+· `documents/openFiling.test.ts` · `documents/snip.test.ts`
+· `i18n/format.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
+· `live/ivritStitcher.test.ts` · `live/liveTiming.test.ts`
 · `live/pcmChunker.test.ts` · `live/search.test.ts` · `live/snipBridge.test.ts`
 · `live/syncEngine.test.ts` · `live/syncMode.test.ts` · `live/wavEncode.test.ts`
-· `maya/client.test.ts` · `maya/companyProfile.test.ts` · `maya/dates.test.ts`
+· `maya/catalogCache.test.ts` · `maya/client.test.ts`
+· `maya/companyProfile.test.ts` · `maya/dates.test.ts`
 · `maya/disclosures.test.ts` · `maya/events.test.ts` · `maya/files.test.ts`
 · `maya/filings.test.ts` · `maya/issuers.test.ts` · `maya/layering.test.ts`
 · `maya/schedule.test.ts` · `player/viewers.test.ts` · `projects/data.test.ts`
-· `projects/derive.test.ts` · `projects/validate.test.ts` · `scripts/lib/measure-core.test.ts`
-· `testRegistry.test.ts` · `transcription.test.ts` · `workspace/blocks.test.ts`
-· `workspace/chat/compose.test.ts` · `workspace/chat/context.test.ts` · `workspace/chat/plan.test.ts`
-· `workspace/chat/prompt.test.ts` · `workspace/clip.test.ts` · `workspace/data.test.ts`
-· `workspace/intake/agreement.test.ts` · `workspace/intake/findSources.test.ts` · `workspace/intake/json.test.ts`
-· `workspace/intake/parseRequest.test.ts` · `workspace/intake/respond.test.ts` · `workspace/intake/selectSources.test.ts`
-· `workspace/panes.test.ts` · `workspace/present.test.ts` · `workspace/tabLabel.test.ts`
-· `workspace/thread.test.ts` · `workspace/validate.test.ts`.
+· `projects/derive.test.ts` · `projects/validate.test.ts`
+· `scripts/lib/measure-core.test.ts` · `testRegistry.test.ts`
+· `transcriptDate.test.ts` · `transcription.test.ts` · `workspace/blocks.test.ts`
+· `workspace/chat/compose.test.ts` · `workspace/chat/context.test.ts`
+· `workspace/chat/plan.test.ts` · `workspace/chat/prompt.test.ts`
+· `workspace/clip.test.ts` · `workspace/data.test.ts`
+· `workspace/intake/agreement.test.ts` · `workspace/intake/findSources.test.ts`
+· `workspace/intake/json.test.ts` · `workspace/intake/parseRequest.test.ts`
+· `workspace/intake/respond.test.ts` · `workspace/intake/selectSources.test.ts`
+· `workspace/panes.test.ts` · `workspace/present.test.ts`
+· `workspace/tabLabel.test.ts` · `workspace/thread.test.ts`
+· `workspace/validate.test.ts`.
 
 > ⚠ **REGENERATED 2026-08-09 FROM `package.json`, and what it had drifted into is the argument for
 > never hand-editing it.** Measured by diffing the old list against the registered set:
@@ -531,6 +545,14 @@ honest list:
    `POST /items/from-maya`. The correct key is `maya_report_id`, whose unique index is PARTIAL,
    which PostgREST's `onConflict` cannot express — so the fix is DDL and travels with the
    publication-date column in the MAYA phase. One migration, one review.
+   **Addendum 2026-08-09 (`feat/documents-catalog`): `lib/documents/openFiling.ts`'s `needsIngest`
+   guard is what keeps this safe for the USER — a stored row is served only when its
+   `maya_report_id` IS the filing that was clicked, otherwise it is re-ingested — but the guard is
+   NOT ATOMIC.** Two users opening the Hebrew and the English edition of one period at the same
+   moment both pass the check; the row ends pointing at one of them and the loser is served the
+   document they did not click. It self-heals on the next open, and the same DDL closes it
+   properly. Filed by the merge reviewer; the branch's headline claim "never serves one you did
+   not click" has this window and the evidence did not mention it.
 8. **`components/agents/` is still demo-fed** and carries its `DemoBanner`; agent execution needs
    the deploy. **The company-overview extras and the "Q2 2026" quarter tag are CLOSED
    (2026-08-09): `lib/company/overview-stub.ts` is deleted and all three literals are removed —

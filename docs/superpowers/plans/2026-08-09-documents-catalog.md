@@ -1,5 +1,8 @@
 # Documents catalog — implementation plan
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A company's documents section lists the years it filed in, a year opens to its periods, a period opens to its artifacts, and clicking one lands in the same viewer a live call uses — with a back that returns to where the user was.

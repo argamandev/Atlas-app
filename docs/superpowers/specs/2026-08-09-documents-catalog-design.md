@@ -1,5 +1,8 @@
 # The documents catalog — design spec
 
+> STATUS: SHIPPED — historical record, do not execute; current truth lives in ARCHITECTURE.md + PROGRESS.md
+
+
 **Branch:** `feat/documents-catalog` (Lane M, off main `9fbd475`)
 **Brainstormed with the founder 2026-08-09.** Supersedes the shape proposed in
 `docs/product/2026-08-09-documents-catalog-findings.md` where the two disagree — that document's
