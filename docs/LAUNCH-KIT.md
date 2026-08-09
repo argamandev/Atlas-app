@@ -623,11 +623,14 @@ THE QUESTIONS, IN ORDER — the ordering is deliberate, do not jump to 4:
       coverage per company. **A retrieval architecture chosen against 5 attributed transcripts is
       chosen against nothing.** Settle coverage before you spend a decision on pgvector; an
       embedding pipeline over an empty corpus is an expensive way to build the same silence.
-      ⇒ It also reframes the DEFERRED filings catalog (founder deferred the SCREEN 2026-08-09,
-      correctly): fetch-on-demand is a RENDERING path for a human reader, but whether that fetch
-      also STORES AND ATTRIBUTES what it pulled is the difference between a document viewer and a
-      corpus. Same mechanism, one design decision apart. The screen stays deferred; THE INGESTION
-      QUESTION UNDERNEATH IT IS YOURS.
+      ⇒ ONE THING IS ALREADY BEING FIXED WITHOUT YOU, AND YOU SHOULD PLAN AROUND IT RATHER THAN
+      FOR IT. The founder deferred the filings catalog at 18:05 on 2026-08-09 and UN-DEFERRED it
+      at 19:15 the same evening — Lane M is building it NOW. It matters to you because
+      `ingestFiling()` stores every opened PDF into `company_documents` WITH its company_id, so
+      that screen is not merely a viewer: it is Atlas's ingestion path, filling the corpus with
+      exactly the documents real users open. Assume it exists and is feeding you.
+      What it does NOT give you is an inventory of what exists for a company NOBODY has browsed —
+      that is the layer-1 question below, and it is still yours.
 
   ⚠ AND SEPARATE THREE LAYERS BEFORE YOU DESIGN ANYTHING, because conflating them is what makes
       this problem feel unanswerable. The founder arrived at this himself on 2026-08-09 ("don't we
@@ -653,8 +656,9 @@ THE QUESTIONS, IN ORDER — the ordering is deliberate, do not jump to 4:
       a freshness discipline — "when did we last look" becomes a fact the product must hold and
       can be wrong about. Listing live from MAYA has NO staleness by construction, and cannot
       answer anything across companies. Decide it, with the reason, in writing.
-      NOTE FOR SEQUENCING: the deferred catalog UI lists live from MAYA today and could read an
-      index later WITHOUT changing the screen — so neither choice strands the other's work.
+      NOTE FOR SEQUENCING: the catalog UI Lane M is building lists live from MAYA and could read
+      an index later WITHOUT changing the screen — so neither choice strands the other's work, and
+      you are not holding anyone up by leaving this open until the founder is in the room.
 
   Q2. WHAT IS THE CORPUS, EXACTLY? Enumerate what an agent may read and where each piece lives
       TODAY: transcripts (formatted_data JSON), MAYA filings + PDFs (src/lib/maya/, company_
