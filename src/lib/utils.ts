@@ -91,6 +91,15 @@ export function detectDir(text: string | null | undefined): 'rtl' | 'ltr' {
   return hebrew >= latin ? 'rtl' : 'ltr'
 }
 
+/**
+ * @deprecated Use `formatDate` from `@/lib/i18n/format`, which pins
+ * `Asia/Jerusalem`. This one has ZERO importers (`git grep formatDate -- src`)
+ * and is kept only because deleting it is not this branch's job — but it is a
+ * landmine, so it is labelled rather than left looking usable: it formats in
+ * the RUNTIME's timezone, which on Railway is UTC. That exact flaw shipped
+ * every investor call to production three hours early on 2026-08-09. It also
+ * hardcodes `he-IL` regardless of locale.
+ */
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleDateString('he-IL', {

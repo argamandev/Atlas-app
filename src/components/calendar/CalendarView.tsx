@@ -4,7 +4,14 @@ import { useCallback, useMemo, useState } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { companyDisplayName, type ScheduledCall } from '@/lib/api/types'
 import { setFollowCall } from '@/lib/api/calls'
-import { formatMonthYear, formatWeekday, formatTime, formatDate } from '@/lib/i18n/format'
+import {
+  formatMonthYear,
+  formatWeekday,
+  formatTime,
+  formatDate,
+  israelDayKey,
+  israelMonthParts,
+} from '@/lib/i18n/format'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -27,12 +34,14 @@ import {
 } from '@/lib/calendar/event-meta'
 import { cn } from '@/lib/utils'
 
-function dayKey(iso: string): string {
-  // Use LOCAL date components so a call buckets onto the same grid cell the user sees
-  // (slicing the ISO string would use UTC and misplace calls near midnight).
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+// ISRAEL date components, not the viewer's and not UTC. The comment here used to
+// say "use LOCAL date components so a call buckets onto the same grid cell the
+// user sees" — correct about the hazard, wrong about the fix: local is only
+// right for a viewer sitting in Israel. A report is stored at Israel midnight,
+// so ANY timezone west of Israel bucketed it onto the previous day, and one east
+// pushed a late-evening call onto the next. Founder decision 2026-08-09: Atlas
+// renders Israel time for everyone.
+const dayKey = israelDayKey
 function localKey(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
@@ -80,8 +89,12 @@ export function CalendarView({ calls, followedIds }: { calls: ScheduledCall[]; f
   // hand — the round's own lesson applied to the round's own caller.
   const inThisMonth = useCallback(
     (c: ScheduledCall) => {
-      const d = new Date(c.scheduledAt)
-      return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth()
+      // ISRAEL month, matching `dayKey` above — an event's grid cell and its
+      // month membership must be decided in the SAME timezone, or a month-edge
+      // event counts toward one month while rendering in another, and the
+      // empty-state guard is handed two facts that disagree.
+      const p = israelMonthParts(c.scheduledAt)
+      return p.year === month.getFullYear() && p.month === month.getMonth()
     },
     [month]
   )
