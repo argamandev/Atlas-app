@@ -192,7 +192,21 @@ with word timings → karaoke renders in sync, with the invariants unit-tested.
 
 ### 📑 Lane M — paste into the Atlas-multiview session
 
-> **CURRENT — written 2026-08-08 for CHAPTER 3: MAYA ACROSS THE PRODUCT.** Chapter 2 (Workspace
+> ⚠ **STALE AS OF 2026-08-10 — DO NOT PASTE THIS AS-IS.** Its "START HERE" points at SLICE 0, which
+> merged two days ago. **Slices 0–3 are all merged** (`713c114` · `a94f33d` · `796fdbd` ·
+> `0b593c0`), plus the documents catalog that was inserted after it was written (`de76f61`).
+> **Only SLICE 4 remains, and the founder has widened it:** on 2026-08-10 he decided the smart
+> layer is one chapter covering **chat · agents · workspace chat**, and that this seat builds all
+> of it — *"i will do everything in lane m"*. Until the new prompt exists, a Lane M session should
+> be started from `agent-memory/BOARD.md`'s Lane M section and the two entries at the tail of
+> `agent-memory/cross-cutting.md` (`[2026-08-09 23:40]` FINDING · `[2026-08-10 00:20]` DECISION),
+> which carry the measured state.
+>
+> **Banner-marked, NOT rewritten — the same call as `713c114`:** per the re-mission runbook the new
+> prompt waits on the founder's brainstorm and its spec, because a lane must not be reborn with a
+> vague mission. Rewriting it here would mean inventing that mission.
+>
+> **Written 2026-08-08 for CHAPTER 3: MAYA ACROSS THE PRODUCT.** Chapter 2 (Workspace
 > V1 + the MAYA platform layer) merged 2026-08-08 at `713c114` after three review rounds. The
 > chapter-2 prompt is kept below, banner-marked, as the record.
 
@@ -531,6 +545,15 @@ back — and it is all still there, still theirs, and provably invisible to anot
 
 ### 🧠 Agent Plan — a PLANNING session, not a lane (written 2026-08-09)
 
+> ⚠ **SUPERSEDED 2026-08-10 — DO NOT OPEN THIS SEAT.** The founder decided the smart layer is one
+> chapter across chat · agents · workspace chat and that **Lane M builds all of it** — *"i will do
+> everything in lane m"* (cross-cutting `[2026-08-10 00:20]`). So the planning happens in Lane M's
+> own session, not in a separate seat, and opening this one would put two sessions on one design.
+> **What survives, and is the reason this text is kept:** the brainstorm still comes before any
+> building, and its deliverable is still a SPEC — the founder's *"nobody builds retrieval until
+> that spec exists"* was not reversed, only relocated. Everything below is a good description of
+> what that brainstorm must produce; read it as material for Lane M's prompt, not as a seat.
+>
 > **This one is different and the difference is the point: it writes NO CODE.** It needs no
 > worktree, no port and no branch, so it opens in the MAIN checkout
 > (`C:\Users\Sagi\Desktop\Atlas`) alongside the supervisor seat. Its deliverable is a spec.
