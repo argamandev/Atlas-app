@@ -5,6 +5,7 @@ import {
   SCHEDULE_EVENT_IDS,
   docTypeFor,
   periodFor,
+  isAnnouncement,
   isDocumentEvent,
   isScheduleEvent,
 } from './events'
@@ -23,6 +24,25 @@ test('a conference call is schedule, never a document', () => {
   assert.equal(isScheduleEvent([233]), true)
   assert.equal(docTypeFor([233]), null)
   assert.ok(SCHEDULE_EVENT_IDS.has(233))
+})
+
+// A NOTICE THAT A REPORT IS COMING IS NOT THE REPORT. It carries the report's
+// OWN event id — that is how it says which report it is announcing — so the
+// "any whitelisted event" rule filed it as that report. Measured 2026-08-09
+// across 20 issuers / 2022-2026: 80 of 814 offered filings, every one a
+// scheduling notice, none of them a presentation.
+test('a release-date notice is an announcement, never the document', () => {
+  assert.equal(isAnnouncement([104, 113, 233]), true) // אאורה #1741205
+  assert.equal(isAnnouncement([101, 113]), true)
+  assert.equal(isDocumentEvent([104, 113]), false)
+  assert.equal(docTypeFor([104, 113]), 'report') // classification is unchanged; admission is not
+})
+
+test('the report itself and its deck are still documents', () => {
+  assert.equal(isAnnouncement([104]), false)
+  assert.equal(isAnnouncement([104, 270]), false) // 0 of 295 measured decks carry 113
+  assert.equal(isDocumentEvent([104]), true)
+  assert.equal(isDocumentEvent([104, 270]), true)
 })
 
 test('a presentation wins over the report it accompanies', () => {

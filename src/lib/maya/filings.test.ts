@@ -86,3 +86,31 @@ test('sources come back newest first', () => {
     [2, 1]
   )
 })
+
+// THE CATALOG'S BIGGEST SOURCE OF FALSE DOCUMENTS, and it was invisible because
+// the announcement carries the report's own event id and a real PDF. Measured
+// 2026-08-09: 80 of 814 offered filings across 20 issuers.
+test('a scheduling announcement never reaches the shelf', () => {
+  const out = toRemoteSources([
+    filing({
+      mayaReportId: 1741205,
+      title: 'מועד פרסום דוח רבעון 1 לשנת 2026 ושיחת ועידה ביום 27.5.26, שעת השיחה: 10:00',
+      publicationDate: '2026-05-14T09:00:00',
+      events: [
+        { eventId: 104, eventName: 'דוח רבעון 1' },
+        { eventId: 113, eventName: 'מועד פרסום דוחות' },
+        { eventId: 233, eventName: 'שיחת ועידה' },
+      ],
+    }),
+    filing({
+      mayaReportId: 1743923,
+      title: 'דוח רבעון 1 לשנת 2026',
+      publicationDate: '2026-05-27T09:00:00',
+      events: [{ eventId: 104, eventName: 'דוח רבעון 1' }],
+    }),
+  ])
+  assert.deepEqual(
+    out.map((s) => s.mayaReportId),
+    [1743923]
+  )
+})
