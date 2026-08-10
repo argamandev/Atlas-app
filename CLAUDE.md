@@ -13,7 +13,7 @@ Live calls on-platform (Recall → buffered audio + karaoke captions), polished 
 
 1. **Supabase is SHARED with the old repo's production Timlul.** Additive-only migrations,
    appended to `agent-memory/cross-cutting.md` before applying. Destructive SQL is hook-blocked
-   on both doors (Bash + Supabase MCP).
+   at every door.
 2. **main is always working + pushed.** Branch per mini-feature; small labeled commits; test
    before commit; ship via `/ship`. Only the supervisor session pushes `main`.
 3. **Verify with your own eyes before claiming done** — `/verify-app`.

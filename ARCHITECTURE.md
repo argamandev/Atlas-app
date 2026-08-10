@@ -17,8 +17,13 @@ in a three-layer sidebar shell. The `/` route is a login gateway (legacy-styled,
 logging in lands you at `/app/home`.
 
 **Stack:** Next.js 14 (App Router) · TypeScript · Supabase (Postgres + Auth + Storage) · Tailwind ·
-Railway (deploys from the old repo for now; this clone develops on localhost). Transcription:
-IVRIT (RunPod) → Gemini 3.5 Flash. Chat: Gemini 3.5 Flash (GPT-4.1 fallback).
+Railway — **THIS repo is what deploys, and it is LIVE at `www.timlul-ai.com` since 2026-08-08**,
+having replaced the old Timlul deploy rather than running beside it. (This line said "deploys from
+the old repo for now; this clone develops on localhost" until 2026-08-10, i.e. it kept telling
+sessions a mistake on main was local for two days after it stopped being. Found by a cold audit of
+CLAUDE.md, which sells this file as "the codebase, file by file".) Transcription:
+IVRIT (RunPod) → Gemini 3.5 Flash. Chat: Gemini 3.5 Flash (GPT-4.1 fallback) — note the workspace
+leads with the OTHER vendor (`lib/workspace/askModel.ts`: gpt-4.1 primary, Gemini hedged).
 
 **Supabase is shared with the old frozen repo** — additive migrations only, flag any DB change.
 
