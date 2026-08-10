@@ -495,7 +495,7 @@ a pdf-parse bump can't silently desync it).
 | `rules/parallel-work.md` | Fleet law: ports, board protocol, engine ownership, shared-surface posts. |
 | `rules/db.md` | Shared-with-production DB: additive-only migration law. |
 | `rules/live.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). |
-| `rules/app.md` | App-level LAW, always in context: auth & data access · Hebrew bidi & Israel time · what a screen says · media/PDF/platform · traps that report success · open items. Split 2026-08-10 (4,121 → 2,137 words). |
+| `rules/app.md` | App **invariants**, always in context. 4 meta-laws, then auth & authorization · bidi & localization · time · UI truthfulness · media & documents · platform · verification traps · open findings (marked NOT laws). Each law is LAW / ENFORCED / VERIFY + a case anchor. Split + restructured 2026-08-10 (4,121 → 2,351 words). |
 | `docs/case-history/app.md` | The forensic record behind each `rules/app.md` law — verbatim, 24 entries, linked by anchor. NOT auto-loaded; read on demand. |
 | `skills/verify-app/` | `/verify-app` — self-seeing verification loop (Chrome MCP screenshots) + per-lane recipes. |
 | `skills/ship/` | `/ship` — the lane/supervisor shipping ritual (only the supervisor pushes main). |

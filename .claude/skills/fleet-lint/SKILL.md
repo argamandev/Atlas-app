@@ -43,7 +43,7 @@ steps) — never just listed.
    discipline was aimed at the smallest piece. `rules/*.md` load into every turn of every
    session exactly as CLAUDE.md does; there is no cheaper shelf, and moving text between them
    (or using `@imports`, which expand eagerly) saves nothing.
-   **Ceiling: ~5,000 words total** (4,540 after the 2026-08-10 split), CLAUDE.md ≲ 550.
+   **Ceiling: ~5,000 words total** (4,753 after the 2026-08-10 split+restructure), CLAUDE.md ≲ 550.
    **The tell is a single rules file over ~2,200 words**, and the remedy is never deletion:
    the LAW stays in `.claude/rules/<x>.md`, imperative and short, and the STORY moves to
    `docs/case-history/<x>.md` linked by anchor. Build the case file as a COMPLETE VERBATIM COPY
