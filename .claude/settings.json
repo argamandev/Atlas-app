@@ -24,7 +24,11 @@
       "Edit(C:/Users/Sagi/Desktop/Atlas/agent-memory/cross-cutting.md)",
       "Write(C:/Users/Sagi/Desktop/Atlas/agent-memory/cross-cutting.md)",
       "Edit(C:/Users/Sagi/Desktop/Atlas/agent-memory/ready-queue.md)",
-      "Write(C:/Users/Sagi/Desktop/Atlas/agent-memory/ready-queue.md)"
+      "Write(C:/Users/Sagi/Desktop/Atlas/agent-memory/ready-queue.md)",
+      "Edit(./agent-memory/DECISIONS.md)",
+      "Write(./agent-memory/DECISIONS.md)",
+      "Edit(C:/Users/Sagi/Desktop/Atlas/agent-memory/DECISIONS.md)",
+      "Write(C:/Users/Sagi/Desktop/Atlas/agent-memory/DECISIONS.md)"
     ]
   },
   "hooks": {

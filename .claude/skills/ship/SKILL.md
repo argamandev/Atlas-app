@@ -7,6 +7,25 @@ description: The shipping ritual for any finished mini-feature — sync main, ru
 
 main is always working. Only the supervisor pushes it. There are two roles:
 
+## ⚠ THE ENVIRONMENT LAYER SHIPS LIKE CODE (added 2026-08-10, meta-review finding 3)
+
+**A diff touching `CLAUDE.md`, `.claude/rules/`, `.claude/skills/`, `.claude/hooks/` or
+`.claude/settings.json` goes on a BRANCH and gets an `atlas-reviewer` pass, exactly like `src`.**
+Until this was written, every code change passed two independent gates and a battery, while a
+rewrite of the law loaded into every turn of every session went straight to `main` — no branch, no
+reviewer, no VERDICT. The 2026-08-10 meta-review found five such commits in one day and five
+defects in them, **every one a single command away from being caught**: a cited grep that returned
+its own classification backwards, a "four matchers" count that was three, a dangling doc pointer
+created while fixing a dangling doc pointer, two harness counts thirteen lines apart that were both
+wrong, and a preserved "still open" that had been closed for eighteen days.
+
+**The reviewer's brief for these diffs is one sentence: "RE-RUN EVERY COMMAND THIS DIFF CITES AND
+REPORT WHAT IT ACTUALLY RETURNS."** That brief alone would have caught four of the five.
+
+The reason this is a law and not diligence: **you cannot be a cold reader of a file you just
+rewrote, and nothing else reads it.** That is why `atlas-reviewer` exists for code; prose had no
+equivalent. Same argument, same remedy.
+
 ## If you are a LANE session
 
 1. Update your board section; re-read `agent-memory/cross-cutting.md` (someone may have
@@ -89,9 +108,16 @@ main is always working. Only the supervisor pushes it. There are two roles:
      produce plausible output: after the login gate, an anonymous screenshot silently became a
      picture of the login page — a real screenshot of a real page, which passes review.
    - Commit + push the above.
-6. **Lint counter:** append `[ts] MERGE supervisor — <branch> → main (<sha>)` to
-   cross-cutting.md. Then count MERGE lines since the last `LINT` line: **≥3 → run
-   /fleet-lint NOW**, before updating the board. The lint is mechanical, not a mood.
+6. **Counters (both mechanical, neither a mood):** append
+   `[ts] MERGE supervisor — <branch> → main (<sha>)` to cross-cutting.md. Then:
+   - count MERGE lines since the last `LINT` line → **≥3 → run /fleet-lint NOW**, before
+     updating the board;
+   - count MERGE lines since the last `META` line → **≥10 → dispatch the meta-review NOW**
+     (fleet-lint's Meta-review law), and append `[ts] META supervisor — cold audit → <path>`
+     when it lands. **Added 2026-08-10, because that law said "roughly every ~10 merges" and was
+     the only periodic ritual left as a feeling: it ran at 16 merges, 60% late, and only because
+     a lint flagged it in prose. It is the one ritual whose lateness the supervisor is
+     structurally least able to notice, since it is the one that audits the supervisor.**
 7. Update the board (your section + the lane's MISSION line if its focus moved). Ping the
    founder when a MILESTONE is testable.
 8. Distill: any general lesson from this ship → the relevant skill or rules file.

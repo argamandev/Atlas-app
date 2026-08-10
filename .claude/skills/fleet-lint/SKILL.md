@@ -14,9 +14,16 @@ steps) — never just listed.
 
 1. **Board vs git reality** — for each lane section in `agent-memory/BOARD.md`: does its
    status match `git branch -a` + recent `git log`? Stale "last verified"/"next" lines?
-   Also every `agent-memory/state-*.md` INCLUDING the supervisor's own: is its "last session"
-   older than that seat's latest board/log activity? A stale state file lies to exactly the
-   fresh session this system is built for.
+   Then every `agent-memory/state-*.md`, and **the supervisor's own goes FIRST, mechanically,
+   before any lane's** — `ls -l --time-style=+%F agent-memory/state-*.md` against the newest
+   `MERGE` line in cross-cutting, plus: does the `main = <sha>` it asserts still equal
+   `git rev-parse --short main`? A stale state file lies to exactly the fresh session this system
+   is built for.
+   ⚠ **This check already existed and still missed it.** Run 5 (2026-08-10 01:45) executed it,
+   filed Lane M's stale state file as its worst finding, and did not look at
+   `state-supervisor.md` — which asserted a `main` five merges old and a battery count 96 tests
+   low. That is prior-audit finding 9 regressing *inside the seat that owns the check*. **Check
+   your own seat first, by command, or this check keeps auditing everyone else.**
 2. **Queue hygiene** — unprocessed entries in `agent-memory/ready-queue.md` older than a
    day? VERDICTs missing? CHANGES verdicts never followed up?
 3. **Repeated findings → rules** — has the same class of defect appeared 2-3 times? Then it
@@ -90,9 +97,17 @@ steps) — never just listed.
     **YOU CANNOT PLACE THE RESULT.** `Write`/`Edit` on both logs are denied in `settings.json` and
     every bash door (`>`, `sed -i`, `tee`, `cp`, `mv`, `writeFileSync`, `rm`, `dd`) is blocked by
     `pre-bash-gate.mjs`. Prepare + verify, then hand the founder the commands.
-11. **Snapshot the brain** — copy `agent-memory/BOARD.md` + the two logs to
-    `docs/archive/agent-memory-snapshots/<today>/` (they're small; this is the ONLY backup
-    of every founder DECISION ever made — agent-memory is git-ignored, one disk, one copy).
+11. **Snapshot the brain** — copy `agent-memory/BOARD.md` + **`DECISIONS.md`** + the two logs to
+    `docs/archive/agent-memory-snapshots/<today>/`, then **`cmp` each against its source** (an
+    exit code is not evidence). They're small; this is the ONLY backup of every founder DECISION
+    ever made — agent-memory is git-ignored, one disk, one copy.
+    ⚠ **`DECISIONS.md` was absent from this list from the moment it was created (2026-08-10)
+    until the meta-review the same day**, which made the sentence above self-falsifying: the file
+    it snapshotted held ZERO decisions, because the compaction had just moved them all out.
+    **⇒ When a file joins `agent-memory/`, it joins THREE places in the same change:** this list,
+    the `settings.json` deny pair (relative AND absolute), and `LOGRE` in `pre-bash-gate.mjs`
+    with a case in `gate-tests.mjs`. Adding it to `LOGRE` alone is not enough — the cp/mv
+    destination check derived its own copy of the list until that same review.
 
 **Timing law:** always run this lint BEFORE archiving/resetting any agent-memory file
 (feature retirement, queue pruning) — the logs are the lint's evidence; sweep first, recycle after.

@@ -30,7 +30,8 @@ these shipped here:
 - a page that 500s at render while `tsc` and `build` stay green → `#server-component-function-prop`
 - a scripted edit that matched zero times against CRLF and reported success → `#crlf`
 - `TZ=America/New_York` silently dropped by MSYS, so the battery ran in `Asia/Jerusalem`
-- a grep that hit comments, not code (`DEMO_USER_ID` reads as 14 live sites; all 14 are prose)
+- a grep that hit prose, not call sites (`DEMO_USER_ID` reads as 14 live sites; none is a
+  fallback, 11 are comments and 3 are the guard's own detector and its messages)
 - a count restated from another document — wrong every time it was hand-carried
 **⇒ Before claiming a change works, say what your evidence actually measured.**
 
@@ -90,8 +91,12 @@ blanks comments first, so trust it over a grep. → `#demo-user-id`
 **LAW · Authentication is not authorisation, and `supabaseAdmin` bypasses RLS.** Proving *who* is
 calling does not prove they may touch the row. RLS protects only what queries through the **user's**
 client.
-**ENFORCED** none — it is a choice per `lib/db` module. Verified 2026-08-10
-(`git grep -n "supabaseAdmin\." -- src/lib/db`):
+**ENFORCED** none — it is a choice per `lib/db` module. Verified 2026-08-10 with
+`git grep -l "^import { supabaseAdmin }" -- src/lib/db`. **Grep the IMPORT, not a usage:** a
+`supabaseAdmin\.` grep returns this list *backwards* — it hits `projects.ts` and `workspaces.ts`
+on the prose saying they never use it, and misses `calls`/`conversations`/`transcripts`, which
+chain as `await supabaseAdmin` + newline + `.from(...)`. (That wrong command shipped in this very
+law on 2026-08-10 and is M1 biting its own author.)
 - **user client, RLS load-bearing — copy these:** `projects.ts`, `workspaces.ts`
 - **`supabaseAdmin` over personal rows — must filter by owner in application code:**
   `conversations.ts`, `quotes.ts`, `quoteFolders.ts`, `transcripts.ts`
@@ -222,7 +227,8 @@ physical line.
 — wild disagreement means you rewrote line endings, not content — and **grep for the RESULT you
 intended**, because a no-op edit and a perfect edit produce the same silence. → `#crlf`
 
-**TRAP · A grep hits comments.** `DEMO_USER_ID` reads as 14 live sites and is zero. Strip comments,
+**TRAP · A grep hits prose.** `DEMO_USER_ID` reads as 14 live sites and no fallback survives (11
+comments, 3 the guard's own detector and its messages). Strip comments and strings,
 or prefer the test that already does.
 
 **TRAP · Never run `npm run build` while a dev server is up in the same checkout.** They share one

@@ -118,8 +118,8 @@ and login is unreachable (`docs/V1-SECURITY-AND-LAUNCH-NOTES.md` item 1; not in 
 yet). **API routes are gated UNIFORMLY and a test enforces it** since 2026-08-03 —
 `src/lib/apiAuthBoundary.test.ts` fails the battery for any handler that resolves no user, with a
 7-entry `PUBLIC` allowlist (capped at 8) where each entry must state its reason. Two of those
-seven — `/live/state` and `/live/pcm` — are marked OPEN, not "by design"; see the "Open,
-deliberately" section of `.claude/rules/app.md`. *(This paragraph read "gated per-route and
+seven — `/live/state` and `/live/pcm` — are marked OPEN, not "by design"; see the
+`## Open findings — NOT laws` section of `.claude/rules/app.md`. *(This paragraph read "gated per-route and
 inconsistently — read the 🔴 entry at the top of `.claude/rules/app.md`" until 2026-08-10. There
 was no 🔴 entry, and the claim had been false since the boundary test landed a week earlier; it
 was telling every fresh session not to trust a guarantee the repo actually had.)*
@@ -490,7 +490,7 @@ a pdf-parse bump can't silently desync it).
 |---|---|
 | `settings.json` | Permissions (safe pre-approvals + secret denies) + the two hook wirings. Tracked in git so every worktree gets the same harness. |
 | `settings.local.json` | Machine-local permissions (git-ignored). |
-| `hooks/pre-bash-gate.mjs` | PreToolUse gate: blocks destructive SQL, unsafe `rm -rf`, `.env` shell access, force-pushes, lane-pushes-to-main. Fire-tested (15-case matrix). |
+| `hooks/pre-bash-gate.mjs` | PreToolUse gate: blocks destructive SQL, unsafe `rm -rf`, `.env` shell access, force-pushes, lane-pushes-to-main. Fire-tested — case count from `node .claude/hooks/gate-tests.mjs \| tail -1`. |
 | `hooks/post-edit-verify.mjs` | PostToolUse: auto-formats every edited `.ts/.tsx` + incremental typecheck; errors feed straight back to the session. |
 | `rules/parallel-work.md` | Fleet law: ports, board protocol, engine ownership, shared-surface posts. |
 | `rules/db.md` | Shared-with-production DB: additive-only migration law. |
@@ -503,7 +503,7 @@ a pdf-parse bump can't silently desync it).
 | `skills/transcript-review/` | `/transcript-review` — the transcript-quality gate. |
 | `skills/fleet-lint/` | `/fleet-lint` — drift-check the whole environment (BOARD, rules, docs, open actions). |
 | `agents/atlas-reviewer.md` | `atlas-reviewer` agent definition — the code/design review persona. |
-| `hooks/gate-tests.mjs` | Fire-test matrix for pre-bash-gate.mjs (60 cases) — run + extend it on EVERY hook change. |
+| `hooks/gate-tests.mjs` | Fire-test matrix for pre-bash-gate.mjs — run + extend it on EVERY hook change; `node .claude/hooks/gate-tests.mjs` prints the count. (Two hand-carried counts here said 15 and 60 while it was 70; meta-review finding 12.) |
 
 **Fleet memory (git-ignored, main checkout only):** `agent-memory/BOARD.md` (the shared brain —
 all sessions read/write live via absolute path) + `state-<lane>.md` per session. Founder-provided

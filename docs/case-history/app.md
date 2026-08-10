@@ -24,6 +24,18 @@ Extracted 2026-08-10 from `.claude/rules/app.md` (302 lines, 4,121 words) by the
 CLAUDE.md efficiency pass. The law now lives in `.claude/rules/app.md`; this is the
 evidence behind it. 24 entries, verbatim.
 
+> ⚠ **AS-OF 2026-08-10. THE LESSONS HERE ARE DURABLE; THE STATUS CLAIMS AND LINE NUMBERS ARE NOT.**
+> These entries are frozen verbatim on purpose, which means every *"still open"*, *"closed"*,
+> file:line and count inside them is a snapshot of the day it was written — and the old rule file
+> was wrong for 18 days about one of them (see the `[CLOSED …]` marker under
+> [#stubs-on-designed-slots](#stubs-on-designed-slots)). **Verify any status or line number against
+> the repository before acting on it**, and prefer `.claude/rules/app.md`, which is maintained.
+> Corrections are APPENDED as dated `[CLOSED …]` / `[CORRECTED …]` markers under the entry —
+> never by editing the verbatim text, which would falsify the record.
+>
+> Two laws (`#signout-anchor`, `#transcripts-put-lenient`) carry their whole content inline in the
+> rules file and are deliberately not linked from it; their entries here are for completeness.
+
 ---
 
 
@@ -241,6 +253,15 @@ evidence behind it. 24 entries, verbatim.
   Recurring class: degradation must be VISIBLE — never render success UI for content the server
   dropped.
 
+> **[CLOSED 2026-08-10 — supervisor]** The *"still open: a >2MB Pinge snip … silently stripped
+> server-side"* sentence above is **false and was false when written.** `PdfViewer.tsx:232` calls
+> `attachmentOversized(dataUrl)` and refuses the capture with `onSnipError('toolarge')`; a
+> localized toast (`dict.chat.snipTooBig` / `dict.workspace.snipTooLarge`) renders at 6 call sites
+> across 4 components, and `attachments.test.ts` asserts the exact boundary. `git log -S` dates the
+> fix to `1799909`, **2026-07-23 — the same day the finding was filed**, so the always-on rule
+> carried a false "still open" for 18 days. Found by the 2026-08-10 meta-review (finding 7); the
+> closure is logged in `cross-cutting.md`. It closed the RIGHT way — visibly, per the law above.
+
 
 ## classifier-visible-failure
 
@@ -325,6 +346,11 @@ evidence behind it. 24 entries, verbatim.
   that made those very rows more visible, which is the right reason to widen a scope by one line.
   Still open, NOT user-visible: `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`,
   server-local `{Y0}/{Y1}`) and `lib/maya/events.ts:83` (`getUTCFullYear` labelling "FY 2024").
+
+> **[CORRECTED 2026-08-10 — supervisor]** `lib/maya/events.ts:83` is now **:106**
+> (`git grep -n "getUTCFullYear" -- src/lib/maya/events.ts`); `intake/route.ts:542` still holds,
+> with `{Y0}`/`{Y1}` at 543–544. Both leaks remain open. Frozen line numbers are exactly what the
+> as-of banner at the top of this file warns about — meta-review finding 15.
   **⇒ AND THE TEST DISCIPLINE ABOVE HAS A TRAP THAT SILENTLY DISARMS IT ON THIS MACHINE, FOUND
   2026-08-09 BY A COLD REVIEWER AFTER IT FOOLED BOTH THE LANE AND THE SUPERVISOR:** in Git Bash,
   a `TZ=` prefix whose value contains a `/` is **silently dropped** by MSYS path conversion —

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // PreToolUse gate — deterministic safety. Exit 2 blocks the tool call; stderr explains why.
-// Wired for BOTH doors to the DB: Bash commands AND the Supabase MCP tools.
+// Wired for all THREE doors: Bash commands, the Supabase MCP tools, and the Railway MCP tools
+// (the third was added 2026-08-08 at 55ffdf0; this comment said "BOTH" until 2026-08-10).
 // Input: JSON on stdin { tool_name, tool_input, cwd }
 import { execSync } from 'node:child_process'
 
@@ -139,10 +140,13 @@ if (
 )
   block('shell access to .env* — secret values must never enter transcripts')
 
-// 4. Append-only fleet logs — >> (append) is the only allowed shell write to the two logs.
+// 4. Append-only fleet records — >> (append) is the only allowed shell write to these THREE files.
 // Truncating redirects, rewriting cmdlets, tee-without-append, and in-place editors are blocked;
-// reading and copying FROM the logs stays free (fleet-lint snapshots them).
-const LOGRE = '(cross-cutting|ready-queue)\\.md'
+// reading and copying FROM them stays free (fleet-lint snapshots them).
+// DECISIONS.md joined this set 2026-08-10: the log compaction promoted it to the fleet's permanent
+// record of every founder decision, and the meta-review found it was the ONLY such file with no
+// deny entry and no gate — i.e. the record we most need to keep was the easiest one to erase.
+const LOGRE = '(cross-cutting|ready-queue|DECISIONS)\\.md'
 if (new RegExp(LOGRE, 'i').test(cmd)) {
   if (new RegExp(`(^|[^>])>(?!>)\\|?\\s*"?[^\\s"'|&;]*${LOGRE}`, 'i').test(cmd))
     block('single-> truncates an append-only fleet log — append with >> instead (rules/parallel-work.md)')
@@ -160,7 +164,10 @@ if (new RegExp(LOGRE, 'i').test(cmd)) {
     block('dd onto an append-only fleet log overwrites it')
   // cp/mv TO a log = whole-file rewrite; copying FROM the logs (snapshots keep the same
   // filename under docs/archive/, so only the real agent-memory/ location counts as a hit).
-  const LOGDEST = new RegExp(`((^|[/\\\\])agent-memory[/\\\\]|^)(cross-cutting|ready-queue)\\.md$`, 'i')
+  // DERIVED from LOGRE, never restated: this line held its own copy of the file list until
+  // 2026-08-10, so adding DECISIONS.md to LOGRE left cp/mv onto it wide open. The gate matrix
+  // caught it. One list, one place.
+  const LOGDEST = new RegExp(`((^|[/\\\\])agent-memory[/\\\\]|^)${LOGRE}$`, 'i')
   for (const seg of cmd.split(/&&|\|\||;|\|/)) {
     if (/(^|\s)(cp|mv|copy-item|move-item)\b/i.test(seg)) {
       const toks = seg

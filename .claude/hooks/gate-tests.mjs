@@ -139,6 +139,25 @@ const CASES = [
   ['log-noclobber', bash('echo x >| agent-memory/cross-cutting.md'), 2],
   ['log-tee-long-append-ok', bash('echo x | tee --append agent-memory/cross-cutting.md'), 0],
   ['log-cp-from-then-work-ok', bash('cp agent-memory/ready-queue.md /tmp/q.md && wc -l /tmp/q.md'), 0],
+  // --- DECISIONS.md is the third append-only record (added 2026-08-10, meta-review finding 1).
+  // It holds every founder decision permanently and was the only one of the three with no gate. ---
+  ['decisions-truncate-redirect', bash('echo "- x" > agent-memory/DECISIONS.md'), 2],
+  ['decisions-set-content', bash('Set-Content agent-memory/DECISIONS.md "wiped"'), 2],
+  ['decisions-sed-i', bash('sed -i s/a/b/ agent-memory/DECISIONS.md'), 2],
+  ['decisions-rm', bash('rm agent-memory/DECISIONS.md'), 2],
+  ['decisions-cp-onto', bash('cp other.md C:/Users/Sagi/Desktop/Atlas/agent-memory/DECISIONS.md'), 2],
+  [
+    'decisions-writefilesync',
+    bash(`node -e "require('fs').writeFileSync('agent-memory/DECISIONS.md','x')"`),
+    2,
+  ],
+  ['decisions-append-ok', bash('echo "- **[2026-08-10]** x" >> agent-memory/DECISIONS.md'), 0],
+  ['decisions-read-ok', bash('grep -n 2026-08 agent-memory/DECISIONS.md'), 0],
+  [
+    'decisions-snapshot-cp-from-ok',
+    bash('cp agent-memory/DECISIONS.md docs/archive/agent-memory-snapshots/2026-08-10/DECISIONS.md'),
+    0,
+  ],
   // --- everyday work stays free ---
   ['npm-test', bash('npm test'), 0],
   ['normal-grep', bash('grep -rn liveEdge src/lib'), 0],
