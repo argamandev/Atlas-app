@@ -36,8 +36,19 @@ steps) — never just listed.
    lanes build in parallel): sample ≥5 file paths it names and confirm each exists, and
    verify ONE behavioral claim against the actual code. CLAUDE.md: does every doc-map entry
    exist? Does every doc in docs/ appear in the map (or is it deliberately unindexed history
-   under superpowers/)? Is CLAUDE.md still under its ~500-token budget
-   (`wc -w CLAUDE.md` ≲ 380 words)?
+   under superpowers/)?
+   **BUDGET THE WHOLE ALWAYS-ON PREAMBLE, NEVER CLAUDE.md ALONE** —
+   `wc -w CLAUDE.md .claude/rules/*.md`. This check policed CLAUDE.md at ≲380 words for a month
+   while `rules/app.md` grew to **4,121 words unbudgeted — 62% of the preamble** — so the whole
+   discipline was aimed at the smallest piece. `rules/*.md` load into every turn of every
+   session exactly as CLAUDE.md does; there is no cheaper shelf, and moving text between them
+   (or using `@imports`, which expand eagerly) saves nothing.
+   **Ceiling: ~5,000 words total** (4,540 after the 2026-08-10 split), CLAUDE.md ≲ 550.
+   **The tell is a single rules file over ~2,200 words**, and the remedy is never deletion:
+   the LAW stays in `.claude/rules/<x>.md`, imperative and short, and the STORY moves to
+   `docs/case-history/<x>.md` linked by anchor. Build the case file as a COMPLETE VERBATIM COPY
+   first and rebuild the rule as an extract from it (same shape as check 10) — then verify by
+   listing every law and grepping the new file for each, because a lost law is silent.
 6. **Contradictions** — do CLAUDE.md, rules/, skills/, and LAUNCH-KIT.md disagree anywhere
    (ports, paths, protocol names, who-may-do-what)? Specifically: does each LAUNCH-KIT
    opening prompt still match its lane's MISSION line + branch on the board? A stale prompt

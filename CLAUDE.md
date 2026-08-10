@@ -60,7 +60,8 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. **LIVE on Railway →
 - `docs/ENVIRONMENT.md` · `docs/LAUNCH-KIT.md` (fleet setup + lane prompts) ·
   `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` · `docs/audits/` · `docs/evidence/<branch>/`
 - `PROGRESS.md` — decision log (append at ship time; old eras → `docs/archive/`)
-- `.claude/rules/` — parallel-work · db · live · app. **Auto-loaded, not a destination.**
+- `.claude/rules/` — parallel-work · db · live · app. **Auto-loaded, not a destination.** The
+  defect behind each law → `docs/case-history/`, on demand (a new case: LAW here, STORY there).
 - `LEGACY.md` — the 4-file Wave-2 login gateway (only legacy left)
 - Skills: `/verify-app` · `/ship` · `/fleet-lint` · `/live-test` · `/transcript-review` ·
   agent: `atlas-reviewer`

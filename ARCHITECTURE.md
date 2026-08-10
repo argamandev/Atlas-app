@@ -115,8 +115,14 @@ token), never `getSession()`. Must NOT import `@/lib/supabase` — that instanti
 service-role client at module scope. **Needs `NEXT_PUBLIC_SITE_HOST` = the public hostname once
 deployed behind a proxy** — unset, anonymous users are redirected to the server's internal origin
 and login is unreachable (`docs/V1-SECURITY-AND-LAUNCH-NOTES.md` item 1; not in `.env.example`
-yet). API routes are gated per-route and inconsistently — read the
-🔴 entry at the top of `.claude/rules/app.md` before assuming any route is protected.
+yet). **API routes are gated UNIFORMLY and a test enforces it** since 2026-08-03 —
+`src/lib/apiAuthBoundary.test.ts` fails the battery for any handler that resolves no user, with a
+7-entry `PUBLIC` allowlist (capped at 8) where each entry must state its reason. Two of those
+seven — `/live/state` and `/live/pcm` — are marked OPEN, not "by design"; see the "Open,
+deliberately" section of `.claude/rules/app.md`. *(This paragraph read "gated per-route and
+inconsistently — read the 🔴 entry at the top of `.claude/rules/app.md`" until 2026-08-10. There
+was no 🔴 entry, and the claim had been false since the boundary test landed a week earlier; it
+was telling every fresh session not to trust a guarantee the repo actually had.)*
 
 ### API routes — `src/app/api/`
 | File | What it does |
@@ -489,7 +495,8 @@ a pdf-parse bump can't silently desync it).
 | `rules/parallel-work.md` | Fleet law: ports, board protocol, engine ownership, shared-surface posts. |
 | `rules/db.md` | Shared-with-production DB: additive-only migration law. |
 | `rules/live.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). |
-| `rules/app.md` | App-level gotchas: Hebrew PDF, sign-out anti-patterns, Railway redirects, transcript validation leniency. |
+| `rules/app.md` | App-level LAW, always in context: auth & data access · Hebrew bidi & Israel time · what a screen says · media/PDF/platform · traps that report success · open items. Split 2026-08-10 (4,121 → 2,137 words). |
+| `docs/case-history/app.md` | The forensic record behind each `rules/app.md` law — verbatim, 24 entries, linked by anchor. NOT auto-loaded; read on demand. |
 | `skills/verify-app/` | `/verify-app` — self-seeing verification loop (Chrome MCP screenshots) + per-lane recipes. |
 | `skills/ship/` | `/ship` — the lane/supervisor shipping ritual (only the supervisor pushes main). |
 | `skills/live-test/` | `/live-test` — run a real Recall+Zoom live test end-to-end. |
