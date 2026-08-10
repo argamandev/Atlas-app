@@ -1,7 +1,9 @@
 # CLAUDE.md — Atlas (אטלס)
 
-Standing facts only. Procedures live in skills; scoped laws in `.claude/rules/`; live state in
-`agent-memory/` (READ THE BOARD FIRST, update your own section as you work).
+Standing facts only. **`.claude/rules/*.md` are ALREADY in your context — never "go read" one, and
+never move text between them and here to save tokens: identical cost, and `@imports` load eagerly
+too.** Procedures: `.claude/skills/`. Live state: `agent-memory/` — read the MISSION block and YOUR
+lane section, not the whole board (25k words); update your own section as you work.
 
 ## What this is
 
@@ -18,7 +20,10 @@ Live calls on-platform (Recall → buffered audio + karaoke captions), polished 
    before commit; ship via `/ship`. Only the supervisor session pushes `main`.
 3. **Verify with your own eyes before claiming done** — `/verify-app`.
 4. **Work small.** One independently-testable step at a time.
-5. **RTL discipline:** Hebrew `dir="rtl"`; numbers/tickers `font-mono-num` + `dir="ltr"`; test bidi visually.
+5. **RTL discipline:** Hebrew `dir="rtl"`. A line MIXING Hebrew and Latin (a formatted date, a
+   name + ticker) gets a `<bdi>` per run and `dir` on the container — **never `dir="ltr"` on the
+   mixed line itself; that is this repo's most-repeated defect, 7 occurrences** (`rules/app.md`
+   has the command). `dir="ltr"` is right for a BARE numeral or ticker only. Test both locales.
 6. **Founder context:** Sagi is a solo non-engineer founder — explain the why in plain language,
    surface risky steps first, say which branch you're on and what's committed.
 
@@ -55,7 +60,7 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. **LIVE on Railway →
 - `docs/ENVIRONMENT.md` · `docs/LAUNCH-KIT.md` (fleet setup + lane prompts) ·
   `docs/V1-SECURITY-AND-LAUNCH-NOTES.md` · `docs/audits/` · `docs/evidence/<branch>/`
 - `PROGRESS.md` — decision log (append at ship time; old eras → `docs/archive/`)
-- `.claude/rules/` — parallel-work · db · live · app (read before touching those areas)
+- `.claude/rules/` — parallel-work · db · live · app. **Auto-loaded, not a destination.**
 - `LEGACY.md` — the 4-file Wave-2 login gateway (only legacy left)
 - Skills: `/verify-app` · `/ship` · `/fleet-lint` · `/live-test` · `/transcript-review` ·
   agent: `atlas-reviewer`
