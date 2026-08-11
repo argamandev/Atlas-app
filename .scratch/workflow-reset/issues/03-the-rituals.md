@@ -29,6 +29,16 @@ depending on someone recalling rule 14 of 27.
 
 **Status:** ready-for-agent
 
+> **Some of this arrived early in ticket 02, and the checklist below is written as if it did
+> not.** Retiring the fleet forced a rewrite of `/ship` and `atlas-reviewer.md` — both pointed at
+> a board, a queue and a `/fleet-lint` that no longer exist — and the rewrite carried three items
+> from this ticket with it: `/ship` step 8 rewrites `STATUS.md` at merge; `/ship` retirement step 4
+> moves closed working notes to `docs/archive/` in the same motion; `atlas-reviewer` must name a
+> repeat finding as a RECURRENCE and point at the law it belongs to. **All three are PROSE, which
+> `CONTEXT.md` counts as the weakest tier and not as enforcement.** So this ticket's job on those
+> items is unchanged in substance — turn them into gates that fire whether or not anyone reads the
+> skill — but start by reading what is already there instead of writing it twice.
+
 - [ ] Merging archives the working notes and rewrites the status file, in the same ritual
 - [ ] The status file stays under its cap after the rewrite, proved by the environment test
 - [ ] Nothing in the always-on set is append-only after this ticket

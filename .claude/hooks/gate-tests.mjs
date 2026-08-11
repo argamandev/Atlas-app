@@ -45,6 +45,14 @@ git([...ID, 'commit', '-m', 'seed'], PRIMARY)
 git(['worktree', 'add', '-b', 'feat/x', LINKED], PRIMARY)
 git(['worktree', 'add', '-b', 'main', ON_MAIN], PRIMARY)
 
+// An ALREADY-ARCHIVED log, so the "overwriting history is not archiving it" case is a real
+// measurement rather than a path that happens not to exist. Without this the fixture answers
+// "nothing exists here", every archive destination reads as a creation, and the overwrite
+// branch is never exercised — a matrix measuring the shapes typed, not the rule (M1).
+const ARCHIVED_LOG = path.join(PRIMARY, 'docs', 'archive', 'agent-memory-snapshots', '2026-07-14')
+mkdirSync(ARCHIVED_LOG, { recursive: true })
+writeFileSync(path.join(ARCHIVED_LOG, 'cross-cutting.md'), '[2026-07-14] frozen history\n')
+
 const bash = (command, cwd = PRIMARY) => ({ tool_name: 'Bash', tool_input: { command }, cwd })
 const mcp = (tool, query) => ({ tool_name: tool, tool_input: { query }, cwd: LINKED })
 const rail = (tool) => ({ tool_name: 'mcp__railway__' + tool, tool_input: {}, cwd: PRIMARY })
@@ -176,10 +184,19 @@ const CASES = [
   ['log-tee-append-ok', bash('echo x | tee -a agent-memory/cross-cutting.md'), 0],
   ['log-read-ok', bash('grep DECISION agent-memory/cross-cutting.md'), 0],
   ['log-tail-ok', bash('tail -20 agent-memory/ready-queue.md'), 0],
+  // Archiving a log = CREATING a copy under docs/archive/, which is always a new dated
+  // folder. This case used to name 2026-07-14, a folder that already holds a frozen copy;
+  // it now names a new one, because "snapshot into a folder that already has one" is an
+  // overwrite of history and is asserted as blocked two cases below.
   [
     'log-snapshot-copy-ok',
-    bash('cp agent-memory/cross-cutting.md docs/archive/agent-memory-snapshots/2026-07-14/cross-cutting.md'),
+    bash('cp agent-memory/cross-cutting.md docs/archive/agent-memory-snapshots/2026-08-20/cross-cutting.md'),
     0,
+  ],
+  [
+    'log-snapshot-overwrite-existing',
+    bash('cp other.md docs/archive/agent-memory-snapshots/2026-07-14/cross-cutting.md'),
+    2,
   ],
   [
     'log-heredoc-append-ok',
@@ -221,6 +238,34 @@ const CASES = [
   // The near-miss the old destination pattern let through: it required the literal
   // `agent-memory/` prefix, so the ordinary way to write a repo-root path walked past it.
   ['log-cp-onto-dotslash', bash('cp other.md ./cross-cutting.md'), 2],
+  // --- the docs/archive/ hatch, and the hole its first version opened ---
+  // Found by cold review, reproduced, and fixed: the hatch matched `docs/archive/` as a
+  // SUBSTRING of the raw destination, so anything merely containing the prefix was
+  // exempted regardless of where the bytes actually landed. Three traversal shapes all
+  // exited 0. These cases exist because the previous eighteen measured the shapes that
+  // were typed, not the branch that was added (M1).
+  ['archive-hatch-traversal-up2', bash('cp evil.md docs/archive/../../COLLISIONS.md'), 2],
+  ['archive-hatch-traversal-up1', bash('cp evil.md ./docs/archive/../COLLISIONS.md'), 2],
+  ['archive-hatch-traversal-mid', bash('cp evil.md docs/archive/x/../../COLLISIONS.md'), 2],
+  // Overwriting history is not archiving it. This file exists, and settings.json denies
+  // Edit/Write on the very same path — two doors must not disagree about one file.
+  [
+    'archive-hatch-overwrite-existing',
+    bash('mv evil.md ./docs/archive/agent-memory-snapshots/2026-07-14/cross-cutting.md'),
+    2,
+  ],
+  // CREATING a new copy under docs/archive/ is the legitimate case the hatch is for.
+  [
+    'archive-hatch-new-file-ok',
+    bash('cp COLLISIONS.md docs/archive/agent-memory-snapshots/2026-99-99-new/cross-cutting.md'),
+    0,
+  ],
+  // No cwd, no answer: the hatch cannot resolve a path, so it must not grant an exemption.
+  [
+    'archive-hatch-no-cwd',
+    { tool_name: 'Bash', tool_input: { command: 'cp evil.md docs/archive/x/cross-cutting.md' } },
+    2,
+  ],
   // --- everyday work stays free ---
   ['npm-test', bash('npm test'), 0],
   ['normal-grep', bash('grep -rn liveEdge src/lib'), 0],

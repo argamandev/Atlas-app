@@ -493,6 +493,7 @@ a pdf-parse bump can't silently desync it).
 | `hooks/pre-bash-gate.mjs` | PreToolUse gate: blocks destructive SQL, unsafe `rm -rf`, `.env` shell access, force-pushes, pushing `main` from a worktree, and whole-file writes to the append-only log. Fire-tested — run `node .claude/hooks/gate-tests.mjs` for the case count. |
 | `hooks/post-edit-verify.mjs` | PostToolUse: auto-formats every edited `.ts/.tsx` + incremental typecheck; errors feed straight back to the session. |
 | `rules/db.md` | Shared-with-production DB: additive-only migration law. |
+| `docs/live-engines.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). Was `rules/live.md` until 2026-08-12 — it is FACTS, not laws, so it loads on demand instead of every session (ADR-0001). |
 | `rules/app.md` | App **invariants**, always in context. 4 meta-laws, then auth & authorization · bidi & localization · time · UI truthfulness · media & documents · platform · verification traps · open findings (marked NOT laws). Each law is LAW / ENFORCED / VERIFY + a case anchor. Split + restructured 2026-08-10 (4,121 → 2,351 words). |
 | `docs/case-history/app.md` | The forensic record behind each `rules/app.md` law — verbatim, 24 entries, linked by anchor. NOT auto-loaded; read on demand. |
 | `skills/verify-app/` | `/verify-app` — self-seeing verification loop (Chrome MCP screenshots) + per-surface recipes. |

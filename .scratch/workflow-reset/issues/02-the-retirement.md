@@ -89,6 +89,43 @@ scan and that converting them is separate work.
 Dated records in `docs/evidence/`, `docs/audits/` and `PROGRESS.md` were left alone: they were true
 when written, and rewriting a dated record falsifies it.
 
+## Found by cold review, before merge, and fixed
+
+- **The `docs/archive/` escape hatch in `pre-bash-gate.mjs` was a substring test, so it was a
+  bypass.** `cp evil.md docs/archive/../../COLLISIONS.md` exited 0 — and so did two other
+  traversal shapes. This is `rules/app.md` M3.2 word for word: the choke point was handed a
+  PROXY (does the string contain `docs/archive/`) instead of the FACT (where the bytes land),
+  so it decided confidently and wrongly. The destination is now `path.resolve`d and required to
+  be inside `<cwd>/docs/archive/`, and with no `cwd` there is no exemption.
+- **The hook and the deny-list disagreed about the same file.** `settings.json` denies
+  `Edit`/`Write` on the archived logs while the hook happily allowed `cp` onto them. Creating an
+  archive copy is now allowed and OVERWRITING an existing one is blocked, which is what the
+  deny-list already said. Two doors with opposite verdicts on one file is a hole with a second
+  opinion.
+- **The matrix measured the shapes I typed, not the branch I added** — eighteen new cases, none
+  negative for the new hatch. Seven more, including all three traversal shapes and the overwrite,
+  and the fixture now seeds an already-archived log so the overwrite case is a real measurement
+  instead of a path that happens not to exist. **103/103.**
+- **`RETIRED_VOCABULARY`'s comment overclaimed**, and `app.md` has a LAW about exactly that: a
+  seven-word tripwire cannot close an open vocabulary ("seat", "the fleet", "agent memory" with a
+  space all pass). The comment now states that limit and says what actually makes the absence
+  visible — that the always-on set is declared and diffed.
+- **`VOCABULARY_EXEMPT` exempted all of `CONTEXT.md`**, leaving the retired apparatus one
+  unwatched document to return through. It is now scoped to the blockquote holding the tombstone,
+  proved by mutation: a "lane" in CONTEXT.md's ordinary prose goes red.
+- `withoutArchivePaths` only blanked forward slashes, so `docs\archive\…` was a false positive.
+- **A missing `@import` was silently dropped**, which would have reported a clean matching set
+  while a session got a broken import. It stays in the set now, so the "declares X, which does not
+  exist" assertion names it. Cycles and the missing case are now tested, not just asserted in a
+  comment.
+- The `TOKEN_BUDGET` comment hand-carried "about 2.2k, roughly a quarter" — the exact defect the
+  comment two lines above it warns about. Replaced with the command.
+- `docs/live-engines.md` had no row in `ARCHITECTURE.md`; only `CLAUDE.md`'s doc map knew where
+  `live.md` went.
+- **Ticket 03 was overstating what remains.** Rewriting `/ship` and `atlas-reviewer` was
+  unavoidable here, but it carried three of 03's items in as prose. A note at the top of 03 now
+  says which, and that prose is not enforcement.
+
 ## Left for the founder
 
 - **A 35 KB skeleton of `Atlas-frontend` survives on disk.** Both worktrees are deregistered from

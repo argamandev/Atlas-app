@@ -62,8 +62,17 @@ export const ALWAYS_ON = {
  * file follows is: never assert the wording of a document. This is the one
  * exception, and it earns it by asserting an ABSENCE rather than a presence — no
  * sentence is pinned, no phrasing is blessed, and improving any of these
- * documents cannot fail it. What it catches is a whole apparatus returning one
- * reasonable-looking paragraph at a time, which is exactly how it arrived.
+ * documents cannot fail it.
+ *
+ * STATED LIMIT, because the first draft of this comment overclaimed and `app.md`
+ * has a LAW about exactly that: this is a TRIPWIRE ON SEVEN PROPER NOUNS, not a
+ * semantic guard. It catches the retired apparatus returning under its own names.
+ * It does NOT catch the apparatus returning under new ones — "seat", "the fleet",
+ * "agent memory" spelled with a space all pass, and no word list ever closes an
+ * open vocabulary (`app.md`, the classifier law: buy VISIBLE FAILURE, not a longer
+ * list). What makes the absence visible here is not this list; it is that the
+ * always-on set is declared, budgeted and diffed, so a returning apparatus has to
+ * be argued for in `ALWAYS_ON` before it can be written at all.
  *
  * "lane" is the load-bearing one (ADR-0001, CONTEXT.md): it meant a worktree, a
  * branch, a mission and a running session at once, and two fully-merged worktrees
@@ -93,19 +102,31 @@ export const RETIRED_VOCABULARY = [
  *
  * The narrowness matters: only the archive prefix is blanked, and only where it is
  * the literal path. `cross-cutting` on its own, anywhere else on the line, still hits.
+ * Both separators are matched — a Windows-style `docs\archive\…` is the same pointer
+ * at the same history, and treating it as a violation would be a false positive on a
+ * legitimate citation.
  */
 export function withoutArchivePaths(line) {
-  return line.replace(/docs\/archive\/[^\s`'")\]]*/g, '')
+  return line.replace(/docs[/\\]archive[/\\][^\s`'")\]]*/g, '')
 }
 
 /**
- * The one file allowed to name a retired word, with the reason. A glossary that
- * may not name the word it retired cannot do its job — the tombstone entry in
- * CONTEXT.md is what stops a session re-inventing "lane" from first principles.
+ * Where a retired word may still be named, and the reason — as a LINE pattern, not
+ * a whole file.
+ *
+ * A glossary that may not name the word it retired cannot do its job: the tombstone
+ * in CONTEXT.md is what stops a session re-inventing "lane" from first principles.
+ * But exempting the whole FILE would leave the retired apparatus one unwatched
+ * document to walk back in through, and it would be the one nobody greps. So the
+ * exemption is scoped to the blockquote the tombstone is written in — CONTEXT.md's
+ * ordinary prose is held to the same rule as everything else.
  */
 export const VOCABULARY_EXEMPT = {
-  'CONTEXT.md':
-    'the glossary is where a retired word is named AS retired. Its "Superseded: lane" entry is the tombstone; deleting it would leave the word free to be re-invented.',
+  'CONTEXT.md': {
+    lines: /^\s*>/,
+    reason:
+      'the glossary is where a retired word is named AS retired. Scoped to the blockquote holding the "Superseded: lane" tombstone — the rest of CONTEXT.md is scanned like every other always-on file.',
+  },
 }
 
 /**
@@ -116,12 +137,18 @@ export const VOCABULARY_EXEMPT = {
  * `rules/app.md` names hand-carried counts as a defect this repo has shipped three
  * times. Run `npm run env:health` — it prints the current number and the headroom.
  *
- * Ticket 02 removed `parallel-work.md` and `live.md` and cut CLAUDE.md's fat —
- * about 2.2k tokens, roughly a quarter of the old set — and added `CONTEXT.md` and
- * `STATUS.md`, which the spec declares part of the set. The ceiling comes down with
- * the removals but not by the full amount, because half of what was removed was
- * deliberately spent again. Raising it is allowed; raising it silently is not,
- * which is why the number lives here and prints in the failure.
+ * Ticket 02 removed `parallel-work.md` and `live.md` and cut CLAUDE.md's fat, then
+ * added `CONTEXT.md` and `STATUS.md`, which the spec declares part of the set. So
+ * the ceiling comes down with the removals, but not by their full size — some of
+ * what was removed was deliberately spent again. Raising it is allowed; raising it
+ * silently is not, which is why the number lives here and prints in the failure.
+ *
+ * DO NOT restate the before/after figures here. An earlier version of this comment
+ * carried "~8.8k" from another document and was stale on arrival, and `rules/app.md`
+ * names hand-carried counts as a defect this repo has shipped three times — a rule
+ * this very comment then broke again by hand-typing "about 2.2k, roughly a quarter".
+ * `npm run env:health` prints today's number and the headroom; `git log -p` on this
+ * file prints what it was.
  */
 export const TOKEN_BUDGET = 9_000
 
@@ -225,6 +252,17 @@ export function discoverAlwaysOn(root = REPO_ROOT) {
 
   // Transitive, with a visited set: an import that imports is still always-on, and a
   // cycle is a thing a human can write.
+  //
+  // A MISSING import is still ADDED to the set, then not walked. It would be easier to
+  // drop it, and that is the wrong direction: a session handed `@STATUS.md` when no
+  // STATUS.md exists gets a broken import, and a discovery that quietly skipped it would
+  // report a clean, matching set while the environment was broken. Added, the
+  // `ALWAYS_ON declares X, which does not exist` assertion fires and names it.
+  //
+  // STATED LIMIT: imports resolve against the repo root, which is where every one of
+  // them is written today. A nested `src/**/CLAUDE.md` importing a sibling relatively
+  // would resolve wrongly here; there is no such file, and the declared-set assertion
+  // would fail loudly rather than silently if one appeared.
   const found = new Set([...claudeMds, ...rules])
   const queue = [...found]
   while (queue.length) {

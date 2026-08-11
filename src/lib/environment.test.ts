@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -287,8 +288,12 @@ test('a law does NOT inherit a mechanism across a section, or past its own argum
 test('the retired fleet vocabulary does not appear in the always-on set', () => {
   const offences: string[] = []
   for (const file of Object.keys(ALWAYS_ON)) {
-    if (file in VOCABULARY_EXEMPT) continue
-    const lines = read(file).split(/\r?\n/)
+    const exempt = (VOCABULARY_EXEMPT as Record<string, { lines: RegExp }>)[file]
+    const lines = read(file)
+      .split(/\r?\n/)
+      // The exemption is per LINE, not per file: CONTEXT.md's tombstone blockquote may
+      // name what it retired, and the rest of CONTEXT.md may not.
+      .map((l) => (exempt && exempt.lines.test(l) ? '' : l))
     for (const [pattern, why] of RETIRED_VOCABULARY as [RegExp, string][]) {
       lines.forEach((line, i) => {
         // A citation INTO docs/archive/ points at history, which is where the
@@ -340,14 +345,54 @@ test('the vocabulary guard can actually go red, and its exemption is real', () =
 
   // Every exemption names a file that is actually in the set, with a stated reason —
   // a stale exemption is a hole nobody can see.
-  for (const [file, reason] of Object.entries(VOCABULARY_EXEMPT)) {
+  for (const [file, ex] of Object.entries(VOCABULARY_EXEMPT) as [
+    string,
+    { lines: RegExp; reason: string },
+  ][]) {
     assert.ok(file in ALWAYS_ON, `VOCABULARY_EXEMPT names ${file}, which is not in the always-on set`)
     assert.ok(
-      reason.trim().length > 40,
-      `VOCABULARY_EXEMPT["${file}"] needs a real reason — exempting a file lets the whole retired ` +
-        'apparatus back in through it.'
+      ex.reason.trim().length > 40,
+      `VOCABULARY_EXEMPT["${file}"] needs a real reason — exempting lines lets the retired ` +
+        'apparatus back in through them.'
+    )
+    // The exemption must be a SCOPE, not a licence. A pattern matching every line is a
+    // whole-file exemption wearing a line pattern's clothes.
+    assert.ok(
+      !ex.lines.test('ordinary prose on an unindented line'),
+      `VOCABULARY_EXEMPT["${file}"].lines matches ordinary prose — it exempts the whole file`
     )
   }
+
+  // The tombstone is genuinely inside the exempted scope, and the exemption is genuinely
+  // load-bearing: without it CONTEXT.md would fail. Both directions, so neither the
+  // exemption nor the tombstone can be deleted without something going red.
+  const context = read('CONTEXT.md').split(/\r?\n/)
+  const tombstones = context.filter((l) => /\blanes?\b/i.test(l))
+  assert.ok(tombstones.length > 0, 'CONTEXT.md no longer retires the word "lane" by name')
+  for (const l of tombstones) {
+    assert.ok(
+      (VOCABULARY_EXEMPT as Record<string, { lines: RegExp }>)['CONTEXT.md'].lines.test(l),
+      `CONTEXT.md names "lane" outside the exempted blockquote, which is not allowed:\n    ${l.trim()}`
+    )
+  }
+})
+
+test('a broken or circular @import fails loudly rather than shrinking the set', () => {
+  // Both of these are asserted in discoverAlwaysOn's comments, and a comment is not a
+  // measurement. A cycle must terminate, and a MISSING import must stay in the set so
+  // the "declares X, which does not exist" assertion can name it — dropping it would
+  // report a clean matching set while a session got a broken import.
+  const root = mkdtempSync(join(tmpdir(), 'env-manifest-'))
+  mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
+  writeFileSync(join(root, '.claude', 'rules', 'app.md'), '# rules\n')
+
+  writeFileSync(join(root, 'CLAUDE.md'), '@A.md\n@GONE.md\n')
+  writeFileSync(join(root, 'A.md'), '@B.md\n')
+  writeFileSync(join(root, 'B.md'), '@A.md\n@CLAUDE.md\n') // a cycle, both ways
+
+  const found: string[] = discoverAlwaysOn(root)
+  assert.deepEqual(found, ['.claude/rules/app.md', 'A.md', 'B.md', 'CLAUDE.md', 'GONE.md'])
+  assert.ok(found.includes('GONE.md'), 'a missing import must stay in the set so it can be reported')
 })
 
 test('@imports are followed, so the budget measures what is actually loaded', () => {

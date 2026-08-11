@@ -3,6 +3,7 @@
 // Wired for BOTH doors to the DB: Bash commands AND the Supabase MCP tools.
 // Input: JSON on stdin { tool_name, tool_input, cwd }
 import { execSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 
 let raw = ''
@@ -187,7 +188,10 @@ if (
 // `ready-queue.md` survive verbatim under docs/archive/ as the record of how every law was
 // learned — history is exactly the thing that must not be rewritten. Dropping their names
 // when the live files moved would have retired the protection along with the apparatus.
-const LOGRE = '(cross-cutting|ready-queue|COLLISIONS)\\.md'
+// One list, two consumers (LOGRE below and LOGDEST further down). Written twice, they
+// drift, and the half that drifts is the half nobody tests.
+const LOG_NAMES = 'cross-cutting|ready-queue|COLLISIONS'
+const LOGRE = `(${LOG_NAMES})\\.md`
 if (new RegExp(LOGRE, 'i').test(cmd)) {
   if (new RegExp(`(^|[^>])>(?!>)\\|?\\s*"?[^\\s"'|&;]*${LOGRE}`, 'i').test(cmd))
     block('single-> truncates an append-only log — append with >> instead (COLLISIONS.md)')
@@ -206,10 +210,37 @@ if (new RegExp(LOGRE, 'i').test(cmd)) {
   // cp/mv TO a log = whole-file rewrite. Matched on the BASENAME, not on one directory
   // prefix: the previous form only recognised `agent-memory/cross-cutting.md`, so a bare
   // `./cross-cutting.md` walked straight past it, and after the move to the repo root that
-  // near-miss is the ordinary way to write the path. Writing INTO docs/archive/ is how a
-  // log becomes history and stays allowed.
-  const LOGDEST = new RegExp(`(^|[/\\\\])(cross-cutting|ready-queue|COLLISIONS)\\.md$`, 'i')
-  const ARCHIVE = /(^|[/\\])docs[/\\]archive[/\\]/i
+  // near-miss is the ordinary way to write the path.
+  const LOGDEST = new RegExp(`(^|[/\\\\])(${LOG_NAMES})\\.md$`, 'i')
+
+  /**
+   * The ONE allowed cp/mv onto a log name: CREATING a copy under docs/archive/.
+   * That is how a closed era becomes history, and the snapshot the fleet retirement
+   * itself took.
+   *
+   * THE PATH IS RESOLVED, NEVER PATTERN-MATCHED. The first version of this hatch
+   * tested `/docs[/\\]archive[/\\]/` against the raw string, so any destination
+   * merely CONTAINING the prefix was exempted no matter where it landed:
+   * `cp evil.md docs/archive/../../COLLISIONS.md` exited 0. That is `rules/app.md`
+   * M3.2 exactly — the choke point was handed a proxy (a substring) instead of the
+   * fact (where the bytes go), so it decided confidently and wrongly.
+   *
+   * And it must not already EXIST. Creating history is allowed; overwriting it is
+   * not, which is also what `.claude/settings.json` says by denying Edit/Write on
+   * the archived logs. Two doors that disagree about the same file are a hole with
+   * a second opinion.
+   *
+   * No cwd, no answer, no exemption — the same direction every unknown fails in here.
+   */
+  const isNewArchiveFile = (dest) => {
+    if (!input.cwd) return false
+    const abs = path.resolve(input.cwd, dest)
+    const archiveRoot = path.resolve(input.cwd, 'docs', 'archive')
+    const rel = path.relative(archiveRoot, abs)
+    const inside = rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
+    return inside && !existsSync(abs)
+  }
+
   for (const seg of cmd.split(/&&|\|\||;|\|/)) {
     if (/(^|\s)(cp|mv|copy-item|move-item)\b/i.test(seg)) {
       const toks = seg
@@ -217,7 +248,7 @@ if (new RegExp(LOGRE, 'i').test(cmd)) {
         .split(/\s+/)
         .filter((t) => t && !t.startsWith('-'))
       const last = (toks[toks.length - 1] || '').replace(/["']/g, '')
-      if (LOGDEST.test(last) && !ARCHIVE.test(last))
+      if (LOGDEST.test(last) && !isNewArchiveFile(last))
         block('cp/mv onto an append-only log replaces its history — appends only')
     }
   }
