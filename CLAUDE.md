@@ -7,9 +7,23 @@ lane section, not the whole board (25k words); update your own section as you wo
 
 ## What this is
 
-Atlas — the institutional platform for Israeli public-market investor calls ("Quartr for TASE").
-Live calls on-platform (Recall → buffered audio + karaoke captions), polished transcripts
-(IVRIT/RunPod → Gemini 3.5 Flash), quotes, chat over the archive. Full picture: `docs/VISION.md`.
+Atlas — the institutional research platform for the Israeli public market. Quartr and AlphaSense
+are the closest peers; the market is TASE-listed issuers and the people who follow them.
+
+Five surfaces, one corpus:
+
+- **Live calls** — investor calls hosted on-platform (Recall → buffered audio + karaoke
+  captions), then polished transcripts (IVRIT/RunPod → Gemini 3.5 Flash) and quotes.
+- **Companies** — search and profile any TASE issuer: filings, periods, reports, calendar.
+  Company data comes from MAYA (the TASE Data Hub).
+- **Chat** — broad market questions asked over the whole archive, not one document.
+- **Workspace** — documents pulled in and worked on: tables, extraction, chat over the set.
+- **Agents** — personalised standing agents the user creates.
+
+**Ask Atlas** is not a sixth surface — it is the same chat reachable from every one of them,
+grounded in whatever the user is looking at.
+
+Full picture: `docs/VISION.md`. Current state and next move: `STATUS.md`.
 
 ## Iron rules
 
@@ -65,3 +79,20 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. **LIVE on Railway →
 - `LEGACY.md` — the 4-file Wave-2 login gateway (only legacy left)
 - Skills: `/verify-app` · `/ship` · `/fleet-lint` · `/live-test` · `/transcript-review` ·
   agent: `atlas-reviewer`
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are markdown files under `.scratch/<feature>/`, committed with the
+branch. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name, recorded as a `Status:`
+line in the issue file. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` (glossary — terms only) + `docs/adr/` at the repo root.
+See `docs/agents/domain.md`.
