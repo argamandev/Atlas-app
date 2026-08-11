@@ -3,8 +3,7 @@
 // Wired for BOTH doors to the DB: Bash commands AND the Supabase MCP tools.
 // Input: JSON on stdin { tool_name, tool_input, cwd }
 import { execSync } from 'node:child_process'
-
-const MAIN = 'c:/users/sagi/desktop/atlas' // supervisor checkout (lowercase compare)
+import path from 'node:path'
 
 let raw = ''
 for await (const chunk of process.stdin) raw += chunk
@@ -15,10 +14,50 @@ try {
   process.exit(0) // never break the harness on parse issues
 }
 const toolName = String(input.tool_name ?? '')
-const cwd = String(input.cwd ?? '')
-  .replaceAll('\\', '/')
-  .toLowerCase()
-const inSupervisor = cwd === MAIN || cwd.startsWith(MAIN + '/')
+
+/**
+ * Is this the PRIMARY checkout, or a linked worktree?
+ *
+ * This used to be a string compare against a hard-coded absolute path to the
+ * supervisor's checkout. That constant was a fact about one machine's disk layout,
+ * and the layout is exactly what ADR-0001 removes — so the guard would have gone on
+ * comparing against a directory that no longer meant anything, and quietly stopped
+ * distinguishing anything at all. Ask git instead: in the primary checkout
+ * `--git-dir` and `--git-common-dir` are the same place; in a linked worktree the
+ * first points inside `.git/worktrees/<name>` and the second at the shared `.git`.
+ * Same protection, located by a property rather than by an address.
+ *
+ * FAILS CLOSED. If git cannot answer — not a repo, git missing, anything — this
+ * returns false, which is the STRICTER direction: an unknown checkout is treated as
+ * a worktree and may not push main. The old constant failed closed for the same
+ * inputs (any path that was not the supervisor's), so this preserves the behaviour
+ * rather than trading it for convenience.
+ *
+ * THE MISSING-`cwd` CASE IS EXPLICIT, and it is the one that bit. An absent `cwd`
+ * handed to `execSync` does not error — it silently inherits the HOOK's own working
+ * directory, so the gate would answer for whatever checkout it happened to be
+ * running in rather than for the caller. Written the obvious way this is fail-OPEN
+ * on the one input the paragraph above promises is safe, and the fire-test matrix
+ * did not measure it (M1). `no-cwd-push-main` now does.
+ */
+function isPrimaryCheckout(cwd) {
+  if (!cwd) return false
+  try {
+    const out = execSync('git rev-parse --git-dir --git-common-dir', { cwd, timeout: 5000 })
+      .toString()
+      .trim()
+      .split('\n')
+    if (out.length < 2) return false
+    const norm = (p) =>
+      path
+        .resolve(cwd ?? '.', p.trim())
+        .replaceAll('\\', '/')
+        .toLowerCase()
+    return norm(out[0]) === norm(out[1])
+  } catch {
+    return false
+  }
+}
 
 function block(reason) {
   console.error(`BLOCKED by pre-bash-gate: ${reason}`)
@@ -175,17 +214,24 @@ if (new RegExp(LOGRE, 'i').test(cmd)) {
 
 // 5. Git safety
 if (/git\s+push[^\n]*(--force|-f\b)/.test(cmd)) block('force-push is never allowed')
-if (/git\s+push\b/.test(cmd) && !inSupervisor) {
-  // Explicit main target from a lane — always blocked.
+if (/git\s+push\b/.test(cmd) && !isPrimaryCheckout(input.cwd)) {
+  // Explicit main target from a worktree — always blocked.
   if (/git\s+push\b[^\n]*\bmain\b/.test(cmd))
-    block('pushing main is supervisor-only — finish via /ship and post to the ready queue')
-  // Bare push (no explicit main) — block if the lane is actually ON main.
+    block('main is pushed from the primary checkout, not from a worktree — finish via /ship')
+  // The branch probe below has the same inherit-the-hook's-directory hazard as the
+  // check above: without a cwd it would report the branch of whatever checkout the
+  // hook is running in, and answer confidently about the wrong one (M3 — give the
+  // choke point the fact, never a proxy for it). No cwd, no answer, no push.
+  if (!input.cwd) block('cannot tell which checkout this push comes from, so it does not run')
+  // Bare push (no explicit main) — block if this worktree is actually ON main.
   try {
     const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: input.cwd, timeout: 5000 })
       .toString()
       .trim()
     if (branch === 'main')
-      block('this worktree is on main — lanes never push main. Check out your feature branch')
+      block(
+        'this worktree is on main, and main is pushed from the primary checkout. Check out your feature branch'
+      )
   } catch {
     /* not a repo / git unavailable → let permissions handle it */
   }

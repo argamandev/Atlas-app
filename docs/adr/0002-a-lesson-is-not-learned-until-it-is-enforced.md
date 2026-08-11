@@ -26,6 +26,12 @@ into writing fake mechanisms, and a law that merely *looks* enforced is worse th
 honestly marked unenforced — the same failure this repo already filed under "a test that
 asserts the defect defends it."
 
-The system's health is one command: `grep -c "ENFORCED none" .claude/rules/*.md`. That
-number trending down is what "self-improving" means here — not that the lessons get
-better written, but that the system can see whether the last one worked.
+The system's health is one command: `npm run env:health`. It reports the count of laws
+declaring no working mechanism — `ENFORCED none` **and** `ENFORCED partially`, because a
+law enforced for one surface is unenforced for every other one, which is precisely what
+`app.md` says about bidi, the repo's most-repeated defect. (This ADR first specified
+`grep -c "ENFORCED none"`; that undercounts, and it could not see a law that declared
+nothing at all. `src/lib/environment.test.ts` now fails the battery for a bare law, so
+every law is in the count or is a build failure.) That number trending down is what
+"self-improving" means here — not that the lessons get better written, but that the
+system can see whether the last one worked.

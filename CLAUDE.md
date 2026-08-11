@@ -56,6 +56,9 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. **LIVE on Railway →
 `LIVE_ENGINE_URL` UNSET (`rules/app.md`).
 
 - `npm run dev -- -p <your port>` · `npm test` · `npx tsc --noEmit` · `npm run build`
+- `npm run env:health` — the always-on set against its token budget, and how many laws
+  nothing is enforcing. That count is the number this workflow exists to drive down (ADR-0002);
+  `src/lib/environment.test.ts` fails the battery if a law stops declaring which it is.
 - Live: TWO engines share :8788 (`live-broadcast.mjs` Recall / `live-ivrit-broadcast.ts` IVRIT)
   — read `.claude/rules/live.md` first. Replay: `scripts/live-replay-engine.mjs`
 

@@ -6,8 +6,16 @@ right. Every law here was paid for by a defect that shipped.
 
 **How to read one.** **LAW** = what must always be true · **ENFORCED** = what catches a violation
 without you · **VERIFY** = what you must check yourself because nothing automatic can.
-**`ENFORCED: none` means you are the only guard.** `→ #anchor` is the full story in
+**`ENFORCED none` means you are the only guard**, and `ENFORCED partially` means you are the only
+guard everywhere the named mechanism does not reach. **UNENFORCEABLE** is the one honest terminal
+state for a law nothing mechanical could ever check — it needs a stated reason, and it is not a
+shortcut around writing a test that could exist. `→ #anchor` is the full story in
 `docs/case-history/app.md`.
+
+**Every law declares one of those, and `src/lib/environment.test.ts` fails the battery for a law
+that declares nothing.** `npm run env:health` counts the ones nothing is enforcing; that count is
+supposed to fall (ADR-0002). Declaring the absence honestly is always allowed — inventing a
+mechanism that does not hold is the thing this whole structure exists to prevent.
 
 **Read the case before you** change code a law governs · change or weaken the test enforcing it ·
 propose removing or narrowing it · hit the same failure class again. **If a task conflicts with a
@@ -100,12 +108,16 @@ client.
 → `#supabase-admin-bypasses-rls`, `#authn-is-not-authz`
 
 **LAW · Gating an endpoint changes every caller's ERROR path, not just its happy path.**
+**ENFORCED** none — nothing connects a route's gating to what its callers do with a 401, and the
+boundary test stops at the route. The sweep below is the only guard.
 **VERIFY** `git grep` the endpoint, open every caller, answer "what does this do with a 401?" —
 revert optimistic state, or send the user to sign in (`loginRedirectTarget`). Never invent a cause:
 a "model unavailable" banner for an expired session retries forever. → `#gating-changes-error-paths`
 
 **LAW · PUT `/api/transcripts/[id]` validation stays lenient** (`.passthrough()`, `role: z.string()`)
 — legacy rows carry `role: "unknown"`. Do not tighten it to an enum.
+**ENFORCED** none — no test feeds a legacy `role: "unknown"` row through that schema, so tightening
+it to an enum would land green and break only in production.
 
 ## Bidi & localization
 
@@ -126,7 +138,10 @@ passed typecheck, tests, and an EN-only screenshot. → `#bidi-bdi`
 **LAW · Design parity is judged against the RENDERED design, never bundle CSS** — bundle CSS can be
 a stale iteration. Probe computed styles / canvas `measureText` on the live design page. Two system
 stacks: body = SF Pro Text (→ Segoe UI on Windows); headlines (`fontFamily.head`) = SF Pro Display
-**without** system-ui (→ Arial). → `#design-parity`
+**without** system-ui (→ Arial).
+**ENFORCED** none — the only thing a battery can reach is the bundle, which is precisely the source
+this law forbids judging against. Closing it needs a browser probe, which nothing runs today.
+→ `#design-parity`
 
 ## Time
 
@@ -159,12 +174,17 @@ pane ends in exactly one of: loading · error · empty — never a fabricated fo
 **LAW · When a decision rests on a natural-language classifier over an open vocabulary, buy VISIBLE
 FAILURE, not a longer word list.** Hebrew and English both have unbounded ways to say the same
 thing, so no vocabulary ever closes it. What closes it is that being wrong cannot lie — apply M3.
+**ENFORCED** none — "this decision rests on a classifier over an open vocabulary" is a judgement
+about a design, not a property any file scan can see. Its natural tier is a ritual gate at review
+(ADR-0002), which does not exist yet.
 → `#classifier-visible-failure`
 
 **LAW · Anything that decides what a screen SAYS gets every one of its states driven in a browser,
 in both locales, before it merges** (M4). A four-round defect lived in a state nobody had ever
-rendered and was invisible to a fully green battery. **VERIFY** Enumerate the states; go and look at
-each. → `#choke-point-inputs`
+rendered and was invisible to a fully green battery.
+**ENFORCED** none — a battery cannot tell whether a human opened a browser. Its natural tier is a
+ritual gate at review (ADR-0002), which does not exist yet.
+**VERIFY** Enumerate the states; go and look at each. → `#choke-point-inputs`
 
 **LAW · A Server Component may not pass a FUNCTION to a Client Component.** Create the closure on
 the client side of the boundary (`components/projects/ProjectChat.tsx` is the shape).
@@ -184,32 +204,50 @@ any pause/close so a remembered press cannot restart audio the user has stopped.
 
 **LAW · Hebrew PDF needs a real browser engine** — `react-pdf`/`html2canvas` garble Hebrew next to
 numbers. Proper fix = server-side Playwright `page.pdf()`; current stopgap = `window.print()` via
-`/print/[id]`. → `#hebrew-pdf`
+`/print/[id]`.
+**ENFORCED** none — nothing stops `react-pdf` or `html2canvas` being added back. A grep for those
+two imports would close this at the hook tier and has not been written.
+→ `#hebrew-pdf`
 
 **LAW · pdf.js is loaded from the COMMITTED `public/pdf.min.mjs` + `pdf.worker.min.mjs`**, imported
 natively because Next 14's webpack mangles the pdfjs ESM bundle — re-sync **both** on any
 pdfjs-dist bump. `getDocument({data})` **detaches** the passed Uint8Array; hand it a copy if you
 still need the bytes. Adopting any mechanism from pdf.js's own viewer means copying its **whole CSS
 cluster** — grep the upstream stylesheet for every selector touching the element, because a
-companion rule three rules away was load-bearing. → `#pdfjs`
+companion rule three rules away was load-bearing.
+**ENFORCED** none — nothing compares the committed `public/pdf*.min.mjs` against the installed
+`pdfjs-dist` version, so a bump desyncs them silently and the battery stays green.
+→ `#pdfjs`
 
 **LAW · Mutable private resources are served `no-store`.** A bad response plus a long max-age once
 pinned a 0-byte PDF past the server-side fix, and a hard refresh does **not** purge fetch()-cached
 entries — that needs `fetch(url, {cache:'reload'})`. Storage paths are stable per company+quarter,
-so re-ingests must never be cacheable. → `#no-store-mutable-private`
+so re-ingests must never be cacheable.
+**ENFORCED** none — no test asserts the cache headers on the private-document responses, so a
+missing `no-store` is invisible until a stale body is served.
+→ `#no-store-mutable-private`
 
 ## Platform
 
 **LAW · Railway redirects derive their origin from `x-forwarded-host`/`x-forwarded-proto`**, never
 `request.url` (which resolves to the internal `localhost:8080`). `resolveOrigin` REFUSES the header
 unless `NEXT_PUBLIC_SITE_HOST` matches, so an unset or stale value silently reintroduces the bug on
-the next domain change. → `#railway-redirects`
+the next domain change.
+**ENFORCED** partially — `src/lib/auth/gate.test.ts` covers `resolveOrigin` refusing a forged or
+unconfigured `x-forwarded-host`. Nothing detects a STALE `NEXT_PUBLIC_SITE_HOST`, and that is the
+path the bug actually returns by.
+→ `#railway-redirects`
 
 **LAW · Sign-out stays a plain `<a href="/api/auth/signout">`** — a z-index overlap once let
 `<main>` swallow the click. Do not reintroduce a dropdown.
+**ENFORCED** none — nothing inspects the markup, so a dropdown could be reintroduced with the
+battery fully green.
 
 **LAW · `bin/yt-dlp.exe` self-updates per checkout** (`bin/yt-dlp.exe -U`, git-ignored) — YouTube
-403s builds a few weeks old. Railway installs it fresh at build. → `#yt-dlp-staleness`
+403s builds a few weeks old. Railway installs it fresh at build.
+**ENFORCED** partially — `npm run build` runs `scripts/install-yt-dlp.js`, so the deploy is always
+fresh. Nothing refreshes a local checkout, which is where the 403s are actually seen.
+→ `#yt-dlp-staleness`
 
 ## Verification traps — this repo's concrete false-success modes (M1)
 
