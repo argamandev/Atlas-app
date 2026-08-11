@@ -39,19 +39,73 @@ export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 
  * battery until this declaration is updated. That is the whole point: growth
  * becomes a deliberate act.
  *
- * This is TODAY's set, not the target set. ADR-0001 retires `parallel-work.md`
- * and moves `live.md` to on-demand; both still load until that ticket lands, and
- * a declaration that described the intended state rather than the real one would
- * be a test certifying an untrue premise.
+ * ADR-0001 landed here: `parallel-work.md` is retired and `live.md` moved to
+ * `docs/live-engines.md` (a FACT loads on demand — CONTEXT.md). `CONTEXT.md` and
+ * `STATUS.md` joined, as `@imports` from CLAUDE.md, because a session that does
+ * not know the vocabulary or where the founder is reconstructs both by guessing.
  */
 export const ALWAYS_ON = {
-  'CLAUDE.md': 'the entry point: what Atlas is, the iron rules, the doc map',
+  'CLAUDE.md': 'the entry point: what Atlas is, the iron rules, the working shape, the doc map',
+  'CONTEXT.md':
+    'the glossary. LAW / FACT / HISTORY / STATUS are four different things with four homes, and this is the file that says which is which — every other document here depends on it',
+  'STATUS.md':
+    'where the founder is right now. Capped at STATUS_LINE_CAP lines and rewritten, never appended, so it cannot become the board again',
   '.claude/rules/app.md': 'the app-level invariants — every one paid for by a defect that shipped',
   '.claude/rules/db.md': 'the database is SHARED with production Timlul; these constrain every migration',
-  '.claude/rules/live.md':
-    'live-engine operational facts. FACTS, not laws (CONTEXT.md) — ADR-0001 moves this to on-demand, which is ticket 02, not this one',
-  '.claude/rules/parallel-work.md':
-    'the fleet coordination rules. Retired by ADR-0001 — still loaded today, removed in ticket 02',
+}
+
+/**
+ * Words the retired fleet apparatus is not allowed to walk back in on, and the
+ * files permitted to say them anyway.
+ *
+ * WHY A VOCABULARY CHECK IS NOT PROSE-PINNING. The rule everything else in this
+ * file follows is: never assert the wording of a document. This is the one
+ * exception, and it earns it by asserting an ABSENCE rather than a presence — no
+ * sentence is pinned, no phrasing is blessed, and improving any of these
+ * documents cannot fail it. What it catches is a whole apparatus returning one
+ * reasonable-looking paragraph at a time, which is exactly how it arrived.
+ *
+ * "lane" is the load-bearing one (ADR-0001, CONTEXT.md): it meant a worktree, a
+ * branch, a mission and a running session at once, and two fully-merged worktrees
+ * passed as live work for months because the vocabulary could not tell an empty
+ * directory from an active effort.
+ */
+export const RETIRED_VOCABULARY = [
+  [/\blanes?\b/i, 'ADR-0001 — split into worktree / session / mission (CONTEXT.md)'],
+  [/\bsupervisors?\b/i, 'ADR-0001 — there is no standing role; cold review is the atlas-reviewer subagent'],
+  [/\bBOARD\.md\b/, 'retired to docs/archive/ — sessions integrate through main'],
+  [/\bready-queue\b/i, 'retired to docs/archive/ — there is no queue to hand off to'],
+  [/\bcross-cutting\b/i, 'replaced by COLLISIONS.md, scoped to collisions only'],
+  [/\bagent-memory\b/i, 'the shared brain is retired; its contents are verbatim in docs/archive/'],
+  [/\bparallel-work\b/i, 'the rule is retired; the working shape lives in CLAUDE.md'],
+]
+
+/**
+ * Blank out every `docs/archive/…` path in a line before the vocabulary scan reads it.
+ *
+ * THE DISTINCTION THIS DRAWS IS THE WHOLE POINT OF THE TICKET. A law citing
+ * `docs/archive/ready-queue-2026-07-03--2026-08-10.md` for the evidence behind
+ * "7 recorded occurrences" is pointing at HISTORY, which is exactly where the
+ * retirement put it, and a guard that forbade that would push the always-on set
+ * back towards unsourced claims — the defect `app.md` files three times over.
+ * A law naming `agent-memory/ready-queue.md` is pointing at a live apparatus that
+ * no longer exists, and still fails.
+ *
+ * The narrowness matters: only the archive prefix is blanked, and only where it is
+ * the literal path. `cross-cutting` on its own, anywhere else on the line, still hits.
+ */
+export function withoutArchivePaths(line) {
+  return line.replace(/docs\/archive\/[^\s`'")\]]*/g, '')
+}
+
+/**
+ * The one file allowed to name a retired word, with the reason. A glossary that
+ * may not name the word it retired cannot do its job — the tombstone entry in
+ * CONTEXT.md is what stops a session re-inventing "lane" from first principles.
+ */
+export const VOCABULARY_EXEMPT = {
+  'CONTEXT.md':
+    'the glossary is where a retired word is named AS retired. Its "Superseded: lane" entry is the tombstone; deleting it would leave the word free to be re-invented.',
 }
 
 /**
@@ -62,11 +116,14 @@ export const ALWAYS_ON = {
  * `rules/app.md` names hand-carried counts as a defect this repo has shipped three
  * times. Run `npm run env:health` — it prints the current number and the headroom.
  *
- * The target of 6–8k arrives when ticket 02 removes two of the five files, and this
- * ceiling comes down WITH them. Raising it is allowed; raising it silently is not,
+ * Ticket 02 removed `parallel-work.md` and `live.md` and cut CLAUDE.md's fat —
+ * about 2.2k tokens, roughly a quarter of the old set — and added `CONTEXT.md` and
+ * `STATUS.md`, which the spec declares part of the set. The ceiling comes down with
+ * the removals but not by the full amount, because half of what was removed was
+ * deliberately spent again. Raising it is allowed; raising it silently is not,
  * which is why the number lives here and prints in the failure.
  */
-export const TOKEN_BUDGET = 10_000
+export const TOKEN_BUDGET = 9_000
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'
@@ -80,12 +137,12 @@ export const STATUS_LINE_CAP = 60
 export const LAW_FORM_EXEMPT = {
   'CLAUDE.md':
     'an index and an orientation, not a law file. Its "Iron rules" section points at the law files rather than restating them.',
+  'CONTEXT.md':
+    'a glossary. It DEFINES what a law is; it states none. Its entries are definitions, and a definition cannot be violated by code.',
+  'STATUS.md':
+    'status, which by CONTEXT.md is the one thing that is explicitly NOT a law: it describes now, it is rewritten every merge, and nothing in it constrains how Atlas is built.',
   '.claude/rules/db.md':
-    'states its rules as prose sections rather than LAW/ENFORCED blocks. NOT a claim that they are enforced — converting it to the marker form is re-homing work (ticket 02), and until then its rules are invisible to this scan.',
-  '.claude/rules/live.md':
-    'facts about two engines, not laws — a fact cannot be violated, only misunderstood (CONTEXT.md).',
-  '.claude/rules/parallel-work.md':
-    'the retired fleet apparatus (ADR-0001). Adding law markup to a document scheduled for deletion would be work spent on the wrong side of the migration.',
+    'states its rules as prose sections rather than LAW/ENFORCED blocks, so every rule in it is invisible to this scan and to the health metric. That is a real gap and not a claim of enforcement. Converting it is deliberate follow-up work: each prose rule has to be split into LAW plus an honest enforcement declaration, and doing it inside the retirement ticket would have raised the unenforced count while that ticket was required not to move it.',
 }
 
 /**
@@ -103,21 +160,53 @@ const REF_ROOTS = ['.', '.claude', '.claude/rules', 'docs']
  */
 export const SKIP_REFS = [
   [/^[a-z]:[/\\]/i, "absolute machine paths — true on the founder's box, not checkable anywhere else"],
-  [
-    /^(agent-memory\/|(BOARD|DECISIONS|cross-cutting|ready-queue)\.md$)/,
-    "the fleet's shared brain lives outside the repo and is git-ignored, so no checkout can verify it. ADR-0001 retires all four; the pointers go with them in ticket 02",
-  ],
   [/[{}<>*|]/, 'a pattern or placeholder (brace expansion, `<branch>`), not a path'],
 ]
+// The fleet's shared brain used to be skipped here: it lived outside the repo and was
+// git-ignored, so no checkout could verify it. ADR-0001 retired it, and everything the
+// always-on set now points at — COLLISIONS.md, DECISIONS.md, the archive — is a tracked
+// file in this repo. The skip is deliberately GONE rather than kept as a harmless
+// leftover: with it, a pointer back to `agent-memory/BOARD.md` would resolve silently.
+
+/**
+ * Every `@import` line in a CLAUDE.md, as repo-relative paths.
+ *
+ * The syntax is a line whose first non-space character is `@`, followed by a path.
+ * Only that form counts: an `@` mid-sentence is prose, and `@import` inside a fenced
+ * code block is an example of the syntax rather than a use of it — this repo's own
+ * documents contain both, so a looser match would invent imports that do not exist.
+ */
+export function importsOf(text) {
+  const out = []
+  let fenced = false
+  for (const raw of text.split(/\r?\n/)) {
+    if (/^\s*```/.test(raw)) {
+      fenced = !fenced
+      continue
+    }
+    if (fenced) continue
+    const m = /^\s*@([^\s`'"]+)\s*$/.exec(raw)
+    if (m) out.push(m[1].replace(/^\.\//, ''))
+  }
+  return out
+}
 
 /**
  * Every Markdown document the harness loads on its own, read off the filesystem.
  *
- * Both halves are discovered, neither is assumed. Every `.md` in `.claude/rules/`
- * loads, and so does EVERY `CLAUDE.md` in the tree — a nested one under `src/` is
- * picked up whenever work happens in that subtree, which is precisely the quiet way
- * the set grows. Hard-coding the root `CLAUDE.md` would have made this check answer
- * "yes, the declared file is still declared" and see nothing else.
+ * Three sources, all discovered, none assumed:
+ *  - every `.md` in `.claude/rules/`
+ *  - EVERY `CLAUDE.md` in the tree — a nested one under `src/` is picked up whenever
+ *    work happens in that subtree, which is precisely the quiet way the set grows.
+ *    Hard-coding the root one would have made this check answer "yes, the declared
+ *    file is still declared" and see nothing else.
+ *  - everything those files pull in with `@import`, TRANSITIVELY.
+ *
+ * The import leg is the one that closes the hole CLAUDE.md itself warns about:
+ * `@imports` expand eagerly, so `@docs/VISION.md` costs exactly what pasting the
+ * file in costs. Without following them, the budget would measure the pointer and
+ * report a set half the size of the one a session is actually handed — a green
+ * signal measuring the wrong thing (M1).
  */
 export function discoverAlwaysOn(root = REPO_ROOT) {
   const rules = readdirSync(join(root, '.claude', 'rules'))
@@ -134,7 +223,22 @@ export function discoverAlwaysOn(root = REPO_ROOT) {
   }
   walk(root, '')
 
-  return [...claudeMds, ...rules].sort()
+  // Transitive, with a visited set: an import that imports is still always-on, and a
+  // cycle is a thing a human can write.
+  const found = new Set([...claudeMds, ...rules])
+  const queue = [...found]
+  while (queue.length) {
+    const file = queue.shift()
+    const abs = join(root, file)
+    if (!existsSync(abs)) continue
+    for (const ref of importsOf(readFileSync(abs, 'utf8'))) {
+      if (found.has(ref)) continue
+      found.add(ref)
+      queue.push(ref)
+    }
+  }
+
+  return [...found].sort()
 }
 
 /**

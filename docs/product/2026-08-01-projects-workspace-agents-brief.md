@@ -157,7 +157,7 @@ so Workspace must exist first). Projects is independent of both and can ship at 
   incrementally-editable **working document** — a real editor with autosave and revision
   behaviour, not a generated blob; (c) workspace-scoped chat, which is the retrieval layer again.
 - **Agents** — an execution runtime, the largest of the three. The live-call agent runs attached
-  to a 2-hour call, on a live engine with two known unfixed limits (`.claude/rules/live.md`): a
+  to a 2-hour call, on a live engine with two known unfixed limits (`docs/live-engines.md`): a
   ws close permanently ends the session with no reconnect, and PCM accumulates unbounded in
   memory (~230MB per 2h). Async document agents need a job queue, retries, cost control, and a
   visible failure surface. "One agent that works end to end" is the honest first target.

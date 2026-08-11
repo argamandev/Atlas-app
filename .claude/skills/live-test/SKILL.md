@@ -21,7 +21,7 @@ run via tsx — self-loads `.env.local` like the mjs engine), these swap in:
 - `/state` carries `sessionId` (engine restart = new id; the viewer resets itself).
 - **Finish flow**: identical — engine writes the shared `broadcast-*` capture files; same
   `POST /api/live/finish` → polish → finished-call page.
-- Dev server/port: whichever session runs the test uses ITS OWN port (rules/parallel-work.md), not :3000.
+- Dev server/port: `npm run dev` (`:3000`), or another port if a second worktree owns it.
 
 ## Step 1 — Clean engine (fresh state every test)
 The engine (`scripts/live-broadcast.mjs`) holds the call in module-level memory with NO reset, so a previous
@@ -32,7 +32,7 @@ call's state leaks. **Always restart it.**
 - Verify clean: `curl -s http://localhost:8788/state` → expect `audioStartRel:null, liveEnded:false,
   endedAt:null, lines:[]`.
 
-## Step 2 — Dev server on YOUR lane port (rules/parallel-work.md)
+## Step 2 — Dev server
 - `curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/app/home` → 200. If not, start
   `npm run dev -- -p <port>` (background) and poll until 200. If it 500s with `MODULE_NOT_FOUND`
   the `.next` is stale → kill dev, `rm -rf .next`, restart.
@@ -61,7 +61,7 @@ Poll `http://localhost:8788/state` in the background (~5s) and report milestones
 - first captions (`lines` > 0) — Recall accuracy mode lags **72–203s**, so this is slow; that's NORMAL,
 - buffer filled (edge ≥ buffer) → the live view is joinable,
 - source ended (`liveEnded` true).
-Then poll `http://localhost:<YOUR LANE PORT — rules/parallel-work.md>/api/live/finish` until
+Then poll `http://localhost:<YOUR DEV PORT>/api/live/finish` until
 `status: completed`, and sanity-check `/api/live/finished-call/<the id returned by the finish
 flow>` is THIS call (company, ~duration, opening line) — never a hardcoded id from an old test.
 

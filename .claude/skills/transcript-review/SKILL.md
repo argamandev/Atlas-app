@@ -14,7 +14,7 @@ code. The dispatching session vets and applies fixes.
 
 1. Confirm URLs exist: `scripts/review-urls.txt` (one YouTube/Vimeo URL per line). If empty, ask the
    user for links and stop.
-2. Ensure the dev server is up on YOUR lane's port (see `.claude/rules/parallel-work.md`;
+2. Ensure the dev server is up on your dev port (`npm run dev`, `:3000` by default;
    `npm run dev -- -p <port>` in your worktree). If it is not reachable, start it (or tell the
    founder) and stop.
 3. Confirm `.env.local` has `REVIEWER_EMAIL` / `REVIEWER_PASSWORD` (a real low-priv account) plus the

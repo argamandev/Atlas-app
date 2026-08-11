@@ -195,6 +195,32 @@ const CASES = [
   ['log-noclobber', bash('echo x >| agent-memory/cross-cutting.md'), 2],
   ['log-tee-long-append-ok', bash('echo x | tee --append agent-memory/cross-cutting.md'), 0],
   ['log-cp-from-then-work-ok', bash('cp agent-memory/ready-queue.md /tmp/q.md && wc -l /tmp/q.md'), 0],
+  // --- COLLISIONS.md, the log that replaced cross-cutting.md when the fleet retired ---
+  // The cases above are kept verbatim rather than renamed: the fleet's two logs still
+  // exist verbatim under docs/archive/, and history is the thing that must not be
+  // rewritten. These add the new name at the new location — the repo root, which is why
+  // every one of them is written the way the path is actually written now.
+  ['collisions-truncate-redirect', bash('echo "[2026-08-12] MIGRATION 022" > COLLISIONS.md'), 2],
+  ['collisions-truncate-dotslash', bash('echo x > ./COLLISIONS.md'), 2],
+  ['collisions-set-content', bash('Set-Content COLLISIONS.md "wiped"'), 2],
+  ['collisions-out-file', bash('"x" | Out-File COLLISIONS.md'), 2],
+  ['collisions-tee-truncate', bash('echo x | tee COLLISIONS.md'), 2],
+  ['collisions-sed-inplace', bash('sed -i "s/old/new/" COLLISIONS.md'), 2],
+  ['collisions-writefilesync', bash(`node -e "require('fs').writeFileSync('COLLISIONS.md','x')"`), 2],
+  ['collisions-rm', bash('rm COLLISIONS.md'), 2],
+  ['collisions-remove-item', bash('Remove-Item ./COLLISIONS.md'), 2],
+  ['collisions-dd-onto', bash('dd if=/dev/zero of=COLLISIONS.md'), 2],
+  ['collisions-noclobber', bash('echo x >| COLLISIONS.md'), 2],
+  ['collisions-cp-onto', bash('cp other.md COLLISIONS.md'), 2],
+  ['collisions-mv-onto', bash('mv rewritten.md ./COLLISIONS.md'), 2],
+  ['collisions-append-ok', bash('echo "[2026-08-12] MIGRATION 022 — additive" >> COLLISIONS.md'), 0],
+  ['collisions-tee-append-ok', bash('echo x | tee -a ./COLLISIONS.md'), 0],
+  ['collisions-appendfilesync-ok', bash(`node -e "require('fs').appendFileSync('COLLISIONS.md','x')"`), 0],
+  ['collisions-read-ok', bash('grep MIGRATION COLLISIONS.md'), 0],
+  ['collisions-archive-copy-ok', bash('cp COLLISIONS.md docs/archive/COLLISIONS-2026-08.md'), 0],
+  // The near-miss the old destination pattern let through: it required the literal
+  // `agent-memory/` prefix, so the ordinary way to write a repo-root path walked past it.
+  ['log-cp-onto-dotslash', bash('cp other.md ./cross-cutting.md'), 2],
   // --- everyday work stays free ---
   ['npm-test', bash('npm test'), 0],
   ['normal-grep', bash('grep -rn liveEdge src/lib'), 0],

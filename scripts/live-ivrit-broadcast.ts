@@ -25,7 +25,7 @@ const PCM_FILE = join(OUT_DIR, 'broadcast-audio.pcm')
 const PORT = 8788
 const SAMPLE_RATE = 16000
 const BYTES_PER_SEC = SAMPLE_RATE * 2
-// NEXT_PUBLIC_LIVE_BUFFER_SEC is the app's buffer env (see .claude/rules/live.md) — honor it
+// NEXT_PUBLIC_LIVE_BUFFER_SEC is the app's buffer env (see docs/live-engines.md) — honor it
 // too, so the engine's ON TIME/LATE verdicts agree with the buffer the app actually enforces.
 const BUFFER_SEC =
   Number(process.env.LIVE_BUFFER_SEC) || Number(process.env.NEXT_PUBLIC_LIVE_BUFFER_SEC) || 300

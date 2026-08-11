@@ -168,7 +168,7 @@ async function askGemini(prompt: string, opts: AskOptions, abort?: AbortSignal):
             // MANDATORY, and this cost a verification round: thinking tokens are
             // drawn from maxOutputTokens, so a small budget came back TRUNCATED
             // mid-JSON and every request silently degraded. Same root cause as
-            // the filed live-captions rule (.claude/rules/live.md).
+            // the filed live-captions rule (docs/live-engines.md).
             thinkingConfig: { thinkingBudget: 0 },
           },
         }),

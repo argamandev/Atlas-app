@@ -114,7 +114,7 @@ const PUBLIC: Record<string, string> = {
   // tunnelled local engine". So the bound holds ONLY while LIVE_ENGINE_URL is unset — which is
   // a deploy-time configuration, not a property of the code. Setting it on Railway opens these
   // two routes to the world in the same breath.
-  // Closing them safely needs a live run with the engine up (.claude/rules/live.md) and a
+  // Closing them safely needs a live run with the engine up (docs/live-engines.md) and a
   // latency measurement on /pcm, which is polled continuously.
   // ⇒ MUST BE CLOSED BEFORE `LIVE_ENGINE_URL` IS EVER SET IN A DEPLOYED ENVIRONMENT.
   //   Tracked in docs/V1-SECURITY-AND-LAUNCH-NOTES.md.

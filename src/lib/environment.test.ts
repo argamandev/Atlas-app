@@ -45,13 +45,17 @@ import {
   ALWAYS_ON,
   LAW_FORM_EXEMPT,
   REPO_ROOT,
+  RETIRED_VOCABULARY,
   SKIP_REFS,
   STATUS_FILE,
   STATUS_LINE_CAP,
   TOKEN_BUDGET,
+  VOCABULARY_EXEMPT,
+  withoutArchivePaths,
   allLaws,
   alwaysOnSizes,
   discoverAlwaysOn,
+  importsOf,
   parseLaws,
   referencedDocs,
   resolveDoc,
@@ -276,6 +280,97 @@ test('a law does NOT inherit a mechanism across a section, or past its own argum
 
   const pastPointer = `## S\n\n${LAW('a', 'Reasoning. → `#case`')}\n\n${LAW('b', '**ENFORCED** `x.test.ts`.')}\n`
   assert.equal(parseLaws(pastPointer, 'fixture.md')[0].enforcement.kind, 'missing')
+})
+
+// ─── The retired apparatus cannot come back ──────────────────────────────────
+
+test('the retired fleet vocabulary does not appear in the always-on set', () => {
+  const offences: string[] = []
+  for (const file of Object.keys(ALWAYS_ON)) {
+    if (file in VOCABULARY_EXEMPT) continue
+    const lines = read(file).split(/\r?\n/)
+    for (const [pattern, why] of RETIRED_VOCABULARY as [RegExp, string][]) {
+      lines.forEach((line, i) => {
+        // A citation INTO docs/archive/ points at history, which is where the
+        // retirement put these things. A pointer at a live apparatus still fails.
+        if (pattern.test(withoutArchivePaths(line)))
+          offences.push(`${file}:${i + 1}  ${String(pattern)} — ${why}\n    ${line.trim()}`)
+      })
+    }
+  }
+
+  assert.deepEqual(
+    offences,
+    [],
+    `the always-on set names something ADR-0001 retired:\n  ${offences.join('\n  ')}\n\n` +
+      'The apparatus did not arrive all at once and it will not return all at once either — it ' +
+      'comes back one reasonable-looking paragraph at a time. If a session genuinely needs this ' +
+      'concept, it is HISTORY and lives in docs/archive/; if the word has a new meaning, define ' +
+      'it in CONTEXT.md and exempt the file in VOCABULARY_EXEMPT with the reason.'
+  )
+})
+
+test('the vocabulary guard can actually go red, and its exemption is real', () => {
+  // Guard the guard. Everything above has only ever been seen green, and a pattern
+  // that matches nothing is indistinguishable from a set that is clean.
+  const sample = 'The supervisor assigns each lane a port and reads agent-memory/BOARD.md.'
+  const hits = (RETIRED_VOCABULARY as [RegExp, string][]).filter(([re]) => re.test(sample))
+  assert.ok(
+    hits.length >= 4,
+    `the retired-vocabulary patterns matched only ${hits.length} of 4+ in a sentence built from them`
+  )
+
+  // ...and it must not fire on ordinary English that merely contains the letters.
+  const innocent = 'The plane landed. Planetary alignment. A clean explanation.'
+  for (const [re] of RETIRED_VOCABULARY as [RegExp, string][]) {
+    assert.ok(!re.test(innocent), `${String(re)} matches ordinary prose: "${innocent}"`)
+  }
+
+  // Citing history is allowed; pointing at a live apparatus is not. Both directions,
+  // because an exemption that swallows the live case would retire the guard silently.
+  const cite = 'the FINDING entries in `docs/archive/ready-queue-2026-07-03--2026-08-10.md`'
+  const live = 'append it to `agent-memory/ready-queue.md` before you start'
+  const queue = (RETIRED_VOCABULARY as [RegExp, string][]).find(([re]) => String(re).includes('ready-queue'))!
+  assert.ok(!queue[0].test(withoutArchivePaths(cite)), 'a citation into docs/archive/ must be allowed')
+  assert.ok(queue[0].test(withoutArchivePaths(live)), 'a pointer at the live queue must still fail')
+  assert.ok(
+    /\bcross-cutting\b/i.test(withoutArchivePaths('docs/archive/x.md says cross-cutting is the channel')),
+    'only the archive PATH is blanked — the bare word elsewhere on the line still counts'
+  )
+
+  // Every exemption names a file that is actually in the set, with a stated reason —
+  // a stale exemption is a hole nobody can see.
+  for (const [file, reason] of Object.entries(VOCABULARY_EXEMPT)) {
+    assert.ok(file in ALWAYS_ON, `VOCABULARY_EXEMPT names ${file}, which is not in the always-on set`)
+    assert.ok(
+      reason.trim().length > 40,
+      `VOCABULARY_EXEMPT["${file}"] needs a real reason — exempting a file lets the whole retired ` +
+        'apparatus back in through it.'
+    )
+  }
+})
+
+test('@imports are followed, so the budget measures what is actually loaded', () => {
+  // `@imports` expand eagerly: `@docs/VISION.md` costs exactly what pasting the file
+  // in costs. A discovery that stops at the pointer would price the set at half what
+  // a session is handed and report it green.
+  assert.deepEqual(importsOf('@CONTEXT.md\n@STATUS.md\n'), ['CONTEXT.md', 'STATUS.md'])
+  assert.deepEqual(importsOf('@./STATUS.md'), ['STATUS.md'], 'a ./ prefix is the same file')
+
+  // Prose and examples are not imports. Both forms appear in this repo's documents,
+  // and matching them would invent always-on files that do not exist.
+  assert.deepEqual(importsOf('ask @sagi about it'), [])
+  assert.deepEqual(importsOf('write `@imports` like this'), [])
+  assert.deepEqual(importsOf('```\n@docs/VISION.md\n```\n'), [], 'a fenced example is not a use')
+
+  // And the real CLAUDE.md's imports are in the declared set, not merely resolvable.
+  for (const ref of importsOf(read('CLAUDE.md')) as string[]) {
+    assert.ok(
+      ref in ALWAYS_ON,
+      `CLAUDE.md imports ${ref}, which is not declared in ALWAYS_ON — an import is not a pointer, ` +
+        'it is a paste, and it costs every session every turn.'
+    )
+  }
 })
 
 test('every document the always-on set points at exists', () => {

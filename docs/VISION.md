@@ -1,7 +1,7 @@
 # Atlas — Vision & Roadmap
 
 > Moved out of CLAUDE.md (2026-07-02) so sessions load it only when needed.
-> The live mission status lives in `agent-memory/BOARD.md`; decisions in `PROGRESS.md`.
+> Where the founder is right now lives in `STATUS.md`; shipped work in `PROGRESS.md`.
 
 ## The big vision
 
@@ -93,7 +93,7 @@ stored forever. On top: chat, multi-view, workspace, agents.
    answers get filed back into it. **Design hook for Mission 4 (Lane M): shape the `documents`
    table and `src/lib/chat/context.ts` so a `company_knowledge` layer can slot in behind a
    clean interface later — interface now, implementation at Mission 5.** This is the same
-   architecture as our dev smart environment (docs/ENVIRONMENT.md §6) — deliberately so.
+   architecture as our dev smart environment (docs/archive/agent-memory-snapshots/2026-08-12-fleet-retired/ENVIRONMENT-fleet-era.md §6 — the retired fleet era) — deliberately so.
 
 ## Transcript-quality gate
 

@@ -131,8 +131,9 @@ no repo-wide check, so treat this as `ENFORCED: none` for any new surface.
 `git grep -n 'dir="ltr"' -- src`. Fixing one instance is exactly what hid the others. **(2)** Prove
 it renders differently (M4): put the old `dir` back on the live element and re-measure the runs'
 x-positions. A `<bdi>` that changes nothing looks identical to one that fixes everything.
-**This is the repo's most-repeated defect — 7 recorded occurrences** (source: ready-queue FINDING,
-`feat/documents-catalog`; the frozen case entry predates the last two and says "5th"). Every one
+**This is the repo's most-repeated defect — 7 recorded occurrences** (source: the FINDING entries
+on `feat/documents-catalog` in `docs/archive/ready-queue-2026-07-03--2026-08-10.md`; the frozen
+case entry predates the last two and says "5th"). Every one
 passed typecheck, tests, and an EN-only screenshot. → `#bidi-bdi`
 
 **LAW · Design parity is judged against the RENDERED design, never bundle CSS** — bundle CSS can be
@@ -283,7 +284,7 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   not a plan, it is the window.** → `#api-auth-boundary-test`
 - **`.gitattributes` is absent while `core.autocrlf=true`** (both confirmed 2026-08-10).
   `* text=auto eol=lf` would close the CRLF trap structurally, but it is a repo-wide behavioural
-  change and must not ride in on a feature merge. Founder/fleet decision. → `#crlf`
+  change and must not ride in on a feature merge. Founder decision. → `#crlf`
 - **Two UTC leaks, not user-visible:** `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`;
   `{Y0}`/`{Y1}` server-local at 543–544) and `src/lib/maya/events.ts:106` (`getUTCFullYear`
   labelling a fiscal year). → `#timezone-israel`

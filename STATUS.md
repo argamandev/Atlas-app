@@ -30,8 +30,13 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 
 **Migrating the workflow itself** — branch `chore/workflow-reset`.
 
-The 4-lane agent fleet is being retired in favour of one session at a time, with worktrees
+The standing 4-seat agent fleet is retired in favour of one session at a time, with worktrees
 created on demand (ADR-0001), and lessons that recur must gain an enforcement mechanism rather
 than a fourth restatement (ADR-0002). Product work resumes when this lands.
+
+Landed: the enforcement layer (`npm run env:health`, `src/lib/environment.test.ts`) and the
+retirement — the board, queue, logs and state files are verbatim in `docs/archive/`, the collision
+channel is `COLLISIONS.md`, and live-engine facts moved to `docs/live-engines.md`. Left: the
+eviction and promotion rituals (ticket 03).
 
 Not yet started: the smart layer above. Do not begin it on this branch.

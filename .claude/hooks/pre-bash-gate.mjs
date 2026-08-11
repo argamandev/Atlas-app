@@ -178,28 +178,38 @@ if (
 )
   block('shell access to .env* — secret values must never enter transcripts')
 
-// 4. Append-only fleet logs — >> (append) is the only allowed shell write to the two logs.
+// 4. The append-only log — >> (append) is the only allowed shell write to it.
 // Truncating redirects, rewriting cmdlets, tee-without-append, and in-place editors are blocked;
-// reading and copying FROM the logs stays free (fleet-lint snapshots them).
-const LOGRE = '(cross-cutting|ready-queue)\\.md'
+// reading and copying FROM it stays free (that is how it gets archived).
+//
+// THE FLEET'S TWO LOGS ARE STILL NAMED HERE, and deliberately. `COLLISIONS.md` replaced
+// `cross-cutting.md` when the fleet retired (ADR-0001), but `cross-cutting.md` and
+// `ready-queue.md` survive verbatim under docs/archive/ as the record of how every law was
+// learned — history is exactly the thing that must not be rewritten. Dropping their names
+// when the live files moved would have retired the protection along with the apparatus.
+const LOGRE = '(cross-cutting|ready-queue|COLLISIONS)\\.md'
 if (new RegExp(LOGRE, 'i').test(cmd)) {
   if (new RegExp(`(^|[^>])>(?!>)\\|?\\s*"?[^\\s"'|&;]*${LOGRE}`, 'i').test(cmd))
-    block('single-> truncates an append-only fleet log — append with >> instead (rules/parallel-work.md)')
+    block('single-> truncates an append-only log — append with >> instead (COLLISIONS.md)')
   if (new RegExp(`\\b(set-content|out-file)\\b[^\\n;|]*${LOGRE}`, 'i').test(cmd))
-    block('Set-Content/Out-File rewrite an append-only fleet log — use Add-Content or bash >>')
+    block('Set-Content/Out-File rewrite an append-only log — use Add-Content or bash >>')
   if (new RegExp(`(^|[\\s;|&])tee\\s+(?!-a\\b|--append\\b)[^\\n|]*${LOGRE}`, 'i').test(cmd))
-    block('tee without -a truncates an append-only fleet log — use tee -a')
+    block('tee without -a truncates an append-only log — use tee -a')
   if (new RegExp(`\\bsed\\s[^\\n]*-i[^\\n]*${LOGRE}`, 'i').test(cmd))
-    block('sed -i rewrites an append-only fleet log — the logs are never edited in place')
+    block('sed -i rewrites an append-only log — it is never edited in place')
   if (new RegExp(`writefilesync[^\\n]*${LOGRE}`, 'i').test(cmd))
-    block('writeFileSync overwrites an append-only fleet log — use fs.appendFileSync')
+    block('writeFileSync overwrites an append-only log — use fs.appendFileSync')
   if (new RegExp(`(^|[\\s;|&])(rm|del|remove-item)\\b[^\\n|;]*${LOGRE}`, 'i').test(cmd))
-    block('deleting an append-only fleet log is never allowed')
+    block('deleting an append-only log is never allowed')
   if (new RegExp(`\\bdd\\b[^\\n;|]*\\bof=[^\\s]*${LOGRE}`, 'i').test(cmd))
-    block('dd onto an append-only fleet log overwrites it')
-  // cp/mv TO a log = whole-file rewrite; copying FROM the logs (snapshots keep the same
-  // filename under docs/archive/, so only the real agent-memory/ location counts as a hit).
-  const LOGDEST = new RegExp(`((^|[/\\\\])agent-memory[/\\\\]|^)(cross-cutting|ready-queue)\\.md$`, 'i')
+    block('dd onto an append-only log overwrites it')
+  // cp/mv TO a log = whole-file rewrite. Matched on the BASENAME, not on one directory
+  // prefix: the previous form only recognised `agent-memory/cross-cutting.md`, so a bare
+  // `./cross-cutting.md` walked straight past it, and after the move to the repo root that
+  // near-miss is the ordinary way to write the path. Writing INTO docs/archive/ is how a
+  // log becomes history and stays allowed.
+  const LOGDEST = new RegExp(`(^|[/\\\\])(cross-cutting|ready-queue|COLLISIONS)\\.md$`, 'i')
+  const ARCHIVE = /(^|[/\\])docs[/\\]archive[/\\]/i
   for (const seg of cmd.split(/&&|\|\||;|\|/)) {
     if (/(^|\s)(cp|mv|copy-item|move-item)\b/i.test(seg)) {
       const toks = seg
@@ -207,7 +217,8 @@ if (new RegExp(LOGRE, 'i').test(cmd)) {
         .split(/\s+/)
         .filter((t) => t && !t.startsWith('-'))
       const last = (toks[toks.length - 1] || '').replace(/["']/g, '')
-      if (LOGDEST.test(last)) block('cp/mv onto an append-only fleet log replaces its history — appends only')
+      if (LOGDEST.test(last) && !ARCHIVE.test(last))
+        block('cp/mv onto an append-only log replaces its history — appends only')
     }
   }
 }
