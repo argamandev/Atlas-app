@@ -18,3 +18,13 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
 - **Two UTC leaks, not user-visible:** `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`;
   `{Y0}`/`{Y1}` server-local at 543–544) and `src/lib/maya/events.ts:106` (`getUTCFullYear`
   labelling a fiscal year). → `#timezone-israel`
+- **`PUT /api/transcripts/[id]` is a standing route around the admin-only curation gates**
+  (recorded 2026-08-13, reviewer finding on `fix/speaker-edit-admin-gate`). The PUT is
+  owner-or-admin and replaces the whole `formatted_data` — speaker names included — so a
+  non-admin OWNER can rewrite speaker attribution that the PATCH gates now reserve for admins
+  (docs/DATA-MODEL.md, "Writes to the shared corpus are CURATION"). Not exposed today: queried
+  2026-08-13, 3 corpus rows are owned by the one admin and 2 are ownerless (→ admin-only).
+  The decision it needs is the founder's: does a transcript's OWNER keep full-content edit
+  rights on a shared-corpus row (then the curation law needs an owner-exception stated), or
+  does the PUT become admin-only / field-restricted too? Natural home: ticket 13's menu or
+  the smart-layer spec (ticket 10).

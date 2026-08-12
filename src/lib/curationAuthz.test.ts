@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { curationVerdict, CURATION_REFUSAL_STATUS } from './auth/curation'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CURATION ROUTES ARE ADMIN-GATED.
@@ -24,11 +25,37 @@ import { join } from 'node:path'
 // adding it to this list — one deliberate line, same cost model as the boundary test's PUBLIC
 // allowlist.
 //
-// STATED LIMITS (M1): the check is file-level, which equals handler-level only while each of
-// these files exports a single handler — the companion `one handler each` assertion below
-// pins that premise so it cannot rot silently. And this proves the gate is PRESENT, not that
-// it runs before side effects; ordering still needs a human reading the route.
+// TWO HALVES, on purpose (first review round, 2026-08-13): the structural half below proves
+// the routes DELEGATE to the gate; the behavioral half executes the gate's DECISION — every
+// branch of `curationVerdict`, including non-admin → forbidden → 403 — so the refusal is not
+// merely present by shape but demonstrated by run. The IO seam (`requireAdmin` resolving the
+// caller and reading profiles.role) is what remains structural-only.
+//
+// STATED LIMITS (M1): the structural check is file-level, which equals handler-level only
+// while each of these files exports a single handler — the companion `one handler each`
+// assertion below pins that premise so it cannot rot silently. It proves the gate is PRESENT,
+// not that it runs before side effects; ordering still needs a human reading the route.
 // ─────────────────────────────────────────────────────────────────────────────
+
+test('the curation verdict refuses everyone but an admin, fail-closed', () => {
+  // no user → unauthorized, whatever the role claims to be
+  assert.equal(curationVerdict(null, undefined), 'unauthorized')
+  assert.equal(curationVerdict(null, 'admin'), 'unauthorized')
+  // a resolved user is not an authorized one: only profiles.role === 'admin' passes
+  assert.equal(curationVerdict('uid-1', 'admin'), 'ok')
+  // the branch the live defect lived in — a real signed-in user who is NOT an admin
+  assert.equal(curationVerdict('uid-1', 'user'), 'forbidden')
+  // fail-closed: a missing profile row, a null role, or garbage is forbidden, never ok
+  assert.equal(curationVerdict('uid-1', null), 'forbidden')
+  assert.equal(curationVerdict('uid-1', undefined), 'forbidden')
+  assert.equal(curationVerdict('uid-1', 'Admin'), 'forbidden')
+  assert.equal(curationVerdict('uid-1', ''), 'forbidden')
+})
+
+test('each refusal carries its HTTP meaning: unauthorized → 401, forbidden → 403', () => {
+  assert.equal(CURATION_REFUSAL_STATUS.unauthorized, 401)
+  assert.equal(CURATION_REFUSAL_STATUS.forbidden, 403)
+})
 
 const CURATION_ROUTES: Record<string, string> = {
   'src/app/api/transcripts/[id]/speakers/route.ts':
@@ -38,10 +65,14 @@ const CURATION_ROUTES: Record<string, string> = {
 }
 
 // Strip comments so prose quoting `requireAdmin` cannot satisfy the check — the boundary
-// test's note 2, learned the hard way. String literals are left alone: the delegation shape
-// asserted below is not a plausible string in a route file.
+// test's note 2, learned the hard way. Trailing `//` comments are stripped only on lines with
+// no quote character before the slashes, so a `//` inside a string can never eat real code;
+// the residue (a trailing comment on a line that also holds a string) is accepted and stated.
 function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^[ \t]*\/\/.*$/gm, ' ')
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/^[ \t]*\/\/.*$/gm, ' ')
+    .replace(/^([^'"`\n]*?)\/\/.*$/gm, '$1')
 }
 
 for (const [route, why] of Object.entries(CURATION_ROUTES)) {

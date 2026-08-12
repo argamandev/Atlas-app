@@ -44,6 +44,7 @@ import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
 import type { ChatSnip } from '@/lib/api/chat'
 import { formatClock, formatDate } from '@/lib/i18n/format'
+import { loginRedirectTarget } from '@/lib/auth/gate'
 import type { LiveCall } from '@/lib/live/loadCall'
 
 type Toast = { text: string; action?: { label: string; href: string } }
@@ -296,8 +297,14 @@ export function LiveTranscriptView({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ speakerId, name: newName, oldName }),
       })
-      // A refused write must not toast "saved" — same shape as assignSpeaker below.
-      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? 'failed')
+      // A refused write must not toast "saved". 401 = session expired mid-edit: send them to
+      // sign in and back (viewOrganized's shape in LiveSession) — never a toast that invents a
+      // cause. Anything else surfaces as the localized error, not the server's raw English.
+      if (res.status === 401) {
+        window.location.href = loginRedirectTarget(window.location.pathname, window.location.search)
+        return
+      }
+      if (!res.ok) throw new Error(dict.common.error)
       router.refresh()
       setToast({ text: dict.common.save })
     } catch (err) {
@@ -420,7 +427,12 @@ export function LiveTranscriptView({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ fromWord, toWord, speakerId }),
       })
-      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? 'failed')
+      // Same error contract as renameSpeaker above: 401 → sign in and return; else localized.
+      if (res.status === 401) {
+        window.location.href = loginRedirectTarget(window.location.pathname, window.location.search)
+        return
+      }
+      if (!res.ok) throw new Error(dict.common.error)
       router.refresh()
       setToast({ text: dict.common.save })
     } catch (err) {

@@ -42,6 +42,29 @@ feature once gated; the live hole is fixed now.
   non-admin visit should confirm the pencil is gone — founder can check from any of the
   three non-admin accounts in seconds.
 - No locale A/B: the change adds zero user-visible strings; the affordance is unchanged for
-  admins and absent for others.
+  admins and absent for others. (Post-review, the two edit handlers now surface failures as
+  `dict.common.error` — an existing localized string — and 401 as a sign-in redirect.)
 - Ordering (gate before side effects) is by reading the routes: `requireAdmin` is the first
   statement in both handlers.
+
+## Review round 1 (2026-08-13) — CHANGES, all four findings fixed
+
+Verdict filed verbatim in `review.md` beside this file. What each finding changed:
+
+1. **BLOCKER (law overstated its test):** the gate's decision is now a pure function,
+   `curationVerdict` in `src/lib/auth/curation.ts`, and `curationAuthz.test.ts` executes every
+   branch — including non-admin → forbidden → 403 — plus the 401/403 status mapping.
+   `docs/DATA-MODEL.md`'s enforcement sentence rewritten to claim exactly the delivered
+   mechanism (behavioral on the decision, structural on the delegation, IO seam by hand).
+2. **WARNING (PUT owner bypass):** recorded in `docs/open-findings.md` with the 2026-08-13
+   ownership query (3 admin-owned rows, 2 ownerless → nothing exposed today) and the founder
+   decision it waits on; cross-referenced from the DATA-MODEL law.
+3. **WARNING (401 dead-end toast, RECURRENCE yes → error-path law):** both edit handlers now
+   send an expired session to `loginRedirectTarget` and toast `dict.common.error` otherwise
+   (no raw English). The law bought its stronger mechanism in the same commit:
+   `src/lib/apiFetchDiscipline.test.ts` — every direct `/api` fetch must read `.ok`/`.status`
+   or be counted in a per-file ratchet with a reason; proven able to go red by mutation
+   (planted uninspected fetch → fail; removed → green). `app.md`'s declaration moved
+   none → partially(test).
+4. **NIT (trailing-comment blind spot):** `stripComments` now also strips trailing `//`
+   comments on quote-free lines; the residue is stated in the comment.

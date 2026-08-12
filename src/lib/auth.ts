@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
 import { resolveUser } from '@/lib/auth/verifyUser'
+import { curationVerdict, CURATION_REFUSAL_STATUS } from '@/lib/auth/curation'
 
 /**
  * The single 401 an API route returns when there is no signed-in user.
@@ -53,10 +54,13 @@ export async function getRequestUserId(req: NextRequest): Promise<string | null>
 // asserts the curation routes use it — a curation route gated any other way fails the battery.
 export async function requireAdmin(req: NextRequest): Promise<NextResponse | null> {
   const userId = await getRequestUserId(req)
-  if (!userId) return unauthorized()
-  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).single()
-  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  return null
+  const role = userId
+    ? (await supabaseAdmin.from('profiles').select('role').eq('id', userId).single()).data?.role
+    : null
+  const verdict = curationVerdict(userId, role)
+  if (verdict === 'ok') return null
+  if (verdict === 'unauthorized') return unauthorized()
+  return NextResponse.json({ error: 'Forbidden' }, { status: CURATION_REFUSAL_STATUS.forbidden })
 }
 
 export interface CurrentUser {
