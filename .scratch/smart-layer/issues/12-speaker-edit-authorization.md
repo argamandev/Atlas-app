@@ -1,7 +1,7 @@
 # Speaker-edit authorization — corpus curation or personal write?
 
 Type: grilling
-Status: open
+Status: claimed
 
 ## Question
 
