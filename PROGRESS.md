@@ -5,6 +5,28 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-13 — Search mode's quality is gated, not assumed (`feat/discovery-eval-cases`, ticket 15)
+
+- **Two discovery cases join the standing eval set as class G** (`docs/eval/retrieval-eval-set.md`
+  cases 19–20, mirrored in `cases.json`): «אילו חברות דיברו על עלויות מילואים?» (the founder's own
+  ticket-07 phrasing) and «אילו חברות דיברו על בינה מלאכותית?» (offered from a measured theme menu
+  of the live corpus, approved 2026-08-13). Every lead carries an anchor verified against the live
+  DB on 2026-08-13; מילואים macro-boilerplate mentions (יעקב פיננסים/תורפז/דוראל) are documented
+  NON-leads for the answer layer.
+- **The harness scores `mode: "discovery"`**: market-wide ranking diversified per company
+  (ticket 08's leads answer); pass = all lead companies within the top-5 company order; per-lead
+  anchor rank recorded as evidence, never gated.
+- **Measured: the decided C-gemini design passes both** (all leads @ company-rank 2 and 4);
+  dense-only B-gemini fails the AI case (the lexical channel rescues בתי זיקוק from rank 7 to 4 —
+  fresh evidence for hybrid) and both OpenAI variants fail — the same discrimination that chose
+  the design in ticket 07.
+- **Verified:** full harness run committed (`scripts/retrieval-eval/results/run-2026-08-12T22-01-26.md`
+  + debug top-20s). No app code in the diff — `/verify-app` would measure surfaces this branch
+  never touched. Corpus note: 26 docs / 3,031 pages now, so pinpoint numbers are not comparable
+  to the 08-12 report; within-run design comparison is what the gate measures.
+
+---
+
 ## 2026-08-12 — The retrieval method is MEASURED and decided (`feat/retrieval-eval-harness`, ticket 07)
 
 - **The standing eval harness exists** (`scripts/retrieval-eval/`): scores retrieval designs
