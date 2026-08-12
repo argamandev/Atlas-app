@@ -1,8 +1,8 @@
 # Retrieval eval — measured, not assumed
 
 Type: prototype
-Status: open
-Blocked by: 01, 05
+Status: claimed (2026-08-12)
+Blocked by: 01, 05 (both resolved)
 
 ## Question
 
