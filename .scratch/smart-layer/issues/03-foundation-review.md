@@ -1,7 +1,7 @@
 # Foundation review — is the ground safe to build on?
 
 Type: task
-Status: open
+Status: claimed
 
 ## Question
 
