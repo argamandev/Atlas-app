@@ -16,6 +16,9 @@ export function LiveSession(props: {
   companyId: string | null
   logoUrl: string | null
   delaySec: number
+  /** Threaded into LiveTranscriptView after the live→finished swap: speaker edits
+   *  are admin-only curation (docs/DATA-MODEL.md, founder decision 2026-08-13). */
+  isAdmin?: boolean
 }) {
   // NOTE: this used to take a `quarter` prop that no line in this file ever read,
   // and its only call site passed the hardcoded string "Q2 2026". Removed 2026-08-09
@@ -172,7 +175,9 @@ export function LiveSession(props: {
   }
 
   if (phase === 'finished' && finishedCall) {
-    return <LiveTranscriptView call={finishedCall} initialSeek={playheadRef.current} />
+    return (
+      <LiveTranscriptView call={finishedCall} initialSeek={playheadRef.current} isAdmin={props.isAdmin} />
+    )
   }
 
   // Floating, dismissible notification card (frosted light, ✕ to close). Shown only after THIS session saw

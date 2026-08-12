@@ -56,10 +56,15 @@ export function LiveTranscriptView({
   availableFacets,
   backHref,
   documentSources,
+  isAdmin,
 }: {
   call: LiveCall
   initialSeek?: number
   initialSegmentId?: string
+  /** Speaker/diarization edits are corpus CURATION, admin-only (docs/DATA-MODEL.md,
+   *  founder decision 2026-08-13). The server routes 403 non-admins; this prop hides
+   *  the affordance so a non-admin never sees a button that can only fail. */
+  isAdmin?: boolean
   /** The catalog opens a period in Multi — two documents side by side is the
    *  thing that distinguishes Atlas from downloading a PDF off MAYA. */
   initialView?: 'single' | 'multi'
@@ -202,7 +207,7 @@ export function LiveTranscriptView({
   }, [chat.open, player.setChatOpen])
   // diarization edit mode (Feature 1) — finished, real transcripts only
   const [editMode, setEditMode] = useState(false)
-  const canEdit = call.companyId != null && call.id !== 'demo'
+  const canEdit = (isAdmin ?? false) && call.companyId != null && call.id !== 'demo'
 
   const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
   const name = locale === 'en' ? (call.companyNameEn ?? call.companyName) : call.companyName
@@ -286,11 +291,13 @@ export function LiveTranscriptView({
   async function renameSpeaker(_segmentId: string, speakerId: string, oldName: string, newName: string) {
     if (call.id === 'demo') return
     try {
-      await fetch(`/api/transcripts/${call.id}/speakers`, {
+      const res = await fetch(`/api/transcripts/${call.id}/speakers`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ speakerId, name: newName, oldName }),
       })
+      // A refused write must not toast "saved" — same shape as assignSpeaker below.
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? 'failed')
       router.refresh()
       setToast({ text: dict.common.save })
     } catch (err) {

@@ -43,6 +43,22 @@ export async function getRequestUserId(req: NextRequest): Promise<string | null>
   return user?.id ?? null
 }
 
+// Admin gate for CURATION routes — writes that change what every user sees, e.g. fixing a
+// speaker's name on a shared transcript (docs/DATA-MODEL.md, "Writes to the shared corpus are
+// CURATION", founder decision 2026-08-13). Resolves the caller like `getRequestUserId` (cookie
+// or bearer), then requires `profiles.role === 'admin'`. Returns the refusal to send, or null
+// when the caller may proceed:
+//   const denied = await requireAdmin(req);  if (denied) return denied
+// Note the boundary test recognises exactly this delegation shape, and `curationAuthz.test.ts`
+// asserts the curation routes use it — a curation route gated any other way fails the battery.
+export async function requireAdmin(req: NextRequest): Promise<NextResponse | null> {
+  const userId = await getRequestUserId(req)
+  if (!userId) return unauthorized()
+  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).single()
+  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  return null
+}
+
 export interface CurrentUser {
   userId: string | null
   userName: string

@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRequestUserId, unauthorized } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 import { renameSpeaker } from '@/lib/db/transcripts'
 
 // PATCH /api/transcripts/:id/speakers — rename a speaker on a stored transcript.
 //
-// Had NO auth of any kind until 2026-08-03: `renameSpeaker` writes through supabaseAdmin, which
-// bypasses RLS, so an anonymous request could rewrite speaker labels on any transcript by id.
-// The page gate does not cover it — the editor calls this endpoint directly.
+// ADMIN-ONLY: speaker attribution is corpus CURATION (docs/DATA-MODEL.md, founder decision
+// 2026-08-13) — it changes what every user sees, and `renameSpeaker` also propagates the
+// corrected name into every user's saved quotes on this call. Until 2026-08-13 this route
+// accepted ANY signed-in user, which let one user relabel any transcript and rewrite other
+// users' quotes; until 2026-08-03 it had no auth at all (`renameSpeaker` writes through
+// supabaseAdmin, bypassing RLS). The page gate does not cover it — the editor calls this
+// endpoint directly.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const userId = await getRequestUserId(req)
-  if (!userId) return unauthorized()
+  const denied = await requireAdmin(req)
+  if (denied) return denied
 
   const body = await req.json().catch(() => null)
   const speakerId: string | undefined = body?.speakerId

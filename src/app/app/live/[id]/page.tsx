@@ -4,6 +4,7 @@ import { LiveTranscriptView } from '@/components/live/LiveTranscriptView'
 import { LiveSession } from '@/components/live/LiveSession'
 import { loadDemoCall, loadCompletedCall } from '@/lib/live/loadCall'
 import { getCompanyByTicker } from '@/lib/db/companies'
+import { getCurrentUser } from '@/lib/auth'
 import { LIVE_BUFFER_SEC } from '@/lib/live/liveTiming'
 
 export const dynamic = 'force-dynamic'
@@ -15,6 +16,10 @@ export default async function LivePage({
   params: { id: string }
   searchParams: { t?: string; seg?: string; delay?: string }
 }) {
+  // Speaker/diarization edits are admin-only curation; the flag decides whether the
+  // edit affordance renders at all (docs/DATA-MODEL.md, founder decision 2026-08-13).
+  const { isAdmin } = await getCurrentUser()
+
   // Live broadcast (Core 1 on the platform) — streams from the live engine via /api/live/*.
   if (params.id === 'live') {
     const company = await getCompanyByTicker('1097229').catch(() => null) // תמיס
@@ -29,6 +34,7 @@ export default async function LivePage({
           companyId={company?.id ?? null}
           logoUrl={company?.logoUrl ?? null}
           delaySec={Number.isFinite(d) && d > 0 ? d : LIVE_BUFFER_SEC}
+          isAdmin={isAdmin}
         />
       </AppPage>
     )
@@ -42,7 +48,12 @@ export default async function LivePage({
 
   return (
     <AppPage>
-      <LiveTranscriptView call={call} initialSeek={initialSeek} initialSegmentId={searchParams.seg} />
+      <LiveTranscriptView
+        call={call}
+        initialSeek={initialSeek}
+        initialSegmentId={searchParams.seg}
+        isAdmin={isAdmin}
+      />
     </AppPage>
   )
 }
