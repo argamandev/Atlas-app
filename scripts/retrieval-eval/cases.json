@@ -1,0 +1,239 @@
+{
+  "_comment": "Machine-readable form of docs/eval/retrieval-eval-set.md (founder-approved 2026-08-12). The prose file is canonical; this file only adds resolved anchor ids. Anchor doc-id prefixes from the eval set were resolved against the live DB on 2026-08-12.",
+  "cases": [
+    {
+      "id": "01",
+      "class": "A",
+      "query": "מה היו ההכנסות של קבוצת תיגבור בשנת 2025 ובכמה הן צמחו?",
+      "anchors": [
+        {
+          "transcript": "hii8RivJK9I",
+          "lines": [
+            "L0008"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "02",
+      "class": "A",
+      "wart": "W4",
+      "query": "מה היה הרווח התפעולי, הרווח הנקי וה-EBITDA של תיגבור ב-2025?",
+      "anchors": [
+        {
+          "transcript": "hii8RivJK9I",
+          "lines": [
+            "L0009"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "03",
+      "class": "A",
+      "query": "מה מדיניות הדיבידנד של תיגבור?",
+      "anchors": [
+        {
+          "transcript": "hii8RivJK9I",
+          "lines": [
+            "L0040"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "04",
+      "class": "A",
+      "query": "מה היו התוצאות של תיגבור ברבעון הראשון של 2026?",
+      "anchors": [
+        {
+          "transcript": "PyuMxe88e8g",
+          "lines": [
+            "L0010"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "05",
+      "class": "A",
+      "query": "כמה גייסה תיגבור לאחרונה ולאיזו מטרה?",
+      "anchors": [
+        {
+          "transcript": "PyuMxe88e8g",
+          "lines": [
+            "L0030",
+            "L0031"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "06",
+      "class": "A",
+      "query": "כמה עובדים מעסיקה קבוצת תיגבור?",
+      "anchors": [
+        {
+          "transcript": "hii8RivJK9I",
+          "lines": [
+            "L0051"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "07",
+      "class": "B",
+      "query": "כמה מגה-וואט בהפעלה מסחרית יש לדוראל אנרגיה?",
+      "anchors": [
+        {
+          "document": "12e3ae21-e5e8-40e6-9aa8-63d7c123324b",
+          "page": 5
+        }
+      ],
+      "scope": "דוראל"
+    },
+    {
+      "id": "08",
+      "class": "B",
+      "query": "מה היה הרווח הנקי של יעקב פיננסים במחצית הראשונה של 2026?",
+      "anchors": [
+        {
+          "document": "556f1680-ef77-412f-859d-9478d30825d7",
+          "page": 8
+        }
+      ],
+      "scope": "יעקב פיננסים"
+    },
+    {
+      "id": "09",
+      "class": "B",
+      "query": "מה כושר הזיקוק השנתי של בז\"ן?",
+      "anchors": [
+        {
+          "document": "bab90cbd-4f4a-4a47-b3e6-bca0e767d0e3",
+          "page": 3
+        }
+      ],
+      "scope": "בתי זיקוק"
+    },
+    {
+      "id": "10",
+      "class": "C",
+      "query": "האם ההכנסות שהציגה תיגבור בשיחת הרבעון הראשון 2026 תואמות את הדוח הרבעוני?",
+      "anchors": [
+        {
+          "transcript": "PyuMxe88e8g",
+          "lines": [
+            "L0010"
+          ]
+        },
+        {
+          "document": "e231c676-23d6-4a86-8d02-ef0a6eafe416",
+          "page": 29
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "11",
+      "class": "D",
+      "query": "כמה עובדים של תיגבור נמצאים במילואים ואיך זה השתנה?",
+      "anchors": [
+        {
+          "transcript": "hii8RivJK9I",
+          "lines": [
+            "L0066"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "12",
+      "class": "D",
+      "wart": "W4",
+      "query": "באילו מכרזי אבטחה חדשים זכתה תיגבור ולכמה זמן?",
+      "anchors": [
+        {
+          "transcript": "PyuMxe88e8g",
+          "lines": [
+            "L0021"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    },
+    {
+      "id": "13",
+      "class": "E",
+      "mode": "skip",
+      "note": "MUST-PASS, but it is a tool-boundary property (a mid-conversation correction must reach the resolver), not a ranking property. It gates the architecture design (ticket 08), where the conversation→resolver path is decided; no retrieval ranker can pass or fail it."
+    },
+    {
+      "id": "14",
+      "class": "E",
+      "mode": "company",
+      "query": "מה המרווח האחרון של בז\"א?",
+      "expectCompany": "בית זיקוק אשדוד",
+      "note": "MUST-PASS in the chosen design via the alias table (resolveIssuer('בז\"א') → null today). Here we measure the honest fallback: do embeddings/lexical alone bridge the בז\"א alias to בית זיקוק אשדוד content? Expected: no — which is the evidence FOR the alias table.",
+      "scope": "בית זיקוק אשדוד"
+    },
+    {
+      "id": "15",
+      "class": "F",
+      "mode": "info",
+      "query": "מה אמרה הנהלת תיגבור על מכירת צים?",
+      "note": "W1 attribution trap. Retrieval WILL return Zim-hearing chunks carrying Tigbur's company_id; pass/fail lives at the answer layer (the honest answer says no Tigbur-management statement exists). Harness records what was retrieved as evidence for that guard.",
+      "scope": "תיגבור"
+    },
+    {
+      "id": "16",
+      "class": "F",
+      "query": "כמה אוניות של צים יישארו בבעלות ישראלית לפי הדיון בכנסת?",
+      "anchors": [
+        {
+          "transcript": "2gXp90F8s6w",
+          "lines": [
+            "L0253",
+            "L0254",
+            "L0255",
+            "L0256"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "class": "F",
+      "mode": "info",
+      "query": "מה היה הרווח הנקי של טבע ב-2025?",
+      "note": "Unanswerable — טבע has no source in the corpus. Harness records the top similarity scores; that distribution informs the cannot-ground threshold.",
+      "scope": "טבע"
+    },
+    {
+      "id": "18",
+      "class": "F",
+      "mode": "duplicate",
+      "query": "מה היו התוצאות של תיגבור ברבעון הראשון של 2026?",
+      "canonical": "PyuMxe88e8g",
+      "duplicate": "PyuMxe88e8g_live",
+      "anchors": [
+        {
+          "transcript": "PyuMxe88e8g",
+          "lines": [
+            "L0010"
+          ]
+        }
+      ],
+      "scope": "תיגבור"
+    }
+  ],
+  "_scope_comment": "scope = the company the query resolves to via the decided alias table (research/01 SS6: filter by company_id, never hope an embedding lands). Case 16 has none (the Knesset hearing question resolves to no issuer); case 17 resolves to a company with zero corpus content, so its scoped ranking is EMPTY - the honest cannot-ground signal."
+}
