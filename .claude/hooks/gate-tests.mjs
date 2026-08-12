@@ -369,6 +369,38 @@ const CASES = [
   // `git -C <dir>` acts on a DIFFERENT checkout than the one the hook was told about,
   // so the on-main probe is answering about the wrong repo. No answer, no merge.
   ['merge-dash-C-elsewhere', bash('git -C ../other merge feat/ok', ON_MAIN), 2, /-C/],
+  // ROUND 2 of cold review, and the reason this block exists: the cases above named the
+  // three shapes round 1 had typed, and nothing that GENERALISED them — so the matrix
+  // read 125/125 while four bypasses stood. That is `rules/app.md` M1 committed by the
+  // very matrix whose job is to prevent it. These four attack the same rules through
+  // surfaces nobody had typed yet.
+  //
+  // The newline is the important one. It is the separator the harness's own Bash calls
+  // are written with, so `\n` was not an exotic shape; it was the ordinary one, and the
+  // statement split did not know about it.
+  [
+    'merge-newline-after-a-comment',
+    bash('ls # look at things\ngit merge --no-ff feat/blocked', ON_MAIN),
+    2,
+    /ship gate refused/,
+  ],
+  [
+    'merge-newline-override-is-not-this-statement',
+    bash('echo ATLAS_SHIP_OVERRIDE="a reason long enough to count"\ngit merge --no-ff feat/blocked', ON_MAIN),
+    2,
+    /ship gate refused/,
+  ],
+  // A commit message reading "--abort" is a message, not an exemption.
+  [
+    'merge-abort-as-a-commit-message',
+    bash('git merge --no-ff -m "--abort" feat/blocked', ON_MAIN),
+    2,
+    /ship gate refused/,
+  ],
+  ['merge-in-backticks', bash('echo `git merge --no-ff feat/blocked`', ON_MAIN), 2, /ship gate refused/],
+  // ...and the legitimate forms those four must not break.
+  ['merge-hash-inside-a-message-ok', bash('git merge --no-ff -m "closes #12" feat/ok', ON_MAIN), 0],
+  ['merge-real-abort-still-exempt', bash('ls\ngit merge --abort', ON_MAIN), 0],
   // Fail closed: no gate script, and no cwd to find one with.
   ['merge-no-gate-script', bash('git merge --no-ff feat/ok', ON_MAIN_NOGATE), 2, /not there/],
   [

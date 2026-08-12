@@ -233,6 +233,23 @@ test('the escape hatch is real: UNENFORCEABLE with a reason satisfies the gate',
   )
 })
 
+test('a law that HAS a mechanism cannot exit through the hatch', () => {
+  // The hatch is for a law nothing mechanical could ever check. A law already carrying a
+  // mechanism has disproved that about itself, so rewriting it as UNENFORCEABLE is a
+  // demotion wearing the honest exit's clothes — and it would be the cheapest possible
+  // answer to a recurrence, which is exactly what ADR-0002 refuses.
+  const before = [law('X law', 'mechanism', '`src/lib/x.test.ts` covers it')]
+  const demoted = [law('X law', 'unenforceable', 'a battery cannot tell whether a human opened a browser')]
+  assert.match(
+    recurrenceProblems(answered('X law'), before, demoted).join('\n'),
+    /already carries a mechanism/i
+  )
+
+  // From every weaker rung it is still open, which is the point of having it.
+  for (const kind of ['missing', 'none', 'partial'])
+    assert.deepEqual(recurrenceProblems(answered('X law'), [law('X law', kind)], demoted), [], `from ${kind}`)
+})
+
 test('the hatch needs a reason — a bare UNENFORCEABLE is a shrug', () => {
   const before = [law('X law', 'none')]
   const bare = [law('X law', 'unenforceable', 'n/a')]

@@ -161,21 +161,31 @@ const entries = scratchAt(branch).map((path) => ({
 // A folder that LEFT .scratch/ on this branch, and whether history actually received it.
 // Absence alone is not eviction: `git rm -r` removes the folder and satisfies a check
 // that only looks at what is still there, which is how "archived verbatim" became a
-// claim nothing measured. The archive copy is matched by folder name anywhere under
-// docs/archive/ — STATED LIMIT: that proves a folder of that name arrived, not that its
-// contents are identical. Verifying identity needs a byte compare the merge cannot do
-// against a folder that no longer exists on either side.
-const archived = new Set(
+// claim nothing measured.
+//
+// DIRECTORY names, matched EXACTLY or under a date prefix. The first version collected
+// every path component including FILE names and accepted any that merely `endsWith` the
+// slug, so `notes-about-workflow-reset.md` would have evicted `.scratch/workflow-reset`.
+// A substring test inside an archive check is the defect the commit two before this one
+// is named for — `rules/app.md` M3.2, third occurrence on this branch, and the reason
+// every guard here now compares a whole name rather than an ending.
+//
+// STATED LIMIT: this proves a folder of that name ARRIVED, not that its contents are
+// identical. A byte compare is impossible at the merge, because the source folder no
+// longer exists on either side of it; verbatim-ness is verified when the copy is made.
+const archivedDirs = new Set(
   (gitOrNull('ls-tree', '-r', '--name-only', branch, '--', 'docs/archive') ?? '')
     .split('\n')
-    .flatMap((p) => p.split('/'))
+    .filter(Boolean)
+    .flatMap((p) => p.split('/').slice(0, -1)) // drop the file name — only folders archive a folder
 )
 const gone = [...new Set(scratchAt(BASE).map(dirOf))].filter(
   (d) => !scratchAt(branch).some((p) => dirOf(p) === d)
 )
 const deletedWithoutArchive = gone.filter((d) => {
   const slug = d.split('/').pop()
-  return ![...archived].some((name) => name.endsWith(slug))
+  // `<slug>` or `<YYYY-MM-DD>-<slug>`, which is how this repo dates an archive folder.
+  return ![...archivedDirs].some((name) => name.replace(/^\d{4}-\d{2}-\d{2}-/, '') === slug)
 })
 
 const problems = evictionProblems({

@@ -312,11 +312,34 @@ if (/git\s+push\b/.test(cmd) && !isPrimaryCheckout(input.cwd)) {
 // is `rules/app.md` M3.2 — the choke point was handed a proxy (does this string
 // contain the word) instead of the fact (is this merge exempt) — and it is the second
 // time this file has filed it; the archive hatch in section 4 was the first.
-for (const rawStatement of cmd.split(/&&|\|\||;|\|/)) {
-  const stmt = rawStatement.split(/\s#/)[0] // a trailing shell comment is not part of the command
-  const at = stmt.search(/(^|[\s(])git(\.exe)?\s/i)
+//
+// A NEWLINE IS A STATEMENT SEPARATOR, and leaving it out was the same defect a third
+// time. Round 2 of cold review: `ls # look` + newline + `git merge --no-ff feat/x` was
+// ALLOWED, because the split produced one blob and the comment-strip then deleted the
+// merge along with the comment. Newline is the separator the harness's own Bash calls
+// are written with, so it was not an exotic case; it was the ordinary one.
+for (const rawStatement of cmd.split(/&&|\|\||;|\||\r?\n/)) {
+  // A `#` INSIDE A QUOTED ARGUMENT IS NOT A COMMENT. Quoted spans are masked before the
+  // comment is found, so `-m "fix #12"` keeps its message. If quoting is unbalanced the
+  // cut lands mid-token, the ref parse comes up empty and the merge is BLOCKED for
+  // naming no source — which is the direction an unparseable command should fail in.
+  const masked = rawStatement.replace(/"[^"]*"|'[^']*'/g, (m) => ' '.repeat(m.length))
+  const hash = masked.search(/(^|\s)#/)
+  const stmt = hash === -1 ? rawStatement : rawStatement.slice(0, hash)
+  // The backtick is in this class because ``echo `git merge x` `` was allowed while the
+  // `$(…)` and `(…)` forms both blocked — an anchor is a list of the ways someone might
+  // write it, and a list is never complete. What keeps this honest is that everything
+  // it MISSES fails open, so the anchor is deliberately generous.
+  const at = stmt.search(/(^|[\s($`])git(\.exe)?\s/i)
   if (at === -1) continue
-  const toks = (stmt.slice(at).match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((t) => t.replace(/^["']|["']$/g, ''))
+  // Quoted spans stay one token; the shell punctuation that WRAPS a command substitution
+  // is then peeled off both ends. Without the peel, ``echo `git merge feat/x` `` yields
+  // the ref "feat/x`" and the gate goes off and judges a branch by the wrong name — it
+  // still runs, and still answers about something that does not exist, which is worse
+  // than not running.
+  const toks = (stmt.slice(at).match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((t) =>
+    t.replace(/^[`("']+/, '').replace(/[`)"']+$/, '')
+  )
   // The SUBCOMMAND is the first non-option token, which is not necessarily toks[1]:
   // `git -C dir merge x` and `git -c user.name=x merge y` both put global options
   // first. Reading toks[1] as the verb, `git -C ../other merge feat/ok` was not a merge
@@ -342,8 +365,22 @@ for (const rawStatement of cmd.split(/&&|\|\||;|\|/)) {
         'repository is being merged. Run the merge from inside that checkout.'
     )
 
-  const args = toks.slice(v + 1)
-  if (args.some((t) => /^--(abort|continue|quit)$/.test(t))) continue // not a merge, a resolution
+  // Options and source refs, separated in ONE pass — because `-m`'s value is neither.
+  // Round 2 found `git merge --no-ff -m "--abort" feat/x` walking straight through: the
+  // exemption test ran over the raw argument list, after quote-stripping, so a commit
+  // message reading "--abort" exempted the merge. The `-m` skip existed for the ref
+  // parse and had never been applied to the exemption, which is the same lie through a
+  // second surface (M3.2).
+  const flags = []
+  const refs = []
+  for (let i = 0; i < toks.length - v - 1; i++) {
+    const t = toks[v + 1 + i]
+    if (t === '-m' || t === '--message')
+      i++ // its value is a message: not a flag, not a ref
+    else if (t.startsWith('-')) flags.push(t)
+    else if (t !== '') refs.push(t)
+  }
+  if (flags.some((t) => /^--(abort|continue|quit)$/.test(t))) continue // not a merge, a resolution
 
   // The same inherit-the-hook's-directory hazard as the push rule above: without a
   // cwd, the branch probe answers for whatever checkout the hook is running in.
@@ -379,7 +416,6 @@ for (const rawStatement of cmd.split(/&&|\|\||;|\|/)) {
   // `git pull` is a fetch AND a merge onto main. Bare, or pulling main, is the ordinary
   // sync and stays free; pulling anything else lands work on main without the ritual.
   if (verb === 'pull') {
-    const refs = args.filter((t) => !t.startsWith('-'))
     const branchRef = refs.length > 1 ? refs[refs.length - 1] : null
     if (branchRef && !/^(main|origin\/main|refs\/heads\/main)$/.test(branchRef))
       block(
@@ -389,13 +425,6 @@ for (const rawStatement of cmd.split(/&&|\|\||;|\|/)) {
     continue
   }
 
-  const refs = []
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '-m' || args[i] === '--message')
-      i++ // its value is a message, not a ref
-    else if (args[i].startsWith('-') || args[i] === '') continue
-    else refs.push(args[i])
-  }
   // Exactly one source, or the gate does not know what it is judging. ZERO is the one
   // that matters: a bare `git merge` with a MERGE_HEAD present CONCLUDES a merge onto
   // main, which is precisely the event this door exists for.

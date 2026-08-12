@@ -171,6 +171,18 @@ function strengthened(before, after) {
   // people into mechanisms that only look like enforcement, and a law that merely
   // LOOKS enforced is worse than one honestly marked bare.
   if (after.enforcement.kind === 'unenforceable') {
+    // ...but not as an EXIT from a mechanism. The hatch is for a law nothing mechanical
+    // could ever check; a law already carrying one has disproved that about itself, so
+    // this transition is a demotion wearing the honest exit's clothes — and it would be
+    // the cheapest possible answer to a recurrence.
+    if (before.enforcement.kind === 'mechanism')
+      return {
+        ok: false,
+        why:
+          'already carries a mechanism, so it cannot be reclassified UNENFORCEABLE in answer to a ' +
+          'recurrence — the recurrence says that mechanism has a hole, not that no mechanism could exist. ' +
+          'Close the hole, or say in the declaration what the mechanism now covers that it did not.',
+      }
     return after.enforcement.reason.trim().length >= MIN_REASON
       ? { ok: true }
       : {
