@@ -41,7 +41,17 @@ cost budgets approved, and the first slice fully specified.
 
 <!-- one line per closed ticket: gist + link -->
 
-(none yet — tickets are open)
+- [Retrieval methods for a Hebrew financial corpus](issues/01-retrieval-methods-research.md) —
+  founder's hypothesis confirmed with refinements: page-as-chunk for filings, ~200–400-token
+  line-windows on speaker seams for transcripts (anchors preserved), don't embed MAYA data
+  (build the alias table instead), deterministic context prefixes before paying for LLM
+  contextualization, hybrid search pending the Hebrew-lexical measurement; three candidate
+  designs A/B/C ready for the eval (07). Full findings: `research/01-retrieval-methods.md`.
+- [Claude Agent SDK as the engine for fund-created agents](issues/02-agent-sdk-research.md) —
+  the SDK fits: separate Railway worker (subprocess-per-session), in-process MCP tools with
+  tenancy enforced in our handlers, durable memory as Supabase state, findings only through
+  a `report_finding` tool that verifies anchors (fabricated citations unrepresentable),
+  ~$0.35/run on Sonnet with mandatory caching. Full fact sheet: `research/02-agent-sdk.md`.
 
 ## Not yet specified
 
