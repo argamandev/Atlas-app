@@ -1,7 +1,7 @@
 # The eval set — real questions with known answers
 
 Type: task
-Status: open
+Status: claimed
 
 ## Question
 
