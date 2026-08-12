@@ -17,6 +17,12 @@ the foundation review's findings (ticket 03). The intake bug is the acceptance t
 design where a mid-conversation correction cannot reach the resolver is wrong by
 construction.
 
+**Founder directive (2026-08-12, ticket 06 postscript):** agents are handed the FULL
+toolset their mission needs — "full access over completing his task (in order to recive
+the right context etc etc) we can also create tools for excels and more" — i.e. the tool
+list this ticket decides is a floor for agent capability, not a cage; sandbox built-ins
+(files/code/spreadsheets) stay enabled for agents alongside our Atlas data tools.
+
 **Settled inputs from ticket 06 (2026-08-12, founder-decided):** the agent runtime is
 **Anthropic's Managed Agents**, not the self-hosted worker sketched in ticket 02's proposed
 shape — that section of `research/02-agent-sdk.md` is superseded as a runtime (its tool/
