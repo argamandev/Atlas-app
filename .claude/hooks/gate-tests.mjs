@@ -53,6 +53,37 @@ const ARCHIVED_LOG = path.join(PRIMARY, 'docs', 'archive', 'agent-memory-snapsho
 mkdirSync(ARCHIVED_LOG, { recursive: true })
 writeFileSync(path.join(ARCHIVED_LOG, 'cross-cutting.md'), '[2026-07-14] frozen history\n')
 
+// A STAND-IN ship gate for the merge door, and it is a stand-in on purpose.
+//
+// The hook's job at a merge is narrow: notice that this checkout is on main, work
+// out which single branch is being merged, run the gate, and pass its verdict
+// through. What the gate then DECIDES is the business of `src/lib/shipGate.test.ts`,
+// which drives those rules through their failing cases directly. Copying the real
+// script in here would need its whole lib and would measure the same rules twice
+// while leaving the hook's own wiring — the ref parse, the on-main test, the
+// fail-closed paths — measured by nothing.
+//
+// So the stub answers on the branch NAME, which lets the matrix prove the hook
+// passed the right ref through and propagated the right exit code.
+const gateStub = (dir) => {
+  mkdirSync(path.join(dir, 'scripts'), { recursive: true })
+  writeFileSync(
+    path.join(dir, 'scripts', 'ship-gate.mjs'),
+    'process.stderr.write("stub gate: " + process.argv.join(" ") + "\\n")\n' +
+      'process.exit(process.argv.includes("feat/blocked") ? 1 : 0)\n'
+  )
+}
+gateStub(ON_MAIN)
+
+// A separate repo that is ON MAIN and has NO gate script — the fail-closed path. It
+// cannot be a worktree of PRIMARY, because git will not check main out twice.
+const ON_MAIN_NOGATE = path.join(TMP, 'nogate')
+mkdirSync(ON_MAIN_NOGATE, { recursive: true })
+git(['init', '-b', 'main', ON_MAIN_NOGATE], TMP)
+writeFileSync(path.join(ON_MAIN_NOGATE, 'seed.txt'), 'seed\n')
+git(['add', '.'], ON_MAIN_NOGATE)
+git([...ID, 'commit', '-m', 'seed'], ON_MAIN_NOGATE)
+
 const bash = (command, cwd = PRIMARY) => ({ tool_name: 'Bash', tool_input: { command }, cwd })
 const mcp = (tool, query) => ({ tool_name: tool, tool_input: { query }, cwd: LINKED })
 const rail = (tool) => ({ tool_name: 'mcp__railway__' + tool, tool_input: {}, cwd: PRIMARY })
@@ -266,18 +297,71 @@ const CASES = [
     { tool_name: 'Bash', tool_input: { command: 'cp evil.md docs/archive/x/cross-cutting.md' } },
     2,
   ],
+  // --- the merge door: the ship gate (ticket 03) ---
+  // Each blocking case carries the phrase it must block FOR. Exit 2 on its own is a
+  // weak measurement here: every one of these commands could block for a reason that
+  // has nothing to do with the merge door, and the matrix would read that as proof the
+  // door works (M1).
+  ['merge-to-main-gate-passes', bash('git merge --no-ff feat/ok', ON_MAIN), 0],
+  ['merge-to-main-gate-fails', bash('git merge --no-ff feat/blocked', ON_MAIN), 2, /ship gate refused/],
+  // -m's value is a message, not a ref. Parsed wrongly, the gate judges "shipping" and
+  // the real branch walks through unexamined.
+  [
+    'merge-to-main-message-is-not-a-ref',
+    bash('git merge --no-ff -m "shipping feat/blocked" feat/blocked', ON_MAIN),
+    2,
+    /ship gate refused/,
+  ],
+  // A bare `git merge` with a MERGE_HEAD present CONCLUDES a merge onto main. Zero refs
+  // is the shape that would otherwise walk straight past the door.
+  ['merge-to-main-no-ref', bash('git merge', ON_MAIN), 2, /0 source refs/],
+  ['merge-to-main-octopus', bash('git merge feat/a feat/b', ON_MAIN), 2, /2 source refs/],
+  // Step 2 of the ritual: origin/main INTO the feature branch. Nothing lands in that
+  // direction, and gating it would make the ritual impossible to perform.
+  ['merge-into-feature-branch-ok', bash('git merge origin/main', LINKED), 0],
+  ['merge-abort-ok', bash('git merge --abort', ON_MAIN), 0],
+  ['merge-continue-ok', bash('git merge --continue', ON_MAIN), 0],
+  // The hatch: a stated reason, in the command, so it lands in the transcript.
+  [
+    'merge-override-ok',
+    bash(
+      'ATLAS_SHIP_OVERRIDE="a revert of a bad merge, nothing new lands" git merge --no-ff feat/blocked',
+      ON_MAIN
+    ),
+    0,
+  ],
+  [
+    'merge-override-too-short',
+    bash('ATLAS_SHIP_OVERRIDE="fine" git merge --no-ff feat/blocked', ON_MAIN),
+    2,
+    /real reason/,
+  ],
+  // Fail closed: no gate script, and no cwd to find one with.
+  ['merge-no-gate-script', bash('git merge --no-ff feat/ok', ON_MAIN_NOGATE), 2, /not there/],
+  [
+    'merge-no-cwd',
+    { tool_name: 'Bash', tool_input: { command: 'git merge --no-ff feat/ok' } },
+    2,
+    /cannot tell/,
+  ],
   // --- everyday work stays free ---
   ['npm-test', bash('npm test'), 0],
   ['normal-grep', bash('grep -rn liveEdge src/lib'), 0],
+  ['normal-grep-mentions-merge', bash('grep -rn "git merge" docs'), 0],
 ]
 
 let fail = 0
-for (const [name, payload, expected] of CASES) {
+for (const [name, payload, expected, expectedStderr] of CASES) {
   const r = spawnSync('node', [HOOK], { input: JSON.stringify(payload) })
-  const ok = r.status === expected
+  const stderr = String(r.stderr ?? '')
+  // A blocking case that names the phrase it must block FOR is measuring the rule;
+  // one that only checks exit=2 is measuring that SOMETHING objected.
+  const reasonOk = !expectedStderr || expectedStderr.test(stderr)
+  const ok = r.status === expected && reasonOk
   if (!ok) fail++
   console.log(
-    `${ok ? 'PASS' : 'FAIL'} ${name}: exit=${r.status} expected=${expected}${ok ? '' : ' stderr=' + r.stderr}`
+    `${ok ? 'PASS' : 'FAIL'} ${name}: exit=${r.status} expected=${expected}` +
+      `${expectedStderr ? ` reason=${reasonOk ? 'ok' : 'WRONG'}` : ''}${ok ? '' : ' stderr=' + stderr}`
   )
 }
 rmSync(TMP, { recursive: true, force: true })
