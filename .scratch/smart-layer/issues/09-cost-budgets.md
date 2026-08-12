@@ -2,7 +2,7 @@
 
 Type: research
 Status: open
-Blocked by: 07, 08
+Blocked by: 07, 08 (both resolved — this ticket is on the frontier)
 
 ## Question
 

@@ -30,16 +30,16 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 
 **The smart layer** — chat, workspace and agents as one piece of work, via the wayfinder map
 (`.scratch/smart-layer/map.md`; read `foundations.md` beside it before any ticket; work the
-frontier via `/wayfinder`). **The retrieval method is measured and decided** (ticket 07,
-founder-approved): hybrid + metadata prefix + company scoping on `gemini-embedding-001`,
-scope-size router, Chat gains a visible search mode for market-wide discovery; the standing
-quality gate lives at `scripts/retrieval-eval/`. **The agent experience is decided** (ticket 06,
-founder-approved): mission-driven agents on **Anthropic's Managed Agents**, Hebrew-first,
-"Bring agent to life" flow, anchored findings + artifacts in a two-fidelity agent chat —
-runtime consequences folded into ticket 08, costs into 09. The frontier now: the
-architecture ticket (08) is unblocked and decides the spec; founder tickets 12
-(speaker-edit authz), 13 (leftovers go/no-go), 11 (Anthropic account); task 15 (discovery
-eval cases) feeds the eval set.
+frontier via `/wayfinder`). The three big decisions are made, founder-approved, gists on the
+map: **retrieval** (ticket 07 — hybrid + company scoping on `gemini-embedding-001`, eval gate
+at `scripts/retrieval-eval/`), **the agent experience** (ticket 06 — mission-driven agents on
+Anthropic's Managed Agents, Hebrew-first), and **the architecture** (ticket 08 — one brain,
+two runtimes; one tool registry with web search on every surface; citations verified at
+write; rewrite order Chat → Ask Atlas → Workspace, agents in parallel). The frontier now:
+**cost budgets** (09, unblocked — real pricing wants the Anthropic account, ticket 11); the
+**ingestion standard** (16) and **MAYA filings at scale** (17), both graduated from the fog;
+founder tickets 12 (speaker-edit authz), 13 (leftovers go/no-go), 11 (Anthropic account);
+task 15 (discovery eval cases). The spec (ticket 10) waits on 09/16/17.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both belonging to the self-improving
 layer rather than to product work:** making `app.md`'s four meta-laws visible to the promotion

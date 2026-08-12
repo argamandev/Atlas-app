@@ -92,6 +92,16 @@ cost budgets approved, and the first slice fully specified.
   panel ↔ full page); visible/editable memory, visible reasoning, the reflection ticker;
   Note Taker = post-call notes in V1, live mid-call notes V2, free-play agents V2. Runtime
   consequences → ticket 08; cost question → ticket 09.
+- [The unified context & tool architecture](issues/08-architecture-decision.md) — decided,
+  founder-approved 2026-08-12: one brain, two runtimes (chat surfaces call Claude Sonnet 5
+  directly from our server; agents run on Managed Agents via custom-tool round-trips); one
+  tool registry — resolve/search/lookup-facts/read-source/workspace/MAYA + **web search on
+  all four surfaces** (archive-first, visibly distinct citations) + agents-only
+  report_finding/update_memory + sandbox built-ins; citations **verified at write**
+  everywhere with drift rendering and real per-line timestamps; pgvector + shared-corpus
+  chunk/alias/facts tables, personal agent tables with append-only turns; rewrite order
+  Chat → Ask Atlas → Workspace (eval-gated) with agents in parallel; Anthropic-side scratch
+  deleted post-run. Full record in the ticket's Answer.
 - [What does MAYA already provide structured?](issues/14-maya-structured-data.md) — more than
   expected: every Israeli-track quarterly/annual report carries a public `.xbrl` (ISA ת930) with
   the 26 core financials (revenue→net profit, EPS, BS/CF totals, exact periods, ILS) verified by
@@ -102,17 +112,12 @@ cost budgets approved, and the first slice fully specified.
 
 ## Not yet specified
 
-- How and when MAYA filings join the searchable corpus at scale — Hebrew PDF extraction
-  pipeline, ingestion triggers, freshness (no publication-date column exists today).
-  Sharpens after the MAYA structured-data facts (ticket 14) and the architecture (08).
-- The ingestion standard: how a new transcript/document is born attributed, chunked,
-  embedded, anchored — now explicitly including dedup at birth (the `PyuMxe88e8g_live`
-  lesson) and the structured-facts extraction step if ticket 14 makes it ours to build.
-  Depends on the architecture ticket (08).
 - When and how user memory (cross-surface) joins agent memory.
-- Migration path: how the four existing front doors move onto the new standard without
-  breaking what works today.
 - Webinars as a corpus source.
+
+<!-- Graduated 2026-08-12 on ticket 08's resolution: the ingestion standard → ticket 16;
+     MAYA filings at scale → ticket 17. The migration-path item was DECIDED inside ticket 08
+     (Chat → Ask Atlas → Workspace, eval-gated, agents in parallel). -->
 
 ## Out of scope
 
