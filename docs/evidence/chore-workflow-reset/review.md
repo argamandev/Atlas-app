@@ -1,6 +1,6 @@
 # Review — chore/workflow-reset (ticket 03, the rituals)
 
-Three rounds of cold review, each in a fresh context with no attachment to the code. Each round
+Four rounds of cold review, each in a fresh context with no attachment to the code. Each round
 found defects in the previous round's fixes, which is the argument for the ritual in one sentence.
 
 **Round 1** — two parallel sub-agents over `git diff 6dfa0d5...HEAD`, one on Standards (the
@@ -22,8 +22,25 @@ left behind, is still an untracked nested git repo at the checkout root. Deletin
 by the permission layer, so it is handed over rather than quietly dropped. It is untracked and
 committed to nothing; `rmdir /s /q mainrepo` clears it.
 
+**Round 4** — `atlas-reviewer` over `620fb21`, the commit salvaging four corrections from the
+never-merged `fix/meta-review-2026-08-10`. Briefed to re-run every command that commit cites
+rather than trust its message; it did, and confirmed all four. What it found instead was one
+shape, five times: a claim restated in a second document and never re-derived after the thing it
+describes moved. That is the same class the commit was fixing, committed inside the commit fixing
+it — `app.md`'s preamble, `ARCHITECTURE.md`, `CLAUDE.md`'s doc map, `STATUS.md`, and the bash
+gate's own header, which carried the twin of the false door-count `620fb21` corrected in
+`CLAUDE.md`. Fixing one and leaving its twin is exactly what a fourth cold round is for.
+
+**The fourth round to hit this class, and it still cannot be filed as a recurrence.** Every
+finding below reads `RECURRENCE: no` because *law* means what `app.md` declares in `**LAW ·`
+marker form, and the laws these repeat are `M1` and the preamble's "counts carry their command" —
+neither of which the parser can see. That is the ticket's one unclosed item, deferred off this
+branch by founder decision on 2026-08-12 (`DECISIONS.md`) to the self-improving-layer chapter.
+The deferral is his call and stands; recording that the class has now recurred four times is what
+this paragraph is for, so the next chapter starts from a count rather than a memory.
+
 VERDICT: APPROVED
-REVIEWED: 01690ce
+REVIEWED: a546c17
 
 ## Round 1
 
@@ -94,6 +111,36 @@ class the previous round had just written about. It is also unfileable as `RECUR
 precisely the reason the next section describes, which makes it the best available evidence for
 closing that gap rather than deferring it.
 
+## Round 4 — on the salvaged corrections
+
+FINDING · BLOCKER · DECISIONS.md:82-84 · the two founder decisions that authorise 620fb21 — the budget trade-off it acts on and the deferral closing the branch's outstanding meta-law call — were uncommitted working-tree changes, so the merge would have landed the change without the record of who approved it
+RECURRENCE: no
+FINDING · WARNING · .claude/rules/app.md:24 · the preamble still said open findings "are in the last section" while the same commit deleted that section from the file
+RECURRENCE: no
+FINDING · WARNING · ARCHITECTURE.md:497 · still listed "open findings (marked NOT laws)" as a section of rules/app.md after the move, and docs/open-findings.md appeared in no doc table
+RECURRENCE: no
+FINDING · WARNING · CLAUDE.md:96 · docs/open-findings.md was the only file under docs/ root missing from the doc map, in the commit restoring an audit certifying zero such omissions
+RECURRENCE: no
+FINDING · WARNING · .claude/hooks/pre-bash-gate.mjs:3 · the gate's own header said "BOTH doors to the DB" while wired to three matchers — the identical false count 620fb21 fixed in CLAUDE.md, and finding 17 of the audit it restores
+RECURRENCE: no
+FINDING · WARNING · docs/evidence/chore-workflow-reset/review.md:26 · REVIEWED: 01690ce and its closing "the only change after it is this record" were both false at 620fb21; ship:gate refused the merge on exactly this
+RECURRENCE: no
+FINDING · WARNING · STATUS.md:36 · still said "Two founder calls before it merges" and named the meta-law call, which the DECISIONS entry had settled as deferred
+RECURRENCE: no
+FINDING · NIT · docs/audits/2026-08-10-supervisor-meta-review.md:369 · restored with all 20 Status cells blank, so nothing distinguished the four findings the commit fixed from the sixteen it did not
+RECURRENCE: no
+FINDING · NIT · .claude/rules/app.md:38 · the DEMO_USER_ID figures carried no command and no `-- src` scope, so a reader re-running them repo-wide gets a different number — the file's own "counts carry their command", unmet in the paragraph pair the commit corrected
+RECURRENCE: no
+FINDING · NIT · .claude/rules/app.md:99 · `^import { supabaseAdmin }` is an exact-spelling anchor; a combined or line-wrapped import would silently drop a module from the admin list, which is the security-relevant direction
+RECURRENCE: no
+
+All ten fixed in `a546c17`. The NIT on the audit's blank Status cells was answered by APPENDING a
+dated DISPOSITION section rather than editing the table — a restored historical record is not
+re-authored, which is the convention the meta-review branch itself set. The NIT on the grep anchor
+was answered twice over: the pattern is widened to tolerate a combined import, **and** the law now
+states that it remains a proxy (M3.2) for the line-wrapped case, because a grep that silently
+drops a module reads as "RLS-safe" — the failure direction that matters.
+
 ## Why every RECURRENCE reads "no", and the gap that makes it so
 
 **Eight of these findings ARE recurrences — and not one of them is a recurrence of a law this gate
@@ -150,6 +197,10 @@ nothing to look at here. Said explicitly rather than left as an absence.
 
 ## Fixes
 
-Round 1 in `2a866b5`, round 2 in `d27b134`, round 3 in `01690ce`. `REVIEWED:` names the last of
-them, and the only change after it is this record — which is the one file `stalenessProblems`
-exempts, because writing it IS the act of filing the review.
+Round 1 in `2a866b5`, round 2 in `d27b134`, round 3 in `01690ce`, round 4 in `a546c17`.
+`REVIEWED:` names the last of them, and the only change after it is this record — which is the one
+file `stalenessProblems` exempts, because writing it IS the act of filing the review.
+
+Round 4 exists because `620fb21` landed *after* round 3 approved the branch, and `ship:gate`
+refused the merge by name rather than letting a stale approval through. That refusal is the whole
+ticket working on its author, which is the best evidence in this file that the gate is real.
