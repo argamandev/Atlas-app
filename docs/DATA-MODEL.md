@@ -20,6 +20,29 @@ Founder's words: *"investor transcripts need to be accessible to anyone… this 
 specific type of data. The user specific type of data is in the chat section… projects, obviously,
 workspace, obviously, and agents, obviously."*
 
+## Writes to the shared corpus are CURATION — admin-only (founder decision, 2026-08-13)
+
+Ticket 12 of the smart-layer map settled the write side of the table above (his call, recorded in
+`DECISIONS.md` [2026-08-13]):
+
+1. **Editing a fact about shared-corpus content — a speaker's name, a diarization — is a curation
+   act, gated `requireAdmin`.** It changes what every user sees, so it is the same class of write
+   as deleting a transcript, not a personal edit. It is NOT owner-gated and NEVER open to any
+   signed-in user (that was a live defect, not a design).
+2. **Personal rows are written only by their owner** — the existing personal-layer rule, restated
+   here because the exception below is easy to over-read.
+3. **The one sanctioned exception: corrections flow from corpus curation into derived personal
+   data.** When an admin renames a speaker, every user's saved quotes on that call get the
+   corrected name (`renameSpeakerInQuotes`) — a quote's speaker label is *inherited* from the
+   corpus, and leaving it stale would be exactly the plausible lie the citation rules exist to
+   prevent. This propagation is legitimate only when triggered by a properly gated curation write;
+   it is not a license for one user's action to touch another user's rows in any other shape.
+
+Every new smart-layer route that writes is judged against these three lines. The routes that got
+this wrong (`PATCH /api/transcripts/[id]/speakers`, `.../diarization`) passed the auth boundary
+test while missing the authorization check — the boundary test proves a user was *resolved*, not
+that the right user was *allowed* — so each curation route carries its own non-admin → 403 test.
+
 ## Why this matters (it is not a preference)
 
 1. **It is what makes Atlas a platform instead of a transcription tool.** The shared archive *is*

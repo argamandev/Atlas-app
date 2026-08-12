@@ -115,6 +115,12 @@ cost budgets approved, and the first slice fully specified.
   ahead, 80K OTPM is the prototyping constraint; Hebrew measured at **1.43 chars/token**
   (~47% over the `plan.ts` estimator, more than research/09's +30%) — ticket 10 recomputes
   costs. Fact sheet: `research/11-key-verification.md`.
+- [Speaker-edit authorization — corpus curation or personal write?](issues/12-speaker-edit-authorization.md) —
+  founder 2026-08-13: speaker attribution is corpus curation, **admin-only** (both PATCH
+  routes get `requireAdmin`); renames legitimately propagate into all users' saved quotes;
+  the general law is filed in `docs/DATA-MODEL.md` (shared-corpus writes = admin curation,
+  personal rows = owner-only, curation→derived-data propagation the one exception); the
+  live hole is fixed now as its own small mission, with non-admin→403 route tests.
 - [What does MAYA already provide structured?](issues/14-maya-structured-data.md) — more than
   expected: every Israeli-track quarterly/annual report carries a public `.xbrl` (ISA ת930) with
   the 26 core financials (revenue→net profit, EPS, BS/CF totals, exact periods, ILS) verified by
