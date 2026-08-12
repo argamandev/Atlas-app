@@ -31,8 +31,8 @@ it — `app.md`'s preamble, `ARCHITECTURE.md`, `CLAUDE.md`'s doc map, `STATUS.md
 gate's own header, which carried the twin of the false door-count `620fb21` corrected in
 `CLAUDE.md`. Fixing one and leaving its twin is exactly what a fourth cold round is for.
 
-**The fourth round to hit this class, and it still cannot be filed as a recurrence.** Every
-finding below reads `RECURRENCE: no` because *law* means what `app.md` declares in `**LAW ·`
+**The fourth round to hit this class, and it still cannot be filed as a recurrence.** Each entry
+below reads `RECURRENCE: no` because *law* means what `app.md` declares in `**LAW ·`
 marker form, and the laws these repeat are `M1` and the preamble's "counts carry their command" —
 neither of which the parser can see. That is the ticket's one unclosed item, deferred off this
 branch by founder decision on 2026-08-12 (`DECISIONS.md`) to the self-improving-layer chapter.
