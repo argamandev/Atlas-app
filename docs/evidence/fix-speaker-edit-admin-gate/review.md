@@ -1,10 +1,16 @@
 # Cold review — `fix/speaker-edit-admin-gate` (atlas-reviewer, 2026-08-13)
 
-REVIEWED: a226da3
+REVIEWED: 2b149e6
 
-The only commits after that sha are the round-2 NIT applied exactly as its finding prescribed
-(one stated-limits comment line in `apiFetchDiscipline.test.ts`, no code-path change; the test
-re-run green) and this record itself.
+Three rounds. Round 3 confirmed the tip after the round-2 NIT was applied as prescribed.
+
+## Round 3 — verdict at tip 2b149e6 (verbatim)
+
+VERDICT: APPROVED
+
+FINDINGS: none
+
+Verification for tip `2b149e6` (not gate grammar): `git diff a226da3..2b149e6` contains exactly the two claimed files and nothing else — (1) `src/lib/apiFetchDiscipline.test.ts`, a comment-only edit to the STATED LIMITS block naming the line-wrapped-literal blind spot, which is my round-2 NIT applied as prescribed with no executable line touched; (2) `docs/evidence/fix-speaker-edit-admin-gate/review.md`, the review record, whose round-1 and round-2 verdicts match what I returned verbatim. Independently confirmed at `2b149e6`: battery 705/705 green. No code paths changed since the head I mutation-tested (`a226da3`), so all round-2 verifications carry forward. No new scope, no secrets, no DB changes.
 
 Two rounds. Round 1 returned CHANGES (four findings, all fixed — see
 `2026-08-13-verification.md` for what each changed); round 2 re-reviewed the fixed branch.
