@@ -68,6 +68,13 @@ cost budgets approved, and the first slice fully specified.
   per-class go/no-go menu for the founder (ticket 13); iron rule #1's premise is stale — the DB
   is no longer shared with anything, it IS Atlas production.
 
+- [The eval set — real questions with known answers](issues/05-eval-set.md) — approved:
+  18 anchored cases at `docs/eval/retrieval-eval-set.md` (the standing quality gate that
+  outlives this map); two MUST-PASS gates (intake regression, בז"א alias), "cannot ground →
+  say so" policy, mis-attributed content never speaks for the company; six corpus warts
+  W1–W6 documented, incl. the Zim hearing carrying Tigbur's `company_id` (→ ticket 13) and
+  all-zero timestamps (line id is the only citation anchor). Ticket 07 unblocked.
+
 ## Not yet specified
 
 - How and when MAYA filings join the searchable corpus at scale — Hebrew PDF extraction

@@ -1,6 +1,6 @@
 # Retrieval eval set — real questions with known answers
 
-Status: draft — awaiting founder validation (smart-layer ticket 05)
+Status: approved — founder, 2026-08-12: "the questions look good, approve everything and resolve the ticket."
 Created: 2026-08-12
 
 **What this is.** The measuring stick for retrieval quality. Every case is a real, fund-style
@@ -193,5 +193,6 @@ Tests: duplicate handling; citation stability.
    feeds the ticket-13 decision about cleaning `2gXp90F8s6w`'s attribution).
 4. **Approve the MUST-PASS gates** (Cases 13, 14) and the negative-case policy (Case 17).
 
-On approval this file's Status flips to `approved`, ticket 05 resolves, and ticket 07 (the
-measured eval) unblocks.
+**Validated 2026-08-12:** all four items approved as drafted ("approve everything and resolve
+the ticket"). Ticket 05 resolved; ticket 07 (the measured eval) unblocked. Adding new cases
+later is welcome — through a normal edit, with the anchor verified before the case is added.

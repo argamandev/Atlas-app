@@ -94,6 +94,7 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. **LIVE on Railway →
 - `docs/case-history/` — the defect behind each law, on demand (a new case: LAW in the rule,
   STORY here). `docs/archive/` — history, verbatim, never rewritten.
 - `docs/open-findings.md` — open items that are NOT laws; never cite one as an invariant.
+- `docs/eval/retrieval-eval-set.md` — the standing retrieval quality gate; anchored, founder-approved.
 - `PROGRESS.md` — shipped-work log (append at ship time) · `docs/V1-SECURITY-AND-LAUNCH-NOTES.md`
   · `docs/audits/` · `docs/evidence/<branch>/` · `LEGACY.md` (the 4-file Wave-2 login gateway)
 - Skills: `/verify-app` · `/ship` · `/live-test` · `/transcript-review` · agent: `atlas-reviewer`

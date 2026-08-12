@@ -1,7 +1,7 @@
 # The eval set — real questions with known answers
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -13,6 +13,30 @@ case: a mid-conversation company correction reaches the resolver
 (`resolveIssuer('בית זיקוק אשדוד')` → 1361 is the proved expected answer).
 
 This set outlives the map: every future retrieval change is judged against it.
+
+## Answer
+
+The eval set exists, is founder-approved, and lives at
+[`docs/eval/retrieval-eval-set.md`](../../../docs/eval/retrieval-eval-set.md) — 18 cases,
+every anchor verified against the live database on 2026-08-12. Approved in full ("the
+questions look good, approve everything and resolve the ticket", filed in `DECISIONS.md`):
+
+- **Two MUST-PASS binary gates:** the workspace-intake regression (mid-conversation
+  correction reaches `resolveIssuer('בית זיקוק אשדוד')` → 1361) and the בז"א alias case
+  (fails today by design — the alias table from ticket 01 must close it).
+- **Negative policy approved:** an answer that cannot be grounded in the corpus says so,
+  cites nothing, fabricates nothing (Case 17).
+- **Attribution ruling approved (Case 15):** content mis-attributed to a company's
+  `company_id` must never be presented as that company's management speaking — the honest
+  answer says no such statement exists in the corpus.
+- **Six corpus warts documented (W1–W6)** in the file: the Zim/Knesset hearing carries
+  Tigbur's `company_id` (fix decision added to ticket 13), a duplicate transcript, the Tamis
+  demo distractor, ASR garbles (תפעולי→טיפולי, EBITDA→העבידה), Aura's `ð` extraction
+  corruption, and all-zero timestamps (line id is the only anchor — "call · minute" is not
+  buildable from today's corpus).
+
+Ticket 07 (the measured eval) is now unblocked: it scores candidate designs A/B/C from
+ticket 01 against this set.
 
 ## Comments
 
