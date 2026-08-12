@@ -136,6 +136,13 @@ cost budgets approved, and the first slice fully specified.
   corporate-actions portal-spec read; structured-facts V1 = XBRL parser in `ingestFiling()`, no
   LLM. Fact sheet: `research/14-maya-structured-data.md`.
 
+- [Discovery eval cases — broad questions with known leads](issues/15-discovery-eval-cases.md) —
+  two founder-worded discovery cases live as class G in the eval set (מילואים costs, AI),
+  leads anchor-verified, `mode: "discovery"` scoring in the harness (pass = all lead
+  companies in the diversified top-5); measured: the decided C-gemini design passes both,
+  the dense-only and OpenAI designs each fail a case — search mode's quality is now
+  gated, not assumed.
+
 ## Not yet specified
 
 - When and how user memory (cross-surface) joins agent memory.

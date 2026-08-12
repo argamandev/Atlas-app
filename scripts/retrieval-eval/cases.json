@@ -207,6 +207,59 @@
         }
       ],
       "scope": "תיגבור"
+    },
+    {
+      "id": "19",
+      "class": "G",
+      "mode": "discovery",
+      "query": "אילו חברות דיברו על עלויות מילואים?",
+      "leads": [
+        {
+          "company": "תיגבור",
+          "anchors": [
+            { "transcript": "hii8RivJK9I", "lines": ["L0066"] },
+            { "transcript": "PyuMxe88e8g", "lines": ["L0004"] },
+            { "document": "01e9cc6b-96e9-4e99-99c3-b261ee66487e", "page": 3 }
+          ]
+        },
+        {
+          "company": "בית זיקוק אשדוד",
+          "anchors": [{ "document": "5df8ec60-6698-41e6-abd9-7db0479caab8", "page": 12 }]
+        }
+      ],
+      "note": "Founder's own ticket-07 phrasing. Market-wide (no scope). יעקב פיננסים/תורפז/דוראל mention מילואים only as macro war boilerplate — documented NON-leads; the harness gate is recall over the two leads, precision lives at the answer layer."
+    },
+    {
+      "id": "20",
+      "class": "G",
+      "mode": "discovery",
+      "query": "אילו חברות דיברו על בינה מלאכותית?",
+      "leads": [
+        {
+          "company": "דוראל",
+          "anchors": [
+            { "document": "ea051cb9-d1bb-4f5c-9bf3-1efd6cf7352c", "page": 161 },
+            { "document": "ea051cb9-d1bb-4f5c-9bf3-1efd6cf7352c", "page": 166 },
+            { "document": "12e3ae21-e5e8-40e6-9aa8-63d7c123324b", "page": 94 }
+          ]
+        },
+        {
+          "company": "בתי זיקוק",
+          "anchors": [{ "document": "168b6fab-ea68-4115-a46d-4305dc36e556", "page": 47 }]
+        },
+        {
+          "company": "תורפז",
+          "anchors": [
+            { "document": "b176a312-71bc-49ac-9d26-77353a6c327c", "page": 26 },
+            { "document": "b176a312-71bc-49ac-9d26-77353a6c327c", "page": 34 }
+          ]
+        },
+        {
+          "company": "תיגבור",
+          "anchors": [{ "transcript": "PyuMxe88e8g", "lines": ["L0006"] }]
+        }
+      ],
+      "note": "Phrasing approved by the founder 2026-08-13. Market-wide (no scope). W2: the PyuMxe88e8g_live duplicate collapses into the Tigbur lead under per-company diversification and must not surface as a fifth company."
     }
   ],
   "_scope_comment": "scope = the company the query resolves to via the decided alias table (research/01 SS6: filter by company_id, never hope an embedding lands). Case 16 has none (the Knesset hearing question resolves to no issuer); case 17 resolves to a company with zero corpus content, so its scoped ranking is EMPTY - the honest cannot-ground signal."

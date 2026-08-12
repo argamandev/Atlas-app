@@ -35,9 +35,9 @@ experience (06), architecture (08), cost budgets proposed (09), Anthropic key li
 speaker edits = admin-only corpus curation (12 — the write-authorization law is in
 `docs/DATA-MODEL.md`), Timlul leftovers all-go (13 — iron rule #1 now reads "Atlas
 PRODUCTION"; three small execution missions listed in its Answer: cleanup, policy
-narrowing, PUT admin-gate). The frontier now: task 15 (discovery eval cases), the
-**ingestion standard** (16) and **MAYA filings at scale** (17). The spec (ticket 10)
-waits on 16/17 and closes the map.
+narrowing, PUT admin-gate), discovery eval cases live and measured (15 — search mode
+is now eval-gated). The frontier now: the **ingestion standard** (16) and **MAYA
+filings at scale** (17). The spec (ticket 10) waits on 16/17 and closes the map.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
 product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s

@@ -448,6 +448,52 @@ function bestTranscriptRank(ranked, chunks, transcriptId) {
   return Infinity
 }
 
+// Rank of the first chunk covering ANY of the given anchors (diagnostic for discovery leads).
+function firstAnchorRank(ranked, chunks, anchors) {
+  for (let r = 0; r < ranked.length; r += 1) {
+    const c = chunks[ranked[r].i]
+    for (const a of anchors) {
+      const hit = a.transcript
+        ? c.kind === 'transcript' &&
+          c.srcId === a.transcript &&
+          a.lines.some((l) => c.firstLine <= lineNo(l) && lineNo(l) <= c.lastLine)
+        : c.kind === 'document' && c.srcId === a.document && c.page === a.page
+      if (hit) return r + 1
+    }
+  }
+  return Infinity
+}
+
+// Discovery (class G): market-wide question whose answer is a per-company-diversified leads
+// list (ticket 08). Companies are ordered by their best-ranked chunk; the case's rank is the
+// company-position at which ALL documented lead companies have appeared (pass gate in the
+// eval set: ≤ 5). anchorRank is evidence for the answer layer, never a gate — a lead company
+// surfaced on a different-but-relevant chunk still counts as found.
+const DISCOVERY_PASS_K = 5
+
+function scoreDiscovery(ranked, chunks, c) {
+  // A malformed case must fail loudly: leads:[] would score rank 0 and silently pass
+  // every design — a green signal that measured nothing (M1).
+  if (!c.leads?.length) throw new Error(`case ${c.id}: mode "discovery" requires a non-empty leads[]`)
+  const order = [] // distinct companies by best chunk rank
+  const seen = new Set()
+  for (const { i } of ranked) {
+    const name = chunks[i].company
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    order.push(name)
+  }
+  const leads = {}
+  let worst = 0
+  for (const lead of c.leads) {
+    const pos = order.findIndex((n) => n.includes(lead.company))
+    const companyRank = pos === -1 ? Infinity : pos + 1
+    leads[lead.company] = { companyRank, anchorRank: firstAnchorRank(ranked, chunks, lead.anchors) }
+    worst = Math.max(worst, companyRank)
+  }
+  return { rank: worst, leads, companiesTop: order.slice(0, 8) }
+}
+
 // ---------------------------------------------------------------- main
 
 async function main() {
@@ -531,6 +577,8 @@ async function main() {
       }))
       if (c.mode === 'info') {
         results[name][c.id] = { info: debug[name][c.id].slice(0, 5) }
+      } else if (c.mode === 'discovery') {
+        results[name][c.id] = scoreDiscovery(ranked, chunks, c)
       } else if (c.mode === 'company') {
         results[name][c.id] = { rank: firstCompanyRank(ranked, chunks, c.expectCompany) }
       } else if (c.mode === 'duplicate') {
@@ -545,7 +593,7 @@ async function main() {
   }
 
   // ------------------------------------------------------------ report
-  const ranked = scoredCases.filter((c) => c.mode !== 'info')
+  const ranked = scoredCases.filter((c) => c.mode !== 'info' && c.mode !== 'discovery')
   const fmtRank = (r) => (r === Infinity ? '—' : String(r))
   const lines = []
   lines.push('# Retrieval eval — run ' + new Date().toISOString())
@@ -591,6 +639,51 @@ async function main() {
     lines.push(`| ${c.id}${c.wart ? ` (${c.wart})` : ''} | ${c.class} | ${cells.join(' | ')} |`)
   }
   lines.push('')
+  const discovery = scoredCases.filter((c) => c.mode === 'discovery')
+  if (discovery.length) {
+    lines.push(
+      `## Discovery cases (class G — company-rank at which ALL lead companies appear; pass ≤ ${DISCOVERY_PASS_K})`
+    )
+    lines.push('')
+    lines.push(`| Case | ${Object.keys(designs).join(' | ')} |`)
+    lines.push(
+      `| --- | ${Object.keys(designs)
+        .map(() => '---')
+        .join(' | ')} |`
+    )
+    for (const c of discovery) {
+      const cells = Object.keys(designs).map((n) => {
+        const r = results[n][c.id]
+        return `${fmtRank(r.rank)} ${r.rank <= DISCOVERY_PASS_K ? '✓' : '✗'}`
+      })
+      lines.push(`| ${c.id} | ${cells.join(' | ')} |`)
+    }
+    lines.push('')
+    // The quotable verdict, printed by the measurement itself. Prose about a design's
+    // discovery result quotes one of these lines verbatim — re-deriving pass/fail from
+    // the rank table by hand is how a wrong "fails both" got written once (M1).
+    lines.push('Design verdicts (quote these, never re-derive from ranks):')
+    lines.push('')
+    for (const name of Object.keys(designs)) {
+      const failed = discovery.filter((c) => results[name][c.id].rank > DISCOVERY_PASS_K)
+      lines.push(
+        `- **${name}**: ${failed.length ? `FAIL (case ${failed.map((c) => c.id).join(', ')})` : 'PASS (all discovery cases)'}`
+      )
+    }
+    lines.push('')
+    for (const c of discovery) {
+      lines.push(`### Case ${c.id} — ${c.query}`)
+      for (const name of Object.keys(designs)) {
+        const r = results[name][c.id]
+        const leadBits = Object.entries(r.leads).map(
+          ([company, l]) =>
+            `${company}@${fmtRank(l.companyRank)} (anchor chunk rank ${fmtRank(l.anchorRank)})`
+        )
+        lines.push(`- **${name}**: ${leadBits.join(' · ')} — company order: ${r.companiesTop.join(' → ')}`)
+      }
+      lines.push('')
+    }
+  }
   lines.push('## Info cases (15 = attribution trap, 17 = unanswerable)')
   lines.push('')
   for (const c of scoredCases.filter((x) => x.mode === 'info')) {
