@@ -1,10 +1,16 @@
 # docs/evidence/ — durable ship evidence
 
-Anything cited as verification evidence in a READY entry, a board line, or a founder gate
-must have a copy here (reports, walkthrough sheets, comparison tables — one folder per
-branch or milestone) or in `scripts/out/sessions/` (call captures). Worktree paths, session
-temp dirs, and external URLs (claude.ai artifacts) expire; this folder does not.
-Law: /ship lane step 6 + verify-app step 9.
+Anything cited as verification evidence — a ticket, a review, a founder gate — must have a
+copy here (reports, walkthrough sheets, comparison tables — one folder per branch or
+milestone) or in `scripts/out/sessions/` (call captures). Worktree paths, session temp dirs,
+and external URLs (claude.ai artifacts) expire; this folder does not.
+Law: /ship step 6 + verify-app step 9.
+
+**`<branch>/review.md` is read by a machine.** The cold review's verdict is filed there, with
+the branch's slashes written as dashes (`chore/workflow-reset` → `chore-workflow-reset/`), and
+`npm run ship:gate` parses it: one `FINDING ·` line per defect, each answered by one
+`RECURRENCE:` line, or the single line `FINDINGS: none`. Format in
+`.claude/agents/atlas-reviewer.md`.
 
 - `ivrit-m1/` — Lane I Milestone 1 (2026-07): the task-8 quality-comparison report
   (chunked-live vs Recall captions vs whole-file IVRIT), the SDD execution ledger, and the

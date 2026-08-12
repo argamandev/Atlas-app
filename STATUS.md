@@ -28,15 +28,16 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 
 ## What is being worked on right now
 
-**Migrating the workflow itself** — branch `chore/workflow-reset`.
+**Migrating the workflow itself** — branch `chore/workflow-reset`, and this is the last of its
+three tickets. One session at a time with worktrees on demand (ADR-0001); a lesson that recurs
+gains a mechanism instead of a fourth restatement (ADR-0002). Product work resumes when it lands.
 
-The standing 4-seat agent fleet is retired in favour of one session at a time, with worktrees
-created on demand (ADR-0001), and lessons that recur must gain an enforcement mechanism rather
-than a fourth restatement (ADR-0002). Product work resumes when this lands.
+All three tickets are built. `npm run ship:gate` now checks what a merge owes — the status
+rewrite, the progress entry, closed notes filed as history, a recurrence answer per review
+finding — and `git merge` onto main runs it, so it does not depend on anyone reading `/ship`.
 
-Landed: the enforcement layer (`npm run env:health`, `src/lib/environment.test.ts`) and the
-retirement — the board, queue, logs and state files are verbatim in `docs/archive/`, the collision
-channel is `COLLISIONS.md`, and live-engine facts moved to `docs/live-engines.md`. Left: the
-eviction and promotion rituals (ticket 03).
+**What the founder still owes this branch:** read the five always-on documents end to end and time
+it. Over ten minutes means the set has regrown whatever the token budget says, and that judgement
+is his, not a script's (`/ship` § The founder's read).
 
 Not yet started: the smart layer above. Do not begin it on this branch.

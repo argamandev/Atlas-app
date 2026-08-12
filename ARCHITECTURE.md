@@ -490,7 +490,7 @@ a pdf-parse bump can't silently desync it).
 |---|---|
 | `settings.json` | Permissions (safe pre-approvals + secret denies) + the two hook wirings. Tracked in git so every worktree gets the same harness. |
 | `settings.local.json` | Machine-local permissions (git-ignored). |
-| `hooks/pre-bash-gate.mjs` | PreToolUse gate: blocks destructive SQL, unsafe `rm -rf`, `.env` shell access, force-pushes, pushing `main` from a worktree, and whole-file writes to the append-only log. Fire-tested — run `node .claude/hooks/gate-tests.mjs` for the case count. |
+| `hooks/pre-bash-gate.mjs` | PreToolUse gate: blocks destructive SQL, unsafe `rm -rf`, `.env` shell access, force-pushes, pushing `main` from a worktree, whole-file writes to the append-only log, and a merge onto `main` that has not passed the ship gate. Fire-tested — run `node .claude/hooks/gate-tests.mjs` for the case count. |
 | `hooks/post-edit-verify.mjs` | PostToolUse: auto-formats every edited `.ts/.tsx` + incremental typecheck; errors feed straight back to the session. |
 | `rules/db.md` | Shared-with-production DB: additive-only migration law. |
 | `docs/live-engines.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). Was `rules/live.md` until 2026-08-12 — it is FACTS, not laws, so it loads on demand instead of every session (ADR-0001). |
@@ -502,7 +502,9 @@ a pdf-parse bump can't silently desync it).
 | `skills/transcript-review/` | `/transcript-review` — the transcript-quality gate. |
 | `agents/atlas-reviewer.md` | `atlas-reviewer` agent definition — the code/design review persona. |
 | `hooks/gate-tests.mjs` | Fire-test matrix for pre-bash-gate.mjs — run + extend it on EVERY hook change. |
-| `scripts/lib/env-manifest.mjs` | The always-on set, its token budget, and the law parser — declared once. `src/lib/environment.test.ts` asserts against it and `npm run env:health` prints from it, so the guard and the number cannot disagree (ADR-0002). |
+| `scripts/lib/env-manifest.mjs` | The always-on set, its token budget, the append-only registry, and the law parser — declared once. `src/lib/environment.test.ts` asserts against it, `npm run env:health` prints from it and `scripts/append-log.mjs` derives its doors from it, so the guard and the number cannot disagree (ADR-0002). |
+| `scripts/lib/ship-gate.mjs` | The two merge-time rituals as pure functions: eviction (STATUS.md rewritten, PROGRESS.md appended, closed `.scratch/` notes archived) and promotion (every review finding answers the recurrence question; a recurrence buys a stronger mechanism). Tested in `src/lib/shipGate.test.ts`. |
+| `scripts/ship-gate.mjs` | `npm run ship:gate` — the git half. Prints the generated "what only you can check" list and the unenforced-law count, then fails on the rituals above. Also run by the hook at `git merge` onto main, so it does not depend on anyone reading `/ship`. |
 
 **Session memory (ADR-0001).** There is no shared brain. A session integrates through `main` and
 coordinates only on collisions, via `COLLISIONS.md` at the repo root (append-only, current era).

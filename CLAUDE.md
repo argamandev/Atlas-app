@@ -71,6 +71,8 @@ Next.js 14 App Router + TypeScript + Supabase + Tailwind. **LIVE on Railway →
   takes its own port (`-- -p 3001`); two dev servers must never share one `.next`.
 - `npm run env:health` — the always-on set against its budget, and how many laws nothing is
   enforcing. That count is what this workflow exists to drive down (ADR-0002).
+- `npm run ship:gate` — what a merge still owes: the status rewrite, the progress entry, closed
+  notes filed as history, and a recurrence answer per review finding. Run at `git merge` too.
 - Live: TWO engines share :8788 (`live-broadcast.mjs` Recall / `live-ivrit-broadcast.ts` IVRIT) —
   read `docs/live-engines.md` first. Replay: `scripts/live-replay-engine.mjs`
 

@@ -12,6 +12,12 @@ branch and the worktree that is working them.
 - Implementation issues are one file per ticket at `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01` — never a single combined tickets file
 - Triage state is recorded as a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings)
 - Comments and conversation history append to the bottom of the file under a `## Comments` heading
+- **A folder whose every ticket is closed leaves `.scratch/` at the next merge**, copied to
+  `docs/archive/scratch/<date>-<feature-slug>/` verbatim and never re-authored. `npm run ship:gate`
+  refuses the merge until it does, and `git merge` onto main runs the gate. Closed means the
+  `Status:` line reads one of `done` · `shipped` · `closed` · `merged` · `archived` · `resolved` ·
+  `wontfix`; anything else, including a missing `Status:` line, is open. Eviction is bound to the
+  merge because the sweep that runs "later" is how the retired apparatus reached 2.8 MB.
 
 ## When a skill says "publish to the issue tracker"
 
