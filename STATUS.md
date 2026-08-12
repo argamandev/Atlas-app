@@ -35,11 +35,13 @@ map: **retrieval** (ticket 07 — hybrid + company scoping on `gemini-embedding-
 at `scripts/retrieval-eval/`), **the agent experience** (ticket 06 — mission-driven agents on
 Anthropic's Managed Agents, Hebrew-first), and **the architecture** (ticket 08 — one brain,
 two runtimes; one tool registry with web search on every surface; citations verified at
-write; rewrite order Chat → Ask Atlas → Workspace, agents in parallel). The frontier now:
-**cost budgets** (09, unblocked — real pricing wants the Anthropic account, ticket 11); the
-**ingestion standard** (16) and **MAYA filings at scale** (17), both graduated from the fog;
-founder tickets 12 (speaker-edit authz), 13 (leftovers go/no-go), 11 (Anthropic account);
-task 15 (discovery eval cases). The spec (ticket 10) waits on 09/16/17.
+write; rewrite order Chat → Ask Atlas → Workspace, agents in parallel). **Cost budgets are
+researched** (ticket 09 — a chat answer ≈ $0.05, an agent run ≈ $0.50, ~$32/fund/mo;
+budgets PROPOSED, founder veto/approve rides with the spec). The frontier now: the
+**ingestion standard** (16) and **MAYA filings at scale** (17, cost inputs ready);
+founder tickets 12 (speaker-edit authz), 13 (leftovers go/no-go), 11 (Anthropic account —
+now also owns the rate-tier path: Start's $500/mo cap binds at ~15 funds); task 15
+(discovery eval cases). The spec (ticket 10) waits on 16/17.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both belonging to the self-improving
 layer rather than to product work:** making `app.md`'s four meta-laws visible to the promotion

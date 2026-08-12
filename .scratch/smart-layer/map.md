@@ -102,6 +102,13 @@ cost budgets approved, and the first slice fully specified.
   chunk/alias/facts tables, personal agent tables with append-only turns; rewrite order
   Chat → Ask Atlas → Workspace (eval-gated) with agents in parallel; Anthropic-side scratch
   deleted post-run. Full record in the ticket's Answer.
+- [Cost budgets — numbers, not vibes](issues/09-cost-budgets.md) — priced at verified public
+  list rates (no account yet): a chat answer ≈ $0.04–0.06, an agent run ≈ $0.39–0.50 (Hebrew
+  +30% included), ingestion negligible (High MAYA backfill ≈ $67 embeddings), ≈ $32/fund/mo
+  typical (5/30/100 funds ≈ $160/$960/$3,200); budgets PROPOSED (answer ≤$0.05/$0.15 cap,
+  run ≤$0.50/$1.00 cap, ~$35/fund/mo) — founder veto/approve rides with the spec (ticket 10);
+  caching is the #1 lever (3–4×); Start-tier $500/mo cap binds at ~15 funds → ticket 11.
+  Full fact sheet: `research/09-cost-budgets.md`.
 - [What does MAYA already provide structured?](issues/14-maya-structured-data.md) — more than
   expected: every Israeli-track quarterly/annual report carries a public `.xbrl` (ISA ת930) with
   the 26 core financials (revenue→net profit, EPS, BS/CF totals, exact periods, ILS) verified by
