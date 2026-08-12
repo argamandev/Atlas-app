@@ -52,6 +52,16 @@ cost budgets approved, and the first slice fully specified.
   tenancy enforced in our handlers, durable memory as Supabase state, findings only through
   a `report_finding` tool that verifies anchors (fabricated citations unrepresentable),
   ~$0.35/run on Sonnet with mandatory caching. Full fact sheet: `research/02-agent-sdk.md`.
+- [Foundation review — is the ground safe to build on?](issues/03-foundation-review.md) —
+  yes, if the right templates are copied: auth primitives, ownership migrations 015/016/017
+  and the workspace-chat pattern (RLS-load-bearing, honest degradation) are the standards;
+  the anchor quartet is inherited as SHAPE only — nothing verifies anchors at write, drift
+  detection is unwired, line ids renumber, the "minute" doesn't exist. `/api/chat` persists
+  partial/sentinel answers as complete (pre-rewrite threads are suspect data); fencing must
+  close before any prompt gains tools; retrieval's real failure is selection policy + query
+  construction, and vectors are a new subsystem, not a scorer swap; agents need append-only
+  turns, not the whole-jsonb thread PUT. Live authz defect in speaker edits → ticket 12.
+  Full reports: `research/03-foundation-review.md`.
 
 ## Not yet specified
 
