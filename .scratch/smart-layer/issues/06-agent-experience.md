@@ -13,3 +13,6 @@ with the agent → memory across runs. Decide: what an agent may do in V1; what 
 contains and how the owner sees and edits it; how it reports; what trust and verification
 it shows (citations law applies). Grounded in the existing frontend contract
 (`src/lib/agents/data.ts`, the Agents page) and the SDK facts from ticket 02.
+
+**Founder note (2026-08-12, verbatim):** "It is important we understand claude managed
+agents service and concider it as a service aswell."

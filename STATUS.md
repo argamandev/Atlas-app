@@ -28,15 +28,16 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 
 ## What is being worked on right now
 
-**The smart layer** — chat, workspace and agents as one piece of work. The wayfinder map is
-charted: `.scratch/smart-layer/map.md`, ten tickets toward an architecture spec + build
-sequence. Read `foundations.md` beside it before any ticket; work the frontier via
-`/wayfinder`.
-
-The workflow migration is done and merged (`chore/workflow-reset`, three tickets). One session at
-a time with worktrees on demand (ADR-0001); a lesson that recurs gains a mechanism instead of a
-fourth restatement (ADR-0002). `npm run ship:gate` checks what a merge owes and `git merge` onto
-main runs it, so it does not depend on anyone reading `/ship`.
+**The smart layer** — chat, workspace and agents as one piece of work, via the wayfinder map
+(`.scratch/smart-layer/map.md`; read `foundations.md` beside it before any ticket; work the
+frontier via `/wayfinder`). **The retrieval method is measured and decided** (ticket 07,
+founder-approved): hybrid + metadata prefix + company scoping on `gemini-embedding-001`,
+scope-size router, Chat gains a visible search mode for market-wide discovery; the standing
+quality gate lives at `scripts/retrieval-eval/`. The frontier now: the architecture ticket
+(08) is unblocked and decides the spec; founder tickets 06 (agent experience — note his ask
+to weigh Claude's managed agents service), 12 (speaker-edit authz), 13 (leftovers go/no-go),
+11 (Anthropic account); research 14 (MAYA structured data) and task 15 (discovery eval
+cases) feed 08 and the eval set.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both belonging to the self-improving
 layer rather than to product work:** making `app.md`'s four meta-laws visible to the promotion

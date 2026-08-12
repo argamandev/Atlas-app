@@ -68,6 +68,14 @@ cost budgets approved, and the first slice fully specified.
   per-class go/no-go menu for the founder (ticket 13); iron rule #1's premise is stale — the DB
   is no longer shared with anything, it IS Atlas production.
 
+- [Retrieval eval — measured, not assumed](issues/07-retrieval-eval.md) — founder-approved
+  2026-08-12: hybrid + deterministic metadata prefix + company scoping on
+  `gemini-embedding-001` @1536, routed by scope size; OpenAI embeddings ruled out on
+  measured Hebrew quality (2/15 vs 7/15). His amendments folded in: structured-facts lookup
+  for filings' known numerics (→ ticket 14), @company mentions as scoping UX, and a visible
+  Chat search mode for market-wide discovery with per-company-diversified leads answers
+  (→ tickets 08/15). Harness kept at `scripts/retrieval-eval/` — the standing quality gate.
+  Full record: `research/07-retrieval-eval-results.md`.
 - [The eval set — real questions with known answers](issues/05-eval-set.md) — approved:
   18 anchored cases at `docs/eval/retrieval-eval-set.md` (the standing quality gate that
   outlives this map); two MUST-PASS gates (intake regression, בז"א alias), "cannot ground →
@@ -79,9 +87,11 @@ cost budgets approved, and the first slice fully specified.
 
 - How and when MAYA filings join the searchable corpus at scale — Hebrew PDF extraction
   pipeline, ingestion triggers, freshness (no publication-date column exists today).
-  Sharpens after the retrieval decision (tickets 01/07/08).
+  Sharpens after the MAYA structured-data facts (ticket 14) and the architecture (08).
 - The ingestion standard: how a new transcript/document is born attributed, chunked,
-  embedded, anchored. Depends on the architecture ticket (08).
+  embedded, anchored — now explicitly including dedup at birth (the `PyuMxe88e8g_live`
+  lesson) and the structured-facts extraction step if ticket 14 makes it ours to build.
+  Depends on the architecture ticket (08).
 - What agents do on LIVE calls (note-taking mid-call) and file-working abilities (Excel,
   cross-referencing). Sharpens after the agent-experience grilling (06).
 - When and how user memory (cross-surface) joins agent memory.

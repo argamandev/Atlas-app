@@ -28,6 +28,9 @@ scripts/.live-broadcast.json
 # large test-fixture source PDFs (keep the extracted .txt the harness reads)
 scripts/fixtures/*.pdf
 
+# retrieval-eval embedding cache (rebuilt from the APIs on demand; ~50MB)
+scripts/retrieval-eval/cache/
+
 # claude — track the shared harness (settings, hooks, rules, skills); ignore local-only files
 .claude/*
 !.claude/settings.json

@@ -150,6 +150,13 @@ Expected: the question must reach בתי זיקוק content (issuer 1361). Today
 `resolveIssuer('בז"א')` → null — this case documents the known gap the alias table (ticket
 01 decision) must close. Fails today; must pass in the chosen design.
 Tests: Hebrew acronym aliasing with gershayim; MAYA `name_en` is NULL for all 233 issuers.
+*Amendment 2026-08-12 (disambiguation, found while mirroring into the eval harness): this
+case's original wording conflated two companies. Issuer 1361 is בית זיקוק אשדוד (בז"א —
+case 13's own proof), not בתי זיקוק (בז"ן, Bazan) — and the corpus now contains documents
+of BOTH refineries, so the distinction is load-bearing. The case targets **בית זיקוק
+אשדוד**; case 09 already covers the בז"ן alias. Measured note: unscoped retrieval bridged
+בז"א at rank 1–2 only because the company's own filings write the acronym — corpus luck,
+not a mechanism; the MUST-PASS still closes via the resolver + alias table.*
 
 ## F. Adversarial and negative
 

@@ -5,6 +5,33 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-12 — The retrieval method is MEASURED and decided (`feat/retrieval-eval-harness`, ticket 07)
+
+- **The standing eval harness exists** (`scripts/retrieval-eval/`): scores retrieval designs
+  against the founder-approved 18-case set on the real corpus (3,202 chunks live from
+  Supabase), entirely in-process — no pgvector, no migration; the extension is now a
+  *conclusion* of measurement, not a prerequisite. ~$1.40 of embeddings, cached; reruns free.
+- **The winner: hybrid + deterministic metadata prefix + company scoping on
+  `gemini-embedding-001` @1536** (10/15 anchors in top-20, MRR 0.365), routed by scope size
+  (small resolved scope → stuff whole docs; else top-20 retrieval). **OpenAI's
+  `text-embedding-3-large` is ruled out for Hebrew by measurement**: 2/15 on identical
+  chunks, plus a ~2–4× Hebrew token tax (5.0M metered tokens for 5.0M chars). The prefix is
+  load-bearing (one case: rank 1 → 417 without it). D8's "measured, not assumed" caught it.
+- **Founder approved with three amendments, filed in `DECISIONS.md`:** structured-facts
+  lookup for filings' known numerics (ticket 14 checks what MAYA already provides), @company
+  mentions as explicit scoping UX over the alias table, and a **visible Chat search mode**
+  for market-wide discovery — leads-style answers, per-company diversified, mode chosen
+  deterministically (@ present or not), never by a hidden classifier.
+- **Corpus evidence for the map:** the `PyuMxe88e8g_live` duplicate pollutes every design
+  (→ ticket 13's menu); the W1 attribution trap survives scoping (answer-layer guard
+  confirmed); the alias table is the first build item (case 14 passes by construction,
+  "טבע" honestly returns nothing).
+- **Verified:** 700/700 tests · `tsc` clean · `build` green · harness output committed at
+  `scripts/retrieval-eval/results/run-2026-08-12T13-52-12.md` (+ per-case top-20 debug).
+  No app code in the diff — `/verify-app` would measure surfaces this branch never touched.
+
+---
+
 ## 2026-08-12 — The workflow reset: the rituals become mechanisms (`chore/workflow-reset`, ticket 03)
 
 - **`npm run ship:gate` is what a merge now has to satisfy.** Eviction: STATUS.md rewritten rather
