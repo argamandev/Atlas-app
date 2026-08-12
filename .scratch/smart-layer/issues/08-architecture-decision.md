@@ -2,6 +2,7 @@
 
 Type: grilling
 Status: open
+Assignee: claude-session (claimed 2026-08-12)
 Blocked by: 01, 02, 03, 07 (all resolved — this ticket is on the frontier)
 
 ## Question
