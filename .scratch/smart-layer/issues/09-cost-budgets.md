@@ -2,6 +2,7 @@
 
 Type: research
 Status: open
+Assignee: claude (session 2026-08-12, claimed)
 Blocked by: 07, 08 (both resolved — this ticket is on the frontier)
 
 ## Question
