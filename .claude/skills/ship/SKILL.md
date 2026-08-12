@@ -59,6 +59,12 @@ prints that part too, generated from the laws, so the list can never drift from 
    ritual gate), or is marked `UNENFORCEABLE` with a stated reason. The gate checks the law's
    declaration on your branch against main's and blocks if it did not move.
 
+   **Do step 8's doc updates BEFORE this step, not after.** The review approves a diff, so
+   anything that changes the diff afterwards makes the approval stale and the gate says so by
+   name. The order that works is: finish the code → write PROGRESS.md, STATUS.md and the doc sweep
+   → review → merge. Getting this backwards costs a re-review, which is the correct price and an
+   avoidable one.
+
    **The escape hatch is not a weakness.** Marking a law honestly unenforceable satisfies the
    gate. Without that, a hard gate pressures people into mechanisms that only look like
    enforcement, and this repo has already filed the case where a test asserted the defect and
