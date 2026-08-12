@@ -29,6 +29,17 @@ const { files, total } = alwaysOnSizes()
 for (const [file, t] of files) console.log(`  ${String(t).padStart(6)}  ${file}`)
 console.log(`  ${String(total).padStart(6)}  TOTAL  (budget ${TOKEN_BUDGET}, ${TOKEN_BUDGET - total} spare)`)
 
+// Read time a human would need, not just tokens a model ingests. The founder retired the
+// timed-read ritual 2026-08-12 ("THERE IS NO WAY I WILL SIT AND READ THIS") — this estimate
+// is its automatic replacement. Words / 200 wpm; the bar the ritual carried was 10 minutes.
+// Over the bar means the set regrew past human readability, whatever the token budget says;
+// the fix is shrinking the set, never asking a human to prove it by stopwatch.
+const words = Object.keys(ALWAYS_ON)
+  .map((f) => (read(f).match(/\S+/g) ?? []).length)
+  .reduce((a, b) => a + b, 0)
+const minutes = Math.round(words / 200)
+console.log(`\n  est. founder read time: ~${minutes} min (${words} words at 200 wpm; bar: 10 min)`)
+
 const statusLines = read(STATUS_FILE).split(/\r?\n/).length
 console.log(`\n${STATUS_FILE}: ${statusLines} lines (cap ${STATUS_LINE_CAP})`)
 

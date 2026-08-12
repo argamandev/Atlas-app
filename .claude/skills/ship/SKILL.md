@@ -123,17 +123,14 @@ prints that part too, generated from the laws, so the list can never drift from 
 10. **File the decisions.** Anything the founder decided during this work goes to `DECISIONS.md`,
     one line, in his own words, quoted.
 
-## The founder's read — the one gate no script can stand in for
+## The founder's read — RETIRED 2026-08-12 (founder decision, filed in `DECISIONS.md`)
 
-**Whenever a merge changes an always-on document, ask Sagi to read the set end to end and time
-himself.** The set is `npm run env:health`'s first block: `CLAUDE.md`, `CONTEXT.md`, `STATUS.md`,
-`rules/app.md`, `rules/db.md`. Over ten minutes means it has regrown, whatever the token budget
-says — the budget measures size and this measures whether it is still readable by the person who
-has to trust it. **Judged by him doing it, not by anyone asserting it**, which is why this is a
-ritual gate and not a test: a battery cannot tell whether a human read anything, and a checkbox
-here would prove only that someone typed one.
-
-File what he says in `DECISIONS.md`, in his own words, quoted.
+The timed end-to-end read is retired: asked once, the founder refused outright, and the refusal
+was the gate firing — the set measured ~28 min at 200 wpm against the 10-minute bar. Readability
+is now watched by machine: the env-manifest token budget (test-enforced) plus the estimated
+read time `npm run env:health` prints. When that estimate offends, the fix is shrinking the set
+(the deferred self-improving-layer chapter: app.md's mechanism-backed laws become pointers at
+their tests) — never asking a human to prove it by stopwatch.
 
 ## Retirement (when a worktree's work is done)
 
