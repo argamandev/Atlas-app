@@ -83,6 +83,14 @@ cost budgets approved, and the first slice fully specified.
   W1–W6 documented, incl. the Zim hearing carrying Tigbur's `company_id` (→ ticket 13) and
   all-zero timestamps (line id is the only citation anchor). Ticket 07 unblocked.
 
+- [What does MAYA already provide structured?](issues/14-maya-structured-data.md) — more than
+  expected: every Israeli-track quarterly/annual report carries a public `.xbrl` (ISA ת930) with
+  the 26 core financials (revenue→net profit, EPS, BS/CF totals, exact periods, ILS) verified by
+  live parse; publication date is on every `by-issuer` row (one additive column closes the gap);
+  EBITDA/segments/non-GAAP stay PDF-only (the residual extraction scope), dividends pending a
+  corporate-actions portal-spec read; structured-facts V1 = XBRL parser in `ingestFiling()`, no
+  LLM. Fact sheet: `research/14-maya-structured-data.md`.
+
 ## Not yet specified
 
 - How and when MAYA filings join the searchable corpus at scale — Hebrew PDF extraction
