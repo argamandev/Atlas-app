@@ -14,10 +14,11 @@ branch and the worktree that is working them.
 - Comments and conversation history append to the bottom of the file under a `## Comments` heading
 - **A folder whose every ticket is closed leaves `.scratch/` at the next merge**, copied to
   `docs/archive/scratch/<date>-<feature-slug>/` verbatim and never re-authored. `npm run ship:gate`
-  refuses the merge until it does, and `git merge` onto main runs the gate. Closed means the
-  `Status:` line reads one of `done` · `shipped` · `closed` · `merged` · `archived` · `resolved` ·
-  `wontfix`; anything else, including a missing `Status:` line, is open. Eviction is bound to the
-  merge because the sweep that runs "later" is how the retired apparatus reached 2.8 MB.
+  refuses the merge until it does, and `git merge` onto main runs the gate. **Which `Status:`
+  values count as closed is decided by `CLOSED` in `scripts/lib/ship-gate.mjs`** — read it there
+  rather than trusting a list here, because a list here is a copy and copies go stale. Anything
+  the gate does not recognise, including a missing `Status:` line, is open. Eviction is bound to
+  the merge because the sweep that runs "later" is how the retired apparatus reached 2.8 MB.
 
 ## When a skill says "publish to the issue tracker"
 

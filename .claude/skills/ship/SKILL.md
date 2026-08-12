@@ -49,15 +49,11 @@ prints that part too, generated from the laws, so the list can never drift from 
 
    **File the verdict at `docs/evidence/<branch-with-slashes-as-dashes>/review.md`, and answer the
    recurrence question for every finding.** The gate reads that file; a review that exists only in
-   a transcript is a review that expires. The format is three things:
+   a transcript is a review that expires. **The record's grammar is normative in
+   `.claude/agents/atlas-reviewer.md` — read it there, not here**, because a format spelled out in
+   two places is a format that disagrees with itself in one of them.
 
-   ```
-   VERDICT: APPROVED
-   FINDING · BLOCKER · src/a.ts:12 · the choke point took a proxy, not the fact
-   RECURRENCE: yes → Degradation must be VISIBLE
-   ```
-   …and `FINDINGS: none` when there were none, because silence and an unreviewed branch look
-   identical. **Every finding gets exactly one `RECURRENCE:` line** — `no`, or `yes → <the law it
+   **Every finding gets exactly one `RECURRENCE:` line** — `no`, or `yes → <the law it
    repeats>`. This is the whole promotion ritual (ADR-0002): a `yes` does not merge until that law
    gains a mechanism **one tier stronger in this same commit** (impossible → test → hook or grep →
    ritual gate), or is marked `UNENFORCEABLE` with a stated reason. The gate checks the law's

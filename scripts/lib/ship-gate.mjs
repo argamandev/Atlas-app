@@ -39,8 +39,15 @@
  */
 export const TIER = { missing: 0, none: 1, partial: 2, mechanism: 3 }
 
-/** How long a stated reason has to be before it stops being a shrug. Matches `environment.test.ts`. */
-const MIN_REASON = 25
+/**
+ * How long a stated reason has to be before it stops being a shrug.
+ *
+ * ONE number, exported, because there were three: this one, a 20 in the hook's override
+ * and a 30 in `environment.test.ts` — and the comment here claimed to "match
+ * environment.test.ts" while the hook quietly disagreed with both. Every place that
+ * demands a stated reason now demands the same length.
+ */
+export const MIN_REASON = 25
 
 const FINDING = /^FINDING\s*[·|]\s*(BLOCKER|WARNING|NIT)\s*[·|]\s*(.*)$/i
 const RECURRENCE = /^RECURRENCE:\s*(yes|no)\b\s*(?:[→>-]+\s*(.*))?$/i
@@ -58,12 +65,18 @@ const RECURRENCE = /^RECURRENCE:\s*(yes|no)\b\s*(?:[→>-]+\s*(.*))?$/i
 export function parseReviewRecord(text) {
   const findings = []
   const strays = []
+  const unreadable = []
   let declaresNone = false
   let current = null
 
   text.split(/\r?\n/).forEach((raw, i) => {
     const line = raw.trim()
     if (/^FINDINGS:\s*none\b/i.test(line)) declaresNone = true
+    // A line that MEANT to be a finding and did not parse. Without this, a record in
+    // the old `FINDING <branch> · SEV · …` shape plus "FINDINGS: none" reads as a clean
+    // review of zero findings — the gate's own worst outcome, a green signal that
+    // measured nothing (`app.md` M1).
+    else if (/^FINDING\b/i.test(line) && !FINDING.test(line)) unreadable.push({ line: i + 1, text: line })
     const f = FINDING.exec(line)
     if (f) {
       current = { line: i + 1, severity: f[1].toUpperCase(), text: f[2].trim(), recurrence: null }
@@ -78,7 +91,8 @@ export function parseReviewRecord(text) {
   })
 
   const verdict = /^\s*VERDICT:\s*(APPROVED|CHANGES)\b/im.exec(text)?.[1]?.toUpperCase() ?? null
-  return { verdict, findings, strays, declaresNone }
+  const reviewedSha = /^\s*REVIEWED:\s*([0-9a-f]{7,40})\b/im.exec(text)?.[1] ?? null
+  return { verdict, reviewedSha, findings, strays, unreadable, declaresNone }
 }
 
 /** Is the record structurally complete — verdict present, every finding answered? */
@@ -89,6 +103,21 @@ export function reviewProblems(record) {
   else if (record.verdict !== 'APPROVED')
     problems.push(
       `the review verdict is CHANGES. Fix the findings and re-review; a merge is not the answer to CHANGES.`
+    )
+
+  if (!record.reviewedSha)
+    problems.push(
+      'the review record names no commit. Add "REVIEWED: <sha>" — the sha the reviewer actually read. ' +
+        'Without it nothing ties the verdict to the code, and a review filed at the first commit clears ' +
+        'a merge at the twelfth.'
+    )
+
+  for (const u of record.unreadable)
+    problems.push(
+      `line ${u.line}: this line starts with FINDING but could not be read as one, so it counted for ` +
+        `nothing:\n      ${u.text}\n    The shape is "FINDING · <BLOCKER|WARNING|NIT> · <file:line> · ` +
+        '<one sentence>" (.claude/agents/atlas-reviewer.md). A finding the parser skips is a finding ' +
+        'the gate reports as absent.'
     )
 
   if (!record.findings.length && !record.declaresNone)
@@ -114,6 +143,27 @@ export function reviewProblems(record) {
   return problems
 }
 
+/**
+ * Did the branch move under the review after it was filed?
+ *
+ * `changedSinceReview` is every path that changed between the reviewed sha and the
+ * branch tip. The review record itself is expected to be among them — writing it IS
+ * the act of filing the review — and everything else means the reviewer approved code
+ * that is no longer what would merge. `atlas-reviewer.md` already says "the author
+ * fixes, you re-review"; this is that sentence with an exit code.
+ */
+export function stalenessProblems(changedSinceReview, recordPath) {
+  const moved = changedSinceReview.filter((p) => p !== recordPath)
+  if (!moved.length) return []
+  return [
+    `${moved.length} file(s) changed after the reviewed commit, so the verdict is not about the code ` +
+      `that would merge:\n      ${moved.slice(0, 10).join('\n      ')}` +
+      `${moved.length > 10 ? `\n      …and ${moved.length - 10} more` : ''}\n    ` +
+      'Re-review at the tip and update REVIEWED:. A stale approval is an assumed answer wearing a ' +
+      "recorded one's clothes.",
+  ]
+}
+
 /** Did this law's declaration genuinely get stronger between `before` and `after`? */
 function strengthened(before, after) {
   // The hatch. Marking a law honestly unenforceable is a legitimate outcome of a
@@ -133,6 +183,23 @@ function strengthened(before, after) {
 
   const from = TIER[before.enforcement.kind] ?? 0
   const to = TIER[after.enforcement.kind] ?? 0
+
+  // THE FLOOR, and it sits ABOVE the bottom of the ladder. The spec: "`ENFORCED none`
+  // is not an acceptable terminal state for a law that has recurred." Comparing tiers
+  // alone read missing(0) → none(1) as a promotion, and main holds eleven laws that
+  // parse as `missing` — so naming any of them and typing the words "ENFORCED none"
+  // cleared the entire promotion ritual. Declaring the absence honestly is how a law
+  // is FILED; it is not how a recurrence is ANSWERED.
+  if (to <= TIER.none)
+    return {
+      ok: false,
+      why:
+        `now declares ${to === TIER.none ? 'ENFORCED none' : 'no enforcement at all'}, and ENFORCED none is ` +
+        'not an acceptable terminal state for a law that has recurred. It gains one tier stronger ' +
+        '(impossible → test → hook or grep → ritual gate) in THIS commit, or it is marked UNENFORCEABLE ' +
+        'with a stated reason — that hatch is the honest exit, and it is always open.',
+    }
+
   if (to > from) return { ok: true }
 
   // Already at the top of the ladder this parser can see, and it recurred anyway —
@@ -249,6 +316,13 @@ export function evictionProblems(f) {
     problems.push(
       `this merge removes ${f.progressRemoved} lines from PROGRESS.md, which is append-only. Rewriting a ` +
         'dated record falsifies it.'
+    )
+
+  for (const dir of f.deletedWithoutArchive ?? [])
+    problems.push(
+      `${dir} was deleted by this branch and no copy of it appears under docs/archive/. Working notes ` +
+        'become HISTORY at the merge, and a deletion is the one outcome that is not history — copy the ' +
+        'folder to docs/archive/scratch/<date>-<slug>/ verbatim first, then remove it.'
     )
 
   for (const dir of f.unarchivedScratch)

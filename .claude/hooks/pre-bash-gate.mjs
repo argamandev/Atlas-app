@@ -6,6 +6,12 @@ import { execSync, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 
+// Kept in sync with MIN_REASON in scripts/lib/ship-gate.mjs by a test there, and
+// deliberately NOT imported from it: this hook guards destructive SQL, and an import
+// that fails to resolve would crash it with exit 1 rather than 2 — which the harness
+// reads as 'allow'. A missing module must never be able to open every door at once.
+const MIN_REASON = 25
+
 let raw = ''
 for await (const chunk of process.stdin) raw += chunk
 let input = {}
@@ -290,10 +296,55 @@ if (/git\s+push\b/.test(cmd) && !isPrimaryCheckout(input.cwd)) {
 // its PROGRESS.md entry, sent its closed working notes to history, and answered the
 // recurrence question for every review finding.
 //
-// SCOPE, deliberately narrow: only a merge performed while ON main. Step 2 of the
-// ship ritual merges `origin/main` INTO the feature branch and must stay free —
-// that is the direction nothing lands in.
-if (/(^|[\s;&|(])git\s+merge\b/.test(cmd) && !/--(abort|continue|quit)\b/.test(cmd)) {
+// SCOPE, and it is stated because the first version's comment overclaimed it. This
+// catches `git merge` and `git pull` SPELLED THAT WAY, in their own statement, while
+// the checkout is on main. Step 2 of the ship ritual merges `origin/main` INTO the
+// feature branch and stays free — that is the direction nothing lands in. What it does
+// NOT catch: a merge performed by something that is not the `git` binary, an alias, or
+// a script that wraps one. Regex over a shell string cannot; the gate's own
+// `npm run ship:gate` is what covers the deliberate path, and this door covers the
+// ordinary one.
+//
+// EVERY QUESTION BELOW IS ASKED OF THE MERGE'S OWN STATEMENT, never of the whole
+// command. Cold review found three bypasses in one family here, all from testing the
+// raw string: `git merge X # --abort`, `git merge X && echo --abort`, and an
+// ATLAS_SHIP_OVERRIDE mentioned in a LATER command all walked straight through. That
+// is `rules/app.md` M3.2 — the choke point was handed a proxy (does this string
+// contain the word) instead of the fact (is this merge exempt) — and it is the second
+// time this file has filed it; the archive hatch in section 4 was the first.
+for (const rawStatement of cmd.split(/&&|\|\||;|\|/)) {
+  const stmt = rawStatement.split(/\s#/)[0] // a trailing shell comment is not part of the command
+  const at = stmt.search(/(^|[\s(])git(\.exe)?\s/i)
+  if (at === -1) continue
+  const toks = (stmt.slice(at).match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((t) => t.replace(/^["']|["']$/g, ''))
+  // The SUBCOMMAND is the first non-option token, which is not necessarily toks[1]:
+  // `git -C dir merge x` and `git -c user.name=x merge y` both put global options
+  // first. Reading toks[1] as the verb, `git -C ../other merge feat/ok` was not a merge
+  // at all as far as this door was concerned — a hole the matrix found by naming the
+  // case rather than by anyone re-reading the loop.
+  const TAKES_A_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path'])
+  const REDIRECTS = new Set(['-C', '--git-dir', '--work-tree'])
+  let v = 1
+  let elsewhere = false
+  while (v < toks.length && toks[v].startsWith('-')) {
+    if (REDIRECTS.has(toks[v].split('=')[0])) elsewhere = true
+    v += TAKES_A_VALUE.has(toks[v]) ? 2 : 1
+  }
+  const verb = toks[v]
+  if (verb !== 'merge' && verb !== 'pull') continue
+
+  // Those three options change WHICH repository is acted on, so the on-main probe below
+  // would answer confidently about a different one — the same fact-vs-proxy error, one
+  // level up. No answer, no merge.
+  if (elsewhere)
+    block(
+      'git -C / --git-dir / --work-tree points at another checkout, so this gate cannot tell which ' +
+        'repository is being merged. Run the merge from inside that checkout.'
+    )
+
+  const args = toks.slice(v + 1)
+  if (args.some((t) => /^--(abort|continue|quit)$/.test(t))) continue // not a merge, a resolution
+
   // The same inherit-the-hook's-directory hazard as the push rule above: without a
   // cwd, the branch probe answers for whatever checkout the hook is running in.
   if (!input.cwd) block('cannot tell which checkout this merge is in, so the ship gate cannot run')
@@ -306,65 +357,71 @@ if (/(^|[\s;&|(])git\s+merge\b/.test(cmd) && !/--(abort|continue|quit)\b/.test(c
   } catch {
     onMain = false // not a repo / git unavailable → let permissions handle it
   }
+  if (!onMain) continue
 
-  if (onMain) {
-    // The escape hatch, and it is not a weakness (ADR-0002). Without one, a hard gate
-    // pressures people into satisfying it with motions that only look like the ritual.
-    // It costs a stated reason, in the command, which puts it in the transcript.
-    const override = /ATLAS_SHIP_OVERRIDE\s*=\s*(?:"([^"]+)"|'([^']+)')/.exec(cmd)
-    const reason = override ? (override[1] ?? override[2]).trim() : null
-    if (reason && reason.length < 20)
-      block(
-        `ATLAS_SHIP_OVERRIDE needs a real reason, not "${reason}". Say what about this merge makes the ` +
-          'ritual wrong — that sentence is the whole value of the hatch.'
-      )
-
-    if (!reason) {
-      const seg = cmd.slice(cmd.search(/git\s+merge\b/)).split(/&&|\|\||;|\|/)[0]
-      // Quoted strings stay ONE token. Splitting on whitespace instead, a
-      // `-m "shipping feat/x"` becomes four tokens, the `-m` skip eats only the first
-      // of them, and two words of a commit message read as branch refs — which the
-      // fire-test matrix caught by naming the phrase it expected to block on rather
-      // than settling for exit=2 (M1).
-      const toks = (seg.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).slice(2)
-      const refs = []
-      for (let i = 0; i < toks.length; i++) {
-        if (toks[i] === '-m' || toks[i] === '--message')
-          i++ // its value is a message, not a ref
-        else if (toks[i].startsWith('-') || toks[i] === '') continue
-        else refs.push(toks[i].replace(/["']/g, ''))
-      }
-      // Exactly one source, or the gate does not know what it is judging. ZERO is the
-      // one that matters: a bare `git merge` with a MERGE_HEAD present CONCLUDES a
-      // merge onto main, which is precisely the event this door exists for.
-      if (refs.length !== 1)
-        block(
-          `this merge onto main names ${refs.length} source refs, so the ship gate cannot tell which ` +
-            'branch to judge. Merge one branch at a time: git merge --no-ff <branch>'
-        )
-
-      const gate = path.join(input.cwd, 'scripts', 'ship-gate.mjs')
-      if (!existsSync(gate))
-        block(
-          `main is merged through the ship gate, and ${gate} is not there — so nothing would be checking ` +
-            'this merge'
-        )
-
-      const r = spawnSync('node', [gate, '--branch', refs[0], '--cwd', input.cwd], {
-        cwd: input.cwd,
-        encoding: 'utf8',
-        timeout: 120_000,
-      })
-      // A gate that could not RUN is not a gate that passed. Same direction every
-      // unknown fails in here.
-      if (r.status !== 0)
-        block(
-          `the ship gate refused this merge.\n\n${r.stderr || r.stdout || String(r.error ?? 'the gate did not finish')}`
-        )
-    } else {
-      console.error(`pre-bash-gate: ship gate OVERRIDDEN for this merge — "${reason}"`)
-    }
+  // The escape hatch, and it is not a weakness (ADR-0002). Without one, a hard gate
+  // pressures people into satisfying it with motions that only look like the ritual.
+  // It costs a stated reason, and it must be THIS statement's env prefix — a mention
+  // of the variable in a neighbouring command is not an override of this merge.
+  const prefix = stmt.slice(0, at)
+  const override = /ATLAS_SHIP_OVERRIDE\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+))/.exec(prefix)
+  const reason = override ? (override[1] ?? override[2] ?? override[3]).trim() : null
+  if (reason !== null && reason.length < MIN_REASON)
+    block(
+      `ATLAS_SHIP_OVERRIDE needs a real reason of at least ${MIN_REASON} characters, not "${reason}". Say ` +
+        'what about this merge makes the ritual wrong — that sentence is the whole value of the hatch.'
+    )
+  if (reason !== null) {
+    console.error(`pre-bash-gate: ship gate OVERRIDDEN for this merge — "${reason}"`)
+    continue
   }
+
+  // `git pull` is a fetch AND a merge onto main. Bare, or pulling main, is the ordinary
+  // sync and stays free; pulling anything else lands work on main without the ritual.
+  if (verb === 'pull') {
+    const refs = args.filter((t) => !t.startsWith('-'))
+    const branchRef = refs.length > 1 ? refs[refs.length - 1] : null
+    if (branchRef && !/^(main|origin\/main|refs\/heads\/main)$/.test(branchRef))
+      block(
+        `git pull merges ${branchRef} onto main, which lands work without the ship gate. Fetch, then ` +
+          `merge it deliberately: git fetch origin && git merge --no-ff ${branchRef}`
+      )
+    continue
+  }
+
+  const refs = []
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '-m' || args[i] === '--message')
+      i++ // its value is a message, not a ref
+    else if (args[i].startsWith('-') || args[i] === '') continue
+    else refs.push(args[i])
+  }
+  // Exactly one source, or the gate does not know what it is judging. ZERO is the one
+  // that matters: a bare `git merge` with a MERGE_HEAD present CONCLUDES a merge onto
+  // main, which is precisely the event this door exists for.
+  if (refs.length !== 1)
+    block(
+      `this merge onto main names ${refs.length} source refs, so the ship gate cannot tell which ` +
+        'branch to judge. Merge one branch at a time: git merge --no-ff <branch>'
+    )
+
+  const gate = path.join(input.cwd, 'scripts', 'ship-gate.mjs')
+  if (!existsSync(gate))
+    block(
+      `main is merged through the ship gate, and ${gate} is not there — so nothing would be checking this merge`
+    )
+
+  const r = spawnSync('node', [gate, '--branch', refs[0], '--cwd', input.cwd], {
+    cwd: input.cwd,
+    encoding: 'utf8',
+    timeout: 120_000,
+  })
+  // A gate that could not RUN is not a gate that passed. Same direction every unknown
+  // fails in here.
+  if (r.status !== 0)
+    block(
+      `the ship gate refused this merge.\n\n${r.stderr || r.stdout || String(r.error ?? 'the gate did not finish')}`
+    )
 }
 
 process.exit(0)

@@ -45,15 +45,17 @@ depending on someone recalling rule 14 of 27.
 - [x] Review asks explicitly whether a finding is a recurrence of an existing law, and the answer is recorded rather than assumed
 - [x] A recurrence requires a mechanism one tier stronger, shipped in the same commit as the fix
 - [x] The escape hatch exists: a law may be marked unenforceable with a stated reason, and that satisfies the gate
-- [x] Laws that cannot be mechanised appear as fixed checklist items in the ship ritual, not as prose
+- [x] Laws that cannot be mechanised appear as fixed checklist items in the ship ritual, not as prose — **for the ones that carry a `**VERIFY**` step.** The rest are printed as a named, counted gap directly underneath, because inventing a manual step for a law that never stated one would be a checklist item that only looks like a mechanism. Closing that gap means writing VERIFY steps into `app.md`, which is work on the laws, not on the ritual.
 - [x] The count of unenforced laws is reported at ship time, so the trend is visible rather than recalled
 - [ ] The founder can read every always-on document end to end in under ten minutes — judged by him doing it, which is a ritual gate and not an assertion
 
 ## What landed
 
 **The gate itself.** `npm run ship:gate` (`scripts/ship-gate.mjs`, rules in
-`scripts/lib/ship-gate.mjs`, 21 tests in `src/lib/shipGate.test.ts`). It prints three
-things and fails on the third:
+`scripts/lib/ship-gate.mjs`, tested in `src/lib/shipGate.test.ts` — run it for the
+count; an earlier draft of this line hand-typed "21 tests" and was wrong by the time
+anyone read it, which is the defect `app.md` files three times). It prints three things
+and fails on the third:
 
 1. **WHAT ONLY YOU CAN CHECK** — every law declaring no working mechanism that also
    carries a `**VERIFY**` step, **generated from `app.md`** rather than copied out of
@@ -80,6 +82,18 @@ it.
 reason each; `environment.test.ts` fails if any of them joins the always-on set, and
 `append-log.mjs` derives its doors from the same declaration instead of restating it.
 
+**Two things the gate demands that no checklist item asked for, named because arriving
+unannounced is how merge policy gets resented.** Both were already `/ship` steps that
+nothing enforced, so this is the same move the ticket makes everywhere else — a written
+rule becoming a mechanism — but neither is in the nine items, and the founder can strike
+either one.
+1. **A review record must exist and read APPROVED** before the merge (step 5 + the
+   durable-evidence law, step 6). Item 4 requires the recurrence answer to be *recorded*,
+   which requires somewhere to record it; refusing on `VERDICT: CHANGES` goes further
+   than item 4 does.
+2. **A PROGRESS.md entry must be present** (step 8). Item 1 names only the working notes
+   and the status file.
+
 **Found by building, not by reading:**
 - The first eviction check read "no deletions" as "appended rather than rewritten", and
   fired on the very branch that CREATES `STATUS.md`. A proxy standing in for the fact
@@ -89,6 +103,41 @@ reason each; `environment.test.ts` fails if any of them joins the always-on set,
   PHRASE each block must fire for — exit=2 alone would have read as a pass (M1).
 - `execFileSync` lets a child's stderr through, so every `git show` of a not-yet-existing
   file printed a raw `fatal:` above the gate's own explanation of the same fact.
+
+## Found by cold review, before merge, and fixed
+
+- **`ENFORCED none` satisfied a recurrence, which is the one thing the spec forbids by
+  name.** `strengthened` compared tier numbers, so `missing`(0) → `none`(1) read as a
+  promotion — and main holds eleven laws parsing as `missing`, so naming any of them and
+  typing the words "ENFORCED none" cleared the whole promotion ritual. There is now a
+  floor above the bottom of the ladder.
+- **The trend number compared two different questions (M1).** `unenforced()` excludes
+  laws that declare nothing, which is safe on a branch the battery has run on and false
+  for `main` read through `git show`. It printed "16 on branch, 5 on main" for a branch
+  that had just given eleven silent laws an honest declaration — a 3× improvement
+  reported as a 3× regression. Both sides now count the bare ones, and say so.
+- **Three bypasses in the merge door, all one family:** `git merge X # --abort`,
+  `git merge X && echo --abort`, and an `ATLAS_SHIP_OVERRIDE` mentioned in a LATER
+  command all walked through, because the exemption and the hatch were tested against
+  the whole command string instead of the merge's own statement. M3.2, and the second
+  time this file has filed it — the archive hatch was the first. Also `git -C ../other
+  merge` was not a merge at all to the door, which read `toks[1]` as the subcommand.
+- **`git pull` is a merge onto main** and the door did not know it. Pulling a feature
+  branch onto main lands work without the ritual; bare `git pull` and `pull origin main`
+  stay free.
+- **"FINDINGS: none" was accepted alongside findings the parser could not read**, so a
+  record in the OLD verdict format plus that line reported a clean review of zero
+  findings. A `FINDING`-ish line that does not parse is now a problem.
+- **Nothing tied the review to the code.** A verdict filed at the first commit cleared a
+  merge at the twelfth. `REVIEWED: <sha>` is required and the gate blocks if anything but
+  the record itself changed after it.
+- **Deleting closed notes satisfied the eviction check**, which only ever looked at what
+  was still in `.scratch/`. "Become history" was a claim nothing measured; the gate now
+  compares against the merge base and asks whether the archive received them.
+- **Three different minimum reason lengths** (20, 25, 30), one of which claimed in a
+  comment to match another. One exported `MIN_REASON`, and a test keeps the hook's
+  deliberately-unimported copy honest — the hook must not gain an import that could
+  crash it, because a crashed hook exits 1 and the harness reads that as "allow".
 
 **Left open, deliberately.** The tier comparison sees only what `app.md` declares —
 none < partial < mechanism, plus the hatch. ADR-0002's finer ladder (impossible → test →

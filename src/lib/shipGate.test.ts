@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE SHIP GATE — ticket 03, the rituals.
@@ -32,20 +34,39 @@ import assert from 'node:assert/strict'
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
+  MIN_REASON,
   closedScratchDirs,
   evictionProblems,
   parseReviewRecord,
   recurrenceProblems,
   reviewProblems,
+  stalenessProblems,
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore -- plain ESM module, deliberately outside tsconfig's TS program
 } from '../../scripts/lib/ship-gate.mjs'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore -- same, plain ESM
+import { REPO_ROOT } from '../../scripts/lib/env-manifest.mjs'
+
+test('the hook demands the same length of reason this module does', () => {
+  // There were three thresholds — 20 in the hook, 25 here, 30 in environment.test.ts —
+  // and this one's comment claimed to "match environment.test.ts" while the hook
+  // quietly disagreed with both. The hook cannot IMPORT the constant: it guards
+  // destructive SQL, and an import that failed to resolve would crash it with exit 1,
+  // which the harness reads as "allow". So it keeps its own copy and this test is what
+  // stops the copy drifting.
+  const hook = readFileSync(join(REPO_ROOT, '.claude/hooks/pre-bash-gate.mjs'), 'utf8')
+  const declared = /^const MIN_REASON = (\d+)$/m.exec(hook)
+  assert.ok(declared, 'pre-bash-gate.mjs no longer declares MIN_REASON on its own line')
+  assert.equal(Number(declared[1]), MIN_REASON)
+})
 
 // ─── The review record ───────────────────────────────────────────────────────
 
 const RECORD = `# Review — chore/x
 
 VERDICT: APPROVED
+REVIEWED: 1a2b3c4d
 
 FINDING · BLOCKER · src/a.ts:12 · the choke point took a proxy, not the fact
 RECURRENCE: yes → Degradation must be VISIBLE
@@ -82,11 +103,45 @@ test('a recurrence answer with no finding above it is a problem, not a pass', ()
 })
 
 test('a clean review must say so explicitly, because silence is not an answer', () => {
-  const silent = parseReviewRecord('VERDICT: APPROVED\n')
+  const silent = parseReviewRecord('VERDICT: APPROVED\nREVIEWED: abc1234\n')
   assert.match(reviewProblems(silent).join('\n'), /FINDINGS: none/)
 
-  const explicit = parseReviewRecord('VERDICT: APPROVED\n\nFINDINGS: none\n')
+  const explicit = parseReviewRecord('VERDICT: APPROVED\nREVIEWED: abc1234\n\nFINDINGS: none\n')
   assert.deepEqual(reviewProblems(explicit), [])
+})
+
+test('a FINDING line the parser could not read is a problem, not zero findings', () => {
+  // "FINDINGS: none" plus findings written in some other shape is the worst possible
+  // outcome: the gate reports a clean review having examined nothing. The old verdict
+  // format in atlas-reviewer.md was `FINDING <branch> · SEV · …`, so this exact record
+  // is what an agent working from a stale copy of that file produces.
+  const stale = parseReviewRecord(
+    'VERDICT: APPROVED\nREVIEWED: abc1234\n\nFINDING chore/x · BLOCKER · a.ts:1 · a real defect\nFINDINGS: none\n'
+  )
+  assert.equal(stale.findings.length, 0)
+  assert.match(reviewProblems(stale).join('\n'), /could not be read/i)
+})
+
+test('a review has to name the commit it reviewed', () => {
+  // Without it nothing ties the verdict to the code. A review filed at commit 1 would
+  // otherwise clear a merge at commit 12 — the answer recorded, but for a different
+  // branch than the one landing.
+  const anonymous = parseReviewRecord('VERDICT: APPROVED\n\nFINDINGS: none\n')
+  assert.equal(anonymous.reviewedSha, null)
+  assert.match(reviewProblems(anonymous).join('\n'), /REVIEWED:/)
+
+  assert.equal(parseReviewRecord('REVIEWED: 1a2b3c4d\nVERDICT: APPROVED\n').reviewedSha, '1a2b3c4d')
+})
+
+test('code that changed after the review was filed makes the review stale', () => {
+  assert.deepEqual(stalenessProblems([], 'docs/evidence/x/review.md'), [])
+  // The record itself moving is expected — that IS the act of filing the review.
+  assert.deepEqual(stalenessProblems(['docs/evidence/x/review.md'], 'docs/evidence/x/review.md'), [])
+
+  const moved = stalenessProblems(['src/a.ts', 'docs/evidence/x/review.md'], 'docs/evidence/x/review.md')
+  assert.equal(moved.length, 1)
+  assert.match(moved[0], /src\/a\.ts/)
+  assert.match(moved[0], /re-review/i)
 })
 
 test('a record that is not APPROVED does not open the merge', () => {
@@ -137,6 +192,27 @@ test('a law that already carries a mechanism must change that mechanism, not res
 
   const changed = [law('Use getUser()', 'mechanism', '`src/lib/getSessionBan.test.ts` fails the battery')]
   assert.deepEqual(recurrenceProblems(answered('Use getUser()'), before, changed), [])
+})
+
+test('ENFORCED none is never where a recurrence lands, even when it is an improvement', () => {
+  // The spec is flat about this: "`ENFORCED none` is not an acceptable terminal state
+  // for a law that has recurred." The first version of `strengthened` compared tiers
+  // only, so missing(0) → none(1) read as a promotion and cleared the gate — and main
+  // holds eleven laws parsing as `missing`, so naming any of them and typing the words
+  // "ENFORCED none" was a working bypass of the entire promotion ritual.
+  const before = [law('X law', 'missing', '')]
+  assert.match(
+    recurrenceProblems(answered('X law'), before, [law('X law', 'none')]).join('\n'),
+    /ENFORCED none/
+  )
+
+  // And from `none` to `none`, which is the fourth-restatement case.
+  const none = [law('X law', 'none')]
+  assert.match(recurrenceProblems(answered('X law'), none, none).join('\n'), /ENFORCED none/)
+
+  // `partially` is a real mechanism that does not reach everywhere, so it IS a rung up.
+  const partial = [law('X law', 'partial', 'one surface only; every other surface is bare')]
+  assert.deepEqual(recurrenceProblems(answered('X law'), before, partial), [])
 })
 
 test('the escape hatch is real: UNENFORCEABLE with a reason satisfies the gate', () => {
@@ -200,6 +276,7 @@ const CLEAN = {
   progressAdded: 6,
   progressRemoved: 0,
   unarchivedScratch: [] as string[],
+  deletedWithoutArchive: [] as string[],
 }
 
 test('a clean merge has nothing to evict', () => {
@@ -241,6 +318,19 @@ test('closed working notes must reach history in the same motion', () => {
   const problems = evictionProblems({ ...CLEAN, unarchivedScratch: ['.scratch/workflow-reset'] })
   assert.match(problems.join('\n'), /\.scratch\/workflow-reset/)
   assert.match(problems.join('\n'), /docs\/archive/)
+})
+
+test('deleting closed notes is not archiving them', () => {
+  // The gap cold review found: `unarchivedScratch` only ever saw folders still sitting
+  // in .scratch/, so `git rm -r` satisfied the gate completely and the notes were gone
+  // instead of filed. The rule is "become history", and a deletion is the one outcome
+  // that is not history. Measured against the merge base, which is the only place the
+  // folder's prior existence is still visible.
+  const problems = evictionProblems({ ...CLEAN, deletedWithoutArchive: ['.scratch/workflow-reset'] })
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /\.scratch\/workflow-reset/)
+  assert.match(problems[0], /deleted/i)
+  assert.match(problems[0], /docs\/archive/)
 })
 
 test('a working-note folder is closed only when every status-bearing file in it is', () => {

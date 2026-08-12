@@ -10,8 +10,10 @@
 //   1. WHAT ONLY YOU CAN CHECK — every law that declares no working mechanism and
 //      carries a **VERIFY** step, printed in full. Ticket 03: compliance stops
 //      depending on someone recalling rule 14 of 27.
-//   2. UNENFORCED LAWS — the count ADR-0002 exists to drive down, at the moment it
-//      is cheapest to move, reported so the trend is visible rather than recalled.
+//   2. LAWS WITH NO WORKING MECHANISM — the count ADR-0002 exists to drive down, on
+//      the branch and on main, reported so the trend is visible rather than recalled;
+//      then the ones that do not even carry a VERIFY step, so section 1 is never read
+//      as covering more than it does.
 //   3. THE GATE — eviction (STATUS.md rewritten, PROGRESS.md appended, closed
 //      working notes filed as history) and promotion (every review finding answers
 //      the recurrence question, and a recurrence buys a stronger mechanism).
@@ -39,6 +41,7 @@ import {
   parseReviewRecord,
   recurrenceProblems,
   reviewProblems,
+  stalenessProblems,
 } from './lib/ship-gate.mjs'
 
 const BASE = 'main'
@@ -98,9 +101,32 @@ manual.forEach((l, i) => {
   console.log(`      ${l.verify}\n`)
 })
 
-const open = unenforced(after)
-console.log(`UNENFORCED LAWS: ${open.length} on ${branch}, ${unenforced(before).length} on ${BASE}`)
-console.log('  ADR-0002: this number is what "self-improving" means here. Review is where it moves.\n')
+// A law that DECLARES nothing is counted here, and `unenforced()` deliberately does not
+// count it — because `environment.test.ts` makes a bare law a build failure, so on any
+// branch that ran the battery there are none. `main` is read with `git show`, where no
+// battery ever ran. Comparing the two with `unenforced()` alone printed "16 on branch,
+// 5 on main" for a branch that had just given eleven silent laws an honest declaration:
+// the number went UP because the laws became visible, and it read as a 3× regression.
+// Two different questions, one label, which is M1 exactly.
+const bare = (laws) => laws.filter((l) => l.enforcement.kind === 'missing')
+const noMechanism = (laws) => unenforced(laws).length + bare(laws).length
+const say = (laws) =>
+  `${noMechanism(laws)}` +
+  (bare(laws).length ? ` (${unenforced(laws).length} declared + ${bare(laws).length} declaring nothing)` : '')
+console.log(`LAWS WITH NO WORKING MECHANISM: ${say(after)} on ${branch}, ${say(before)} on ${BASE}`)
+console.log('  ADR-0002: this number is what "self-improving" means here. Review is where it moves.')
+
+// Named separately because they are a different gap and a worse one: nothing automatic
+// catches them AND they do not say what to go and look at, so they cannot even become a
+// checklist item above. Ticket 03 delivers the checklist for the laws that carry a
+// VERIFY step; this line is how many it does not reach, so the list is never read as
+// covering more than it does.
+const silent = unenforced(after).filter((l) => !l.verify)
+if (silent.length) {
+  console.log(`\n  ${silent.length} of them carry no **VERIFY** step, so they are not on the list above:`)
+  for (const l of silent) console.log(`    ${l.file}:${l.line}  [${l.enforcement.kind}]  ${l.title}`)
+}
+console.log('')
 
 // ── 3. The gate ──────────────────────────────────────────────────────────────
 // Everything below is measured against `main...branch` — what this branch adds on
@@ -122,13 +148,35 @@ const statusText = gitOrNull('show', `${branch}:${STATUS_FILE}`) ?? ''
 // Closed working notes still sitting in .scratch/, read off the branch's tree so the
 // answer is about what is being merged rather than about the working directory.
 const STATUS_LINE = /^\s*(?:\*\*)?Status(?:\*\*)?\s*:\s*(?:\*\*)?\s*([A-Za-z][\w-]*)/m
-const scratchFiles = (gitOrNull('ls-tree', '-r', '--name-only', branch, '--', '.scratch') ?? '')
-  .split('\n')
-  .filter((p) => p.endsWith('.md'))
-const entries = scratchFiles.map((path) => ({
-  dir: path.split('/').slice(0, 2).join('/'),
+const scratchAt = (ref) =>
+  (gitOrNull('ls-tree', '-r', '--name-only', ref, '--', '.scratch') ?? '')
+    .split('\n')
+    .filter((p) => p.endsWith('.md'))
+const dirOf = (p) => p.split('/').slice(0, 2).join('/')
+const entries = scratchAt(branch).map((path) => ({
+  dir: dirOf(path),
   status: STATUS_LINE.exec(gitOrNull('show', `${branch}:${path}`) ?? '')?.[1] ?? null,
 }))
+
+// A folder that LEFT .scratch/ on this branch, and whether history actually received it.
+// Absence alone is not eviction: `git rm -r` removes the folder and satisfies a check
+// that only looks at what is still there, which is how "archived verbatim" became a
+// claim nothing measured. The archive copy is matched by folder name anywhere under
+// docs/archive/ — STATED LIMIT: that proves a folder of that name arrived, not that its
+// contents are identical. Verifying identity needs a byte compare the merge cannot do
+// against a folder that no longer exists on either side.
+const archived = new Set(
+  (gitOrNull('ls-tree', '-r', '--name-only', branch, '--', 'docs/archive') ?? '')
+    .split('\n')
+    .flatMap((p) => p.split('/'))
+)
+const gone = [...new Set(scratchAt(BASE).map(dirOf))].filter(
+  (d) => !scratchAt(branch).some((p) => dirOf(p) === d)
+)
+const deletedWithoutArchive = gone.filter((d) => {
+  const slug = d.split('/').pop()
+  return ![...archived].some((name) => name.endsWith(slug))
+})
 
 const problems = evictionProblems({
   statusAdded: status.added,
@@ -139,6 +187,7 @@ const problems = evictionProblems({
   progressAdded: progress.added,
   progressRemoved: progress.removed,
   unarchivedScratch: closedScratchDirs(entries),
+  deletedWithoutArchive,
 })
 
 // The review record. It has to be TRACKED ON THE BRANCH, not merely present on disk:
@@ -158,6 +207,16 @@ if (recordText === null) {
   const record = parseReviewRecord(recordText)
   problems.push(...reviewProblems(record).map((p) => `${RECORD}: ${p}`))
   problems.push(...recurrenceProblems(record, before, after).map((p) => `${RECORD}: ${p}`))
+
+  if (record.reviewedSha) {
+    const changed = gitOrNull('diff', '--name-only', record.reviewedSha, branch)
+    if (changed === null)
+      problems.push(`${RECORD}: REVIEWED names ${record.reviewedSha}, which is not a commit in this repo.`)
+    else
+      problems.push(
+        ...stalenessProblems(changed.split('\n').filter(Boolean), RECORD).map((p) => `${RECORD}: ${p}`)
+      )
+  }
 }
 
 if (problems.length) {

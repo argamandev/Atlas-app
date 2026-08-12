@@ -336,6 +336,39 @@ const CASES = [
     2,
     /real reason/,
   ],
+  // The three bypasses cold review found by MEASURING rather than reading, all one
+  // family: a regex asked about the whole command string instead of about the merge.
+  // This is `rules/app.md` M3.2 and it is the second time this file has filed it — the
+  // archive hatch was the first. The exemption words and the override now have to be
+  // the merge's OWN, in its own statement, not merely present somewhere on the line.
+  [
+    'merge-abort-in-a-comment',
+    bash('git merge --no-ff feat/blocked # --abort', ON_MAIN),
+    2,
+    /ship gate refused/,
+  ],
+  [
+    'merge-abort-in-a-later-command',
+    bash('git merge --no-ff feat/blocked && echo --abort', ON_MAIN),
+    2,
+    /ship gate refused/,
+  ],
+  ['merge-abort-inside-a-branch-name', bash('git merge --no-ff feat/--continue-x', ON_MAIN), 0],
+  [
+    'merge-override-mentioned-later-is-not-an-override',
+    bash('git merge --no-ff feat/blocked && echo ATLAS_SHIP_OVERRIDE="a long enough sentence here"', ON_MAIN),
+    2,
+    /ship gate refused/,
+  ],
+  // git pull IS a merge onto main. Bare, and `pull origin main`, are the ordinary sync
+  // and stay free; pulling a FEATURE branch onto main lands work and must not.
+  ['pull-feature-onto-main', bash('git pull origin feat/blocked', ON_MAIN), 2, /git pull/],
+  ['pull-main-onto-main-ok', bash('git pull origin main', ON_MAIN), 0],
+  ['pull-bare-on-main-ok', bash('git pull', ON_MAIN), 0],
+  ['pull-on-feature-branch-ok', bash('git pull origin feat/whatever', LINKED), 0],
+  // `git -C <dir>` acts on a DIFFERENT checkout than the one the hook was told about,
+  // so the on-main probe is answering about the wrong repo. No answer, no merge.
+  ['merge-dash-C-elsewhere', bash('git -C ../other merge feat/ok', ON_MAIN), 2, /-C/],
   // Fail closed: no gate script, and no cwd to find one with.
   ['merge-no-gate-script', bash('git merge --no-ff feat/ok', ON_MAIN_NOGATE), 2, /not there/],
   [
