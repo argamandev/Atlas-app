@@ -1,7 +1,7 @@
 # The agent experience — the product magic, end to end
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: 02
 
 ## Question
