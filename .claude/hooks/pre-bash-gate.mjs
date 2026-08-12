@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // PreToolUse gate — deterministic safety. Exit 2 blocks the tool call; stderr explains why.
-// Wired for BOTH doors to the DB: Bash commands AND the Supabase MCP tools.
+// Wired to three PreToolUse matchers in settings.json — `Bash`, `mcp__supabase__.*` and
+// `mcp__railway.*`. Matchers are explicit, so a new door to the DB needs a new matcher here.
 // Input: JSON on stdin { tool_name, tool_input, cwd }
 import { execSync, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'

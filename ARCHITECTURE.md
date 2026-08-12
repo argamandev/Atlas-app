@@ -494,7 +494,8 @@ a pdf-parse bump can't silently desync it).
 | `hooks/post-edit-verify.mjs` | PostToolUse: auto-formats every edited `.ts/.tsx` + incremental typecheck; errors feed straight back to the session. |
 | `rules/db.md` | Shared-with-production DB: additive-only migration law. |
 | `docs/live-engines.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). Was `rules/live.md` until 2026-08-12 — it is FACTS, not laws, so it loads on demand instead of every session (ADR-0001). |
-| `rules/app.md` | App **invariants**, always in context. 4 meta-laws, then auth & authorization · bidi & localization · time · UI truthfulness · media & documents · platform · verification traps · open findings (marked NOT laws). Each law is LAW / ENFORCED / VERIFY + a case anchor. Split + restructured 2026-08-10 (4,121 → 2,351 words). |
+| `rules/app.md` | App **invariants**, always in context. 4 meta-laws, then auth & authorization · bidi & localization · time · UI truthfulness · media & documents · platform · verification traps. Each law is LAW / ENFORCED / VERIFY + a case anchor. Split + restructured 2026-08-10 (4,121 → 2,351 words); open findings moved out 2026-08-12. |
+| `docs/open-findings.md` | Open items that are **NOT laws** — unauthenticated live audio endpoints, the absent `.gitattributes`, two UTC leaks. Was the last section of `rules/app.md` until 2026-08-12; moved out because the always-on set is reserved for law (`CONTEXT.md`). Read on demand. |
 | `docs/case-history/app.md` | The forensic record behind each `rules/app.md` law — verbatim, 24 entries, linked by anchor. NOT auto-loaded; read on demand. |
 | `skills/verify-app/` | `/verify-app` — self-seeing verification loop (Chrome MCP screenshots) + per-surface recipes. |
 | `skills/ship/` | `/ship` — the shipping ritual. |

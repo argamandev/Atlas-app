@@ -429,3 +429,32 @@ The table at the bottom of that audit claims 25 of 26 done. **Verified: 22 hold,
 ones: #9 regressed inside the seat that owns the check meant to catch it, and #19 + #20 were undone
 **today**, by the compaction — a knowledge-preserving operation that preserved every entry and
 dropped the schema that makes the entries greppable.
+
+---
+
+## [DISPOSITION 2026-08-12] — appended, never edited into the table above
+
+This report was written on `fix/meta-review-2026-08-10`, which never merged. Half of what it
+prescribes died with the fleet (ADR-0001): findings naming `fleet-lint`, `state-supervisor.md`,
+the board, the queue or `agent-memory/` are moot — those artefacts no longer exist. The Status
+column is left blank as written, because re-authoring a historical record falsifies it.
+
+**Carried into `main` by `chore/workflow-reset` (commit `620fb21`), all four re-verified by
+re-running the command rather than trusting this report:**
+
+- **Finding 4** — `app.md` now cites the import grep. Widened to
+  `git grep -lE "^import \{[^}]*supabaseAdmin" -- src/lib/db` so a combined import cannot slip,
+  and the law now says out loud that the grep is still a proxy (M3.2) for a line-wrapped import.
+- **Finding 6** — `CLAUDE.md` iron rule 1 names three doors (`Bash`, `mcp__supabase__.*`,
+  `mcp__railway.*`), enumerated from `settings.json`, not recalled.
+- **Finding 17** — the same false count in `.claude/hooks/pre-bash-gate.mjs`'s own header
+  ("BOTH doors") is corrected in the same motion; round 4 of review caught that the fix for
+  finding 6 had left its twin standing.
+- **Finding 9** — `ARCHITECTURE.md`'s pointer no longer dangles: the "Open findings" section left
+  `rules/app.md` entirely on 2026-08-12 and is now `docs/open-findings.md`, with its own
+  ARCHITECTURE row and a `CLAUDE.md` doc-map line.
+
+**Deliberately not carried:** the DEMO_USER_ID reclassification landed too (14 hits: 11 comments,
+3 the guard's own detector and messages, 0 fallbacks), but is not numbered here. Everything else
+is either fleet-era or still open — the sixteen unfixed findings are unfixed, and this note is not
+a claim otherwise.

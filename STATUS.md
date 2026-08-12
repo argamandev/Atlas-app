@@ -28,18 +28,16 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 
 ## What is being worked on right now
 
-**Migrating the workflow itself** — branch `chore/workflow-reset`, and this is the last of its
-three tickets. One session at a time with worktrees on demand (ADR-0001); a lesson that recurs
-gains a mechanism instead of a fourth restatement (ADR-0002). Product work resumes when it lands.
+**The smart layer** — chat, workspace and agents as one piece of work. Nothing is built yet;
+brainstorm before building, and Agents is the surface that decides the shape.
 
-All three tickets are built. `npm run ship:gate` now checks what a merge owes — the status
-rewrite, the progress entry, closed notes filed as history, a recurrence answer per review
-finding — and `git merge` onto main runs it, so it does not depend on anyone reading `/ship`.
+The workflow migration is done and merged (`chore/workflow-reset`, three tickets). One session at
+a time with worktrees on demand (ADR-0001); a lesson that recurs gains a mechanism instead of a
+fourth restatement (ADR-0002). `npm run ship:gate` checks what a merge owes and `git merge` onto
+main runs it, so it does not depend on anyone reading `/ship`.
 
-**Two founder calls before it merges**, both written up in the ticket under
-`docs/archive/scratch/`. Read the five always-on documents end to end and time it — over ten
-minutes means the set regrew whatever the budget says. And decide whether `app.md`'s four
-meta-laws become declared laws: the promotion ritual cannot see them, and they are what the code
-actually recurs against. It costs tokens the budget does not have and raises the unenforced count.
-
-Not yet started: the smart layer above. Do not begin it on this branch.
+**Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both belonging to the self-improving
+layer rather than to product work:** making `app.md`'s four meta-laws visible to the promotion
+ritual, and shrinking `app.md` by cutting its 10 mechanism-backed laws to pointers at their tests.
+Founder's sequencing — the product comes first. Still unspent: read the five always-on documents
+end to end and time it; over ten minutes means the set regrew whatever the budget says.

@@ -21,8 +21,8 @@ become true for the law to be legitimately revised.
 
 **Counts carry their command.** Never copy one from prose — this file has been wrong that way three
 times. **Claim the call sites, never the corpus:** a scoped law that overstates its own closure is
-the exact failure this file exists to prevent. **Open findings are not laws**; they are in the last
-section and must not be cited as such.
+the exact failure this file exists to prevent. **Open findings are not laws**; they live in
+`docs/open-findings.md` and must not be cited as such.
 
 ---
 
@@ -95,10 +95,12 @@ blanks comments first, so trust it over a grep. → `#demo-user-id`
 **LAW · Authentication is not authorisation, and `supabaseAdmin` bypasses RLS.** Proving *who* is
 calling does not prove they may touch the row. RLS protects only what queries through the **user's**
 client.
-**ENFORCED** none — a choice per `lib/db` module. Verified 2026-08-12
-(`git grep -l "^import { supabaseAdmin }" -- src/lib/db`). **Grep the IMPORT:** a `supabaseAdmin\.`
-grep returns this list BACKWARDS — it hits `projects`/`workspaces` on their own prose and misses
-`calls`/`conversations`/`transcripts`, which chain `await supabaseAdmin` + newline + `.from(`.
+**ENFORCED** none — a choice per `lib/db` module. Verified 2026-08-12, 6/6
+(`git grep -lE "^import \{[^}]*supabaseAdmin" -- src/lib/db`). **Grep the IMPORT:** a
+`supabaseAdmin\.` grep returns this list BACKWARDS — it hits `projects`/`workspaces` on their own
+prose and misses `calls`/`conversations`/`transcripts`, which chain `await supabaseAdmin` +
+newline + `.from(`. The import grep is still a proxy (M3.2): a line-WRAPPED import drops a module
+silently, and silence here reads as "RLS-safe", so re-read the list, never just the count.
 - **user client, RLS load-bearing — copy these:** `projects.ts`, `workspaces.ts`
 - **`supabaseAdmin` over personal rows — must filter by owner in application code:**
   `conversations.ts`, `quotes.ts`, `quoteFolders.ts`, `transcripts.ts`
@@ -260,9 +262,9 @@ physical line.
 — wild disagreement means you rewrote line endings, not content — and **grep for the RESULT you
 intended**, because a no-op edit and a perfect edit produce the same silence. → `#crlf`
 
-**TRAP · A grep hits prose.** `DEMO_USER_ID` reads as 14 live sites and no fallback survives (11
-comments, 3 the guard's own detector and its messages). Strip comments AND strings, or prefer the
-test that already does.
+**TRAP · A grep hits prose.** `git grep -n "DEMO_USER_ID" -- src` reads as 14 live sites and no
+fallback survives (11 comments, 3 the guard's own detector and its messages). Strip comments AND
+strings, or prefer the test that already does.
 
 **TRAP · Never run `npm run build` while a dev server is up in the same checkout.** They share one
 `.next`, so the build overwrites the running server's chunks: `/_next/static/*` 404s and routes die
