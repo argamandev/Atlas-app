@@ -188,6 +188,62 @@ Expected: the answer cites the canonical `PyuMxe88e8g`, and the `PyuMxe88e8g_liv
 does not produce a second, conflicting citation or double-weighted retrieval.
 Tests: duplicate handling; citation stability.
 
+## G. Discovery — broad questions with known leads (added 2026-08-13, ticket 15)
+
+**The mode these cases measure.** The founder's reframe (ticket 07): the general case is
+market-wide discovery — "asking a broad question and finding leads." Cases 01–18 are pinpoint
+questions; these cases measure the search mode decided in ticket 08 (market-wide, answer =
+**per-company-diversified leads**). Both questions are in the founder's words (the מילואים
+phrasing is his ticket-07 example; the AI phrasing he approved as offered, 2026-08-13).
+
+**Scoring rule (mirrors `mode: "discovery"` in the harness).** Rank chunks market-wide (no
+company scope), then diversify per company: order companies by their best-ranked chunk. A
+design **passes when every documented lead company appears within the top 5** of that company
+order — 5 matches a leads answer showing a handful of leads, and with today's 7-company
+document corpus it is the smallest k that still leaves headroom; corpus growth only raises
+the bar, which is the right direction for a standing gate. The harness also records, per
+lead, the rank of the first chunk that covers a documented anchor — that is evidence for the
+answer layer, not a gate: a lead company surfaced on a different-but-relevant chunk still
+counts as found.
+
+**Corpus note (2026-08-13).** The corpus has grown since the snapshot above: 26 documents /
+3,031 pages across 7 companies — בית זיקוק אשדוד joined with 3 filings (incl. the 2024 and
+2025 annuals), and תיגבור's quarterly reports now reach back to Q1-2024. Anchors below were
+verified against the live DB on 2026-08-13.
+
+**Case 19 — discovery: reserve-duty costs**
+Q: אילו חברות דיברו על עלויות מילואים?
+Expected leads (companies with a company-specific statement, each with a verified anchor):
+- **קבוצת תיגבור** — transcript `hii8RivJK9I` · L0066 (בממוצע כ-300 איש במילואים, מ-1 במרץ
+  כ-450); transcript `PyuMxe88e8g` · L0004 (כ-300 מאבטחים במילואים, במבצע שאגת הארי כ-650 —
+  W4: the source garbles the operation as «שהגעת הארי»); filing `דוח רבעון 1 לשנת 2024`
+  (id `01e9cc6b…`) · page 3 (כ-800 גויסו עם פרוץ המלחמה, כ-200 עדיין מגויסים; אינו משפיע
+  לרעה על רווחיות החברה).
+- **בית זיקוק אשדוד** — filing `דוח תקופתי ושנתי לשנת 2024` (id `5df8ec60…`) · page 12
+  (בממוצע כ-50 עובדים במילואים, כ-11% ממצבת העובדים; לא נגרמה פגיעה בפעילות).
+**Non-leads, documented for the answer layer:** יעקב פיננסים, תורפז ודוראל mention מילואים
+only as economy-wide war background (risk-factor boilerplate), never their own reserve-duty
+costs. Presenting them as companies that discussed *their* costs is a wrong answer — the
+precision judgment lives at the answer layer; the harness gate is recall over the two leads.
+Tests: market-wide discovery; leads span transcript + filing; company-specific statements vs
+macro boilerplate.
+
+**Case 20 — discovery: AI**
+Q: אילו חברות דיברו על בינה מלאכותית?
+Expected leads:
+- **דוראל אנרגיה** — filing `דוח תקופתי ושנתי לשנת 2025` (id `ea051cb9…`) · pages 161+166
+  (AI data centers driving electricity demand; hedged by the AI opportunity framing) and
+  `דוח רבעון 1 לשנת 2026` (id `12e3ae21…`) · page 94 (AI לניתוח נתונים לשיפור תפוקה סולארית).
+- **בתי זיקוק** — filing `דוח רבעון 3 לשנת 2025` (id `168b6fab…`) · page 47 (עליה ביישום
+  AI/ML מובילה לעליה בביקוש לאנרגיה ולחשמל).
+- **תורפז** — filing `דוח תקופתי ושנתי לשנת 2025` (id `b176a312…`) · pages 26+34 (כלי AI
+  כתשתית תומכת לעבודת הפלייבוריסטים/פרפיומרים וצוותי הפיתוח).
+- **קבוצת תיגבור** — transcript `PyuMxe88e8g` · L0006 (חיזוק תחום הטכנולוגיות, «שימוש
+  באמצעות קירים ב-AI ובינה מלאכותית») — a minor lead, but a real, citable statement in a call.
+Tests: four leads across four companies and two source kinds; per-company diversification
+(ticket 08) — W2's duplicate (`PyuMxe88e8g_live` carries the same L0006 content) collapses
+into the same Tigbur lead and must not surface as a fifth company.
+
 ---
 
 ## Founder validation — what is asked of Sagi (ticket 05, HITL)
