@@ -149,10 +149,20 @@ the parser cannot see it. The gate refused the record rather than accept a name 
 resolve, which is the mechanism telling the truth about its own reach.
 
 Closing it costs two things that are his to spend, which is why it is not done here:
-- roughly **140 tokens against 107 spare**, so `TOKEN_BUDGET` has to be raised deliberately —
-  ticket 02 already left the budget as his decision;
-- the unenforced count **rises by about three**, because these laws are genuinely unenforced and
-  are currently invisible rather than clean. Honest direction, but it should be chosen.
+- **tokens the budget does not have.** Run `npm run env:health` for today's headroom before
+  deciding — an earlier draft of this paragraph hand-carried "107 spare" from a measurement taken
+  several commits earlier, was wrong by a factor of six by the time anyone read it, and was caught
+  by round 3 of this branch's own review. That is `app.md`'s "counts carry their command", broken
+  inside the write-up arguing about which laws go unenforced. `TOKEN_BUDGET` has to be raised
+  deliberately either way, and ticket 02 already left the budget as his decision.
+- **a higher unenforced count**, by up to one per meta-law converted, because these laws are
+  genuinely unenforced and are currently invisible rather than clean.
+
+**And it is not the binary it looks like** (round 3's NIT, and it is the better idea). Six of nine
+findings on this branch are one defect: *a gate deciding on a proxy for the command instead of on
+the fact*. **One** declared law naming that specific shape would make them all filable, at a
+fraction of the cost of converting M1–M4 wholesale, and it would sit alongside the existing laws
+rather than restructuring the preamble. Cheapest first, if he wants it closed at all.
 
 **Left open, deliberately.** The tier comparison sees only what `app.md` declares —
 none < partial < mechanism, plus the hatch. ADR-0002's finer ladder (impossible → test →
