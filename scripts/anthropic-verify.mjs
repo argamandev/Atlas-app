@@ -36,12 +36,15 @@ const HEBREW_SAMPLE = [
   'מה היה הרווח הנקי של טבע ב-2025?',
 ].join(' ')
 
+// Canonical name is ANTHROPIC_API_KEY (what the SDK auto-detects); the founder
+// initially stored it as CLAUDE_API_KEY, so accept that too — any casing.
 function loadKey() {
   if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
+  if (process.env.CLAUDE_API_KEY) return process.env.CLAUDE_API_KEY
   const envPath = path.join(process.cwd(), '.env.local')
   if (fs.existsSync(envPath)) {
     for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
-      const m = line.match(/^ANTHROPIC_API_KEY=(.*)$/)
+      const m = line.match(/^\s*(?:ANTHROPIC_API_KEY|CLAUDE_API_KEY)\s*=(.*)$/i)
       if (m) return m[1].trim().replace(/^["']|["']$/g, '')
     }
   }
