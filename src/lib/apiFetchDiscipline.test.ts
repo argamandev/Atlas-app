@@ -24,8 +24,10 @@ import { join } from 'node:path'
 // STATED LIMITS (M1): this proves the response is LOOKED AT, not that the reaction is right —
 // reverting optimistic state vs `loginRedirectTarget` vs a message is judgment the law's
 // VERIFY sweep still owns. A fetch whose URL lives in a variable is invisible to the scan
-// (none exist under src today outside lib/api); the 12-line window is a heuristic, and a
-// site that inspects the response further away should be restructured, not allowlisted.
+// (none exist under src today outside lib/api), and so is a call whose `/api` literal is
+// LINE-WRAPPED onto the line after `fetch(` — the site regex is per-line (review NIT,
+// 2026-08-13); the 12-line window is a heuristic, and a site that inspects the response
+// further away should be restructured, not allowlisted.
 // `.status` on a PARSED BODY (CompanyOverview reads the finish route's `{status}` field)
 // satisfies the scan too — textually indistinguishable from Response.status, and reading the
 // body's outcome field is outcome inspection for that endpoint.
