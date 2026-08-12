@@ -1,21 +1,18 @@
 # App Invariants
 
-**What this is.** Atlas's app-level law, loaded into every turn. These are **invariants, not
-suggestions**: code that violates one is wrong even if it compiles, passes the battery, and looks
-right. Every law here was paid for by a defect that shipped.
+**What this is.** Atlas's app-level law, loaded into every turn. **Invariants, not suggestions:**
+code that violates one is wrong even if it compiles, passes the battery, and looks right. Every law
+here was paid for by a defect that shipped.
 
 **How to read one.** **LAW** = what must always be true · **ENFORCED** = what catches a violation
-without you · **VERIFY** = what you must check yourself because nothing automatic can.
-**`ENFORCED none` means you are the only guard**, and `ENFORCED partially` means you are the only
-guard everywhere the named mechanism does not reach. **UNENFORCEABLE** is the one honest terminal
-state for a law nothing mechanical could ever check — it needs a stated reason, and it is not a
-shortcut around writing a test that could exist. `→ #anchor` is the full story in
-`docs/case-history/app.md`.
-
-**Every law declares one of those, and `src/lib/environment.test.ts` fails the battery for a law
-that declares nothing.** `npm run env:health` counts the ones nothing is enforcing; that count is
-supposed to fall (ADR-0002). Declaring the absence honestly is always allowed — inventing a
-mechanism that does not hold is the thing this whole structure exists to prevent.
+without you · **VERIFY** = what you must check yourself. **`ENFORCED none` means you are the only
+guard**; `partially` means the same wherever the named mechanism does not reach. **UNENFORCEABLE**
+is the one honest terminal state for a law nothing mechanical could ever check — it needs a stated
+reason, and it is not a shortcut around a test that could exist. Every law declares one of these;
+`src/lib/environment.test.ts` fails the battery for a law that declares nothing, and
+`npm run env:health` counts the unenforced, which is supposed to fall (ADR-0002). Declaring the
+absence honestly is always allowed — inventing a mechanism that does not hold is what this whole
+structure exists to prevent. `→ #anchor` is the full story in `docs/case-history/app.md`.
 
 **Read the case before you** change code a law governs · change or weaken the test enforcing it ·
 propose removing or narrowing it · hit the same failure class again. **If a task conflicts with a
@@ -38,7 +35,7 @@ these shipped here:
 - a page that 500s at render while `tsc` and `build` stay green → `#server-component-function-prop`
 - a scripted edit that matched zero times against CRLF and reported success → `#crlf`
 - `TZ=America/New_York` silently dropped by MSYS, so the battery ran in `Asia/Jerusalem`
-- a grep that hit comments, not code (`DEMO_USER_ID` reads as 14 live sites; all 14 are prose)
+- a grep that hit prose, not call sites (`DEMO_USER_ID` reads as 14 live sites; none is a fallback)
 - a count restated from another document — wrong every time it was hand-carried
 **⇒ Before claiming a change works, say what your evidence actually measured.**
 
@@ -98,8 +95,10 @@ blanks comments first, so trust it over a grep. → `#demo-user-id`
 **LAW · Authentication is not authorisation, and `supabaseAdmin` bypasses RLS.** Proving *who* is
 calling does not prove they may touch the row. RLS protects only what queries through the **user's**
 client.
-**ENFORCED** none — it is a choice per `lib/db` module. Verified 2026-08-10
-(`git grep -n "supabaseAdmin\." -- src/lib/db`):
+**ENFORCED** none — a choice per `lib/db` module. Verified 2026-08-12
+(`git grep -l "^import { supabaseAdmin }" -- src/lib/db`). **Grep the IMPORT:** a `supabaseAdmin\.`
+grep returns this list BACKWARDS — it hits `projects`/`workspaces` on their own prose and misses
+`calls`/`conversations`/`transcripts`, which chain `await supabaseAdmin` + newline + `.from(`.
 - **user client, RLS load-bearing — copy these:** `projects.ts`, `workspaces.ts`
 - **`supabaseAdmin` over personal rows — must filter by owner in application code:**
   `conversations.ts`, `quotes.ts`, `quoteFolders.ts`, `transcripts.ts`
@@ -261,8 +260,9 @@ physical line.
 — wild disagreement means you rewrote line endings, not content — and **grep for the RESULT you
 intended**, because a no-op edit and a perfect edit produce the same silence. → `#crlf`
 
-**TRAP · A grep hits comments.** `DEMO_USER_ID` reads as 14 live sites and is zero. Strip comments,
-or prefer the test that already does.
+**TRAP · A grep hits prose.** `DEMO_USER_ID` reads as 14 live sites and no fallback survives (11
+comments, 3 the guard's own detector and its messages). Strip comments AND strings, or prefer the
+test that already does.
 
 **TRAP · Never run `npm run build` while a dev server is up in the same checkout.** They share one
 `.next`, so the build overwrites the running server's chunks: `/_next/static/*` 404s and routes die
@@ -272,19 +272,5 @@ testing. Build in another worktree, or stop the dev server first. Recovery: kill
 
 ---
 
-## Open findings — NOT laws. Do not cite these as invariants.
-
-Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
-
-- **`GET /api/live/{state,pcm}` are unauthenticated** (boundary-test allowlist, marked OPEN there
-  too). The mitigation once written for them is false and was refuted the same day: both read
-  `process.env.LIVE_ENGINE_URL || 'http://localhost:8788'`, and that variable exists precisely to
-  point a deploy at a tunnelled engine. They are inert on `www.timlul-ai.com` only because it is
-  unset — one dashboard field wide. **⇒ Gate them in the SAME change that sets it. A follow-up is
-  not a plan, it is the window.** → `#api-auth-boundary-test`
-- **`.gitattributes` is absent while `core.autocrlf=true`** (both confirmed 2026-08-10).
-  `* text=auto eol=lf` would close the CRLF trap structurally, but it is a repo-wide behavioural
-  change and must not ride in on a feature merge. Founder decision. → `#crlf`
-- **Two UTC leaks, not user-visible:** `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`;
-  `{Y0}`/`{Y1}` server-local at 543–544) and `src/lib/maya/events.ts:106` (`getUTCFullYear`
-  labelling a fiscal year). → `#timezone-israel`
+**Open findings are NOT laws and live in `docs/open-findings.md`** — read it before touching live
+audio auth, `.gitattributes`, or the two known UTC leaks. Never cite one as an invariant.
