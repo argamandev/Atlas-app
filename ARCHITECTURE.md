@@ -129,8 +129,8 @@ was telling every fresh session not to trust a guarantee the repo actually had.)
 |---|---|
 | `transcripts/route.ts` | **Submit** (POST) — inserts row + fires the pipeline. The only place the pipeline runs. |
 | `transcripts/[id]/route.ts` | GET (poll), PUT (edit), DELETE (admin), PATCH (admin rename). |
-| `transcripts/[id]/speakers/route.ts` | Update speaker labels. |
-| `transcripts/[id]/diarization/route.ts` | Additive speaker-edit overlay (re-segments speakers). |
+| `transcripts/[id]/speakers/route.ts` | Update speaker labels. **Admin-only since 2026-08-13** — corpus curation (`docs/DATA-MODEL.md`), gated by `requireAdmin` + `curationAuthz.test.ts`. |
+| `transcripts/[id]/diarization/route.ts` | Additive speaker-edit overlay (re-segments speakers). **Admin-only since 2026-08-13**, same gate. |
 | `chat/route.ts` | Chat — streams Gemini SSE → token stream (GPT-4.1 fallback). |
 | `companies/route.ts`, `companies/[id]/route.ts` | List/search companies; single company. |
 | `companies/[id]/filings/route.ts` | ONE fiscal year of a company's filing catalog, listed live from MAYA (nothing stored), behind a 5-minute per-company-year cache (`lib/maya/catalogCache.ts`). Bounds the year to 1990..2100. |
@@ -261,7 +261,7 @@ the deploy, which comes after this chapter.
 | `lib/projects/` | The projects domain, split so each half is testable alone: `client.ts` (browser fetch wrappers), `validate.ts` (input rules), `derive.ts` (capacity/count maths shown in the UI), `present.ts` (row → view model). |
 | `lib/chat/projectContext.ts` | Builds the project's instructions + memory + context sources into the system block injected server-side on every message sent inside a project, and reports whether it had to truncate. |
 | `lib/auth/verifyUser.ts` | The verifying user lookup (`getUser()`, which revalidates the token) that replaced every `auth.getSession()` call site on 2026-08-02. Unit-tested. |
-| `lib/auth.ts` | `getRequestUserId(req)` — resolves the caller from the session cookie OR an `Authorization: Bearer` token (the bearer path is how trusted automation drives the same API) — plus `getCurrentUser()` and `unauthorized()`, the single 401 every route returns. The route pattern is two lines: resolve, then `if (!userId) return unauthorized()`; `apiAuthBoundary.test.ts` enforces it. |
+| `lib/auth.ts` | `getRequestUserId(req)` — resolves the caller from the session cookie OR an `Authorization: Bearer` token (the bearer path is how trusted automation drives the same API) — plus `getCurrentUser()`, `unauthorized()` (the single 401 every route returns), and `requireAdmin(req)` — the curation gate (401/403/null) for routes that write what every user sees; `curationAuthz.test.ts` pins which routes must use it. The route pattern is two lines: resolve, then `if (!userId) return unauthorized()`; `apiAuthBoundary.test.ts` enforces it. |
 | `lib/transcripts.ts` | Shared transcript fetch/shape helpers. |
 
 ### Live engine — `lib/live/`
@@ -341,7 +341,8 @@ run a file cannot tell you it is missing.
 · `chat/attachments.test.ts` · `chat/documentContext.test.ts`
 · `chat/history.test.ts` · `chat/projectContext.test.ts`
 · `company/documentCatalog.test.ts` · `company/logo.test.ts`
-· `correction.test.ts` · `db/conversationScope.test.ts` · `demo/demoState.test.ts`
+· `correction.test.ts` · `curationAuthz.test.ts` · `db/conversationScope.test.ts`
+· `demo/demoState.test.ts`
 · `design/anim.test.ts` · `documents/extract.test.ts`
 · `documents/openFiling.test.ts` · `documents/snip.test.ts`
 · `i18n/format.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
