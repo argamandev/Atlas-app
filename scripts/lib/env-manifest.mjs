@@ -55,6 +55,40 @@ export const ALWAYS_ON = {
 }
 
 /**
+ * Files that are written by APPENDING and never rewritten, and the door each one
+ * has. One declaration, two consumers: `scripts/append-log.mjs` builds its door
+ * table from the entries that have one, and `environment.test.ts` asserts this set
+ * and `ALWAYS_ON` are disjoint.
+ *
+ * WHY THE DISJOINTNESS IS THE POINT. Append-only and always-on are the two
+ * properties that must never meet: a document that only grows, loaded into every
+ * session, is a bill that rises forever with nothing deciding to raise it. That is
+ * the exact shape of the apparatus ADR-0001 retired — the board and the logs were
+ * both, and they reached 2.8 MB. Atlas evicts at merge (`CONTEXT.md`), and the one
+ * always-on file that describes a moving present, `STATUS.md`, is rewritten rather
+ * than appended to — held by `STATUS_LINE_CAP` here and by the merge gate in
+ * `scripts/lib/ship-gate.mjs`.
+ *
+ * STATED LIMIT: this asserts that nothing DECLARED append-only is always-on. A
+ * document that grows without ever being declared is invisible to it; what catches
+ * that one is the token budget above.
+ */
+export const APPEND_ONLY = {
+  'COLLISIONS.md': {
+    door: 'collisions',
+    why: 'the collision channel — a migration, a shared type, a design token. Current era only; a closed era is copied to docs/archive/ at merge.',
+  },
+  'PROGRESS.md': {
+    door: null,
+    why: 'the shipped-work log. Dated entries, appended at ship time; rewriting a dated record falsifies it.',
+  },
+  'DECISIONS.md': {
+    door: null,
+    why: 'every founder decision, one line, in his own words, quoted. Permanent — this is the record STATUS.md is allowed to forget because DECISIONS.md does not.',
+  },
+}
+
+/**
  * Words the retired fleet apparatus is not allowed to walk back in on, and the
  * files permitted to say them anyway.
  *
@@ -394,6 +428,32 @@ function enforcementOf(body) {
 }
 
 /**
+ * The law's own `**VERIFY**` step — what a human has to go and do because nothing
+ * automatic can.
+ *
+ * This is what makes the ship checklist GENERATED rather than written. Ticket 03's
+ * complaint about the previous arrangement was that compliance depended on someone
+ * recalling rule 14 of 27; a hand-copied list in the skill would have the same
+ * problem one step later, plus the hand-carried-count defect `app.md` files three
+ * times. `npm run ship:gate` prints these, so the checklist cannot drift from the
+ * laws it comes from.
+ *
+ * Bounded the same way `enforcementOf` is, and for the same reason: to the next
+ * marker at a line start, never to the end of the block.
+ */
+function verifyOf(body) {
+  const at = body.search(/\*\*VERIFY\*\*/)
+  if (at === -1) return ''
+  return body
+    .slice(at)
+    .replace(/\*\*VERIFY\*\*/, '')
+    .split(/\n\*\*[A-Z]/)[0]
+    .replace(/^[—\-:,\s]+/, '')
+    .replace(/\s*\n\s*/g, ' ')
+    .trim()
+}
+
+/**
  * Every law in a file, with the enforcement its GROUP declares.
  *
  * BARE consecutive law markers, inside one section, with no enforcement between
@@ -415,7 +475,10 @@ export function parseLaws(text, file) {
   for (const b of blocks) {
     const enf = enforcementOf(b.body)
     if (group.length && group[0].section !== b.section) flush(MISSING)
-    group.push({ file, line: b.line, section: b.section, title: b.title })
+    // `verify` belongs to the BLOCK, never to the group: a run of bare one-line laws
+    // shares one mechanism, but each of them either carries its own manual step or
+    // carries none.
+    group.push({ file, line: b.line, section: b.section, title: b.title, verify: verifyOf(b.body) })
     if (enf.kind !== 'missing') flush(enf)
     else if (!isBare(b.body)) flush(MISSING)
   }

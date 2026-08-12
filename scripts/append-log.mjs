@@ -15,11 +15,19 @@
 //   ...multi-line entry...
 //   EOF
 import fs from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { APPEND_ONLY, REPO_ROOT } from './lib/env-manifest.mjs'
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const LOGS = { collisions: 'COLLISIONS.md' }
+// The doors are DERIVED from the append-only declaration rather than restated here.
+// Written twice, the two lists drift, and the half that drifts is the half nobody
+// tests — the same reason `pre-bash-gate.mjs` keeps one LOG_NAMES for its two
+// consumers. `src/lib/environment.test.ts` asserts nothing in that declaration is
+// also always-on.
+const LOGS = Object.fromEntries(
+  Object.entries(APPEND_ONLY)
+    .filter(([, entry]) => entry.door)
+    .map(([file, entry]) => [entry.door, file])
+)
 
 const [, , logName, ...textArgs] = process.argv
 const file = LOGS[logName]

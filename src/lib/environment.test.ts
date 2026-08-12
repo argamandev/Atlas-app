@@ -44,6 +44,7 @@ import { join } from 'node:path'
 
 import {
   ALWAYS_ON,
+  APPEND_ONLY,
   LAW_FORM_EXEMPT,
   REPO_ROOT,
   RETIRED_VOCABULARY,
@@ -95,6 +96,38 @@ test('every always-on file states why it earns a place, and exists', () => {
         'per-session cost and should be readable in full by a human.'
     )
   }
+})
+
+test('nothing in the always-on set is append-only', () => {
+  // The two properties that must never meet. A document that only grows, loaded into
+  // every session, is a bill that rises forever with nothing deciding to raise it —
+  // which is what the board and the logs were, and they reached 2.8 MB. Atlas evicts
+  // at merge (CONTEXT.md); the one always-on file describing a moving present,
+  // STATUS.md, is rewritten instead, held by the cap above and by the merge gate in
+  // scripts/lib/ship-gate.mjs.
+  const both = Object.keys(APPEND_ONLY).filter((f) => f in ALWAYS_ON)
+  assert.deepEqual(
+    both,
+    [],
+    `these files are declared append-only AND always-on:\n  ${both.join('\n  ')}\n\n` +
+      'Pick one. If every session must read it, it is rewritten and capped; if it only ever grows, ' +
+      'it is history or a log and loads on demand.'
+  )
+
+  // Guard the guard: an empty registry would make the line above pass by comparing
+  // nothing, and every entry has to say what it is for.
+  assert.ok(Object.keys(APPEND_ONLY).length >= 2, 'APPEND_ONLY is empty — is the declaration still there?')
+  for (const [file, entry] of Object.entries(APPEND_ONLY) as [
+    string,
+    { door: string | null; why: string },
+  ][]) {
+    assert.ok(existsSync(join(REPO_ROOT, file)), `APPEND_ONLY declares ${file}, which does not exist`)
+    assert.ok(entry.why.trim().length > 30, `APPEND_ONLY["${file}"] needs a real reason`)
+  }
+
+  // STATED LIMIT, so this is not read as more than it is: it asserts that nothing
+  // DECLARED append-only is always-on. A document that quietly grows without ever
+  // being declared is invisible here — the token budget is what catches that one.
 })
 
 test('the always-on set stays inside its token budget', () => {
