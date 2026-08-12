@@ -1,13 +1,18 @@
 # App Invariants
 
-**What this is.** Atlas's app-level law, loaded into every turn. These are **invariants, not
-suggestions**: code that violates one is wrong even if it compiles, passes the battery, and looks
-right. Every law here was paid for by a defect that shipped.
+**What this is.** Atlas's app-level law, loaded into every turn. **Invariants, not suggestions:**
+code that violates one is wrong even if it compiles, passes the battery, and looks right. Every law
+here was paid for by a defect that shipped.
 
 **How to read one.** **LAW** = what must always be true · **ENFORCED** = what catches a violation
-without you · **VERIFY** = what you must check yourself because nothing automatic can.
-**`ENFORCED: none` means you are the only guard.** `→ #anchor` is the full story in
-`docs/case-history/app.md`.
+without you · **VERIFY** = what you must check yourself. **`ENFORCED none` means you are the only
+guard**; `partially` means the same wherever the named mechanism does not reach. **UNENFORCEABLE**
+is the one honest terminal state for a law nothing mechanical could ever check — it needs a stated
+reason, and it is not a shortcut around a test that could exist. Every law declares one of these;
+`src/lib/environment.test.ts` fails the battery for a law that declares nothing, and
+`npm run env:health` counts the unenforced, which is supposed to fall (ADR-0002). Declaring the
+absence honestly is always allowed — inventing a mechanism that does not hold is what this whole
+structure exists to prevent. `→ #anchor` is the full story in `docs/case-history/app.md`.
 
 **Read the case before you** change code a law governs · change or weaken the test enforcing it ·
 propose removing or narrowing it · hit the same failure class again. **If a task conflicts with a
@@ -16,8 +21,8 @@ become true for the law to be legitimately revised.
 
 **Counts carry their command.** Never copy one from prose — this file has been wrong that way three
 times. **Claim the call sites, never the corpus:** a scoped law that overstates its own closure is
-the exact failure this file exists to prevent. **Open findings are not laws**; they are in the last
-section and must not be cited as such.
+the exact failure this file exists to prevent. **Open findings are not laws**; they live in
+`docs/open-findings.md` and must not be cited as such.
 
 ---
 
@@ -30,7 +35,7 @@ these shipped here:
 - a page that 500s at render while `tsc` and `build` stay green → `#server-component-function-prop`
 - a scripted edit that matched zero times against CRLF and reported success → `#crlf`
 - `TZ=America/New_York` silently dropped by MSYS, so the battery ran in `Asia/Jerusalem`
-- a grep that hit comments, not code (`DEMO_USER_ID` reads as 14 live sites; all 14 are prose)
+- a grep that hit prose, not call sites (`DEMO_USER_ID` reads as 14 live sites; none is a fallback)
 - a count restated from another document — wrong every time it was hand-carried
 **⇒ Before claiming a change works, say what your evidence actually measured.**
 
@@ -90,8 +95,12 @@ blanks comments first, so trust it over a grep. → `#demo-user-id`
 **LAW · Authentication is not authorisation, and `supabaseAdmin` bypasses RLS.** Proving *who* is
 calling does not prove they may touch the row. RLS protects only what queries through the **user's**
 client.
-**ENFORCED** none — it is a choice per `lib/db` module. Verified 2026-08-10
-(`git grep -n "supabaseAdmin\." -- src/lib/db`):
+**ENFORCED** none — a choice per `lib/db` module. Verified 2026-08-12, 6/6
+(`git grep -lE "^import \{[^}]*supabaseAdmin" -- src/lib/db`). **Grep the IMPORT:** a
+`supabaseAdmin\.` grep returns this list BACKWARDS — it hits `projects`/`workspaces` on their own
+prose and misses `calls`/`conversations`/`transcripts`, which chain `await supabaseAdmin` +
+newline + `.from(`. The import grep is still a proxy (M3.2): a line-WRAPPED import drops a module
+silently, and silence here reads as "RLS-safe", so re-read the list, never just the count.
 - **user client, RLS load-bearing — copy these:** `projects.ts`, `workspaces.ts`
 - **`supabaseAdmin` over personal rows — must filter by owner in application code:**
   `conversations.ts`, `quotes.ts`, `quoteFolders.ts`, `transcripts.ts`
@@ -100,12 +109,16 @@ client.
 → `#supabase-admin-bypasses-rls`, `#authn-is-not-authz`
 
 **LAW · Gating an endpoint changes every caller's ERROR path, not just its happy path.**
+**ENFORCED** none — nothing connects a route's gating to what its callers do with a 401, and the
+boundary test stops at the route. The sweep below is the only guard.
 **VERIFY** `git grep` the endpoint, open every caller, answer "what does this do with a 401?" —
 revert optimistic state, or send the user to sign in (`loginRedirectTarget`). Never invent a cause:
 a "model unavailable" banner for an expired session retries forever. → `#gating-changes-error-paths`
 
 **LAW · PUT `/api/transcripts/[id]` validation stays lenient** (`.passthrough()`, `role: z.string()`)
 — legacy rows carry `role: "unknown"`. Do not tighten it to an enum.
+**ENFORCED** none — no test feeds a legacy `role: "unknown"` row through that schema, so tightening
+it to an enum would land green and break only in production.
 
 ## Bidi & localization
 
@@ -119,14 +132,18 @@ no repo-wide check, so treat this as `ENFORCED: none` for any new surface.
 `git grep -n 'dir="ltr"' -- src`. Fixing one instance is exactly what hid the others. **(2)** Prove
 it renders differently (M4): put the old `dir` back on the live element and re-measure the runs'
 x-positions. A `<bdi>` that changes nothing looks identical to one that fixes everything.
-**This is the repo's most-repeated defect — 7 recorded occurrences** (source: ready-queue FINDING,
-`feat/documents-catalog`; the frozen case entry predates the last two and says "5th"). Every one
+**This is the repo's most-repeated defect — 7 recorded occurrences** (source: the FINDING entries
+on `feat/documents-catalog` in `docs/archive/ready-queue-2026-07-03--2026-08-10.md`; the frozen
+case entry predates the last two and says "5th"). Every one
 passed typecheck, tests, and an EN-only screenshot. → `#bidi-bdi`
 
 **LAW · Design parity is judged against the RENDERED design, never bundle CSS** — bundle CSS can be
 a stale iteration. Probe computed styles / canvas `measureText` on the live design page. Two system
 stacks: body = SF Pro Text (→ Segoe UI on Windows); headlines (`fontFamily.head`) = SF Pro Display
-**without** system-ui (→ Arial). → `#design-parity`
+**without** system-ui (→ Arial).
+**ENFORCED** none — the only thing a battery can reach is the bundle, which is precisely the source
+this law forbids judging against. Closing it needs a browser probe, which nothing runs today.
+→ `#design-parity`
 
 ## Time
 
@@ -159,12 +176,17 @@ pane ends in exactly one of: loading · error · empty — never a fabricated fo
 **LAW · When a decision rests on a natural-language classifier over an open vocabulary, buy VISIBLE
 FAILURE, not a longer word list.** Hebrew and English both have unbounded ways to say the same
 thing, so no vocabulary ever closes it. What closes it is that being wrong cannot lie — apply M3.
+**ENFORCED** none — "this decision rests on a classifier over an open vocabulary" is a judgement
+about a design, not a property any file scan can see. Its natural tier is a ritual gate at review
+(ADR-0002), which does not exist yet.
 → `#classifier-visible-failure`
 
 **LAW · Anything that decides what a screen SAYS gets every one of its states driven in a browser,
 in both locales, before it merges** (M4). A four-round defect lived in a state nobody had ever
-rendered and was invisible to a fully green battery. **VERIFY** Enumerate the states; go and look at
-each. → `#choke-point-inputs`
+rendered and was invisible to a fully green battery.
+**ENFORCED** none — a battery cannot tell whether a human opened a browser. Its natural tier is a
+ritual gate at review (ADR-0002), which does not exist yet.
+**VERIFY** Enumerate the states; go and look at each. → `#choke-point-inputs`
 
 **LAW · A Server Component may not pass a FUNCTION to a Client Component.** Create the closure on
 the client side of the boundary (`components/projects/ProjectChat.tsx` is the shape).
@@ -184,32 +206,50 @@ any pause/close so a remembered press cannot restart audio the user has stopped.
 
 **LAW · Hebrew PDF needs a real browser engine** — `react-pdf`/`html2canvas` garble Hebrew next to
 numbers. Proper fix = server-side Playwright `page.pdf()`; current stopgap = `window.print()` via
-`/print/[id]`. → `#hebrew-pdf`
+`/print/[id]`.
+**ENFORCED** none — nothing stops `react-pdf` or `html2canvas` being added back. A grep for those
+two imports would close this at the hook tier and has not been written.
+→ `#hebrew-pdf`
 
 **LAW · pdf.js is loaded from the COMMITTED `public/pdf.min.mjs` + `pdf.worker.min.mjs`**, imported
 natively because Next 14's webpack mangles the pdfjs ESM bundle — re-sync **both** on any
 pdfjs-dist bump. `getDocument({data})` **detaches** the passed Uint8Array; hand it a copy if you
 still need the bytes. Adopting any mechanism from pdf.js's own viewer means copying its **whole CSS
 cluster** — grep the upstream stylesheet for every selector touching the element, because a
-companion rule three rules away was load-bearing. → `#pdfjs`
+companion rule three rules away was load-bearing.
+**ENFORCED** none — nothing compares the committed `public/pdf*.min.mjs` against the installed
+`pdfjs-dist` version, so a bump desyncs them silently and the battery stays green.
+→ `#pdfjs`
 
 **LAW · Mutable private resources are served `no-store`.** A bad response plus a long max-age once
 pinned a 0-byte PDF past the server-side fix, and a hard refresh does **not** purge fetch()-cached
 entries — that needs `fetch(url, {cache:'reload'})`. Storage paths are stable per company+quarter,
-so re-ingests must never be cacheable. → `#no-store-mutable-private`
+so re-ingests must never be cacheable.
+**ENFORCED** none — no test asserts the cache headers on the private-document responses, so a
+missing `no-store` is invisible until a stale body is served.
+→ `#no-store-mutable-private`
 
 ## Platform
 
 **LAW · Railway redirects derive their origin from `x-forwarded-host`/`x-forwarded-proto`**, never
 `request.url` (which resolves to the internal `localhost:8080`). `resolveOrigin` REFUSES the header
 unless `NEXT_PUBLIC_SITE_HOST` matches, so an unset or stale value silently reintroduces the bug on
-the next domain change. → `#railway-redirects`
+the next domain change.
+**ENFORCED** partially — `src/lib/auth/gate.test.ts` covers `resolveOrigin` refusing a forged or
+unconfigured `x-forwarded-host`. Nothing detects a STALE `NEXT_PUBLIC_SITE_HOST`, and that is the
+path the bug actually returns by.
+→ `#railway-redirects`
 
 **LAW · Sign-out stays a plain `<a href="/api/auth/signout">`** — a z-index overlap once let
 `<main>` swallow the click. Do not reintroduce a dropdown.
+**ENFORCED** none — nothing inspects the markup, so a dropdown could be reintroduced with the
+battery fully green.
 
 **LAW · `bin/yt-dlp.exe` self-updates per checkout** (`bin/yt-dlp.exe -U`, git-ignored) — YouTube
-403s builds a few weeks old. Railway installs it fresh at build. → `#yt-dlp-staleness`
+403s builds a few weeks old. Railway installs it fresh at build.
+**ENFORCED** partially — `npm run build` runs `scripts/install-yt-dlp.js`, so the deploy is always
+fresh. Nothing refreshes a local checkout, which is where the 403s are actually seen.
+→ `#yt-dlp-staleness`
 
 ## Verification traps — this repo's concrete false-success modes (M1)
 
@@ -222,8 +262,9 @@ physical line.
 — wild disagreement means you rewrote line endings, not content — and **grep for the RESULT you
 intended**, because a no-op edit and a perfect edit produce the same silence. → `#crlf`
 
-**TRAP · A grep hits comments.** `DEMO_USER_ID` reads as 14 live sites and is zero. Strip comments,
-or prefer the test that already does.
+**TRAP · A grep hits prose.** `git grep -n "DEMO_USER_ID" -- src` reads as 14 live sites and no
+fallback survives (11 comments, 3 the guard's own detector and its messages). Strip comments AND
+strings, or prefer the test that already does.
 
 **TRAP · Never run `npm run build` while a dev server is up in the same checkout.** They share one
 `.next`, so the build overwrites the running server's chunks: `/_next/static/*` 404s and routes die
@@ -233,19 +274,5 @@ testing. Build in another worktree, or stop the dev server first. Recovery: kill
 
 ---
 
-## Open findings — NOT laws. Do not cite these as invariants.
-
-Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
-
-- **`GET /api/live/{state,pcm}` are unauthenticated** (boundary-test allowlist, marked OPEN there
-  too). The mitigation once written for them is false and was refuted the same day: both read
-  `process.env.LIVE_ENGINE_URL || 'http://localhost:8788'`, and that variable exists precisely to
-  point a deploy at a tunnelled engine. They are inert on `www.timlul-ai.com` only because it is
-  unset — one dashboard field wide. **⇒ Gate them in the SAME change that sets it. A follow-up is
-  not a plan, it is the window.** → `#api-auth-boundary-test`
-- **`.gitattributes` is absent while `core.autocrlf=true`** (both confirmed 2026-08-10).
-  `* text=auto eol=lf` would close the CRLF trap structurally, but it is a repo-wide behavioural
-  change and must not ride in on a feature merge. Founder/fleet decision. → `#crlf`
-- **Two UTC leaks, not user-visible:** `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`;
-  `{Y0}`/`{Y1}` server-local at 543–544) and `src/lib/maya/events.ts:106` (`getUTCFullYear`
-  labelling a fiscal year). → `#timezone-israel`
+**Open findings are NOT laws and live in `docs/open-findings.md`** — read it before touching live
+audio auth, `.gitattributes`, or the two known UTC leaks. Never cite one as an invariant.

@@ -129,7 +129,7 @@ evidence behind it. 24 entries, verbatim.
   exists precisely to point a deploy at a tunnelled engine. The bound holds only while it is
   unset, which is deploy-time configuration, not a property of the code. **⇒ gate them BEFORE
   `LIVE_ENGINE_URL` is ever set in a deployed environment.** Doing it safely needs a live run with
-  the engine up (`rules/live.md`) and a latency measurement on `/pcm`, which is polled continuously.
+  the engine up (`docs/live-engines.md`) and a latency measurement on `/pcm`, which is polled continuously.
   **A DEPLOYED ENVIRONMENT NOW EXISTS (2026-08-08, `www.timlul-ai.com`), so the sentence above
   stopped describing a future.** Verified on that host the same day: `/api/live/state` returns
   `offline:true`, so the variable is unset and both endpoints are inert. The bound is now one

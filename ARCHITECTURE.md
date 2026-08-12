@@ -437,7 +437,7 @@ run a file cannot tell you it is missing.
   `maya-refresh-issuers.ts` does not (`[--sweep] [--from N] [--to N]`).
   ⚠ `tsconfig.json` excludes `scripts/`, so **`npx tsc --noEmit` does NOT typecheck these** —
   running them against live data is the only gate they get.
-- **Fleet:** `append-log.mjs` — the sanctioned append-only door to `agent-memory/{cross-cutting,ready-queue}.md`
+- **Coordination:** `append-log.mjs` — the sanctioned append-only door to `COLLISIONS.md`
   (allow-listed in `.claude/settings.json`; ad-hoc shell appends are classifier-blocked).
 - **Build/assets:** `install-yt-dlp.js` (runs in `npm run build`), `prep-brand-assets.mjs`
   (regenerates `public/brand/` from the logo — documented in `BrandWordmark`).
@@ -490,25 +490,29 @@ a pdf-parse bump can't silently desync it).
 |---|---|
 | `settings.json` | Permissions (safe pre-approvals + secret denies) + the two hook wirings. Tracked in git so every worktree gets the same harness. |
 | `settings.local.json` | Machine-local permissions (git-ignored). |
-| `hooks/pre-bash-gate.mjs` | PreToolUse gate: blocks destructive SQL, unsafe `rm -rf`, `.env` shell access, force-pushes, lane-pushes-to-main. Fire-tested (15-case matrix). |
+| `hooks/pre-bash-gate.mjs` | PreToolUse gate: blocks destructive SQL, unsafe `rm -rf`, `.env` shell access, force-pushes, pushing `main` from a worktree, whole-file writes to the append-only log, and a merge onto `main` that has not passed the ship gate. Fire-tested — run `node .claude/hooks/gate-tests.mjs` for the case count. |
 | `hooks/post-edit-verify.mjs` | PostToolUse: auto-formats every edited `.ts/.tsx` + incremental typecheck; errors feed straight back to the session. |
-| `rules/parallel-work.md` | Fleet law: ports, board protocol, engine ownership, shared-surface posts. |
 | `rules/db.md` | Shared-with-production DB: additive-only migration law. |
-| `rules/live.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). |
-| `rules/app.md` | App **invariants**, always in context. 4 meta-laws, then auth & authorization · bidi & localization · time · UI truthfulness · media & documents · platform · verification traps · open findings (marked NOT laws). Each law is LAW / ENFORCED / VERIFY + a case anchor. Split + restructured 2026-08-10 (4,121 → 2,351 words). |
+| `docs/live-engines.md` | Live-engine gotchas (restart-per-test, stale bundle, caption lag…). Was `rules/live.md` until 2026-08-12 — it is FACTS, not laws, so it loads on demand instead of every session (ADR-0001). |
+| `rules/app.md` | App **invariants**, always in context. 4 meta-laws, then auth & authorization · bidi & localization · time · UI truthfulness · media & documents · platform · verification traps. Each law is LAW / ENFORCED / VERIFY + a case anchor. Split + restructured 2026-08-10 (4,121 → 2,351 words); open findings moved out 2026-08-12. |
+| `docs/open-findings.md` | Open items that are **NOT laws** — unauthenticated live audio endpoints, the absent `.gitattributes`, two UTC leaks. Was the last section of `rules/app.md` until 2026-08-12; moved out because the always-on set is reserved for law (`CONTEXT.md`). Read on demand. |
 | `docs/case-history/app.md` | The forensic record behind each `rules/app.md` law — verbatim, 24 entries, linked by anchor. NOT auto-loaded; read on demand. |
-| `skills/verify-app/` | `/verify-app` — self-seeing verification loop (Chrome MCP screenshots) + per-lane recipes. |
-| `skills/ship/` | `/ship` — the lane/supervisor shipping ritual (only the supervisor pushes main). |
+| `skills/verify-app/` | `/verify-app` — self-seeing verification loop (Chrome MCP screenshots) + per-surface recipes. |
+| `skills/ship/` | `/ship` — the shipping ritual. |
 | `skills/live-test/` | `/live-test` — run a real Recall+Zoom live test end-to-end. |
 | `skills/transcript-review/` | `/transcript-review` — the transcript-quality gate. |
-| `skills/fleet-lint/` | `/fleet-lint` — drift-check the whole environment (BOARD, rules, docs, open actions). |
 | `agents/atlas-reviewer.md` | `atlas-reviewer` agent definition — the code/design review persona. |
-| `hooks/gate-tests.mjs` | Fire-test matrix for pre-bash-gate.mjs (60 cases) — run + extend it on EVERY hook change. |
+| `hooks/gate-tests.mjs` | Fire-test matrix for pre-bash-gate.mjs — run + extend it on EVERY hook change. |
+| `scripts/lib/env-manifest.mjs` | The always-on set, its token budget, the append-only registry, and the law parser — declared once. `src/lib/environment.test.ts` asserts against it, `npm run env:health` prints from it and `scripts/append-log.mjs` derives its doors from it, so the guard and the number cannot disagree (ADR-0002). |
+| `scripts/lib/ship-gate.mjs` | The two merge-time rituals as pure functions: eviction (STATUS.md rewritten, PROGRESS.md appended, closed `.scratch/` notes archived) and promotion (every review finding answers the recurrence question; a recurrence buys a stronger mechanism). Tested in `src/lib/shipGate.test.ts`. |
+| `scripts/ship-gate.mjs` | `npm run ship:gate` — the git half. Prints the generated "what only you can check" list and the unenforced-law count, then fails on the rituals above. Also run by the hook at `git merge` onto main, so it does not depend on anyone reading `/ship`. |
 
-**Fleet memory (git-ignored, main checkout only):** `agent-memory/BOARD.md` (the shared brain —
-all sessions read/write live via absolute path) + `state-<lane>.md` per session. Founder-provided
-inputs: `design-import/` (Claude Design export), `local-assets/` (demo PDF). Fleet setup:
-`docs/LAUNCH-KIT.md`.
+**Session memory (ADR-0001).** There is no shared brain. A session integrates through `main` and
+coordinates only on collisions, via `COLLISIONS.md` at the repo root (append-only, current era).
+Founder decisions go to `DECISIONS.md`, permanently. The retired fleet's board, per-seat state
+files, logs, `parallel-work.md` and launch kit are verbatim in
+`docs/archive/agent-memory-snapshots/2026-08-12-fleet-retired/`. Founder-provided inputs:
+`design-import/` (Claude Design export), `local-assets/` (demo PDF).
 
 ### Docs — `docs/`
 `docs/superpowers/{specs,plans}/` = the dated spec/plan for each feature built (history — keep).

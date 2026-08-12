@@ -1,6 +1,6 @@
 ---
 name: verify-app
-description: Self-verification with your own eyes before claiming ANY work is done — boot the right dev server, drive Chrome via MCP, screenshot, inspect, read console errors, iterate. Use before reporting a feature works, before /ship, and whenever UI changed. Includes per-lane recipes (frontend import, ivrit pipeline, multiview PDF).
+description: Self-verification with your own eyes before claiming ANY work is done — boot the right dev server, drive Chrome via MCP, screenshot, inspect, read console errors, iterate. Use before reporting a feature works, before /ship, and whenever UI changed. Includes per-surface recipes (frontend import, ivrit pipeline, multiview PDF).
 ---
 
 # Verify App — see it before you say it
@@ -8,12 +8,11 @@ description: Self-verification with your own eyes before claiming ANY work is do
 Claiming "done" without looking is forbidden. Evidence = screenshots you actually inspected +
 console clean + tests green.
 
-## Core loop (every lane)
+## Core loop
 
-1. Your dev server, YOUR port (rules/parallel-work.md): frontend 3001 · ivrit 3002 ·
-   multiview 3003 · supervisor 3000. `npm run dev -- -p <port>` in your worktree.
-   KILL any dev server left from a previous session first (check who owns the port) — a
-   stale server serves the OLD build and your verification lies to you (bit Lane M 07-23).
+1. Your dev server: `npm run dev` (`:3000`), or `npm run dev -- -p 3001` if a second worktree
+   already owns 3000. KILL any dev server left from a previous session first — a stale server
+   serves the OLD build and your verification lies to you (this cost a whole session on 07-23).
 2. Load Chrome MCP tools (ToolSearch "select:mcp__claude-in-chrome__tabs_context_mcp,
    mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,
    mcp__claude-in-chrome__tabs_create_mcp,mcp__claude-in-chrome__read_console_messages" in ONE call).
@@ -25,13 +24,14 @@ console clean + tests green.
    that sails through review. This has produced TWO false passes since the gate shipped
    2026-08-01: an anonymous screenshot that was silently the login page, and a Server-Component
    crash that 500'd EVERY project page while 191 tests, tsc and the build stayed green — found
-   by the founder clicking, not by any gate (see the 2026-08-02 ALERT in cross-cutting).
+   by the founder clicking, not by any gate (see the 2026-08-02 ALERT in
+   `docs/archive/cross-cutting-2026-07-03--2026-08-10.md`).
    **HOW YOU GET THE SESSION — you already have it, so never report "cannot verify, gated".**
    The Chrome MCP drives the founder's REAL Chrome, which is signed in. Just navigate: the
    cookies are his. No password, no magic link, no credential in the transcript — this is the
    sanctioned path and it satisfies the standing rule that no assistant session may be handed a
    password. Corrected 2026-08-02, the same day the paragraph above was written claiming the
-   opposite: the supervisor filed "no assistant session can sign in", then verified a gated
+   opposite: an earlier session filed "no assistant session can sign in", then verified a gated
    `/app/chat` change in Hebrew twenty minutes later by doing exactly this. If Chrome MCP is
    unavailable in your harness, THEN say you cannot verify — not before trying it.
 4. Screenshot → LOOK at it: layout, RTL/bidi, fonts, spacing, empty states.
@@ -39,12 +39,11 @@ console clean + tests green.
 6. Interact (click/scroll/type) through the feature's main path.
 7. Broken → fix → repeat. Only a clean pass counts as verified.
 8. `npm test` + `npx tsc --noEmit` green.
-9. Record what you verified (one line + evidence refs) in your board section — and evidence
-   must be DURABLE (/ship lane step 6): screenshots can't be saved by every harness, so write
-   the walkthrough/finding sheet you built into `docs/evidence/<branch>/` in the main checkout.
+9. Record what you verified, and record it DURABLY: screenshots can't be saved by every
+   harness, so write the walkthrough/finding sheet you built into `docs/evidence/<branch>/`.
    A claude.ai artifact URL or a session screenshot alone is evidence that expires.
 
-## Lane recipes
+## Surface recipes
 
 **Frontend import:** screenshot each imported page vs its reference in design-import/ —
 side-by-side compare (structure, spacing, typography, colors). Check both EN and HE (RTL flip).

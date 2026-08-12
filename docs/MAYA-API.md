@@ -281,7 +281,7 @@ a page-text scrape returns nothing. Walk `el.shadowRoot` to read it.
 
 ## Where it goes in Atlas
 
-Decided 2026-08-01 (`agent-memory/cross-cutting.md`): **MAYA reports become
+Decided 2026-08-01 (`docs/archive/cross-cutting-2026-07-03--2026-08-10.md`): **MAYA reports become
 `company_documents`** — no new parallel tables. Company data is shared corpus, not per-user
 (`docs/DATA-MODEL.md`). The intake path that will read the catalog is flagged in
 `src/lib/workspace/intake/corpus.ts`; the ingest core a MAYA auto-fetch should reuse is

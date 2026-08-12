@@ -5,6 +5,35 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-12 — The workflow reset: the rituals become mechanisms (`chore/workflow-reset`, ticket 03)
+
+- **`npm run ship:gate` is what a merge now has to satisfy.** Eviction: STATUS.md rewritten rather
+  than appended to, a PROGRESS.md entry present, and any `.scratch/<feature>/` whose every ticket
+  reads done copied to `docs/archive/` verbatim and removed. Promotion: a review record at
+  `docs/evidence/<branch>/review.md` where every finding carries a `RECURRENCE:` answer, and a
+  `yes` names one law main already holds whose enforcement declaration got stronger on this branch
+  — or is honestly marked `UNENFORCEABLE` with a reason, which is a mandatory hatch, not a leak.
+- **Why it is not a skill step.** All three of these were already written in `/ship` after ticket
+  02, and `CONTEXT.md` counts prose as the weakest tier and not as enforcement. `git merge` onto
+  `main` now runs the gate through `pre-bash-gate.mjs` and refuses on failure, so the ritual does
+  not depend on anyone opening the skill. Override with `ATLAS_SHIP_OVERRIDE="<why>"`, which lands
+  the reason in the transcript.
+- **The laws no mechanism can reach are printed, generated from `app.md`, not copied into a
+  checklist.** Five today, each with its `**VERIFY**` step in full, alongside the unenforced-law
+  count for the branch and for main. Compliance stops depending on recalling rule 14 of 27, and
+  the list cannot drift from the file it comes from.
+- **Append-only and always-on are provably disjoint.** `APPEND_ONLY` (COLLISIONS.md, PROGRESS.md,
+  DECISIONS.md) is declared once in `env-manifest.mjs`, asserted disjoint from `ALWAYS_ON` by the
+  battery, and `append-log.mjs` derives its doors from it instead of restating them.
+- **Verified:** 692/692 tests (21 new for the gate's rules, driven through their failing cases
+  first) in Asia/Jerusalem and under `TZ=UTC` with the zone printed from inside the run · `tsc`
+  clean · **116/116 hook fire-tests, up from 103**. Two defects the new matrix cases caught before
+  merge: the eviction check read "no deletions" as "appended" and so accused the branch that
+  *creates* STATUS.md, and the merge door's whitespace tokeniser read two words of a `-m` commit
+  message as branch refs.
+
+---
+
 ## 2026-08-08 — Atlas is DEPLOYED (founder + supervisor): live on Railway at `www.timlul-ai.com`, replacing the old Timlul deploy
 
 - **The old product was retired, not paralleled — founder's call.** The existing Railway service

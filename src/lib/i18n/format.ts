@@ -8,7 +8,7 @@ const localeTag: Record<Locale, string> = { en: 'en-US', he: 'he-IL' }
 /**
  * ⚠ ATLAS RENDERS ISRAEL TIME, ALWAYS, FOR EVERY VIEWER.
  *
- * Founder decision 2026-08-09 (filed in `agent-memory/cross-cutting.md`): a call
+ * Founder decision 2026-08-09 (filed in `DECISIONS.md`): a call
  * at 10:00 Israel time reads 10:00 in Tel Aviv, New York and London. TASE and
  * Israeli issuers publish in Israel time, and a per-viewer value would let Home,
  * the calendar and the company page disagree about the same event.

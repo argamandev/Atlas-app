@@ -5,8 +5,8 @@ The old repo (Timlul, Railway) uses THIS SAME database.
 - Additive-only: CREATE TABLE / ADD COLUMN / CREATE INDEX are allowed. DROP/TRUNCATE/
   ALTER-destructive are hook-blocked. Renames = add new + backfill, never in-place.
 - Migrations: `supabase/migrations/YYYYMMDD_NNN_description.sql`; APPEND to
-  `agent-memory/cross-cutting.md` before applying; RLS on any user-facing table.
-- When unsure whether a change is destructive → it goes to the supervisor + founder first.
+  `COLLISIONS.md` before applying; RLS on any user-facing table.
+- When unsure whether a change is destructive → it goes to the founder first.
 - Supabase MCP auth: the token lives in the checkout's `.mcp.json`; after a token change,
   `/mcp` → reconnect (or restart the session). "Please provide a valid access token" can mean
   an EXPIRED/ROTATED token, not a missing one; `claude mcp list` health ✓ only proves the
@@ -51,8 +51,8 @@ bypasses RLS entirely and needs no policy; such a policy is granted to `public`,
 opens the table to everyone holding the anon key (which ships in the browser bundle). Two live
 examples on this DB — `profiles` and `access_requests` — are flagged by Supabase's own linter
 (`rls_policy_always_true`) and are the reason this paragraph exists. See the 2026-08-01 ALERT in
-`agent-memory/cross-cutting.md`; do not "fix" them without checking Timlul first, since it shares
-this database and may depend on them.
+`docs/archive/cross-cutting-2026-07-03--2026-08-10.md`; do not "fix" them without checking Timlul
+first, since it shares this database and may depend on them.
 **Not to be confused with a legitimate shared-corpus read:** `FOR SELECT TO authenticated USING
 (true)` on data that is deliberately public-to-members is correct and already shipped — migration
 `20260611_006` (`companies`, `scheduled_calls`) and `20260801_014` (`transcripts`, see
