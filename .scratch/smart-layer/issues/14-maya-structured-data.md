@@ -1,7 +1,7 @@
 # What does MAYA already provide structured?
 
 Type: research
-Status: open
+Status: claimed (2026-08-12, research agent)
 
 ## Question
 
