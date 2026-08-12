@@ -33,11 +33,13 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 frontier via `/wayfinder`). **The retrieval method is measured and decided** (ticket 07,
 founder-approved): hybrid + metadata prefix + company scoping on `gemini-embedding-001`,
 scope-size router, Chat gains a visible search mode for market-wide discovery; the standing
-quality gate lives at `scripts/retrieval-eval/`. The frontier now: the architecture ticket
-(08) is unblocked and decides the spec; founder tickets 06 (agent experience — note his ask
-to weigh Claude's managed agents service), 12 (speaker-edit authz), 13 (leftovers go/no-go),
-11 (Anthropic account); research 14 (MAYA structured data) and task 15 (discovery eval
-cases) feed 08 and the eval set.
+quality gate lives at `scripts/retrieval-eval/`. **The agent experience is decided** (ticket 06,
+founder-approved): mission-driven agents on **Anthropic's Managed Agents**, Hebrew-first,
+"Bring agent to life" flow, anchored findings + artifacts in a two-fidelity agent chat —
+runtime consequences folded into ticket 08, costs into 09. The frontier now: the
+architecture ticket (08) is unblocked and decides the spec; founder tickets 12
+(speaker-edit authz), 13 (leftovers go/no-go), 11 (Anthropic account); task 15 (discovery
+eval cases) feeds the eval set.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both belonging to the self-improving
 layer rather than to product work:** making `app.md`'s four meta-laws visible to the promotion

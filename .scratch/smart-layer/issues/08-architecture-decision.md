@@ -17,6 +17,17 @@ the foundation review's findings (ticket 03). The intake bug is the acceptance t
 design where a mid-conversation correction cannot reach the resolver is wrong by
 construction.
 
+**Settled inputs from ticket 06 (2026-08-12, founder-decided):** the agent runtime is
+**Anthropic's Managed Agents**, not the self-hosted worker sketched in ticket 02's proposed
+shape — that section of `research/02-agent-sdk.md` is superseded as a runtime (its tool/
+tenancy/memory/cost analysis stands). The architecture must decide: how our Supabase-backed
+tools reach a hosted session (custom-tool event round-trips vs tunneled MCP — tunnels are
+research preview); the Anthropic-side deletion policy (sessions/memory stores are retained
+server-side until we delete; findings/memory-of-record live in Supabase); where artifacts
+(files produced in the sandbox) are stored so they render in the agent's chat; how the
+reasoning stream reaches the UI (visible thinking + the reflection ticker); per-run budget
+caps; and Hebrew as the agent-facing language end to end.
+
 **Settled inputs from ticket 07 (2026-08-12, founder-approved):** the retrieval shape is
 decided — hybrid + deterministic prefix + company scoping on `gemini-embedding-001`, scope-
 size router (see `research/07-retrieval-eval-results.md`). New constraints from the founder's

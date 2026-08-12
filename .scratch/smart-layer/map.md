@@ -83,6 +83,15 @@ cost budgets approved, and the first slice fully specified.
   W1–W6 documented, incl. the Zim hearing carrying Tigbur's `company_id` (→ ticket 13) and
   all-zero timestamps (line id is the only citation anchor). Ticket 07 unblocked.
 
+- [The agent experience — the product magic, end to end](issues/06-agent-experience.md) —
+  the V1 experience is decided, in Hebrew: free-text mission, one mission per agent
+  (sector/company/both picker), "Bring agent to life" → the agent introduces its plan in
+  human vibes and asks to confirm; runs are mission-driven on **Anthropic's Managed Agents**
+  (founder decision, tradeoffs accepted; findings/memory-of-record stay in Supabase);
+  anchored findings + file artifacts delivered into the agent's two-fidelity chat (side
+  panel ↔ full page); visible/editable memory, visible reasoning, the reflection ticker;
+  Note Taker = post-call notes in V1, live mid-call notes V2, free-play agents V2. Runtime
+  consequences → ticket 08; cost question → ticket 09.
 - [What does MAYA already provide structured?](issues/14-maya-structured-data.md) — more than
   expected: every Israeli-track quarterly/annual report carries a public `.xbrl` (ISA ת930) with
   the 26 core financials (revenue→net profit, EPS, BS/CF totals, exact periods, ILS) verified by
@@ -100,8 +109,6 @@ cost budgets approved, and the first slice fully specified.
   embedded, anchored — now explicitly including dedup at birth (the `PyuMxe88e8g_live`
   lesson) and the structured-facts extraction step if ticket 14 makes it ours to build.
   Depends on the architecture ticket (08).
-- What agents do on LIVE calls (note-taking mid-call) and file-working abilities (Excel,
-  cross-referencing). Sharpens after the agent-experience grilling (06).
 - When and how user memory (cross-surface) joins agent memory.
 - Migration path: how the four existing front doors move onto the new standard without
   breaking what works today.
