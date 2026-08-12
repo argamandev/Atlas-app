@@ -85,6 +85,9 @@ evidence).
 
 - **Preprocessing**: Gemini 10.9M chars sent (two variants; a single production pass is
   ~half) ≈ $0.71 at the still-[unverified] $0.15/M; OpenAI 5.0M tokens metered ≈ $0.65.
+  Provenance: these are the run-1 console meters (the run that actually hit the APIs); the
+  committed final report shows 0/0 spend because by then every embedding was cache-served —
+  the committed artifact proves the rankings, the transcript carries the spend.
   Steady state: one-time corpus pass ≈ **$0.35**, incremental per new call ≈ 8–20K tokens ≈
   **well under a cent**. Cost is a non-issue at this scale; it was measured because the
   2026-08-09 brief makes cost-per-answer a design constraint.

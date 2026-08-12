@@ -8,9 +8,7 @@
       "anchors": [
         {
           "transcript": "hii8RivJK9I",
-          "lines": [
-            "L0008"
-          ]
+          "lines": ["L0008"]
         }
       ],
       "scope": "תיגבור"
@@ -23,9 +21,7 @@
       "anchors": [
         {
           "transcript": "hii8RivJK9I",
-          "lines": [
-            "L0009"
-          ]
+          "lines": ["L0009"]
         }
       ],
       "scope": "תיגבור"
@@ -37,9 +33,7 @@
       "anchors": [
         {
           "transcript": "hii8RivJK9I",
-          "lines": [
-            "L0040"
-          ]
+          "lines": ["L0040"]
         }
       ],
       "scope": "תיגבור"
@@ -51,9 +45,7 @@
       "anchors": [
         {
           "transcript": "PyuMxe88e8g",
-          "lines": [
-            "L0010"
-          ]
+          "lines": ["L0010"]
         }
       ],
       "scope": "תיגבור"
@@ -65,10 +57,7 @@
       "anchors": [
         {
           "transcript": "PyuMxe88e8g",
-          "lines": [
-            "L0030",
-            "L0031"
-          ]
+          "lines": ["L0030", "L0031"]
         }
       ],
       "scope": "תיגבור"
@@ -80,9 +69,7 @@
       "anchors": [
         {
           "transcript": "hii8RivJK9I",
-          "lines": [
-            "L0051"
-          ]
+          "lines": ["L0051"]
         }
       ],
       "scope": "תיגבור"
@@ -130,9 +117,7 @@
       "anchors": [
         {
           "transcript": "PyuMxe88e8g",
-          "lines": [
-            "L0010"
-          ]
+          "lines": ["L0010"]
         },
         {
           "document": "e231c676-23d6-4a86-8d02-ef0a6eafe416",
@@ -148,9 +133,7 @@
       "anchors": [
         {
           "transcript": "hii8RivJK9I",
-          "lines": [
-            "L0066"
-          ]
+          "lines": ["L0066"]
         }
       ],
       "scope": "תיגבור"
@@ -163,9 +146,7 @@
       "anchors": [
         {
           "transcript": "PyuMxe88e8g",
-          "lines": [
-            "L0021"
-          ]
+          "lines": ["L0021"]
         }
       ],
       "scope": "תיגבור"
@@ -182,7 +163,7 @@
       "mode": "company",
       "query": "מה המרווח האחרון של בז\"א?",
       "expectCompany": "בית זיקוק אשדוד",
-      "note": "MUST-PASS in the chosen design via the alias table (resolveIssuer('בז\"א') → null today). Here we measure the honest fallback: do embeddings/lexical alone bridge the בז\"א alias to בית זיקוק אשדוד content? Expected: no — which is the evidence FOR the alias table.",
+      "note": "MUST-PASS in the chosen design via the alias table (resolveIssuer('בז\"א') → null today). Measured 2026-08-12: unscoped retrieval DID bridge the alias (rank 1-2 in every design) — but only because this company's own filings happen to write בז\"א; that is luck of the corpus, not a mechanism, and the MUST-PASS still closes via the resolver + alias table. The scoped variants' rank 1 is tautological (the filter IS the answer) and proves nothing. Target company: בית זיקוק אשדוד = issuer 1361 (per case 13's proof); see the dated amendment under case 14 in the canonical eval-set file.",
       "scope": "בית זיקוק אשדוד"
     },
     {
@@ -200,12 +181,7 @@
       "anchors": [
         {
           "transcript": "2gXp90F8s6w",
-          "lines": [
-            "L0253",
-            "L0254",
-            "L0255",
-            "L0256"
-          ]
+          "lines": ["L0253", "L0254", "L0255", "L0256"]
         }
       ]
     },
@@ -227,9 +203,7 @@
       "anchors": [
         {
           "transcript": "PyuMxe88e8g",
-          "lines": [
-            "L0010"
-          ]
+          "lines": ["L0010"]
         }
       ],
       "scope": "תיגבור"

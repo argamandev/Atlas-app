@@ -14,4 +14,5 @@ contains and how the owner sees and edits it; how it reports; what trust and ver
 it shows (citations law applies). Grounded in the existing frontend contract
 (`src/lib/agents/data.ts`, the Agents page) and the SDK facts from ticket 02.
 
-**Notes - It is important we understand claude managed agents service and concider it as a service aswell.
+**Founder note (2026-08-12, verbatim):** "It is important we understand claude managed
+agents service and concider it as a service aswell."

@@ -146,30 +146,25 @@ async function loadCorpus() {
   if (!url || !key) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY')
   const db = createClient(url, key, { auth: { persistSession: false } })
 
-  const { data: companies, error: cErr } = await db.from('companies').select('id,name')
-  if (cErr) throw cErr
-  const companyName = Object.fromEntries(companies.map((c) => [c.id, c.name]))
-
-  const { data: transcripts, error: tErr } = await db
-    .from('transcripts')
-    .select('id,company_id,formatted_data')
-  if (tErr) throw tErr
-
-  const { data: docs, error: dErr } = await db.from('company_documents').select('id,company_id,title')
-  if (dErr) throw dErr
-
-  const pages = []
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await db
-      .from('document_pages')
-      .select('document_id,page_no,text')
-      .order('document_id')
-      .order('page_no')
-      .range(from, from + 999)
-    if (error) throw error
-    pages.push(...data)
-    if (data.length < 1000) break
+  // Every table is paged: Supabase caps unranged selects at 1000 rows, and a standing gate
+  // that silently measures a truncated corpus would report green on less than it claims (M1).
+  async function pagedSelect(table, columns, orderCols) {
+    const rows = []
+    for (let from = 0; ; from += 1000) {
+      let q = db.from(table).select(columns)
+      for (const col of orderCols) q = q.order(col)
+      const { data, error } = await q.range(from, from + 999)
+      if (error) throw error
+      rows.push(...data)
+      if (data.length < 1000) return rows
+    }
   }
+
+  const companies = await pagedSelect('companies', 'id,name', ['id'])
+  const companyName = Object.fromEntries(companies.map((c) => [c.id, c.name]))
+  const transcripts = await pagedSelect('transcripts', 'id,company_id,formatted_data', ['id'])
+  const docs = await pagedSelect('company_documents', 'id,company_id,title', ['id'])
+  const pages = await pagedSelect('document_pages', 'document_id,page_no,text', ['document_id', 'page_no'])
 
   const chunks = []
   const stats = { transcripts: [], docChars: 0 }
@@ -506,8 +501,13 @@ async function main() {
     // The full Design B/C from research/01 §6/§8: when the query resolves to a company
     // (via the decided alias table), retrieval FILTERS by company_id instead of hoping the
     // embedding lands. cases.json carries `scope` = the resolved company name; a case with
-    // no resolvable scope ranks globally. Post-filtering the ranking is equivalent to
-    // pre-filtering the corpus (relative order within scope is unchanged).
+    // no resolvable scope ranks globally. For the dense channel, post-filtering the global
+    // ranking is exactly pre-filtering the corpus (relative order within scope is
+    // unchanged). For the RRF-fused designs it is an APPROXIMATION: RRF weights here come
+    // from GLOBAL ranks, while a production pre-filtered hybrid would fuse scope-local
+    // ranks and can order differently. The scoped-hybrid numbers are therefore a floor-ish
+    // estimate, not an exact simulation — rerun with true pre-filtering before treating
+    // small scoped-vs-scoped deltas as real.
     const scoped = (inner) => (q, id, c) => {
       const ranked = inner(q, id)
       return c?.scope ? ranked.filter(({ i }) => chunks[i].company?.includes(c.scope)) : ranked
