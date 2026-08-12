@@ -42,11 +42,11 @@ No tool-calling and no agent loop exist anywhere — both chat routes are single
 
 ## 3. The corpus
 
-- **`transcripts`** (60 rows; `id` is TEXT): the chunkable unit is
+- **`transcripts`** (5 rows since the 2026-08-12 cleanup; `id` is TEXT): the chunkable unit is
   `formatted_data.sections[].lines[]` — every line already carries a stable id (`L0001`) and
   timestamp. Shared-read RLS (`transcripts_shared_read`, migration `20260801_014`); `user_id`
-  still load-bearing for writes. **Only 5 of 60 rows carry a `company_id`** — the other 55
-  are Timlul-era and the founder ruled 2026-08-12 they are exported then deleted (ticket 04).
+  still load-bearing for writes. **All 5 remaining rows carry a `company_id`** — the 55
+  Timlul-era unattributed rows were exported then deleted 2026-08-12 (ticket 04, resolved).
 - **`company_documents`** (23) + **`document_pages`** (2,549; `document_id, page_no, text`):
   page-anchored plain text — the cheapest thing in the repo to embed. `company_documents`
   has NO publication-date column (`created_at` = ingestion time, a different fact).

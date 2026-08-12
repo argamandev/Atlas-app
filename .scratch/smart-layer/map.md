@@ -62,6 +62,11 @@ cost budgets approved, and the first slice fully specified.
   construction, and vectors are a new subsystem, not a scorer swap; agents need append-only
   turns, not the whole-jsonb thread PUT. Live authz defect in speaker edits → ticket 12.
   Full reports: `research/03-foundation-review.md`.
+- [Corpus cleanup — only what serves Atlas](issues/04-corpus-cleanup.md) — the 55 unattributed
+  Timlul transcripts are exported (verified, `Desktop\Atlas-cold-storage\`) and deleted; 5
+  attributed remain, app verified clean eyes-on, zero collateral. Leftovers inventoried into a
+  per-class go/no-go menu for the founder (ticket 13); iron rule #1's premise is stale — the DB
+  is no longer shared with anything, it IS Atlas production.
 
 ## Not yet specified
 

@@ -49,3 +49,4 @@ not in the last few days", which is a different sentence.
 [2026-08-12] Era opened. The fleet's `cross-cutting.md` is retired to the archive above; this file
              replaces it, scoped to the three collisions named at the top and nothing else.
 [2026-08-12] SMOKE — append door verified after the move to the repo root.
+[2026-08-12] DATA DELETE executed on shared DB (ticket 04, founder-decided): 55 unattributed transcripts (company_id IS NULL) deleted after verified export to Desktop/Atlas-cold-storage/timlul-transcripts-2026-08-12. 5 attributed rows remain. Bites: any session assuming the Timlul-era transcript rows still exist.
