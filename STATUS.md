@@ -36,8 +36,10 @@ All three tickets are built. `npm run ship:gate` now checks what a merge owes �
 rewrite, the progress entry, closed notes filed as history, a recurrence answer per review
 finding — and `git merge` onto main runs it, so it does not depend on anyone reading `/ship`.
 
-**What the founder still owes this branch:** read the five always-on documents end to end and time
-it. Over ten minutes means the set has regrown whatever the token budget says, and that judgement
-is his, not a script's (`/ship` § The founder's read).
+**Two founder calls before it merges**, both written up in the ticket under
+`docs/archive/scratch/`. Read the five always-on documents end to end and time it — over ten
+minutes means the set regrew whatever the budget says. And decide whether `app.md`'s four
+meta-laws become declared laws: the promotion ritual cannot see them, and they are what the code
+actually recurs against. It costs tokens the budget does not have and raises the unenforced count.
 
 Not yet started: the smart layer above. Do not begin it on this branch.

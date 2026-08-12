@@ -139,6 +139,21 @@ either one.
   deliberately-unimported copy honest — the hook must not gain an import that could
   crash it, because a crashed hook exits 1 and the harness reads that as "allow".
 
+## The one gap this ticket could not close — a founder call
+
+**The promotion ritual reaches the marker-form laws and not the meta-laws, and the meta-laws are
+what the code actually recurs against.** Six of this branch's own review findings repeat M3.2
+(give the choke point the fact, never a proxy) and M1 (a green signal proves only what it
+measured); none of them could be recorded as a recurrence, because `**M1 ·` is not `**LAW ·` and
+the parser cannot see it. The gate refused the record rather than accept a name it could not
+resolve, which is the mechanism telling the truth about its own reach.
+
+Closing it costs two things that are his to spend, which is why it is not done here:
+- roughly **140 tokens against 107 spare**, so `TOKEN_BUDGET` has to be raised deliberately —
+  ticket 02 already left the budget as his decision;
+- the unenforced count **rises by about three**, because these laws are genuinely unenforced and
+  are currently invisible rather than clean. Honest direction, but it should be chosen.
+
 **Left open, deliberately.** The tier comparison sees only what `app.md` declares —
 none < partial < mechanism, plus the hatch. ADR-0002's finer ladder (impossible → test →
 hook → ritual gate) is invisible to it, so a mechanism→mechanism promotion is judged by
