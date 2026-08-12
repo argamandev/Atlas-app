@@ -45,11 +45,15 @@ ordered by best chunk); pass = all lead companies within the top 5 of that order
 `anchorRank` is recorded as answer-layer evidence, never gated — a lead found via a
 different-but-relevant chunk still counts.
 
-**Measured (run `scripts/retrieval-eval/results/run-2026-08-12T22-01-26.md`).** The decided
-design **C-gemini passes both** (19: all leads @ company-rank 2; 20: @ rank 4). Dense-only
-B-gemini FAILS case 20 (בתי זיקוק at rank 7 — the lexical channel is what rescues it, more
-evidence for hybrid); C-openai fails 19, B-openai fails both. The discovery gate
-discriminates the same way the pinpoint set did in ticket 07.
+**Measured (run `scripts/retrieval-eval/results/run-2026-08-12T23-29-52.md`).** The decided
+design **C-gemini passes both** (19: all leads @ company-rank 2; 20: @ rank 4). Quoting the
+run's printed verdicts: "**B-gemini**: FAIL (case 20)" (בתי זיקוק at company-rank 7 — the
+lexical channel is what rescues it in the hybrid, more evidence for that design);
+"**B-openai**: FAIL (case 20)" (it passes 19 only exactly at the gate, rank 5);
+"**C-openai**: FAIL (case 19)". The discovery gate discriminates the same way the pinpoint
+set did in ticket 07. (The report now prints these per-design verdict lines precisely so
+prose quotes them instead of re-deriving pass/fail from the rank table — the first draft of
+this Answer got B-openai wrong doing exactly that; caught in cold review.)
 
 **Side observation, not this ticket's scope:** the corpus has grown since the 08-12 run
 (26 docs / 3,031 pages; בז"א filings + Tigbur quarterlies), so this run's pinpoint numbers

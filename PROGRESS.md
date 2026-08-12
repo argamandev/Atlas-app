@@ -17,10 +17,12 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   (ticket 08's leads answer); pass = all lead companies within the top-5 company order; per-lead
   anchor rank recorded as evidence, never gated.
 - **Measured: the decided C-gemini design passes both** (all leads @ company-rank 2 and 4);
-  dense-only B-gemini fails the AI case (the lexical channel rescues בתי זיקוק from rank 7 to 4 —
-  fresh evidence for hybrid) and both OpenAI variants fail — the same discrimination that chose
-  the design in ticket 07.
-- **Verified:** full harness run committed (`scripts/retrieval-eval/results/run-2026-08-12T22-01-26.md`
+  quoting the run's printed verdicts, "B-gemini: FAIL (case 20)" (the lexical channel rescues
+  בתי זיקוק from company-rank 7 to 4 — fresh evidence for hybrid), "B-openai: FAIL (case 20)",
+  "C-openai: FAIL (case 19)" — the same discrimination that chose the design in ticket 07. The
+  report prints those verdict lines by design: prose quotes them, never re-derives from ranks
+  (a hand-derived "fails both" was caught in cold review).
+- **Verified:** full harness run committed (`scripts/retrieval-eval/results/run-2026-08-12T23-29-52.md`
   + debug top-20s). No app code in the diff — `/verify-app` would measure surfaces this branch
   never touched. Corpus note: 26 docs / 3,031 pages now, so pinpoint numbers are not comparable
   to the 08-12 report; within-run design comparison is what the gate measures.

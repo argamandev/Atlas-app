@@ -140,7 +140,8 @@ cost budgets approved, and the first slice fully specified.
   two founder-worded discovery cases live as class G in the eval set (מילואים costs, AI),
   leads anchor-verified, `mode: "discovery"` scoring in the harness (pass = all lead
   companies in the diversified top-5); measured: the decided C-gemini design passes both,
-  dense-only and OpenAI variants fail — search mode's quality is now gated, not assumed.
+  the dense-only and OpenAI designs each fail a case — search mode's quality is now
+  gated, not assumed.
 
 ## Not yet specified
 

@@ -472,6 +472,9 @@ function firstAnchorRank(ranked, chunks, anchors) {
 const DISCOVERY_PASS_K = 5
 
 function scoreDiscovery(ranked, chunks, c) {
+  // A malformed case must fail loudly: leads:[] would score rank 0 and silently pass
+  // every design — a green signal that measured nothing (M1).
+  if (!c.leads?.length) throw new Error(`case ${c.id}: mode "discovery" requires a non-empty leads[]`)
   const order = [] // distinct companies by best chunk rank
   const seen = new Set()
   for (const { i } of ranked) {
@@ -654,6 +657,18 @@ async function main() {
         return `${fmtRank(r.rank)} ${r.rank <= DISCOVERY_PASS_K ? '✓' : '✗'}`
       })
       lines.push(`| ${c.id} | ${cells.join(' | ')} |`)
+    }
+    lines.push('')
+    // The quotable verdict, printed by the measurement itself. Prose about a design's
+    // discovery result quotes one of these lines verbatim — re-deriving pass/fail from
+    // the rank table by hand is how a wrong "fails both" got written once (M1).
+    lines.push('Design verdicts (quote these, never re-derive from ranks):')
+    lines.push('')
+    for (const name of Object.keys(designs)) {
+      const failed = discovery.filter((c) => results[name][c.id].rank > DISCOVERY_PASS_K)
+      lines.push(
+        `- **${name}**: ${failed.length ? `FAIL (case ${failed.map((c) => c.id).join(', ')})` : 'PASS (all discovery cases)'}`
+      )
     }
     lines.push('')
     for (const c of discovery) {
