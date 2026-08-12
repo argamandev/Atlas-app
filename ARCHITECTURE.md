@@ -439,6 +439,11 @@ run a file cannot tell you it is missing.
   running them against live data is the only gate they get.
 - **Coordination:** `append-log.mjs` — the sanctioned append-only door to `COLLISIONS.md`
   (allow-listed in `.claude/settings.json`; ad-hoc shell appends are classifier-blocked).
+- **`retrieval-eval/`:** the standing retrieval quality gate (smart-layer ticket 07) —
+  `run.mjs` scores candidate retrieval designs against `docs/eval/retrieval-eval-set.md`
+  (mirrored with resolved anchors in `cases.json`) on the live corpus, entirely in-process
+  (brute-force cosine + in-memory BM25; embeddings cached to git-ignored `cache/`). Results
+  land in `results/`. Every future retrieval change is judged by it — see its README.
 - **Build/assets:** `install-yt-dlp.js` (runs in `npm run build`), `prep-brand-assets.mjs`
   (regenerates `public/brand/` from the logo — documented in `BrandWordmark`).
 - **`fixtures/`:** the ampa gold set + `recall-spike.transcript.json` (load-bearing: demo call +
