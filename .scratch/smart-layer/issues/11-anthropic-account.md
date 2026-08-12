@@ -1,7 +1,7 @@
 # Anthropic account + API key for Atlas
 
 Type: task
-Status: open
+Status: claimed
 
 ## Question
 
