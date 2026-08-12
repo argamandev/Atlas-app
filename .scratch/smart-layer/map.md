@@ -121,6 +121,13 @@ cost budgets approved, and the first slice fully specified.
   the general law is filed in `docs/DATA-MODEL.md` (shared-corpus writes = admin curation,
   personal rows = owner-only, curation→derived-data propagation the one exception); the
   live hole is fixed now as its own small mission, with non-admin→403 route tests.
+- [Timlul leftovers + iron rule #1 — founder go/no-go](issues/13-leftovers-go-no-go.md) —
+  all-go 2026-08-13: drop the 5 empty tables, delete orphaned storage + dormant correction
+  code, Zim hearing exported-then-deleted (ZIM isn't a TASE issuer; re-attribution impossible);
+  iron rule #1 reworded to "Supabase is Atlas PRODUCTION" (mechanisms unchanged, done);
+  `profiles`/`access_requests` policy narrowing scheduled; PUT `/api/transcripts/[id]` ruled
+  admin-only (curation, closing the open-findings question). Execution = three small missions
+  listed in the Answer, outside this map.
 - [What does MAYA already provide structured?](issues/14-maya-structured-data.md) — more than
   expected: every Israeli-track quarterly/annual report carries a public `.xbrl` (ISA ת930) with
   the 26 core financials (revenue→net profit, EPS, BS/CF totals, exact periods, ILS) verified by

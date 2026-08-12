@@ -73,6 +73,6 @@ always-on set is append-only.
 ### Collision
 
 The narrow set of things two simultaneous sessions can genuinely break for each
-other: a database migration (Supabase is shared with production Timlul), a shared
+other: a database migration (Supabase is Atlas production), a shared
 type, a design token. Collisions are the only thing sessions coordinate on. Everything
 else they coordinate through `main`.

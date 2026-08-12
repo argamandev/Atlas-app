@@ -33,9 +33,11 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 decisions are made, founder-approved, gists + full records on the map: retrieval (07), agent
 experience (06), architecture (08), cost budgets proposed (09), Anthropic key live (11),
 speaker edits = admin-only corpus curation (12 — the write-authorization law is in
-`docs/DATA-MODEL.md`). The frontier now: founder ticket 13 (Timlul leftovers go/no-go),
-task 15 (discovery eval cases), the **ingestion standard** (16) and **MAYA filings at
-scale** (17). The spec (ticket 10) waits on 16/17 and closes the map.
+`docs/DATA-MODEL.md`), Timlul leftovers all-go (13 — iron rule #1 now reads "Atlas
+PRODUCTION"; three small execution missions listed in its Answer: cleanup, policy
+narrowing, PUT admin-gate). The frontier now: task 15 (discovery eval cases), the
+**ingestion standard** (16) and **MAYA filings at scale** (17). The spec (ticket 10)
+waits on 16/17 and closes the map.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
 product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s

@@ -28,7 +28,7 @@ grounded in whatever the user is looking at. Full picture: `docs/VISION.md`.
 
 ## Iron rules
 
-1. **Supabase is SHARED with the old repo's production Timlul.** Additive-only migrations,
+1. **Supabase is Atlas PRODUCTION — live users' data.** Additive-only migrations,
    appended to `COLLISIONS.md` before applying. Destructive SQL is hook-blocked at three doors —
    `Bash`, `mcp__supabase__.*`, `mcp__railway.*`; matchers are explicit, so a new door needs one.
 2. **main is always working + pushed.** Branch per mini-feature; small labeled commits; test

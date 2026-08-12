@@ -1,6 +1,6 @@
-# Database law — Supabase shared with production
+# Database law — Supabase is Atlas production
 
-The old repo (Timlul, Railway) uses THIS SAME database.
+Live users' data (www.timlul-ai.com); a mistake here is not local.
 
 - Additive-only: CREATE TABLE / ADD COLUMN / CREATE INDEX are allowed. DROP/TRUNCATE/
   ALTER-destructive are hook-blocked. Renames = add new + backfill, never in-place.
@@ -22,8 +22,8 @@ role, summary_instructions, created_at`) and `profiles.role` is what `requireAdm
 **Do not invent a second users table.** Ownership hangs off `auth.users(id)`.
 
 Every new user-facing table (workspaces, projects, agents, embeddings, agent runs …) gets ALL
-FOUR of these at `CREATE TABLE`, never bolted on later — this database is shared with production
-Timlul and additive-only, so retrofitting ownership means a backfill dance on a live DB:
+FOUR of these at `CREATE TABLE`, never bolted on later — this database is live production
+and additive-only, so retrofitting ownership means a backfill dance on a live DB:
 
 1. `user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE` — **the FK, not just a
    uuid column.** Without it `user_id` is a uuid that merely looks like a user.
@@ -51,8 +51,8 @@ bypasses RLS entirely and needs no policy; such a policy is granted to `public`,
 opens the table to everyone holding the anon key (which ships in the browser bundle). Two live
 examples on this DB — `profiles` and `access_requests` — are flagged by Supabase's own linter
 (`rls_policy_always_true`) and are the reason this paragraph exists. See the 2026-08-01 ALERT in
-`docs/archive/cross-cutting-2026-07-03--2026-08-10.md`; do not "fix" them without checking Timlul
-first, since it shares this database and may depend on them.
+`docs/archive/cross-cutting-2026-07-03--2026-08-10.md`; their narrowing is founder-approved
+(2026-08-13, ticket 13) as its own small mission — do not fold it into unrelated work.
 **Not to be confused with a legitimate shared-corpus read:** `FOR SELECT TO authenticated USING
 (true)` on data that is deliberately public-to-members is correct and already shipped — migration
 `20260611_006` (`companies`, `scheduled_calls`) and `20260801_014` (`transcripts`, see

@@ -24,7 +24,10 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   non-admin OWNER can rewrite speaker attribution that the PATCH gates now reserve for admins
   (docs/DATA-MODEL.md, "Writes to the shared corpus are CURATION"). Not exposed today: queried
   2026-08-13, 3 corpus rows are owned by the one admin and 2 are ownerless (→ admin-only).
-  The decision it needs is the founder's: does a transcript's OWNER keep full-content edit
-  rights on a shared-corpus row (then the curation law needs an owner-exception stated), or
-  does the PUT become admin-only / field-restricted too? Natural home: ticket 13's menu or
-  the smart-layer spec (ticket 10).
+  **DECIDED 2026-08-13 (ticket 13): the PUT becomes admin-only** — full-content transcript
+  edits are curation like speaker renames, no owner-exception. Awaiting execution as a small
+  mission: `requireAdmin` on the PUT + non-admin→403 route tests. Closes when that lands.
+- **`profiles`/`access_requests` `USING (true)` policies narrowing is approved and scheduled**
+  (2026-08-13, ticket 13 — the "check Timlul first" blocker dissolved with the corpus cleanup).
+  Its own small mission through the DDL gate (DROP/ALTER POLICY is hook-blocked): migration
+  file → review → apply. See db.md's ownership-law section for the banned shape.
