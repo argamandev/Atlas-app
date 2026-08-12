@@ -118,6 +118,27 @@ evidence).
 pgvector installation + the `document_embeddings` migration are now justified by
 measurement and go through the DDL gate as designed (file → review → COLLISIONS.md → apply).
 
+## Founder amendments (2026-08-12 — approved together with the recommendation)
+
+Filed verbatim in `DECISIONS.md`; folded into the shape the architecture ticket (08) builds on:
+
+1. **Structured facts for structured reports.** TASE filings repeat the same known numerics
+   (revenue, profits, EBITDA, equity, dividend…) in a known skeleton — extract them into a
+   structured lookup at ingestion so numeric questions become lookups, not searches. This
+   targets exactly the eval's two worst case classes (slide/table pages 08 and 10).
+   Feasibility gates: what MAYA already provides structured (ticket 14) and extraction
+   quality (W5). Narrative questions stay on the measured hybrid retrieval.
+2. **@company mentions.** Explicit scoping in the chat input, autocompleted from the alias
+   table — the resolver's cleanest input and the most robust fix for the case-13 class of
+   defect (a correction is a tap, not a parse).
+3. **Chat gets a visible search mode; discovery is the general case.** Broad market/sector
+   questions ("find leads") live in Chat as a mode that is deterministic (@ → pinpoint, no
+   resolvable company → search), always shown, one tap to switch — never a hidden classifier
+   guess. Search answers are leads: grouped per company, best evidence + citation each —
+   which requires per-company diversification of unscoped top-k (one company must not
+   monopolize the top-20, as measured happened on case 04). Workspace and Ask Atlas keep
+   their anchored-context roles.
+
 ## What this did NOT measure (each is one harness rerun away)
 
 - End-to-end answer quality (retrieval-rank is the proxy; the eval set's pass rule).

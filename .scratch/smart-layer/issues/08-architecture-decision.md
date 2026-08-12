@@ -2,7 +2,7 @@
 
 Type: grilling
 Status: open
-Blocked by: 01, 02, 03
+Blocked by: 01, 02, 03, 07 (all resolved — this ticket is on the frontier)
 
 ## Question
 
@@ -16,3 +16,11 @@ law. Constrained by: citations-as-law, cost-as-design-constraint, one brain (Cla
 the foundation review's findings (ticket 03). The intake bug is the acceptance test: a
 design where a mid-conversation correction cannot reach the resolver is wrong by
 construction.
+
+**Settled inputs from ticket 07 (2026-08-12, founder-approved):** the retrieval shape is
+decided — hybrid + deterministic prefix + company scoping on `gemini-embedding-001`, scope-
+size router (see `research/07-retrieval-eval-results.md`). New constraints from the founder's
+amendments: Chat carries a **visible search mode** (deterministic @-mention scoping, leads-
+style per-company-diversified answers — never a hidden classifier guess); a **structured-
+facts lookup layer** for filings' known numerics (feasibility via ticket 14); the alias
+table is the first build item.
