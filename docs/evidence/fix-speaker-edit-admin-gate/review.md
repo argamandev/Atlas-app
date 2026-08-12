@@ -1,5 +1,11 @@
 # Cold review — `fix/speaker-edit-admin-gate` (atlas-reviewer, 2026-08-13)
 
+REVIEWED: a226da3
+
+The only commits after that sha are the round-2 NIT applied exactly as its finding prescribed
+(one stated-limits comment line in `apiFetchDiscipline.test.ts`, no code-path change; the test
+re-run green) and this record itself.
+
 Two rounds. Round 1 returned CHANGES (four findings, all fixed — see
 `2026-08-13-verification.md` for what each changed); round 2 re-reviewed the fixed branch.
 Round 2's verdict, verbatim, is the record of note. Round 2's one NIT was applied on the
