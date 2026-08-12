@@ -109,11 +109,14 @@ silently, and silence here reads as "RLS-safe", so re-read the list, never just 
 → `#supabase-admin-bypasses-rls`, `#authn-is-not-authz`
 
 **LAW · Gating an endpoint changes every caller's ERROR path, not just its happy path.**
-**ENFORCED** none — nothing connects a route's gating to what its callers do with a 401, and the
-boundary test stops at the route. The sweep below is the only guard.
-**VERIFY** `git grep` the endpoint, open every caller, answer "what does this do with a 401?" —
-revert optimistic state, or send the user to sign in (`loginRedirectTarget`). Never invent a cause:
-a "model unavailable" banner for an expired session retries forever. → `#gating-changes-error-paths`
+**ENFORCED** partially — `src/lib/apiFetchDiscipline.test.ts` (2026-08-13, bought by this law's
+second occurrence: the silent-success speaker-rename toast, after the 401-forever finish poll)
+fails the battery for any direct `/api` fetch whose response nothing reads, over a per-file
+ratchet of stated fire-and-forget exceptions. It proves the response is LOOKED AT, nothing more.
+**VERIFY** WHICH reaction is right is still yours: open every caller, answer "what does this do
+with a 401?" — revert optimistic state, or send the user to sign in (`loginRedirectTarget`).
+Never invent a cause: a "model unavailable" banner for an expired session retries forever.
+→ `#gating-changes-error-paths`
 
 **LAW · PUT `/api/transcripts/[id]` validation stays lenient** (`.passthrough()`, `role: z.string()`)
 — legacy rows carry `role: "unknown"`. Do not tighten it to an enum.

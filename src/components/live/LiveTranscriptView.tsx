@@ -44,6 +44,7 @@ import { findMatches } from '@/lib/live/search'
 import { createQuote } from '@/lib/api/quotes'
 import type { ChatSnip } from '@/lib/api/chat'
 import { formatClock, formatDate } from '@/lib/i18n/format'
+import { loginRedirectTarget } from '@/lib/auth/gate'
 import type { LiveCall } from '@/lib/live/loadCall'
 
 type Toast = { text: string; action?: { label: string; href: string } }
@@ -56,10 +57,15 @@ export function LiveTranscriptView({
   availableFacets,
   backHref,
   documentSources,
+  isAdmin,
 }: {
   call: LiveCall
   initialSeek?: number
   initialSegmentId?: string
+  /** Speaker/diarization edits are corpus CURATION, admin-only (docs/DATA-MODEL.md,
+   *  founder decision 2026-08-13). The server routes 403 non-admins; this prop hides
+   *  the affordance so a non-admin never sees a button that can only fail. */
+  isAdmin?: boolean
   /** The catalog opens a period in Multi — two documents side by side is the
    *  thing that distinguishes Atlas from downloading a PDF off MAYA. */
   initialView?: 'single' | 'multi'
@@ -202,7 +208,7 @@ export function LiveTranscriptView({
   }, [chat.open, player.setChatOpen])
   // diarization edit mode (Feature 1) — finished, real transcripts only
   const [editMode, setEditMode] = useState(false)
-  const canEdit = call.companyId != null && call.id !== 'demo'
+  const canEdit = (isAdmin ?? false) && call.companyId != null && call.id !== 'demo'
 
   const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
   const name = locale === 'en' ? (call.companyNameEn ?? call.companyName) : call.companyName
@@ -286,11 +292,19 @@ export function LiveTranscriptView({
   async function renameSpeaker(_segmentId: string, speakerId: string, oldName: string, newName: string) {
     if (call.id === 'demo') return
     try {
-      await fetch(`/api/transcripts/${call.id}/speakers`, {
+      const res = await fetch(`/api/transcripts/${call.id}/speakers`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ speakerId, name: newName, oldName }),
       })
+      // A refused write must not toast "saved". 401 = session expired mid-edit: send them to
+      // sign in and back (viewOrganized's shape in LiveSession) — never a toast that invents a
+      // cause. Anything else surfaces as the localized error, not the server's raw English.
+      if (res.status === 401) {
+        window.location.href = loginRedirectTarget(window.location.pathname, window.location.search)
+        return
+      }
+      if (!res.ok) throw new Error(dict.common.error)
       router.refresh()
       setToast({ text: dict.common.save })
     } catch (err) {
@@ -413,7 +427,12 @@ export function LiveTranscriptView({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ fromWord, toWord, speakerId }),
       })
-      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? 'failed')
+      // Same error contract as renameSpeaker above: 401 → sign in and return; else localized.
+      if (res.status === 401) {
+        window.location.href = loginRedirectTarget(window.location.pathname, window.location.search)
+        return
+      }
+      if (!res.ok) throw new Error(dict.common.error)
       router.refresh()
       setToast({ text: dict.common.save })
     } catch (err) {

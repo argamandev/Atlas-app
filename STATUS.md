@@ -4,7 +4,7 @@
 If you are tempted to add a dated entry, it belongs in `PROGRESS.md` or `docs/case-history/`.
 Anything here that has landed gets removed, not struck through.
 
-_Last rewritten: 2026-08-12_
+_Last rewritten: 2026-08-13_
 
 ## Where the product is
 
@@ -28,25 +28,16 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 
 ## What is being worked on right now
 
-**The smart layer** — chat, workspace and agents as one piece of work, via the wayfinder map
-(`.scratch/smart-layer/map.md`; read `foundations.md` beside it before any ticket; work the
-frontier via `/wayfinder`). The three big decisions are made, founder-approved, gists on the
-map: **retrieval** (ticket 07 — hybrid + company scoping on `gemini-embedding-001`, eval gate
-at `scripts/retrieval-eval/`), **the agent experience** (ticket 06 — mission-driven agents on
-Anthropic's Managed Agents, Hebrew-first), and **the architecture** (ticket 08 — one brain,
-two runtimes; one tool registry with web search on every surface; citations verified at
-write; rewrite order Chat → Ask Atlas → Workspace, agents in parallel). **Cost budgets are
-researched** (ticket 09 — a chat answer ≈ $0.05, an agent run ≈ $0.50, ~$32/fund/mo;
-budgets PROPOSED, founder veto/approve rides with the spec). **The Anthropic key is live**
-(ticket 11 — verified with a metered Sonnet-5 call; org on the Evaluation tier, 80K OTPM
-is the prototyping constraint; Hebrew measured at 1.43 chars/token, ~47% over the old
-estimator — the spec recomputes ticket 09's arithmetic). The frontier now: the
-**ingestion standard** (16) and **MAYA filings at scale** (17, cost inputs ready);
-founder tickets 12 (speaker-edit authz), 13 (leftovers go/no-go); task 15
-(discovery eval cases). The spec (ticket 10) waits on 16/17.
+**The smart layer** — via the wayfinder map (`.scratch/smart-layer/map.md`; read
+`foundations.md` beside it before any ticket; work the frontier via `/wayfinder`). The big
+decisions are made, founder-approved, gists + full records on the map: retrieval (07), agent
+experience (06), architecture (08), cost budgets proposed (09), Anthropic key live (11),
+speaker edits = admin-only corpus curation (12 — the write-authorization law is in
+`docs/DATA-MODEL.md`). The frontier now: founder ticket 13 (Timlul leftovers go/no-go),
+task 15 (discovery eval cases), the **ingestion standard** (16) and **MAYA filings at
+scale** (17). The spec (ticket 10) waits on 16/17 and closes the map.
 
-**Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both belonging to the self-improving
-layer rather than to product work:** making `app.md`'s four meta-laws visible to the promotion
-ritual, and shrinking `app.md` by cutting its 10 mechanism-backed laws to pointers at their tests.
-Founder's sequencing — the product comes first. Still unspent: read the five always-on documents
-end to end and time it; over ten minutes means the set regrew whatever the budget says.
+**Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
+product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s
+mechanism-backed laws to pointers at their tests — the set sits at its 9,000-token budget edge,
+so the next always-on addition pays for itself by that shrink first.

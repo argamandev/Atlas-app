@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { AppPage } from '@/components/app/AppPage'
 import { LiveTranscriptView } from '@/components/live/LiveTranscriptView'
 import { getCompany } from '@/lib/db/companies'
+import { getCurrentUser } from '@/lib/auth'
 import { listCompanyTranscripts } from '@/lib/transcripts'
 import { loadCompletedCall, type LiveCall } from '@/lib/live/loadCall'
 import { listDisclosures } from '@/lib/maya/disclosures'
@@ -101,6 +102,7 @@ export default async function PeriodPage({
     <AppPage>
       <LiveTranscriptView
         call={call}
+        isAdmin={(await getCurrentUser()).isAdmin}
         initialView="multi"
         availableFacets={availableFacets}
         backHref={`/app/company/${params.id}?tab=reports&year=${year}&period=${encodeURIComponent(period)}`}

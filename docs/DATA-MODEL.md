@@ -41,7 +41,19 @@ Ticket 12 of the smart-layer map settled the write side of the table above (his 
 Every new smart-layer route that writes is judged against these three lines. The routes that got
 this wrong (`PATCH /api/transcripts/[id]/speakers`, `.../diarization`) passed the auth boundary
 test while missing the authorization check — the boundary test proves a user was *resolved*, not
-that the right user was *allowed* — so each curation route carries its own non-admin → 403 test.
+that the right user was *allowed*. The mechanism is `src/lib/curationAuthz.test.ts`, in two
+halves: a unit test executes every branch of the gate's decision (`curationVerdict` — including
+non-admin → forbidden → 403), and a structural guard fails the battery unless every listed
+curation route delegates to `requireAdmin`. The IO seam between them (resolving the caller,
+reading `profiles.role`) is structural-only — verified by hand and by the anonymous-401 probe,
+not by a test that executes it.
+
+**Known standing bypass, recorded 2026-08-13, decision owed:** `PUT /api/transcripts/[id]` is
+owner-or-admin and replaces the whole `formatted_data` — so a non-admin OWNER can still rewrite
+speaker names on a shared transcript through the PUT, around the admin-only PATCH gates.
+Queried 2026-08-13: of the 5 corpus rows, 3 are owned by the one admin and 2 have no owner
+(owner-equality fails → admin-only), so no non-admin holds the PUT on any current row; the
+founder call this needs is in `docs/open-findings.md`.
 
 ## Why this matters (it is not a preference)
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRequestUserId, unauthorized } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 import { loadCompletedCall } from '@/lib/live/loadCall'
 import { saveSpeakerEdits } from '@/lib/db/transcripts'
 import { flattenWords, type SpeakerEdits } from '@/lib/live/syncEngine'
@@ -8,13 +8,14 @@ import { flattenWords, type SpeakerEdits } from '@/lib/live/syncEngine'
 // speaker (Feature 1). Recomputes the FULL boundary overlay from the current segmentation
 // (which already reflects any prior edits), so the result is idempotent and self-consistent.
 //
-// Had NO auth of any kind until 2026-08-03: `saveSpeakerEdits` writes through supabaseAdmin
-// (bypasses RLS), so an anonymous request could re-diarize any transcript by id — and because
-// this handler REBUILDS the complete boundary list from the current segmentation, one bad call
-// rewrites the speaker attribution of the whole transcript, not just the requested range.
+// ADMIN-ONLY: diarization is corpus CURATION (docs/DATA-MODEL.md, founder decision 2026-08-13)
+// — because this handler REBUILDS the complete boundary list, one call rewrites the speaker
+// attribution of the whole transcript for every user, not just the requested range. Until
+// 2026-08-13 any signed-in user could do that to any transcript; until 2026-08-03 it had no
+// auth at all (`saveSpeakerEdits` writes through supabaseAdmin, bypassing RLS).
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const userId = await getRequestUserId(req)
-  if (!userId) return unauthorized()
+  const denied = await requireAdmin(req)
+  if (denied) return denied
 
   const body = await req.json().catch(() => null)
   const fromWord = Number(body?.fromWord)

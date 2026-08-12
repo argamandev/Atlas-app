@@ -860,3 +860,33 @@ Reviewed cold by `atlas-reviewer`: **CHANGES, no blockers**.
 CONSTRUCT, not the component — and prove the fix RENDERS differently.** A `<bdi>` that changes
 nothing looks exactly like a `<bdi>` that fixes everything. Fixing one instance is what hid the
 other three; `git grep -n 'dir="ltr"' -- src` found them in seconds.
+
+## 2026-08-13 — Speaker edits are admin-only corpus curation (`fix/speaker-edit-admin-gate`)
+
+Smart-layer ticket 12, founder-decided ("1A 2A Q3 okay q4 a", `DECISIONS.md` 2026-08-13), then
+the live hole fixed in the same session.
+
+- **The defect:** `PATCH /api/transcripts/[id]/speakers` and `.../diarization` accepted ANY
+  signed-in user — one user could relabel who-said-what on any transcript, and the speakers
+  path rewrote the `speaker` field on **every user's saved quotes** via `renameSpeakerInQuotes`
+  with caller-chosen text. Both routes passed `apiAuthBoundary.test.ts`, which proves a user was
+  *resolved*, not *allowed* — precisely the gap the foundation review (ticket 03) flagged.
+- **The law (new, `docs/DATA-MODEL.md`):** writes to shared-corpus rows are **curation**,
+  admin-gated; personal rows are owner-only; the one sanctioned exception is corrections flowing
+  from corpus curation into derived personal data (the quotes propagation — now a feature, since
+  only admins can trigger it).
+- **The fix:** shared `requireAdmin(req)` in `src/lib/auth.ts` (401 no user / 403 non-admin /
+  null pass); both routes delegate as their first statement; `LiveTranscriptView` gained an
+  `isAdmin` prop (threaded from `getCurrentUser()` on both server pages and through
+  `LiveSession`) so non-admins never see an edit pencil that can only 403; `renameSpeaker` in
+  the view now checks `res.ok` instead of toasting "saved" on a refusal.
+- **The mechanism (ADR-0002):** new `src/lib/curationAuthz.test.ts` — a structural guard listing
+  the curation routes and failing the battery unless each imports and delegates to
+  `requireAdmin`, with the one-handler-per-file premise pinned. Registered in `npm test`
+  (the test-registry guard caught the unregistered file on the first run).
+- **Verified:** 702/702 · `tsc` clean · anonymous PATCH → 401 on both routes (curl) · admin
+  session passes the gate (400 validation, no write) · pencil visible + edit mode toggles as
+  admin, console clean · non-admin 403/hidden-pencil states NOT browser-driven (no non-admin
+  credential; limit stated in `docs/evidence/fix-speaker-edit-admin-gate/`). STATUS.md rewrite
+  also brought the always-on set back under its 9,000-token budget, which main's battery had
+  been failing since the ticket-11 rewrite.
