@@ -109,6 +109,12 @@ cost budgets approved, and the first slice fully specified.
   run ≤$0.50/$1.00 cap, ~$35/fund/mo) — founder veto/approve rides with the spec (ticket 10);
   caching is the #1 lever (3–4×); Start-tier $500/mo cap binds at ~15 funds → ticket 11.
   Full fact sheet: `research/09-cost-budgets.md`.
+- [Anthropic account + API key for Atlas](issues/11-anthropic-account.md) — key live and
+  verified with a metered Sonnet-5 call (in `.env.local`; Railway waits for the first
+  Claude ship); org tier of record: **Evaluation** — the Start→Build→Scale path is still
+  ahead, 80K OTPM is the prototyping constraint; Hebrew measured at **1.43 chars/token**
+  (~47% over the `plan.ts` estimator, more than research/09's +30%) — ticket 10 recomputes
+  costs. Fact sheet: `research/11-key-verification.md`.
 - [What does MAYA already provide structured?](issues/14-maya-structured-data.md) — more than
   expected: every Israeli-track quarterly/annual report carries a public `.xbrl` (ISA ת930) with
   the 26 core financials (revenue→net profit, EPS, BS/CF totals, exact periods, ILS) verified by

@@ -37,10 +37,12 @@ Anthropic's Managed Agents, Hebrew-first), and **the architecture** (ticket 08 �
 two runtimes; one tool registry with web search on every surface; citations verified at
 write; rewrite order Chat → Ask Atlas → Workspace, agents in parallel). **Cost budgets are
 researched** (ticket 09 — a chat answer ≈ $0.05, an agent run ≈ $0.50, ~$32/fund/mo;
-budgets PROPOSED, founder veto/approve rides with the spec). The frontier now: the
+budgets PROPOSED, founder veto/approve rides with the spec). **The Anthropic key is live**
+(ticket 11 — verified with a metered Sonnet-5 call; org on the Evaluation tier, 80K OTPM
+is the prototyping constraint; Hebrew measured at 1.43 chars/token, ~47% over the old
+estimator — the spec recomputes ticket 09's arithmetic). The frontier now: the
 **ingestion standard** (16) and **MAYA filings at scale** (17, cost inputs ready);
-founder tickets 12 (speaker-edit authz), 13 (leftovers go/no-go), 11 (Anthropic account —
-now also owns the rate-tier path: Start's $500/mo cap binds at ~15 funds); task 15
+founder tickets 12 (speaker-edit authz), 13 (leftovers go/no-go); task 15
 (discovery eval cases). The spec (ticket 10) waits on 16/17.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both belonging to the self-improving

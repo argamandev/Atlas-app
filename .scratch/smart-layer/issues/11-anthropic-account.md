@@ -1,7 +1,7 @@
 # Anthropic account + API key for Atlas
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -42,3 +42,30 @@ figure, not our measurement).
 
 Resolves when the wizard has run, the key is verified, and the tier is recorded — then
 this session (or the next) files the Answer from `11-key-verification.md`.
+
+## Answer
+
+Resolved 2026-08-12. The founder already had an Anthropic account and had stored a key —
+no new org was created; the wizard's signup stages were skipped and only verification ran.
+
+1. **Key: live and verified.** One metered `claude-sonnet-5` call succeeded (HTTP 200,
+   answer "פריז", `stop_reason: end_turn`). Key is in git-ignored `.env.local` as
+   `CLAUDE_API_KEY` — accepted alias; the canonical name is `ANTHROPIC_API_KEY` (the SDK
+   auto-detects it). **Railway variable not yet set, deliberately** — nothing in
+   production calls Claude; add `ANTHROPIC_API_KEY` there with the first Claude ship.
+2. **Tier of record: Evaluation** (Console Rate-limits page, founder screenshot).
+   Sonnet-5 bucket: 1K RPM · 500K ITPM (excl. cache reads) · **80K OTPM** (the binding
+   constraint for output-heavy agent runs); Fable 5: 50 RPM · 100K ITPM · 20K OTPM;
+   batch 50 req/min; web search 30/s; Files 500 GB. The Start($500/mo, binds ~15
+   funds) → Build($1,000) → Scale path is still AHEAD of us — tiers advance with billing
+   and usage; revisit before onboarding real funds, fine for all prototyping.
+   ⚠ Live response headers claimed 10K RPM / 10M ITPM — do not infer tier from headers;
+   the Console page is the record (full discrepancy note in the fact sheet).
+3. **Hebrew token arithmetic re-baselined** (`count_tokens`, the 16 real eval questions):
+   **1.43 chars/token on Sonnet 5** — Hebrew costs ~47% more tokens than the 2.1
+   chars/token estimator (`plan.ts`), exceeding research/09's +30% assumption. Ticket 10
+   recomputes the cost arithmetic with the measured figure.
+
+Fact sheet: [`research/11-key-verification.md`](../research/11-key-verification.md) ·
+tools kept for reuse: `scripts/anthropic-verify.mjs` (re-run any time),
+`scripts/anthropic-setup-wizard.sh` (signup stages unused, kept for a future second org).
