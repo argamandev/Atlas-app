@@ -5,6 +5,8 @@ scripts + docs + .gitignore only — no app code, no migrations).
 Reviewer: `atlas-reviewer` subagent, dispatched 2026-08-12. Two rounds: findings on the
 initial diff, fixes in `ccb918d`, delta re-review → clean approval.
 
+REVIEWED: ccb918d
+
 Battery at review time: 700/700 tests · `tsc` clean · `npm run build` green.
 `/verify-app`: not run, stated honestly — the diff contains zero app code, so a browser
 pass would measure surfaces this branch never touched (M1: say what the evidence measured).
