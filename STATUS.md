@@ -28,8 +28,10 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 
 ## What is being worked on right now
 
-**The smart layer** — chat, workspace and agents as one piece of work. Nothing is built yet;
-brainstorm before building, and Agents is the surface that decides the shape.
+**The smart layer** — chat, workspace and agents as one piece of work. The wayfinder map is
+charted: `.scratch/smart-layer/map.md`, ten tickets toward an architecture spec + build
+sequence. Read `foundations.md` beside it before any ticket; work the frontier via
+`/wayfinder`.
 
 The workflow migration is done and merged (`chore/workflow-reset`, three tickets). One session at
 a time with worktrees on demand (ADR-0001); a lesson that recurs gains a mechanism instead of a
