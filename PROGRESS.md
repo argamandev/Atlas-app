@@ -977,5 +977,9 @@ the live hole fixed in the same session.
   rules (its word helpers are now exported).
 - **Collisions are decisions:** an alias two companies would share is dropped from BOTH and
   printed for the founder to rule on - the live run reported zero.
-- **Verified:** 732/732 - `tsc` clean - live-table probe (בז"א - 1361, בז"ן/ORL - 259,
+- **Review bought a mechanism:** the cold review's WARNING (a re-run whose derivation
+  diverges from an already-seeded row was silently swallowed by UNIQUE(alias)) became
+  `diffAliasSeedAgainstExisting()` - drift is judged on the normalized form, reported to
+  the founder, and never inserted; verified against production (246 seeded, 0 drift).
+- **Verified:** 736/736 - `tsc` clean - live-table probe (בז"א - 1361, בז"ן/ORL - 259,
   ticker 1105022 - תיגבור) - re-run idempotency probe (0 inserts, 246 total).

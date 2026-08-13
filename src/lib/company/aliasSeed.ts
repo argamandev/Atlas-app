@@ -122,3 +122,50 @@ export function buildAliasSeed(companies: CompanySeedSource[]): {
 
   return { rows, collisions, unmatchedCurated }
 }
+
+/** One already-seeded `company_aliases` row, as the drift check needs it. */
+export type ExistingAliasRow = { alias: string; companyId: string }
+
+/**
+ * What a re-run may INSERT, and what it must REPORT instead.
+ *
+ * The table accumulates across runs while `buildAliasSeed` only sees the
+ * current derivation, so UNIQUE(alias) alone would silently swallow the one
+ * case a human must rule on: a derived alias whose normalized form is already
+ * seeded under a DIFFERENT company (review finding, 2026-08-13). Judged on the
+ * normalized form because that is what the resolver compares — a raw-distinct
+ * spelling under a second company would otherwise turn a working alias
+ * ambiguous at runtime.
+ */
+export function diffAliasSeedAgainstExisting(
+  derived: AliasSeedRow[],
+  existing: ExistingAliasRow[]
+): {
+  toInsert: AliasSeedRow[]
+  drifted: { alias: string; derivedCompanyId: string; existingCompanyIds: string[] }[]
+} {
+  const existingByNorm = new Map<string, Set<string>>()
+  for (const row of existing) {
+    const norm = normaliseCompanyName(row.alias)
+    const bucket = existingByNorm.get(norm)
+    if (bucket) bucket.add(row.companyId)
+    else existingByNorm.set(norm, new Set([row.companyId]))
+  }
+
+  const toInsert: AliasSeedRow[] = []
+  const drifted: { alias: string; derivedCompanyId: string; existingCompanyIds: string[] }[] = []
+  for (const row of derived) {
+    const owners = existingByNorm.get(normaliseCompanyName(row.alias))
+    if (!owners) {
+      toInsert.push(row)
+    } else if (!(owners.size === 1 && owners.has(row.companyId))) {
+      drifted.push({
+        alias: row.alias,
+        derivedCompanyId: row.companyId,
+        existingCompanyIds: Array.from(owners),
+      })
+    }
+    // already seeded under the same company: nothing to do, nothing to report
+  }
+  return { toInsert, drifted }
+}

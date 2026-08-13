@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildAliasSeed, CURATED_ABBREVIATIONS, type CompanySeedSource } from './aliasSeed'
+import {
+  buildAliasSeed,
+  diffAliasSeedAgainstExisting,
+  CURATED_ABBREVIATIONS,
+  type CompanySeedSource,
+} from './aliasSeed'
 import { resolveCompany } from './resolve'
 
 // Fixture shaped exactly like the live `companies` rows this seed runs over
@@ -99,6 +104,43 @@ test('blank and null name fields produce no rows', () => {
   ]
   const { rows } = buildAliasSeed(sparse)
   assert.equal(rows.length, 0)
+})
+
+// ── cross-run drift: the table accumulates, the derivation is per-run ────────
+// Review finding on this branch (2026-08-13): a re-run whose derivation
+// diverges from an already-seeded row was silently skipped by UNIQUE(alias) —
+// the drift the script's header calls a founder decision was never reported.
+test('a derived alias already seeded under the SAME company is skipped, not drift', () => {
+  const { rows } = buildAliasSeed(LIVE_SHAPED)
+  const { toInsert, drifted } = diffAliasSeedAgainstExisting(rows, [
+    { alias: 'תיגבור', companyId: 'c-tigbur' },
+  ])
+  assert.ok(!toInsert.some((r) => r.alias === 'תיגבור'))
+  assert.equal(drifted.length, 0)
+})
+
+test('a derived alias already seeded under a DIFFERENT company is drift, reported and not inserted', () => {
+  const { rows } = buildAliasSeed(LIVE_SHAPED)
+  const { toInsert, drifted } = diffAliasSeedAgainstExisting(rows, [
+    { alias: 'תיגבור', companyId: 'c-somebody-else' },
+  ])
+  assert.ok(!toInsert.some((r) => r.alias === 'תיגבור'))
+  assert.ok(drifted.some((d) => d.alias === 'תיגבור' && d.existingCompanyIds.includes('c-somebody-else')))
+})
+
+test('drift is judged on the NORMALIZED form — a raw-distinct spelling cannot land under a second company', () => {
+  const { rows } = buildAliasSeed(LIVE_SHAPED)
+  // בז״א with Hebrew gershayim is raw-distinct from the seeded בז"א but the
+  // same alias to the resolver; under another company it must read as drift.
+  const { toInsert, drifted } = diffAliasSeedAgainstExisting(rows, [{ alias: 'בז״א', companyId: 'c-bazan' }])
+  assert.ok(!toInsert.some((r) => r.alias === 'בז"א'))
+  assert.ok(drifted.some((d) => d.existingCompanyIds.includes('c-bazan')))
+})
+
+test('an alias absent from the table inserts', () => {
+  const { rows } = buildAliasSeed(LIVE_SHAPED)
+  const { toInsert } = diffAliasSeedAgainstExisting(rows, [])
+  assert.equal(toInsert.length, rows.length)
 })
 
 test('every curated abbreviation names a real TASE issuer id', () => {

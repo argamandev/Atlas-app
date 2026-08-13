@@ -30,10 +30,6 @@ export type CompanyAliasRow = {
   kind: CompanyAliasKind
 }
 
-/** Shortest run of characters allowed to stand in for a company name —
- *  the same floor `resolveIssuer` learned when "א" resolved to אמות. */
-const MIN_FRAGMENT = 3
-
 /**
  * Resolve user language to a company id, or null.
  *
@@ -60,10 +56,11 @@ export function resolveCompany(query: string, rows: CompanyAliasRow[]): string |
   const exact = rows.filter((r) => normaliseCompanyName(r.alias) === q)
   if (exact.length > 0) return unique(exact)
 
-  if (q.length < MIN_FRAGMENT) return null
-
   // A query made entirely of industry words identifies nothing — "אנרגיה" is
-  // a sector, not a company. Silence is the only honest answer.
+  // a sector, not a company. Silence is the only honest answer. This same
+  // check is the short-fragment floor: `wordsOf` (issuers.ts) drops tokens
+  // under 3 chars, so "א"-sized fragments arrive here as an empty list — one
+  // floor, owned by the module that learned it when "א" resolved to אמות.
   const needed = identifyingWords(q)
   if (needed.length === 0) return null
 

@@ -13,7 +13,11 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
-import { buildAliasSeed, type CompanySeedSource } from '../src/lib/company/aliasSeed'
+import {
+  buildAliasSeed,
+  diffAliasSeedAgainstExisting,
+  type CompanySeedSource,
+} from '../src/lib/company/aliasSeed'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 for (const f of ['.env.local', '.env']) {
@@ -63,17 +67,39 @@ async function main() {
     console.log(`\nUNMATCHED curated aliases (issuer id not in companies): ${unmatchedCurated.join(', ')}`)
   }
 
+  // The table accumulates across runs; the derivation is per-run. Compare
+  // against what is ALREADY seeded so a diverging re-run is reported to the
+  // founder instead of silently swallowed by UNIQUE(alias) (review finding,
+  // 2026-08-13). The resolver's ambiguity rule makes runtime damage an honest
+  // null, but the decision is still a human's.
+  const existing = await db.from('company_aliases').select('alias, company_id')
+  if (existing.error) throw new Error(`existing aliases read failed: ${existing.error.message}`)
+  const { toInsert, drifted } = diffAliasSeedAgainstExisting(
+    rows,
+    (existing.data ?? []).map((r) => ({ alias: String(r.alias), companyId: String(r.company_id) }))
+  )
+  console.log(`already seeded: ${(existing.data ?? []).length} — to insert: ${toInsert.length}`)
+  if (drifted.length > 0) {
+    console.log(`\nDRIFT — ${drifted.length} derived alias(es) already seeded under a DIFFERENT company.`)
+    console.log('NOT inserted. Repointing an alias is a founder decision, made by hand:')
+    for (const d of drifted) {
+      console.log(
+        `  «${d.alias}» derived → ${d.derivedCompanyId}, seeded → ${d.existingCompanyIds.join(', ')}`
+      )
+    }
+  }
+
   if (dryRun) {
     console.log('\n--dry-run: nothing written.')
     return
   }
 
-  // UNIQUE(alias) + ignoreDuplicates makes this idempotent: existing rows are
-  // left exactly as they are, even if this run derived a different mapping.
+  // UNIQUE(alias) + ignoreDuplicates keeps the write itself race-safe against
+  // a concurrent seeder; the drift report above is what keeps it honest.
   let inserted = 0
   const CHUNK = 500
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const batch = rows.slice(i, i + CHUNK).map((r) => ({
+  for (let i = 0; i < toInsert.length; i += CHUNK) {
+    const batch = toInsert.slice(i, i + CHUNK).map((r) => ({
       company_id: r.companyId,
       alias: r.alias,
       kind: r.kind,
@@ -84,6 +110,11 @@ async function main() {
       .select('id')
     if (res.error) throw new Error(`insert failed at batch ${i / CHUNK}: ${res.error.message}`)
     inserted += (res.data ?? []).length
+  }
+  if (inserted < toInsert.length) {
+    console.log(
+      `note: ${toInsert.length - inserted} row(s) were claimed by a concurrent run (UNIQUE(alias)).`
+    )
   }
 
   const total = await db.from('company_aliases').select('id', { count: 'exact', head: true })
