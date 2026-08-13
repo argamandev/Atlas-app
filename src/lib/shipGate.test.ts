@@ -440,3 +440,8 @@ test('no claim, no problem — and a claim over an unparsable run fails closed',
   assert.equal(problems.length, 1)
   assert.match(problems[0], /no parsable summary/)
 })
+
+test('the LAST summary in the stream wins - a summary-shaped diagnostic must not be measured', () => {
+  const echoed = 'ℹ tests 3\nℹ pass 3\n(more tests run)\nℹ tests 711\nℹ pass 711'
+  assert.deepEqual(parseBatterySummary(echoed), { total: 711, pass: 711 })
+})

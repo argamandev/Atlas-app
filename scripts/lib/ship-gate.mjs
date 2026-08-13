@@ -421,8 +421,11 @@ export function parseBatterySummary(output) {
   // eslint-disable-next-line no-control-regex
   const clean = output.replace(/\u001b\[[0-9;]*m/g, '')
   const num = (label) => {
-    const m = new RegExp(`ℹ ${label} (\\d+)`).exec(clean)
-    return m ? Number(m[1]) : null
+    // The LAST occurrence: the battery's end-of-run summary. A test that echoes a
+    // summary-shaped diagnostic earlier in the stream must not be measured instead
+    // (review NIT, 2026-08-13).
+    const all = [...clean.matchAll(new RegExp(`ℹ ${label} (\\d+)`, 'g'))]
+    return all.length ? Number(all[all.length - 1][1]) : null
   }
   const total = num('tests')
   const pass = num('pass')

@@ -955,5 +955,7 @@ the live hole fixed in the same session.
   `parseBatterySummary`, `verifiedCountProblems`), unit-tested through their failing cases
   in `shipGate.test.ts`; the collector only pays for a battery run when a claim exists.
   Claim grammar (stated limit): the first `N/M` pair directly after the word "Verified".
-- **Verified:** 711/711 · tsc clean — and this very entry quotes that count on purpose, so
-  the check's maiden merge is its own first live firing.
+- **Verified:** 712/712 · tsc clean — and this very entry quotes that count on purpose, so
+  the check's maiden merge is its own first live firing. (The count moved twice while the
+  branch was open — a red intermediate commit, then a review-bought test — and the check
+  caught the staleness both times before the ritual did.)
