@@ -1,8 +1,12 @@
 // Backfill audio_url + word_segments on an existing transcript row by re-running the
-// download + IVRIT transcription on its stored youtube_url. Keeps formatted_data as-is.
+// download + IVRIT transcription on its stored youtube_url. Saves through the birth door
+// (saveWordSegments): the formatted_data is RE-ALIGNED to the fresh timings and chunks
+// rebuild in the same operation — the timings/alignment desync this script used to
+// create is unrepresentable now (standard §4).
 // Usage: node --import tsx --env-file=.env.local scripts/reprocess-audio.mjs <transcriptId>
 import { supabaseAdmin } from '../src/lib/supabase.ts'
 import { downloadAudio, transcribeAudio } from '../src/lib/transcription.ts'
+import { saveWordSegments } from '../src/lib/db/transcripts.ts'
 import { existsSync, unlinkSync } from 'node:fs'
 
 const id = process.argv[2]
@@ -32,13 +36,13 @@ try {
   console.log('[reprocess] transcribing (IVRIT word timestamps)…')
   const { audioUrl, segments } = await transcribeAudio(audioPath)
   const withWords = (segments ?? []).filter((s) => s.words?.length).length
-  console.log(`[reprocess] audioUrl=${audioUrl ? 'ok' : 'none'} segments=${segments?.length ?? 0} withWords=${withWords}`)
-  const { error: updErr } = await supabaseAdmin
-    .from('transcripts')
-    .update({ audio_url: audioUrl ?? null, word_segments: segments ?? null })
-    .eq('id', id)
-  if (updErr) throw new Error(updErr.message)
-  console.log('[reprocess] DONE — row updated')
+  console.log(
+    `[reprocess] audioUrl=${audioUrl ? 'ok' : 'none'} segments=${segments?.length ?? 0} withWords=${withWords}`
+  )
+  const fin = await saveWordSegments(id, { segments: segments ?? null, audioUrl: audioUrl ?? null })
+  console.log(
+    `[reprocess] DONE — rev ${fin.revision}, ${fin.timedLines}/${fin.totalLines} lines timed, index ${fin.reindex.status}`
+  )
 } finally {
   if (audioPath && existsSync(audioPath)) unlinkSync(audioPath)
 }

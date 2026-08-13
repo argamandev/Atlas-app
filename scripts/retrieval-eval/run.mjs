@@ -1,7 +1,11 @@
 // Retrieval eval harness — smart-layer ticket 07, kept as the standing quality gate.
 //
-//   node scripts/retrieval-eval/run.mjs            # full run (needs GEMINI_API_KEY + OPENAI_API_KEY)
-//   node scripts/retrieval-eval/run.mjs --lexical  # lexical-only (no embedding APIs, free)
+//   node --import tsx scripts/retrieval-eval/run.mjs            # full run (needs GEMINI_API_KEY + OPENAI_API_KEY)
+//   node --import tsx scripts/retrieval-eval/run.mjs --lexical  # lexical-only (no embedding APIs, free)
+//
+// `--import tsx` because the chunker is the PRODUCTION module (src/lib/corpus/chunker.ts)
+// — one chunker, by law (ingestion standard §5): a harness measuring a copy certifies a
+// fiction. The local copy this file carried until slice A3 is deleted, not preserved.
 //
 // Measures the candidate retrieval designs from research/01 against the founder-approved
 // eval set (docs/eval/retrieval-eval-set.md, mirrored in cases.json) on the REAL corpus:
@@ -28,6 +32,13 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import {
+  chunkTranscriptSections,
+  chunkFilingPage,
+  speakersById,
+  WINDOW,
+  PAGE,
+} from '../../src/lib/corpus/chunker.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
@@ -60,84 +71,31 @@ function estimateTokens(text) {
 
 const lineNo = (id) => parseInt(String(id).replace(/\D/g, ''), 10)
 
-// Transcript windows: accumulate lines inside a section; cut at a speaker seam once past
-// TARGET chars, hard-cut at MAX. Keeps short Q&A pairs in one window (case 05, case 16).
-const WIN = { TARGET: 700, MAX: 1100 }
-
-function chunkTranscript(t, speakersById) {
-  const out = []
-  for (const sec of t.formatted_data?.sections ?? []) {
-    let cur = null
-    const flush = () => {
-      if (!cur || !cur.text.trim()) {
-        cur = null
-        return
-      }
-      out.push({
-        key: `t:${t.id}:${cur.first}-${cur.last}`,
-        kind: 'transcript',
-        srcId: t.id,
-        company: t.companyName,
-        firstLine: cur.first,
-        lastLine: cur.last,
-        content: cur.text.trim(),
-        embInput:
-          `${t.companyName} · שיחת ועידה · ${sec.title} · ${[...cur.speakers].join(', ')}:\n` +
-          cur.text.trim(),
-      })
-      cur = null
-    }
-    for (const line of sec.lines ?? []) {
-      const text = (line.text ?? '').trim()
-      if (!text) continue
-      const speaker = speakersById[line.speakerId] ?? line.speakerId ?? '?'
-      if (
-        cur &&
-        (cur.text.length + text.length > WIN.MAX ||
-          (cur.text.length >= WIN.TARGET && speaker !== cur.lastSpeaker))
-      )
-        flush()
-      if (!cur) cur = { first: lineNo(line.id), speakers: new Set(), text: '', lastSpeaker: speaker }
-      cur.text += (cur.text ? '\n' : '') + text
-      cur.last = lineNo(line.id)
-      cur.lastSpeaker = speaker
-      cur.speakers.add(speaker)
-    }
-    flush()
-  }
-  return out
+// Both chunk shapes come from THE production chunker (imported above). These two wrappers
+// only translate its output to the harness's own row shape (key/srcId/company).
+function chunkTranscript(t, byId) {
+  return chunkTranscriptSections(t.formatted_data?.sections ?? [], t.companyName, byId).map((c) => ({
+    key: `t:${t.id}:${c.firstLine}-${c.lastLine}`,
+    kind: 'transcript',
+    srcId: t.id,
+    company: t.companyName,
+    firstLine: c.firstLine,
+    lastLine: c.lastLine,
+    content: c.content,
+    embInput: c.embeddingInput,
+  }))
 }
 
-// Filings: page-as-chunk; oversized pages split on line boundaries, all parts keep page_no.
-const PAGE_SPLIT = 3500,
-  PAGE_PART = 2200
-
 function chunkPage(doc, page) {
-  const text = (page.text ?? '').trim()
-  if (!text) return []
-  const prefix = (part) =>
-    `${doc.companyName} · ${doc.title} · עמ' ${page.page_no}${part ? ` (${part})` : ''}:\n`
-  const mk = (body, part) => ({
-    key: `d:${doc.id}:${page.page_no}${part ? `:${part}` : ''}`,
+  return chunkFilingPage(page.text ?? '', page.page_no, doc.companyName, doc.title).map((c) => ({
+    key: `d:${doc.id}:${page.page_no}${c.partNo ? `:${c.partNo}` : ''}`,
     kind: 'document',
     srcId: doc.id,
     company: doc.companyName,
     page: page.page_no,
-    content: body,
-    embInput: prefix(part) + body,
-  })
-  if (text.length <= PAGE_SPLIT) return [mk(text, 0)]
-  const parts = []
-  let buf = ''
-  for (const ln of text.split('\n')) {
-    if (buf && buf.length + ln.length > PAGE_PART) {
-      parts.push(buf)
-      buf = ''
-    }
-    buf += (buf ? '\n' : '') + ln
-  }
-  if (buf.trim()) parts.push(buf)
-  return parts.map((p, i) => mk(p, i + 1))
+    content: c.content,
+    embInput: c.embeddingInput,
+  }))
 }
 
 async function loadCorpus() {
@@ -170,10 +128,7 @@ async function loadCorpus() {
   const stats = { transcripts: [], docChars: 0 }
   for (const t of transcripts) {
     t.companyName = companyName[t.company_id] ?? 'ללא שיוך'
-    const speakersById = Object.fromEntries(
-      (t.formatted_data?.speakers ?? []).map((s) => [s.id, s.name || s.title || s.id])
-    )
-    const tChunks = chunkTranscript(t, speakersById)
+    const tChunks = chunkTranscript(t, speakersById(t.formatted_data?.speakers))
     chunks.push(...tChunks)
     const chars = tChunks.reduce((n, c) => n + c.content.length, 0)
     stats.transcripts.push({
@@ -599,7 +554,7 @@ async function main() {
   lines.push('# Retrieval eval — run ' + new Date().toISOString())
   lines.push('')
   lines.push(
-    `Corpus: ${chunks.length} chunks — ${tChunks} transcript windows (target ${WIN.TARGET}/max ${WIN.MAX} chars, speaker-seam cuts), ${dChunks} filing page chunks (split over ${PAGE_SPLIT} chars).`
+    `Corpus: ${chunks.length} chunks — ${tChunks} transcript windows (target ${WINDOW.TARGET}/max ${WINDOW.MAX} chars, speaker-seam cuts), ${dChunks} filing page chunks (split over ${PAGE.SPLIT} chars).`
   )
   lines.push('')
   lines.push("## Summary (rank at which ALL of a case's anchors are covered; lower is better)")

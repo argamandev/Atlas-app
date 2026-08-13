@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { supabaseAdmin, createServerSupabase } from '@/lib/supabase'
 import { getRequestUserId, unauthorized } from '@/lib/auth'
 import { resolveUser } from '@/lib/auth/verifyUser'
+import { saveFormattedData } from '@/lib/db/transcripts'
+import type { Transcript } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,12 +115,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Invalid transcript data' }, { status: 400 })
   }
 
-  const { error: updateErr } = await supabaseAdmin
-    .from('transcripts')
-    .update({ formatted_data: parsed.data })
-    .eq('id', params.id)
-
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+  // The content-edit door: re-aligns line times against the stored word
+  // timings, bumps revision, rebuilds chunks atomically (standard §4 — the
+  // formatted_data/word_segments/chunks consistency unit).
+  try {
+    await saveFormattedData(params.id, parsed.data as unknown as Transcript)
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }
@@ -190,7 +194,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (company !== undefined) fd.company = company
   if (quarter !== undefined) fd.quarter = quarter
 
-  const { error } = await supabaseAdmin.from('transcripts').update({ formatted_data: fd }).eq('id', params.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // Renames flow through the same door as any content edit (curation
+  // propagation, ticket 12): revision bumps, chunks rebuild — unchanged chunk
+  // text re-embeds for free via the carry-forward in migration 028.
+  try {
+    await saveFormattedData(params.id, fd as unknown as Transcript)
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

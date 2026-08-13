@@ -23,19 +23,18 @@ Live on Railway at `www.timlul-ai.com` since 2026-08-08. A mistake on `main` is 
 The spec of record is `docs/SMART-LAYER-SPEC.md` — read it before any smart-layer work. Build
 tickets: `.scratch/smart-layer-build/issues/` (14 slices, `Blocked by:` edges; take the
 lowest-numbered unblocked ticket, one per session, branch per slice, `/ship`). Standing gates:
-`docs/INGESTION-STANDARD.md`, the eval harness (`scripts/retrieval-eval/` vs
-`docs/eval/retrieval-eval-set.md`), approved cost budgets (spec §5).
+`docs/INGESTION-STANDARD.md`, the eval harness, approved cost budgets (spec §5).
 
-**Slices A1 (foundations) and A2 (company resolver) are LIVE** — the spec §2.6 shared-corpus
-set applied; `company_aliases` seeded; `resolveCompany()` green offline incl. the בז"א
-MUST-PASS. Standing consequence: an unattributed transcript insert FAILS at the DB (A3
-builds the single birth door, A4 VALIDATEs). **Next up: slice A3 — birth sequence** (ticket 03).
+**Slices A1–A3 are LIVE** — schema, resolver (בז"א MUST-PASS green), and the birth sequence:
+one battery-guarded transcript door (attributed, keyed, aligned, atomically re-chunked), XBRL
+facts + `publication_date` with visible statuses, the global MAYA limiter, the harness importing
+the production chunker; the `index_status` admin surface is deferred into A5.
+**Next up: slice A4 — backfill + harness re-run** (ticket 04 — the gate for every surface slice).
 
-Three small execution missions also open (map ticket 13): leftover cleanup,
-`profiles`/`access_requests` policy narrowing, PUT admin-gate.
+Also open (map ticket 13): leftover cleanup, `profiles`/`access_requests` policy narrowing,
+PUT admin-gate.
 
-**Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
-product:** making `app.md`'s meta-laws visible to the promotion ritual (its Verified-line
-shape is gate-covered), and shrinking `app.md`'s mechanism-backed laws to pointers at their tests —
-the set sits at its 9,000-token budget edge, so the next always-on addition pays for itself by
-that shrink first.
+**Two deferred calls (2026-08-12, `DECISIONS.md`), self-improving-layer, after the product:**
+meta-laws visible to the promotion ritual, and shrinking `app.md`'s mechanism-backed laws to
+pointers at their tests — the set sits at its 9,000-token budget edge, so the next always-on
+addition pays for itself by that shrink first.
