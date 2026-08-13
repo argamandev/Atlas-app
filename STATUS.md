@@ -20,19 +20,25 @@ Live on Railway at `www.timlul-ai.com` since 2026-08-08. A mistake on `main` is 
 
 ## What is being worked on right now — BUILDING the smart layer
 
-The planning map is COMPLETE (2026-08-13): **the spec is approved and lives at
-`docs/SMART-LAYER-SPEC.md`** — read it before any smart-layer work. Build tickets are at
-`.scratch/smart-layer-build/issues/` (14 slices, `Blocked by:` edges per the spec's
-phases; take the lowest-numbered unblocked ticket, one per session, branch per slice,
-`/ship`). Standing gates: the ingestion standard (`docs/INGESTION-STANDARD.md`), the eval
-harness (`scripts/retrieval-eval/` vs `docs/eval/retrieval-eval-set.md`), approved cost
-budgets (spec §5). **Next up: slice A1 — foundations migrations** (production DB: file →
-review → COLLISIONS.md → founder told → apply). Three small execution missions also open,
-independent of the build (from map ticket 13: leftover cleanup, `profiles`/
-`access_requests` policy narrowing, PUT admin-gate). The retired map archives from
-`.scratch/smart-layer/` at the next merge (ship-gate enforced).
+The spec of record is `docs/SMART-LAYER-SPEC.md` — read it before any smart-layer work. Build
+tickets: `.scratch/smart-layer-build/issues/` (14 slices, `Blocked by:` edges; take the
+lowest-numbered unblocked ticket, one per session, branch per slice, `/ship`). Standing gates:
+the ingestion standard (`docs/INGESTION-STANDARD.md`), the eval harness
+(`scripts/retrieval-eval/` vs `docs/eval/retrieval-eval-set.md`), approved cost budgets (spec §5).
+
+**Slice A1 (foundations migrations) is LIVE in the production DB** — pgvector,
+`company_aliases`, `document_chunks`, `filing_facts`, `publication_date`, transcripts identity.
+Consequences now standing: an unattributed transcript insert FAILS at the DB (the
+born-attributed law; the single birth door that resolves the company first is slice A3), and
+`transcripts_company_required` stays NOT VALID until A4 validates it after the source_key
+backfill. **Next up: slice A2 — company resolver** (seed `company_aliases`, `resolveCompany()`,
+the בז"א MUST-PASS case green offline).
+
+Three small execution missions also open, independent of the build (map ticket 13): leftover
+cleanup, `profiles`/`access_requests` policy narrowing, PUT admin-gate.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
 product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s
-mechanism-backed laws to pointers at their tests — the set sits at its 9,000-token budget edge,
-so the next always-on addition pays for itself by that shrink first.
+mechanism-backed laws to pointers at their tests — the set sits at its 9,000-token budget edge
+(31 tokens spare after A1's law update), so the next always-on addition pays for itself by that
+shrink first.

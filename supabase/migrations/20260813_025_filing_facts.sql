@@ -1,6 +1,6 @@
 -- 025 — filing_facts: XBRL structured numerics per filing (smart-layer slice A1,
 -- spec §2.6; ingestion standard §6; probe facts in
--- .scratch/smart-layer/research/14-maya-structured-data.md).
+-- docs/archive/scratch/smart-layer-map-2026-08/research/14-maya-structured-data.md).
 --
 -- ADDITIVE ONLY. Reviewed on the file BEFORE apply, per .claude/rules/db.md.
 --

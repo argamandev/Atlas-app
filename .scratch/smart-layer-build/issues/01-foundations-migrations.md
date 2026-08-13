@@ -1,6 +1,6 @@
 # A1 · Foundations migrations
 
-Status: ready-for-agent
+Status: done (2026-08-13 — six migrations reviewed on file, applied, verified; branch feat/smart-layer-foundations)
 Blocked by: (none)
 
 Spec: `docs/SMART-LAYER-SPEC.md` §6 "Slice A1, fully specified" + §2.6. Six additive

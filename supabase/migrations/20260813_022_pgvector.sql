@@ -4,7 +4,7 @@
 -- hybrid dense+lexical retrieval on our own Hebrew corpus (gemini-embedding-001 @1536,
 -- MRL re-normalized) against alternatives, and dense retrieval needs a vector column and
 -- an ANN index. See docs/SMART-LAYER-SPEC.md §2.5 and
--- .scratch/smart-layer/research/07-retrieval-eval-results.md.
+-- docs/archive/scratch/smart-layer-map-2026-08/research/07-retrieval-eval-results.md.
 --
 -- Verified against the live DB before filing (2026-08-13): PostgreSQL 17.6, extension
 -- 'vector' available and not yet installed.

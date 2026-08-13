@@ -6,8 +6,8 @@ founder-approved in tickets 01–17 of the smart-layer wayfinder map; this docum
 them into one buildable spec, with the cost budgets recomputed at the measured Hebrew token
 rate (§4–5) and the build sequence (§6) both approved with it.
 
-Sources of record: the map and its ticket Answers + fact sheets at `.scratch/smart-layer/`
-(archived to `docs/archive/scratch/` at the map's retirement merge, verbatim),
+Sources of record: the map and its ticket Answers + fact sheets, retired verbatim at the
+map's retirement merge to `docs/archive/scratch/smart-layer-map-2026-08/`,
 `docs/INGESTION-STANDARD.md`, `docs/eval/retrieval-eval-set.md`, `docs/DATA-MODEL.md`,
 `DECISIONS.md`. Where this spec and a ticket record disagree, the ticket record wins and
 this file gets corrected. Build tickets: `.scratch/smart-layer-build/issues/`.

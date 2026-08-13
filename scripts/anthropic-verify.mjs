@@ -3,7 +3,7 @@
 //
 // Run:  node scripts/anthropic-verify.mjs
 // Reads ANTHROPIC_API_KEY from the environment or .env.local. Writes a
-// results file (NO secrets) to .scratch/smart-layer/research/11-key-verification.md.
+// results file (NO secrets) to docs/archive/scratch/smart-layer-map-2026-08/research/11-key-verification.md.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -60,7 +60,7 @@ function ratelimitHeaders(res) {
 }
 
 // Tier guess from the requests-per-minute limit, per the verified table in
-// .scratch/smart-layer/research/02-agent-sdk.md §8 (Sonnet 5 bucket).
+// docs/archive/scratch/smart-layer-map-2026-08/research/02-agent-sdk.md §8 (Sonnet 5 bucket).
 function guessTier(rpm) {
   if (!rpm) return 'unknown (no requests-limit header)'
   const n = Number(rpm)
@@ -146,7 +146,7 @@ ${
 }
 
 **Inferred tier:** ${tier} — per the Start/Build/Scale table in
-\`.scratch/smart-layer/research/02-agent-sdk.md\` §8. The founder-confirmed tier from the
+\`docs/archive/scratch/smart-layer-map-2026-08/research/02-agent-sdk.md\` §8. The founder-confirmed tier from the
 Console limits page is appended below by the wizard.
 
 ## Hebrew token re-baseline (count_tokens, ${MODEL})

@@ -323,10 +323,11 @@ the deploy, which comes after this chapter.
 | `components/projects/ErrorLine.tsx` | The shared error line. Owns its own block wrapper (so a caller's flex layout cannot blockify the `<bdi>` and split one message across two rows) and, given an `auth` prop, renders expired-session copy plus a sign-in route via `loginRedirectTarget` when the thrown value is a 401 — which is why it takes the thrown value and not its message. |
 | `api/errorShape.test.ts` | Build-enforced guard: any fetch layer reachable from an error banner that offers a sign-in route must throw `ApiError`, not a plain `Error`. Blanks comments before scanning, with a canary — its first version matched the word `ApiError` inside a comment and failed to bite when the bug was reintroduced to test it. **States its own limits in its header** (direct `@/…` imports only; the comment blanker is not a JS parser), because claiming "reachable" without them would repeat the counting failure it exists for. |
 | `testRegistry.test.ts` | Build-enforced guard: every `*.test.ts` on disk is registered in `package.json`'s test script, and every registered path exists. Added after three test files were found to have never run. |
+| `supabaseWriteDiscipline.test.ts` | Build-enforced guard, sibling of `apiFetchDiscipline.test.ts` (same law, same ratchet shape): an awaited supabase **write** in statement position — result discarded — fails the battery, because the supabase client never throws; the error rides the result object. Bought by the law's third occurrence (finishLiveCall's stub upserts, slice-A1 review). Skips whole comment lines when judging statement position — a comment ending in a period hid a real site from its first version. |
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **652 tests across 69 files** as of 2026-08-09; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **706 tests across 74 files** as of 2026-08-13; the list in `package.json` is explicit — add new test files there)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -475,6 +476,13 @@ run a file cannot tell you it is missing.
 | `20260806_018_workspace_items_unique_source` | Two unique indexes that **duplicated 016/017's exactly** — applied in error, disclosed in its own file, retired by 020 |
 | `20260806_019_maya` | **`maya_issuers`** (shared corpus, read-only to members) + `companies_tase_issuer_uniq` + `company_documents.maya_report_id` |
 | `20260808_020_remove_redundant_workspace_item_indexes` | Retires 018's two duplicates. **Applied by the founder by hand** — `drop index` is hook-blocked on both doors and has no approval override; the file is the record, not an instruction |
+| `20260809_021_scheduled_calls_maya` | MAYA identity on `scheduled_calls` (the upsert key `sync-maya-calendar.ts` targets) |
+| `20260813_022_pgvector` | `CREATE EXTENSION vector` (schema `extensions`) — smart-layer slice A1 |
+| `20260813_023_company_aliases` | **`company_aliases`** — the company resolver's data (shared corpus, read=authenticated) |
+| `20260813_024_document_chunks` | **`document_chunks`** + `atlas_dual_tsv()` — the retrieval substrate: exactly-one-source + anchors-match-source CHECKs, generated `source_type`, HNSW (cosine) + dual-form-tsvector GIN, verbatim `content` separate from `embedding_input` |
+| `20260813_025_filing_facts` | **`filing_facts`** — XBRL numerics per MAYA filing, `UNIQUE NULLS NOT DISTINCT (report, concept, period)` |
+| `20260813_026_company_documents_publication_date` | `company_documents.publication_date` — publication is a different fact from ingestion (`created_at`) |
+| `20260813_027_transcripts_identity` | `transcripts.source_key` (+ partial UNIQUE — dedup at birth) + `revision` + `CHECK (company_id IS NOT NULL) NOT VALID` (born-attributed law at the DB; VALIDATE lands in slice A4) |
 
 `supabase/config.toml` = Supabase CLI config. **The DB is shared with the frozen old repo —
 additive migrations only.**
