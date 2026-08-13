@@ -5,9 +5,14 @@ designs against the founder-approved eval set (`docs/eval/retrieval-eval-set.md`
 with resolved anchor ids in `cases.json`) on the **real corpus**, live from Supabase.
 
 ```
-node scripts/retrieval-eval/run.mjs            # full run — needs GEMINI_API_KEY + OPENAI_API_KEY in .env.local
-node scripts/retrieval-eval/run.mjs --lexical  # BM25 only, no embedding APIs, free
+node --import tsx scripts/retrieval-eval/run.mjs            # full run — needs GEMINI_API_KEY + OPENAI_API_KEY in .env.local
+node --import tsx scripts/retrieval-eval/run.mjs --lexical  # BM25 only, no embedding APIs, free
 ```
+
+- `--import tsx` is mandatory: the chunker is the PRODUCTION module
+  (`src/lib/corpus/chunker.ts`) — one chunker, by law (ingestion standard §5). Verified at
+  the swap (2026-08-13, slice A3): identical corpus (3202 chunks, 113 windows) and an
+  identical lexical row to the 2026-08-12 run.
 
 - Runs entirely in process (brute-force cosine + in-memory BM25) — **no pgvector, no
   migration**. Installing the extension is a conclusion this harness informs, never its
