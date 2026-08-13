@@ -988,3 +988,34 @@ the live hole fixed in the same session.
   firing caught both this header (732 vs 741) and this entry's own previous count (736).
 - **Verified:** 741/741 - `tsc` clean - live-table probe (בז"א - 1361, בז"ן/ORL - 259,
   ticker 1105022 - תיגבור) - re-run idempotency probe (0 inserts, 246 total).
+
+## 2026-08-13 - Slice A3: the ingestion birth sequence (`feat/smart-layer-a3-birth-sequence`)
+
+- **What:** every corpus document now takes ONE road in. Transcripts: a single birth door
+  (`src/lib/db/transcripts.ts`) where `company_id` + `source_key` are required arguments,
+  completion persists REAL per-line timestamps (`corpus/align.ts` - the karaoke alignment,
+  run once and stored), revision bumps on re-processing, and chunks rebuild atomically
+  (`corpus/reindex.ts` + `atlas_replace_chunks`, migration 028). Filings: `ingestFiling()`
+  now records `publication_date`, parses the ת930 XBRL into `filing_facts` (26 ifrs-full
+  numerics + ifrs-il metadata) with a visible `facts_status`, and chunks+embeds at birth
+  with a visible `index_status`. All MAYA API calls flow through one process-global
+  limiter (10 req/2s - the key's whole budget) at the `client.ts` chokepoint.
+- **Why:** the standard's laws each needed a MECHANISM (ADR-0002): seven unguarded insert
+  paths, sibling `_r`/`_live` ids (the PyuMxe88e8g_live duplicate), hard-coded '00:00:00'
+  line times, the dropped publicationDate, and per-call-site pacing were all still live
+  defect classes. A4's backfill and every chat surface stand on this.
+- **The one-chunker law is at the impossible tier:** the eval harness now imports the
+  production chunker (`node --import tsx scripts/retrieval-eval/run.mjs`); the swap
+  reproduced the 2026-08-12 lexical results exactly (3202 chunks, 113 windows, L row
+  4/15 8/15 0.207, same misses) - the harness certifies the code that ships.
+- **The door is battery-guarded:** `transcriptBirthDoor.test.ts` fails any
+  `transcripts` insert/upsert - or `formatted_data`/`word_segments` update - outside the
+  door module; its maiden run listed all 15 pre-existing violation sites, all migrated.
+  Admin force re-transcribe now re-processes the SAME row; `retranscribe-call.ts` lost
+  its `--id <new-row-id>` sibling-minting mode.
+- **Deferred, said out loud:** the admin SURFACE for `index_status` lands with A5's admin
+  view (the column + failure states exist and are tested); the live path still finishes
+  into the demo-family row id, which reindex EXCLUDES from the corpus by law - real live
+  calls join the corpus when scheduling-born ids land.
+- **Verified:** 786/786 across 84 files - `tsc` clean - `next build` green - harness
+  lexical re-run identical - migration 028 reviewed on file before apply.

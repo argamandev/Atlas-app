@@ -127,8 +127,8 @@ was telling every fresh session not to trust a guarantee the repo actually had.)
 ### API routes — `src/app/api/`
 | File | What it does |
 |---|---|
-| `transcripts/route.ts` | **Submit** (POST) — inserts row + fires the pipeline. The only place the pipeline runs. |
-| `transcripts/[id]/route.ts` | GET (poll), PUT (edit), DELETE (admin), PATCH (admin rename). |
+| `transcripts/route.ts` | **Submit** (POST) — births the row through the door (`db/transcripts.ts`: companyId REQUIRED, visible 400 without one; duplicate source → the existing row) + fires the pipeline, whose completion runs `finalizeTranscript` (aligned line times, revision, atomic re-chunk). Admin `force` re-processes the SAME row — sibling `_r` ids are banned (standard §1). |
+| `transcripts/[id]/route.ts` | GET (poll), PUT (edit), DELETE (admin), PATCH (admin rename). PUT/PATCH save through `saveFormattedData` — every content edit re-aligns, bumps revision and re-chunks. |
 | `transcripts/[id]/speakers/route.ts` | Update speaker labels. **Admin-only since 2026-08-13** — corpus curation (`docs/DATA-MODEL.md`), gated by `requireAdmin` + `curationAuthz.test.ts`. |
 | `transcripts/[id]/diarization/route.ts` | Additive speaker-edit overlay (re-segments speakers). **Admin-only since 2026-08-13**, same gate. |
 | `chat/route.ts` | Chat — streams Gemini SSE → token stream (GPT-4.1 fallback). |
@@ -263,6 +263,7 @@ the deploy, which comes after this chapter.
 | `lib/auth/verifyUser.ts` | The verifying user lookup (`getUser()`, which revalidates the token) that replaced every `auth.getSession()` call site on 2026-08-02. Unit-tested. |
 | `lib/auth.ts` | `getRequestUserId(req)` — resolves the caller from the session cookie OR an `Authorization: Bearer` token (the bearer path is how trusted automation drives the same API) — plus `getCurrentUser()`, `unauthorized()` (the single 401 every route returns), and `requireAdmin(req)` — the curation gate (401/403/null) for routes that write what every user sees; `curationAuthz.test.ts` pins which routes must use it. The route pattern is two lines: resolve, then `if (!userId) return unauthorized()`; `apiAuthBoundary.test.ts` enforces it. |
 | `lib/transcripts.ts` | Shared transcript fetch/shape helpers. |
+| `db/transcripts.ts` | **THE transcript birth door (standard §1–§2)** — every `transcripts` insert/upsert and every `formatted_data`/`word_segments` regeneration lives here, guarded by `transcriptBirthDoor.test.ts` in the battery: `birthTranscript` (companyId + sourceKey REQUIRED; duplicate → existing row), `birthLiveStub`, `stageTranscriptContent`, `finalizeTranscript`/`saveFormattedData`/`saveWordSegments` (align + revision + atomic re-chunk in one operation). Import-safe top, injectable db — unit-tested offline. |
 
 ### Live engine — `lib/live/`
 | File | What it does |
@@ -297,7 +298,8 @@ the deploy, which comes after this chapter.
 | `workspace/` | **Workspace V1 (2026-08-08) — the real thing, ~19 modules.** Pure rules that need no database: `validate` (every write shape), `present`/`derive`, `blocks`, `panes` (the pane cap), `thread`, `clip`, `tabLabel`. `data.ts` is now the ATTACHABLE-SOURCE feed, not a demo stub — the only demo constants left feed `/app/agents`, and `data.test.ts` fails if anything re-exports them. |
 | `workspace/intake/` | **The conversational intake, 14 modules** — `parseRequest` → `findSources` → `selectSources` (the model picks from a list it was given; it can never invent a file) → `agreement` (bare-yes recognised in CODE, not asked of a model) → `respond` (`intakeResult`: `ready` + empty selection is downgraded to an honest question). Three review rounds live in `agreement.ts`'s header comments — read them before changing a word list. |
 | `workspace/chat/` | Workspace chat: `context`, `compose`, `prompt`, `plan`. |
-| `maya/` | **The MAYA platform layer (2026-08-06), 18 modules — knows nothing about workspaces** (four future consumers). `client` (typed `MayaResult`, never throws into a route), `disclosures`, `filings`, `issuers` (`resolveIssuer`), `dates`/`events`/`layering`, `files`, `ingestFiling`. |
+| `maya/` | **The MAYA platform layer (2026-08-06), 20 modules — knows nothing about workspaces** (four future consumers). `client` (typed `MayaResult`, never throws into a route; every request awaits the GLOBAL `limiter` — 10 req/2s is ONE budget for the whole key, standard §7), `disclosures`, `filings` (now carries `xbrlUrl` + `publishedISO` through), `issuers` (`resolveIssuer`), `dates`/`events`/`layering`, `files`, `xbrl` (ת930 parser + `downloadXbrl` XML-magic guard + `persistFilingFacts`), `ingestFiling` (facts + `publication_date` + visible `facts_status` at the filing birth door). |
+| `corpus/` | **The ingestion birth machinery (slice A3, `docs/INGESTION-STANDARD.md`).** `chunker.ts` — THE one chunker (the eval harness imports it; line-windows 700/1,100 on speaker seams, page-as-chunk >3,500 split ~2,200; verbatim `content` separate from prefixed `embeddingInput`). `align.ts` — per-line timestamp alignment (proportional map + exact-word refinement), run once at finalize and PERSISTED; untimed lines keep the visible `00:00:00` sentinel. `embed.ts` — gemini-embedding-001 @1536 MRL re-normalized, injectable fetch. `reindex.ts` — atomic chunk swap per source via `atlas_replace_chunks` (028) with embedding carry-forward, visible `index_status` transitions, demo rows `excluded`. All unit-tested. |
 | `db/workspaces.ts` | The workspace data layer. Queries through the **caller's own** Supabase client with a comment at each site saying RLS is load-bearing — the pattern to copy, alongside `db/projects.ts`. |
 | `time/relative.ts` | Relative-time formatting ("2 hours ago") in both locales. |
 | `agents/data.ts` | Design-demo agents feed (typed stub, to be replaced by real feed). Unit-tested. |
@@ -329,7 +331,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **741 tests across 76 files** as of 2026-08-13; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
+### Tests (run via `npm test` — **786 tests across 84 files** as of 2026-08-13; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -453,6 +455,9 @@ run a file cannot tell you it is missing.
   (mirrored with resolved anchors in `cases.json`) on the live corpus, entirely in-process
   (brute-force cosine + in-memory BM25; embeddings cached to git-ignored `cache/`). Results
   land in `results/`. Every future retrieval change is judged by it — see its README.
+  **Runs via `node --import tsx`** since slice A3: its chunker IS the production module
+  (`src/lib/corpus/chunker.ts`) — one chunker, by law; the swap reproduced the measured
+  results exactly.
 - **Build/assets:** `install-yt-dlp.js` (runs in `npm run build`), `prep-brand-assets.mjs`
   (regenerates `public/brand/` from the logo — documented in `BrandWordmark`).
 - **`fixtures/`:** the ampa gold set + `recall-spike.transcript.json` (load-bearing: demo call +
@@ -490,6 +495,7 @@ run a file cannot tell you it is missing.
 | `20260813_025_filing_facts` | **`filing_facts`** — XBRL numerics per MAYA filing, `UNIQUE NULLS NOT DISTINCT (report, concept, period)` |
 | `20260813_026_company_documents_publication_date` | `company_documents.publication_date` — publication is a different fact from ingestion (`created_at`) |
 | `20260813_027_transcripts_identity` | `transcripts.source_key` (+ partial UNIQUE — dedup at birth) + `revision` + `CHECK (company_id IS NOT NULL) NOT VALID` (born-attributed law at the DB; VALIDATE lands in slice A4) |
+| `20260813_028_index_status_atomic_rechunk` | `index_status` on `transcripts` + `company_documents` (pending/indexed/failed/excluded — an embedding failure is VISIBLE), `company_documents.facts_status` (facts/none/failed — never zeros), and `atlas_replace_chunks()` — the one-transaction chunk swap with server-side embedding carry-forward; EXECUTE revoked from public/anon/authenticated |
 
 `supabase/config.toml` = Supabase CLI config. **The DB is shared with the frozen old repo —
 additive migrations only.**

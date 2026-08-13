@@ -100,7 +100,9 @@ client.
 `supabaseAdmin\.` grep returns this list BACKWARDS — it hits `projects`/`workspaces` on their own
 prose and misses `calls`/`conversations`/`transcripts`, which chain `await supabaseAdmin` +
 newline + `.from(`. The import grep is still a proxy (M3.2): a line-WRAPPED import drops a module
-silently, and silence here reads as "RLS-safe", so re-read the list, never just the count.
+silently — and `transcripts.ts` (the birth door since 2026-08-13) DYNAMIC-imports it, invisible to
+that grep: sweep `git grep -l "import('@/lib/supabase')" -- src/lib/db` too. Silence reads as
+"RLS-safe", so re-read the list, never just the count.
 - **user client, RLS load-bearing — copy these:** `projects.ts`, `workspaces.ts`
 - **`supabaseAdmin` over personal rows — must filter by owner in application code:**
   `conversations.ts`, `quotes.ts`, `quoteFolders.ts`, `transcripts.ts`

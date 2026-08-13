@@ -69,9 +69,9 @@ proof this cannot be retrofitted.
 - Live calls — **the main door from here on** (founder 2026-08-13: "All of the
   transcripts will come from live investor calls being transcribed from now on, or we
   will delicately create a backlog of transcripts"): the company rides in from scheduling
-  (`scheduled_calls` carries the issuer) — resolved when the bot is created, not guessed
-  from a ticker at finish time (today `finishLiveCall.ts` resolves after the fact and
-  quietly stores null on a miss).
+  (`scheduled_calls` carries the issuer) — resolved when the bot is created. Since A3,
+  `finishLiveCall.ts` resolves the company BEFORE any row write and THROWS visibly on a
+  miss (it used to resolve after the fact and quietly store null).
 - Backlog imports: admin-curated; the company is picked at import. The company-page
   upload button is non-essential and may be removed — if it stays, it requires the
   company before the pipeline starts. Fewer doors never weakens the law; every remaining
@@ -81,11 +81,11 @@ proof this cannot be retrofitted.
 - Mis-attribution stays a corpus-curation fix: admin-only edit (ticket 12's law), and the
   W1 guard ("no management statement exists") lives at the answer layer, per the eval set.
 
-**LAW · One birth door per corpus type.** Today seven code paths insert `transcripts`
-rows with no shared gate (M3: fix at the choke point). The standard mandates a single
-birth function in `src/lib/db/transcripts.ts` that takes `company_id` + `source_key` as
-REQUIRED arguments; every route/script/finish path calls it. `ingestDocument()` already is
-this for documents — copy its shape, don't reinvent it.
+**LAW · One birth door per corpus type.** Before A3, seven code paths inserted
+`transcripts` rows with no shared gate (M3: fix at the choke point). The door LIVES in
+`src/lib/db/transcripts.ts` since A3: `company_id` + `source_key` are REQUIRED arguments
+and every route/script/finish path calls it (the battery guard lists any that doesn't).
+`ingestDocument()` is the documents door.
 
 **ENFORCED (owed at build):** `transcripts.company_id` NOT NULL at the DB (additive
 `CHECK … NOT VALID` → `VALIDATE`, all current rows pass); a battery test that greps/parses
@@ -102,11 +102,11 @@ ingests; hybrid retrieval was chosen partly because dense bridges garble (eval f
 ## 4 · Anchors — citations are born, not retrofitted
 
 **LAW · Every transcript line carries a stable id AND a real timestamp at birth.**
-`L####` ids exist today; timestamps are hard-coded `'00:00:00'` (`transcription.ts:507`)
-while real word timings from IVRIT/Recall already sit in `word_segments`. At birth, the
-pipeline aligns polished lines to the timed word stream (the `loadCall.ts` alignment, run
-once and PERSISTED, with a firmer join than the proportional map where word text allows)
-and writes per-line start times. This makes the founding citation law ("Q1 call · 14:02 ·
+`L####` ids exist; the parse stage still initialises `'00:00:00'` (`transcription.ts`),
+and since A3 `finalizeTranscript` aligns polished lines to the timed word stream
+(`src/lib/corpus/align.ts` — the `loadCall.ts` proportional map with an exact-word
+refinement) and PERSISTS per-line start times; the sentinel survives only where no word
+timings exist, visibly. This makes the founding citation law ("Q1 call · 14:02 ·
 L0031") real — W6 closes for every new transcript.
 
 The founder's karaoke observation is the confirming fact: playback IS in sync because the
@@ -116,9 +116,10 @@ per-line times where `word_segments` exist; lines that cannot be timed keep line
 citations, visibly; **no re-processing of old audio**.
 
 **LAW · `formatted_data`, `word_segments` and chunks are ONE consistency unit.**
-Regenerating any of them re-runs alignment and re-chunks in the same operation
-(`reprocess-audio.mjs` today regenerates word timings while keeping `formatted_data` —
-that desync becomes impossible, not discouraged).
+Regenerating any of them re-runs alignment and re-chunks in the same operation — since
+A3 the door functions do exactly that, and the battery guard fails a write that bypasses
+them (`reprocess-audio.mjs` used to regenerate word timings while keeping
+`formatted_data`; it now saves through `saveWordSegments`).
 
 Filings: `page_no` is the anchor, already law. Splitting an oversized page never loses it.
 
@@ -184,9 +185,10 @@ publication date.
   keys, so a sweep and a user click racing on one filing converge on one row (the
   `23505`-catch-and-reread pattern from `from-maya/route.ts` is the template).
 - **LAW · All MAYA API calls flow through one process-global limiter** at the
-  `client.ts` chokepoint (10 req / 2s is one budget for the whole key; today's 220ms gap
-  is per-call-site and two concurrent users each get their own pacing — that gap becomes
-  global). `mayafiles.tase.co.il` downloads are unmetered but magic-byte validated.
+  `client.ts` chokepoint (10 req / 2s is one budget for the whole key). Landed in A3:
+  `mayaGet` awaits the global sliding window (`maya/limiter.ts`) — the old 220ms gap was
+  per-call-site, so two concurrent users each got their own pacing.
+  `mayafiles.tase.co.il` downloads are unmetered but magic-byte validated.
 - 429 stays surfaced, not silently retried-forever.
 
 ## 8 · Re-processing and drift — the honest story
@@ -240,15 +242,16 @@ user-facing surface ships on it.
 
 ---
 
-## Laws → mechanisms owed (ADR-0002 accounting)
+## Laws → mechanisms (ADR-0002 accounting — LANDED, slice A3, 2026-08-13)
 
-| Law | Mechanism owed at build time |
+| Law | Mechanism (in the battery unless noted) |
 | --- | --- |
-| One birth door, attributed | battery test: no `transcripts` insert outside the module; DB CHECK |
-| Dedup at birth | UNIQUE `source_key`; duplicate-upload route test |
-| content/embedding_input separation | schema (two columns) + a test that `content` never starts with a prefix pattern |
-| One chunker | harness imports the production module (impossible tier) |
-| Real timestamps at birth | pipeline test: new transcript has non-zero line times when word timings exist |
-| Atomic re-chunk on regeneration | transaction + test driving a reformat and asserting chunk/revision consistency |
-| Global MAYA limiter | unit test on the client chokepoint |
-| Visible index status | `index_status` column + UI/admin surface (M4 check at review) |
+| One birth door, attributed | `src/lib/transcriptBirthDoor.test.ts` (no `transcripts` insert/upsert — nor a `formatted_data`/`word_segments` update — outside `src/lib/db/transcripts.ts`); DB CHECK `transcripts_company_required` (027) |
+| Dedup at birth | UNIQUE `transcripts_source_key_uniq` (027); duplicate-source case in `src/lib/db/transcripts.test.ts` (the route passes the door's already-exists straight through) |
+| content/embedding_input separation | schema (two columns, 024) + the separation case in `src/lib/corpus/chunker.test.ts` |
+| One chunker | `scripts/retrieval-eval/run.mjs` imports `src/lib/corpus/chunker.ts` (impossible tier; identical lexical results verified at the swap) |
+| Real timestamps at birth | `src/lib/corpus/align.test.ts` + the finalize case in `src/lib/db/transcripts.test.ts` (persisted, non-zero when word timings exist; visible `00:00:00` sentinel otherwise) |
+| Atomic re-chunk on regeneration | `atlas_replace_chunks` (028, one transaction, embedding carry-forward) + the reformat-drive cases in `src/lib/corpus/reindex.test.ts` / `transcripts.test.ts` |
+| Global MAYA limiter | `src/lib/maya/limiter.test.ts` on the `client.ts` chokepoint |
+| Visible index status | `index_status` columns (028) + failure-visibility cases in `reindex.test.ts`. **Admin surface: NOT YET BUILT** — the status is queryable; a screen shows it when A5's admin view lands (owed there) |
+| XBRL guards (no zeros, visible facts_status) | `src/lib/maya/xbrl.test.ts` (XML magic, textual metadata never numeric, empty set → 'none') + `facts_status` column (028) |
