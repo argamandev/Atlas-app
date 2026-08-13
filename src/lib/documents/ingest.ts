@@ -5,7 +5,7 @@
 // Idempotent on (company, quarter, docType) — NOT on maya_report_id, see IngestArgs.
 import { createClient } from '@supabase/supabase-js'
 import { extractPdfPages } from './extract'
-import { reindexDocument, type CorpusDb } from '@/lib/corpus/reindex'
+import { reindexDocument, type CorpusDb, type ReindexResult } from '@/lib/corpus/reindex'
 
 export const DOCUMENTS_BUCKET = 'company-documents'
 
@@ -46,7 +46,11 @@ export interface IngestArgs {
   publicationDate?: string
 }
 
-export async function ingestDocument(a: IngestArgs): Promise<{ documentId: string; pageCount: number }> {
+/** The document, AND whether it actually became searchable. Both, always — see the
+ *  return statement for what happened when only the first was reported. */
+export type IngestResult = { documentId: string; pageCount: number; index: ReindexResult }
+
+export async function ingestDocument(a: IngestArgs): Promise<IngestResult> {
   const db = createClient(a.supabaseUrl, a.serviceRoleKey)
 
   // 1. extraction first — if the PDF is bad we fail before touching storage/DB
@@ -112,5 +116,11 @@ export async function ingestDocument(a: IngestArgs): Promise<{ documentId: strin
     console.error(`[ingest] ${documentId} indexing failed (visible in index_status): ${reindex.error}`)
   }
 
-  return { documentId, pageCount }
+  // THE INDEX RESULT IS RETURNED, NOT JUST LOGGED. A console.error is not a
+  // report: the A5 backfill ingested 832 documents, 816 of them failed to embed
+  // when the API ran out of credits, and the run's own summary said "failed: 0"
+  // because this function answered "ingested" either way. The row was honest —
+  // index_status said `failed` — and the RUN was not, which is the same lie one
+  // layer up, in the place a person actually reads.
+  return { documentId, pageCount, index: reindex }
 }

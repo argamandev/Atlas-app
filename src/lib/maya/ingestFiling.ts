@@ -14,7 +14,7 @@ import { downloadFiling } from './files'
 import { describeFailure } from './types'
 import type { RemoteSource } from './filings'
 import { downloadXbrl, parseFilingFacts, persistFilingFacts } from './xbrl'
-import { ingestDocument } from '@/lib/documents/ingest'
+import { ingestDocument, type IngestResult } from '@/lib/documents/ingest'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FETCH A MAYA FILING AND MAKE IT A REAL ATLAS DOCUMENT.
@@ -47,7 +47,7 @@ export type IngestFilingArgs = {
   serviceRoleKey: string
 }
 
-export async function ingestFiling(a: IngestFilingArgs): Promise<{ documentId: string; pageCount: number }> {
+export async function ingestFiling(a: IngestFilingArgs): Promise<IngestResult> {
   const got = await downloadFiling(a.source.pdfUrl)
   if (!got.ok) {
     // The detail matters: "not a PDF (212 bytes)" tells whoever reads the log

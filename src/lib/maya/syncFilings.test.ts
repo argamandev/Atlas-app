@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { syncCompanyFilings, upsertKeyOf } from './syncFilings'
+import { syncCompanyFilings, upsertKeyOf, describeOutcome } from './syncFilings'
 import type { SyncDeps } from './syncFilings'
 import type { RemoteSource } from './filings'
 import { NO_PAGES } from '@/lib/corpus/reindex'
@@ -95,7 +95,7 @@ function deps(over: Partial<SyncDeps> = {}): SyncDeps & { ingested: number[]; re
     reindexed,
     ingest: async (s: RemoteSource) => {
       ingested.push(s.mayaReportId)
-      return { documentId: `doc-${s.mayaReportId}`, pageCount: 12 }
+      return { documentId: `doc-${s.mayaReportId}`, pageCount: 12, index: { status: 'indexed' as const, chunkCount: 12, embedded: 12, reused: 0 } }
     },
     reindex: async (id: string) => {
       reindexed.push(id)
@@ -171,7 +171,7 @@ test('an ingest failure is recorded per filing and the rest of the company still
   const d = deps({
     ingest: async (s: RemoteSource) => {
       if (s.mayaReportId === 2) throw new Error('not a PDF (212 bytes)')
-      return { documentId: `doc-${s.mayaReportId}`, pageCount: 3 }
+      return { documentId: `doc-${s.mayaReportId}`, pageCount: 3, index: { status: 'indexed' as const, chunkCount: 3, embedded: 3, reused: 0 } }
     },
   })
   const report = await syncCompanyFilings(
@@ -369,4 +369,38 @@ test('an ORDINARY reindex failure is not re-ingested — that would re-download 
   )
   assert.deepEqual(d.ingested, [], 'the pages are fine; only the embeddings failed')
   assert.equal(report.outcomes[0].status, 'reindexed')
+})
+
+test('an ingest that did not INDEX is counted, not reported as a clean ingest', async () => {
+  // What the A5 backfill actually did and did not say. It ingested 832 documents;
+  // 816 of them had no embeddings because the API ran out of credits mid-run; and
+  // the summary said "failed: 0". Every ROW was honest — index_status said
+  // `failed` — and the RUN was not, which is the same lie one layer up, in the
+  // place a person actually reads.
+  const { db } = fakeDb([])
+  const d = deps({
+    ingest: async (s: RemoteSource) => ({
+      documentId: `doc-${s.mayaReportId}`,
+      pageCount: 40,
+      index: { status: 'failed' as const, chunkCount: 60, error: 'embed: 429 credits depleted' },
+    }),
+  })
+  const report = await syncCompanyFilings(
+    { db, ...d },
+    { companyId: CO, sources: [src({ mayaReportId: 70 })] }
+  )
+  assert.equal(report.outcomes[0].status, 'ingested', 'the document IS real — pages and all')
+  assert.equal(report.unindexed, 1, 'but it is not searchable, and the run says so')
+  assert.match(describeOutcome(report.outcomes[0]), /NOT SEARCHABLE/)
+})
+
+test('a fully indexed ingest is not counted as unindexed', async () => {
+  const { db } = fakeDb([])
+  const d = deps()
+  const report = await syncCompanyFilings(
+    { db, ...d },
+    { companyId: CO, sources: [src({ mayaReportId: 71 })] }
+  )
+  assert.equal(report.unindexed, 0)
+  assert.doesNotMatch(describeOutcome(report.outcomes[0]), /NOT SEARCHABLE/)
 })

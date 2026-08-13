@@ -201,6 +201,12 @@ async function main() {
   log('\n── this run ─────────────────────────────────────────────────────')
   say(`${ingested} document(s) ${DRY ? 'would be' : ''} ingested across ${reports.length} companies`)
   log(`  re-indexed (held, chunks missing): ${sum((r) => r.reindexed)}`)
+  const unindexed = sum((r) => r.unindexed)
+  // SAID LOUDLY, because this is the number the first A5 run did not print: 816 of
+  // 832 documents ingested with no embeddings when the API ran out of credits, and
+  // the summary read "failed: 0". A document Atlas holds but cannot search is not a
+  // document the corpus has.
+  log(`  INGESTED BUT NOT SEARCHABLE:      ${unindexed}${unindexed ? "  ← re-run once the cause is cleared; no re-download" : ""}`)
   log(`  failed:                            ${sum((r) => r.failed)}`)
   log(`  companies with no usable catalog:  ${unreachable}`)
   log(

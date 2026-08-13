@@ -36,14 +36,14 @@ import type { CorpusDb, ReindexResult } from '@/lib/corpus/reindex'
 export interface SyncDeps {
   db: CorpusDb
   /** `ingestFiling` — download, extract, upsert the row, chunk and embed. */
-  ingest: (source: RemoteSource) => Promise<{ documentId: string; pageCount: number }>
+  ingest: (source: RemoteSource) => Promise<{ documentId: string; pageCount: number; index: ReindexResult }>
   /** `reindexDocument` — chunks + embeddings only, for a row we already hold. */
   reindex: (documentId: string) => Promise<ReindexResult>
 }
 
 export type FilingOutcome =
   /** Downloaded, extracted, chunked, embedded. The one that costs money. */
-  | { status: 'ingested'; source: RemoteSource; documentId: string; pageCount: number }
+  | { status: 'ingested'; source: RemoteSource; documentId: string; pageCount: number; index: ReindexResult }
   /** Held, but its chunks were missing or failed — rebuilt without re-downloading. */
   | { status: 'reindexed'; source: RemoteSource; documentId: string; index: ReindexResult }
   /** Held and indexed. Nothing to do, nothing spent. */
@@ -62,6 +62,10 @@ export interface FilingSyncReport {
   /** Documents this run added (or would add, in a dry run) — the cost line. */
   ingested: number
   reindexed: number
+  /** Ingested but NOT searchable — the document is real, its embeddings are not.
+   *  Counted apart from `failed` because the repair differs: this one needs no
+   *  re-download, only a re-index once whatever blocked the embeddings is cleared. */
+  unindexed: number
   failed: number
   displaced: number
   pages: number
@@ -145,6 +149,15 @@ export async function syncCompanyFilings(deps: SyncDeps, args: SyncArgs): Promis
     // is the record, so the totals are derived from it.
     ingested: outcomes.filter((o) => o.status === 'ingested' || o.status === 'would-ingest').length,
     reindexed: outcomes.filter((o) => o.status === 'reindexed').length,
+    // AN INGEST THAT DID NOT INDEX IS NOT A CLEAN INGEST. The A5 backfill reported
+    // "failed: 0" while 816 of its 832 documents had no embeddings, because
+    // ingestDocument logged the index failure and returned success. The row was
+    // honest; the RUN was not, and the run is what a person reads.
+    unindexed: outcomes.filter(
+      (o) =>
+        (o.status === 'ingested' && o.index.status !== 'indexed') ||
+        (o.status === 'reindexed' && o.index.status !== 'indexed')
+    ).length,
     failed: outcomes.filter((o) => o.status === 'failed').length,
     displaced: outcomes.filter((o) => o.status === 'displaced').length,
     pages: outcomes.reduce((n, o) => n + (o.status === 'ingested' ? o.pageCount : 0), 0),
@@ -203,8 +216,8 @@ export async function syncCompanyFilings(deps: SyncDeps, args: SyncArgs): Promis
         // only repair is to fetch and extract it again, so fall through to a full
         // re-ingest rather than reporting a failure a re-run would repeat forever.
         if (index.status === 'failed' && index.error === NO_PAGES) {
-          const { documentId, pageCount } = await deps.ingest(source)
-          outcomes.push({ status: 'ingested', source, documentId, pageCount })
+          const r = await deps.ingest(source)
+          outcomes.push({ status: 'ingested', source, ...r })
           continue
         }
         outcomes.push({ status: 'reindexed', source, documentId: row.id, index })
@@ -220,8 +233,8 @@ export async function syncCompanyFilings(deps: SyncDeps, args: SyncArgs): Promis
     }
 
     try {
-      const { documentId, pageCount } = await deps.ingest(source)
-      outcomes.push({ status: 'ingested', source, documentId, pageCount })
+      const r = await deps.ingest(source)
+      outcomes.push({ status: 'ingested', source, ...r })
     } catch (e) {
       const message = (e as Error).message
       // THE RACE THE STANDARD NAMES. The read above and this write are separate
@@ -293,10 +306,17 @@ export function realSyncDeps(a: {
 
 /** A one-line rendering for a run's log. Never for the UI — the UI says it in the
  *  user's own language, from a dictionary key. */
+/** Why a source is not searchable, in one clause. */
+function describeIndex(r: ReindexResult): string {
+  return r.status === 'failed' ? r.error : r.status
+}
+
 export function describeOutcome(o: FilingOutcome): string {
   switch (o.status) {
     case 'ingested':
-      return `ingested ${o.pageCount}p — ${o.source.title}`
+      return o.index.status === 'indexed'
+        ? `ingested ${o.pageCount}p — ${o.source.title}`
+        : `ingested ${o.pageCount}p but NOT SEARCHABLE (${describeIndex(o.index)}) — ${o.source.title}`
     case 'reindexed':
       return `re-indexed (held, chunks missing) — ${o.source.title}`
     case 'held':
