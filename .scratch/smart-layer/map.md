@@ -154,9 +154,11 @@ cost budgets approved, and the first slice fully specified.
   re-run as the acceptance proof.
 
 - [MAYA filings at scale — growing the searchable filing corpus](issues/17-maya-filings-at-scale.md) —
-  approved 2026-08-13 in one round: scope = periodic reports + presentations (immediate
-  disclosures out — probe-confirmed as 85–95% of volume, mostly mechanical noise); 3 years
-  back (Mid, ≈$19–39 one-time, ≈2.1GB pgvector); freshness layered (~10-min feed poll +
+  approved 2026-08-13 in one round, depth revised same day to demo-first: scope =
+  periodic reports + presentations (immediate disclosures out — probe-confirmed as
+  85–95% of volume, mostly mechanical noise); backfill = "latest of each" per company
+  (latest quarterly + latest annual + 12 months of presentations, ≈$5–8 one-time;
+  deepening to 1/3/5 years is additive later); freshness layered (~10-min feed poll +
   nightly per-company sweep, both through the ingestion standard's birth sequence);
   plain-text extraction, blurbs only after a measured yes. Probe facts for the spec:
   detect financial statements by event ids 101/104/105/106 (not `.xbrl` presence —

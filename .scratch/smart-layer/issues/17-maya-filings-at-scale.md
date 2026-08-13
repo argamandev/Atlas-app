@@ -39,8 +39,14 @@ round: *"Okay I approve everything do it."* A live MAYA volume probe (4 issuers,
    file ~50–60 rows/yr, Phoenix 315 — of which 74 were dormant-share notices alone);
    reports + presentations ≈ 10–15 documents/company/year, exactly the analyst-quoted
    material the discovery eval cases were answered from.
-2. **Backfill depth: 3 years back** (the Mid scenario ≈ 346K pages, ≈ $19–39 one-time
-   embeddings, ≈ 2.1GB pgvector). Additive — deepening later is an extension, not a rebuild.
+2. **Backfill depth: demo-first minimal — "latest of each" per company** (REVISED
+   2026-08-13, same day, founder: *"we are building here an amazing demo"* → option (b)):
+   the most recent quarterly + the most recent annual report + presentations from the
+   last 12 months, for all 234 companies. ≈ 55–70K pages, **≈ $5–8 one-time embeddings**,
+   ≈ 400MB pgvector. Chosen over strict-3-months (option a) because a 3-month window
+   misses most companies' annual report — the most-quoted document. Deepening later
+   (1/3/5 years) is additive on the same pipeline — an extension, not a rebuild; the
+   original 3-year figures (≈ 346K pages, ≈ $19–39) stay on record as the next rung.
 3. **Ongoing trigger, layered:** poll `latest-companies-disclosures` every ~10 minutes
    (one request under the global limiter — a filing published at 09:00 is searchable
    ~09:15) **plus** a nightly per-company `by-issuer` sweep as the coverage guarantee
@@ -78,3 +84,15 @@ after a measured yes.
 
 Freshness surfaces via `publication_date` (standard §6). Execution — the sweep, the
 poller, the backfill — is build work sequenced by the spec, outside this map.
+
+## Comments
+
+**2026-08-13, depth revised (same day as resolution).** The founder challenged the $39:
+*"we are paying 39 dollars for what? … I would like us to pay the least amount and for the
+shortest time possible (maybe only a quarter back) since we are building here an amazing
+demo, Which if will be found interesting we will build a larger database of documents."*
+He also confirmed the corpus's purpose in his own words — it exists so Chat's search mode
+actually works. Offered (a) strict 3 months ≈ $2–3 vs (b) latest quarterly + latest annual
++ 12 months of presentations ≈ $5–8 (a strict window misses most annuals); his answer:
+*"B"*. Decision 2 in the Answer above is updated in place; scope, freshness, and
+extraction decisions are unchanged.
