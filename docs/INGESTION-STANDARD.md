@@ -240,6 +240,32 @@ actually works"). Acceptance: after the backfill, the standing 18-case harness
 Postgres lexical channel — and must reproduce the measured eval results before any
 user-facing surface ships on it.
 
+### RAN 2026-08-14 (slice A4) — result, and what it means for §5
+
+The backfill completed with no failures: **3,181 chunks, all embedded**; 26 documents (not the
+23 estimated) with real publication dates; 1,398 `filing_facts` rows across 19 filings. The
+corpus is 3,181 rather than the harness's 3,202 because the demo transcript and the
+`PyuMxe88e8g_live` duplicate are now visibly `excluded` — §1 working, not a shortfall.
+
+**The gate did not pass, and the failure is in §5's lexical clause.** Full evidence:
+`docs/evidence/feat-smart-layer-a4-backfill/gate.md`.
+
+- The dense channel reproduces the measurement EXACTLY (MRR 0.254 unscoped, 0.268 scoped, case
+  for case). The `בז"א` MUST-PASS ranks 1 in every design, through the production resolver.
+- The lexical channel does not: MRR 0.207 → 0.075, dragging the chosen hybrid design to 0.141 —
+  **below dense-only**, the reverse of what it was chosen on.
+- Root cause: `ts_rank`/`ts_rank_cd` have **no IDF**. `שנת` is in 96% of chunks and is scored
+  like `ההכנסות`, which is in 5%; BM25 weights them 75:1. Real BM25 computed in SQL over the
+  same `tsvector` reproduces the measured rank exactly, so the tokenizer, chunks and index are
+  all correct — only the scorer is wrong. Without a precomputed inverted index it takes 31
+  seconds on 3,181 chunks (measured).
+
+§5's sentence *"The lexical channel ships as the dual-indexed `tsvector 'simple'` shape — gated
+by one harness re-run against real Postgres"* is therefore **NOT yet satisfied**. That gate was
+written because the eval's BM25 was an in-process simulation; it has now fired, exactly as
+intended. Which of the three options (dense-only · a real BM25 inverted index · re-measure and
+re-choose) the corpus adopts is a founder decision, open in ticket 04.
+
 ---
 
 ## Laws → mechanisms (ADR-0002 accounting — LANDED, slice A3, 2026-08-13)

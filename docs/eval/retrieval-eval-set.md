@@ -248,6 +248,18 @@ Tests: four leads across four companies and two source kinds; per-company divers
 (ticket 08) — W2's duplicate (`PyuMxe88e8g_live` carries the same L0006 content) collapses
 into the same Tigbur lead and must not surface as a fifth company.
 
+> **AMENDMENT 2026-08-14 (slice A4) — the pass threshold needs re-approving, and W2 is closed.**
+> The pass gate is "all lead companies appear within the first **5** distinct companies". That
+> number was chosen when the corpus held **eight** companies with chunks. It now holds **seven**:
+> `תמיס` left with the demo transcript, and `PyuMxe88e8g_live` is out of the corpus entirely
+> (excluded at the identity door — W2 is closed by §1 of the standard rather than by ranking, so
+> the duplicate can no longer surface as a fifth company under ANY design).
+> Against the real pipeline every design now reads **6 ✗** on this case, including designs that
+> read 4–5 ✓ in the in-process run. **That is a corpus change, not a retrieval regression** —
+> requiring 4 of 7 companies in the top 5 is a materially harder gate than 4 of 8. Re-approve the
+> threshold against the real corpus before quoting this case's verdict either way.
+> Evidence: `docs/evidence/feat-smart-layer-a4-backfill/gate.md`.
+
 ---
 
 ## Founder validation — what is asked of Sagi (ticket 05, HITL)
