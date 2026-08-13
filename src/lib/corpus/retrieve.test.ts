@@ -67,7 +67,24 @@ const row = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-test('hybrid sends BOTH channels: a RETRIEVAL_QUERY embedding and the query text', async () => {
+// THE SHIPPED DESIGN IS DENSE-ONLY (founder 2026-08-14, DECISIONS.md). This is
+// the mechanism under that decision: A4 measured that the lexical channel does
+// not reproduce the eval on real Postgres, and a default that quietly drifts
+// back to hybrid would put every surface on an unmeasured design without anyone
+// choosing it.
+test('the DEFAULT is semantic search — dense only, no query text sent', async () => {
+  const { db, calls } = fakeDb()
+  await retrieveChunks(db, { query: 'מה היו ההכנסות?', embed })
+  assert.equal(calls[0].fn, 'atlas_search_chunks')
+  assert.equal(calls[0].args.p_query_embedding, '[0.6,0,0.8]')
+  assert.equal(
+    calls[0].args.p_query_text,
+    null,
+    'the lexical channel is off by default — turning it back on is a design change that re-runs the eval gate'
+  )
+})
+
+test('hybrid, asked for explicitly, sends BOTH channels', async () => {
   const bodies: Array<{ requests: Array<{ taskType: string }> }> = []
   const spyFetch = (async (_u: unknown, init?: { body?: string }) => {
     bodies.push(JSON.parse(init?.body ?? '{}'))
@@ -75,10 +92,13 @@ test('hybrid sends BOTH channels: a RETRIEVAL_QUERY embedding and the query text
   }) as unknown as typeof fetch
 
   const { db, calls } = fakeDb()
-  await retrieveChunks(db, { query: 'מה היו ההכנסות?', embed: { fetchImpl: spyFetch, apiKey: 'k' } })
+  await retrieveChunks(db, {
+    query: 'מה היו ההכנסות?',
+    channels: 'hybrid',
+    embed: { fetchImpl: spyFetch, apiKey: 'k' },
+  })
 
   assert.equal(bodies[0].requests[0].taskType, 'RETRIEVAL_QUERY')
-  assert.equal(calls[0].fn, 'atlas_search_chunks')
   assert.equal(calls[0].args.p_query_embedding, '[0.6,0,0.8]')
   assert.equal(calls[0].args.p_query_text, 'מה היו ההכנסות?')
 })

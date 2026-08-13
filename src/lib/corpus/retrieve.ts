@@ -1,18 +1,30 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// RETRIEVAL — the real pipeline: pgvector + the real Postgres lexical channel.
+// RETRIEVAL — the one door corpus chunks are READ through, as reindex.ts is the
+// one door they are written through.
 //
-// The counterpart of reindex.ts. Where that module is the ONE door chunks are
-// written through, this is the ONE door they are read through: the measured
-// design C-gemini(-scoped) — dense cosine over gemini-embedding-001 @1536, the
-// dual-form 'simple' tsvector, RRF (k=50, 1/1), optional company PRE-filter.
+// ⚠ THE SHIPPED DESIGN IS DENSE-ONLY — semantic search, not the hybrid the eval
+// picked. Founder decision 2026-08-14, in DECISIONS.md: *"okay yes lets just go
+// with the semantic search now, and after we finish working on the rest of the
+// tickets and test the product we can come back to it and improving it."*
 //
-// ONE RETRIEVER, for the same reason there is one chunker (ingestion standard
-// §5): the standing eval harness scores THIS module, so what the gate certifies
-// and what a user's question runs through cannot drift apart. A harness
-// measuring a copy certifies a fiction (M2). All of the ranking itself lives in
-// `atlas_search_chunks` (migration 029) — this file adds the query embedding and
-// the row shape, and nothing else, so there is no second place for the design to
-// be re-implemented slightly differently.
+// The reason it is not the hybrid, so nobody "fixes" this back: slice A4 ran the
+// standing eval against the REAL database and the lexical channel did not
+// reproduce. Postgres has no IDF — `ts_rank_cd` scores `שנת` (96% of chunks)
+// like `ההכנסות` (5%) — so lexical fell from MRR 0.207 to 0.075 and, fused by
+// RRF, dragged the chosen hybrid to 0.141, BELOW dense-only's 0.268. Dense
+// reproduced its measured numbers exactly. Full evidence and the four options he
+// chose between: docs/evidence/feat-smart-layer-a4-backfill/gate.md.
+//
+// The lexical channel is NOT deleted. `atlas_search_chunks` still accepts it, so
+// the revisit he asked for costs a flag rather than a rebuild — but it must not
+// become the default again without a fresh harness run (§5 of the ingestion
+// standard is explicit that changing the retrieval shape re-runs the gate).
+//
+// ONE RETRIEVER, for the same reason there is one chunker (standard §5): the
+// harness scores THIS module, so what the gate certifies and what a user's
+// question runs through cannot drift apart. All ranking lives in
+// `atlas_search_chunks` (migration 029); this file adds the query embedding and
+// the row shape and nothing else.
 //
 // FAILURE IS VISIBLE: an RPC error throws with its message. An empty result is
 // NOT an error — "the resolved scope has no corpus content" is the honest
@@ -23,18 +35,26 @@
 import { embedQuery, toVectorLiteral, type EmbedOptions } from './embed'
 import type { CorpusDb } from './reindex'
 
-/** Which channels feed the fusion. `hybrid` is the measured winner. */
-export type RetrievalChannels = 'hybrid' | 'dense' | 'lexical'
+/**
+ * Which channels rank. `dense` is the shipped default (founder 2026-08-14).
+ * `hybrid` and `lexical` remain reachable for the promised revisit and for the
+ * harness, and BOTH are known not to reproduce the eval on this database.
+ */
+export type RetrievalChannels = 'dense' | 'hybrid' | 'lexical'
+
+/** Semantic search. Changing this re-runs the eval gate — it is a design change. */
+const DEFAULT_CHANNELS: RetrievalChannels = 'dense'
 
 export interface RetrieveOptions {
-  /** The user's question, verbatim — it feeds both channels. */
+  /** The user's question, verbatim. */
   query: string
   /** Resolved TASE issuer, when the question has one. The measured multiplier. */
   companyId?: string | null
-  /** Rows returned after fusion. */
+  /** Rows returned. */
   limit?: number
-  /** Per-channel depth before fusion — the pool RRF sees. */
+  /** Candidate depth per channel before ranking. */
   candidates?: number
+  /** Defaults to `dense`. Anything else is off the measured path — see the header. */
   channels?: RetrievalChannels
   embed?: EmbedOptions
 }
@@ -131,7 +151,7 @@ const DEFAULT_CANDIDATES = 200
 // rather than flagged per query.
 
 export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promise<RetrievalResult> {
-  const channels = opts.channels ?? 'hybrid'
+  const channels = opts.channels ?? DEFAULT_CHANNELS
   const query = opts.query ?? ''
   if (!query.trim()) throw new Error('retrieveChunks: an empty query retrieves nothing meaningful')
   const candidates = opts.candidates ?? DEFAULT_CANDIDATES

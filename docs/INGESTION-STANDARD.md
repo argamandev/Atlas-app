@@ -261,10 +261,19 @@ corpus is 3,181 rather than the harness's 3,202 because the demo transcript and 
   seconds on 3,181 chunks (measured).
 
 §5's sentence *"The lexical channel ships as the dual-indexed `tsvector 'simple'` shape — gated
-by one harness re-run against real Postgres"* is therefore **NOT yet satisfied**. That gate was
-written because the eval's BM25 was an in-process simulation; it has now fired, exactly as
-intended. Which of the three options (dense-only · a real BM25 inverted index · re-measure and
-re-choose) the corpus adopts is a founder decision, open in ticket 04.
+by one harness re-run against real Postgres"* did NOT pass its own gate. That gate existed
+because the eval's BM25 was an in-process simulation; it fired exactly as intended, before a
+single surface shipped on it.
+
+**RESOLVED by the founder, 2026-08-14 (`DECISIONS.md`): retrieval ships DENSE-ONLY.** His words:
+*"okay yes lets just go with the semantic search now, and after we finish working on the rest of
+the tickets and test the product we can come back to it and improving it."* So §5's lexical
+clause is **suspended, not deleted** — the `tsvector` column, `atlas_dual_tsv` and
+`atlas_search_chunks`' lexical channel all remain, and `src/lib/corpus/retrieve.ts` defaults to
+`dense` with a battery test holding that default. **Re-enabling the lexical channel is a
+retrieval-shape change and re-runs this gate**, per this section's own law. What a
+re-measurement needs first: the eval set has no exact-lookup case (ticker, `מספר נייר`, verbatim
+figure) — the one class where lexical should beat dense outright.
 
 ---
 

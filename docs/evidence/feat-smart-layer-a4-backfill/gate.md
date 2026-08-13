@@ -6,6 +6,12 @@ measured eval results, MUST-PASS cases included."*
 
 The gate ran. **It did not pass, and finding out why is what it was for.**
 
+> **OUTCOME, 2026-08-14: the founder chose dense-only** — *"okay yes lets just go with the
+> semantic search now, and after we finish working on the rest of the tickets and test the
+> product we can come back to it and improving it."* (`DECISIONS.md`). Dense is the one design
+> below that DID reproduce, so what ships is measured. This file is the standing evidence for the
+> revisit he asked for; read the root-cause section before proposing any lexical work.
+
 - Measured (in-process, 2026-08-12): `scripts/retrieval-eval/results/run-2026-08-12T23-29-52.md`
 - Real pipeline (2026-08-14): `scripts/retrieval-eval/results/run-real-2026-08-13T14-09-12.md`
 - Command: `node --import tsx scripts/retrieval-eval/run.mjs --real`

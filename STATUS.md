@@ -29,10 +29,10 @@ harness, spec §5 budgets.
 3,181 chunks all embedded, 26/26 documents, migrations 029–030 applied. (`index_status` admin
 surface: deferred into A5.)
 
-**BLOCKED ON A FOUNDER DECISION that holds every surface slice.** Dense retrieval reproduces the
-eval exactly and בז"א MUST-PASS ranks 1, but Postgres has no IDF, so the lexical channel collapses
-and the chosen hybrid lands BELOW dense-only. Three costed options in
-`docs/evidence/feat-smart-layer-a4-backfill/gate.md`. **Do not ship B1 on hybrid until he picks.**
+**Retrieval ships DENSE-ONLY** — semantic search (founder 2026-08-14). The A4 gate found Postgres
+has no IDF, so the lexical channel collapses and the chosen hybrid lands BELOW dense-only; dense
+reproduces the eval exactly, בז"א MUST-PASS ranks 1. Re-enabling lexical re-runs the gate:
+`docs/evidence/feat-smart-layer-a4-backfill/gate.md`. **B1 is unblocked.**
 
 Also open (map ticket 13): leftover cleanup, `profiles`/`access_requests` policy narrowing,
 PUT admin-gate.

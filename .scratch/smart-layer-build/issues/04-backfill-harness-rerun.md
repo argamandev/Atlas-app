@@ -1,8 +1,19 @@
 # A4 · Backfill + harness re-run (the gate)
 
-Status: backfill DONE · gate RAN and returned a finding · one founder decision open
+Status: DONE — backfill applied, gate run, founder decision taken (dense-only). Ready to ship.
 Branch: feat/smart-layer-a4-backfill
 Blocked by: 02, 03 (both landed)
+Unblocks: every surface slice. **B1 may proceed, on the DENSE channel.**
+
+> **DECIDED 2026-08-14 — Option 1, semantic search.** His words: *"okay yes lets just go with the
+> semantic search now, and after we finish working on the rest of the tickets and test the product
+> we can come back to it and improving it."* Filed in `DECISIONS.md`. He chose the simplest of the
+> four options over this ticket's recommendation (Option 4); taken at his word.
+> `retrieveChunks` now defaults to `channels: 'dense'`, with a battery test holding that default,
+> and the lexical channel stays reachable so the revisit costs a flag rather than a rebuild.
+> **Whoever revisits: re-enabling lexical re-runs the eval gate** (ingestion standard §5), and the
+> eval set needs an exact-lookup case first — see "Option 4" below for why that is the class that
+> would decide it.
 
 Spec §6 A4; the standard's backfill section. Existing corpus (5 transcripts, 23
 documents) through the standard: publication dates, XBRL facts, source keys, timestamp
@@ -63,7 +74,7 @@ Full evidence: `docs/evidence/feat-smart-layer-a4-backfill/gate.md`.
   reproduces the measured rank exactly (case 16 → rank 1), so the tokenizer, chunks and index are
   all correct; only the scorer is wrong.
 
-## The open decision — founder's call, and it blocks B1
+## The decision — CLOSED 2026-08-14, Option 1 (the four as they were put to him)
 
 B1 must not ship on a channel that measurably underperforms the design it claims to be.
 
