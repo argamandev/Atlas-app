@@ -156,10 +156,10 @@ this law forbids judging against. Closing it needs a browser probe, which nothin
 hands the client a finished string the browser never re-formats — and the server is not in Israel.
 **LAW · Atlas renders ISRAEL TIME for every viewer in every timezone** (founder decision
 2026-08-09). Two surfaces can then never disagree.
-**LAW · Every Israel-time answer comes from `src/lib/i18n/format.ts`**, the only file that may name
-the zone: bucket with `israelDayKey`/`israelMonthParts`, and turn a zone-less string (MAYA's
-`publicationDate`) into an instant with `israelInstant` — never hand one to a `timestamptz` column.
-Local date parts put a row stored at Israel midnight on the wrong day either side of Israel.
+**LAW · Bucket days and months with `israelDayKey` / `israelMonthParts`** — and take EVERY
+Israel-time answer from `src/lib/i18n/format.ts`, the only file that may name the zone or convert a
+wall clock: MAYA's zone-less `publicationDate` becomes an instant via `israelInstant`, never handed
+to a `timestamptz` column. Local date parts put an Israel-midnight row on the wrong day either side.
 **LAW · Do not decide date logic inline in JSX** — extract and unit-test it
 (`lib/calendar/event-meta.ts` is the shape). Inline-in-JSX is where the last two defects survived.
 **ENFORCED** `src/lib/i18n/format.test.ts` (which also ratchets who may write the zone literal —

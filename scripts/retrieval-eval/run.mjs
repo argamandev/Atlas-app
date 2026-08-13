@@ -63,8 +63,15 @@ const REAL = process.argv.includes('--real')
 const REAL_DEPTH = Number((process.argv.find((a) => a.startsWith('--depth=')) ?? '--depth=300').split('=')[1])
 // The per-channel candidate pool RRF fuses over. Bigger than the corpus on
 // purpose: the in-process run ranked every chunk, and fusing over a subset would
-// measure the subset. (The dense channel still stops at pgvector's ef_search
-// ceiling of 1000 — reported as a truncation when it bites.)
+// measure the subset.
+//
+// ⚠ NO SAFETY NET FOR THE ef_search CEILING, contrary to what this comment used
+// to promise. `truncated` compares a channel's row count against THIS pool, so a
+// dense channel capped at pgvector's 1000-row `ef_search` ceiling while under
+// 5000 is reported as complete. It does not bite at 3,181 chunks — the planner
+// answers exactly by seq scan, returning all of them — but it will at A5 scale,
+// and a reader trusting a net that is not there is worse than knowing there is
+// none (M1).
 const REAL_POOL = 5000
 const TOP_K = 20
 

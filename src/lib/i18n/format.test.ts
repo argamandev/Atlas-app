@@ -237,11 +237,17 @@ const ROOT = resolve(process.cwd())
 /** file → why this file is allowed to name the zone itself. */
 const ALLOWED: Record<string, string> = {
   'src/lib/i18n/format.ts': 'THE definition — every Israel-time law resolves here',
+  // NARROWED 2026-08-14 after round 2 of the A4 review. This entry used to be
+  // true-but-incomplete: schedule.ts also held `zonedWallClockToUtc`, a second
+  // two-pass wall-clock→instant probe that `israelInstant` should have used and
+  // didn't — and the ALLOWED reason said only "multi-zone map", so a reader
+  // learned the mechanism covered more than it did. The conversion moved into
+  // format.ts; what is left here really is just the lookup table.
   'src/lib/maya/schedule.ts':
-    'genuinely multi-zone: MAYA schedule rows carry a country tag, and a US issuer’s ' +
-    'call is America/New_York. Not a copy of the Israel answer — a different question. ' +
-    'Its own header carries the seven-hours-wrong case that put it there.',
-  'src/lib/maya/schedule.test.ts': 'asserts the above mapping; naming the zone IS the assertion',
+    'ONE two-entry lookup table (ZONE_BY_TAG: IL/US) — MAYA rows carry a country tag and a ' +
+    'dual-listed issuer’s call is America/New_York. No conversion logic lives here any more; ' +
+    'it imports zonedWallClockToUtc and ISRAEL_TZ from format.ts.',
+  'src/lib/maya/schedule.test.ts': 'asserts that mapping; naming the zone IS the assertion',
 }
 
 function sourceFiles(dir: string, out: string[] = []): string[] {

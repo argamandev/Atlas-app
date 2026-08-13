@@ -28,9 +28,21 @@ The gate ran. **It did not pass, and finding out why is what it was for.**
 | hybrid (`C-gemini`) | 0.300 | 0.131 | 5/15 → 2/15 | 9/15 → 7/15 | **no** |
 | hybrid, scoped (`C-gemini-scoped`) — *the chosen design* | 0.365 | 0.141 | 7/15 → 2/15 | 10/15 → 8/15 | **no** |
 
-The dense channel reproduces to three decimal places, case for case, missed-set for missed-set:
-pgvector cosine over HNSW and the harness's brute-force cosine are the same computation, and the
-`gemini-embedding-001 @1536` corpus behaves identically in the database and in memory.
+The dense channel reproduces to three decimal places — **hit-set for hit-set**, with identical
+missed-sets. Two honest qualifications on that sentence, because the decision below rests on it:
+
+**1. "Case for case" would overstate it.** MRR and both hit-sets reproduce exactly, but three deep
+ranks moved with the 21 removed chunks (case 04: 220→214, case 10: 99→95, case 11: 136→133). No
+case crossed a threshold.
+
+**2. THE ANN INDEX WAS NEVER EXERCISED.** The unscoped dense channel returned all 3,181 rows while
+`hnsw.ef_search` was clamped to 1,000 — which an HNSW index scan cannot do. The planner answered
+exactly, by sequential scan, because at 3,181 rows that is cheaper. So what reproduced is **exact
+cosine**, and every number here is a statement about *this corpus size*, not about the pipeline
+A5 will run: at ~60K pages the planner will use the index, and HNSW is approximate by
+construction. The dense channel's reproduction should be re-measured once the corpus is large
+enough to make the index engage. That is a real inherited risk for B1, not a caveat for its own
+sake.
 
 The lexical channel does not reproduce. Because the hybrid designs are RRF fusions that include
 it, **the chosen design is now worse than dense-only in production** — 0.141 against 0.268 — the
@@ -115,6 +127,13 @@ read as a regression.
   (An earlier run reported truncation everywhere — that was a bug in the reporting rule, which
   compared against pgvector's `ef_search` ceiling. `ef_search` bounds the scan's effort, not the
   answer: the unscoped dense channel returns all 3,181 rows.)
+  **Stated limit of the corrected rule**, so nobody reads more into it than it says: it reports
+  `truncated` when a channel returned as many rows as the pool allowed. It cannot see a channel cut
+  short by `hnsw.ef_search` (≤1,000) or by a scoped iterative scan hitting `hnsw.max_scan_tuples`
+  (default 20,000) while still under the requested pool. Both are unreachable at 3,181 chunks and
+  reachable at A5's scale — owed there, and noted in ticket 05. The exact fix is one more
+  index-backed count (rows in scope with an embedding); completeness then reads
+  `saw = least(pool, in_scope)` with no ceiling comparison at all.
 - Scoped designs use a **true company pre-filter** — the in-process scoped numbers were a
   documented post-filter approximation. Verified: a `תיגבור`-scoped dense channel returns 1,066
   rows, which is exactly that company's entire chunk count.

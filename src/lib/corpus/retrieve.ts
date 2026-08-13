@@ -145,7 +145,17 @@ const DEFAULT_CANDIDATES = 200
 // for an unscoped query. Comparing the count against that ceiling reported five
 // designs × nineteen cases as truncated when not one of them was.
 //
-// The honest residual, which no counter can show: HNSW is APPROXIMATE. A dense
+// ⚠ ITS ONE BLIND SPOT, in the quiet direction: `saw < pool` is read as "saw
+// everything", which holds only while every scan is exhaustive. It goes silently
+// false when the planner DOES use HNSW and `hnsw.ef_search` caps the channel
+// (≤1000) below the requested pool, or when a scoped iterative scan stops at
+// `hnsw.max_scan_tuples` (default 20,000). Unreachable at today's 3,181 chunks —
+// the planner answers exactly by seq scan — and reachable at A5's ~60K pages.
+// THE FIX, owed at A5 and recorded in ticket 05: return one more index-backed
+// count from the RPC (rows in scope carrying an embedding); completeness then
+// reads `saw = least(pool, in_scope)`, with no ceiling comparison anywhere.
+//
+// The other residual, which no counter can show: HNSW is APPROXIMATE. A dense
 // channel can miss a genuine neighbour without ever filling its pool. That is a
 // property of the index, not a truncation, and it is measured by the eval gate
 // rather than flagged per query.
