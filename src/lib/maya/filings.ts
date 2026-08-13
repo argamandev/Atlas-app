@@ -1,5 +1,6 @@
 import type { MayaFiling } from './types'
 import { docTypeFor, isDocumentEvent, periodFor } from './events'
+import { israelInstant } from './dates'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A MAYA FILING BECOMES SOMETHING THE SHELF CAN SPEAK ABOUT.
@@ -77,7 +78,9 @@ export function toRemoteSources(filings: MayaFiling[]): RemoteSource[] {
       // he-IL, but if a title is ever missing the label is built from facts we
       // hold rather than left blank or invented.
       title: f.title?.trim() || `${period} · ${issuer.issuerName}`,
-      publishedISO: f.publicationDate,
+      // MAYA's datetime is zone-less Israel time; a `timestamptz` column would
+      // read it as UTC and store the wrong instant (dates.ts, israelInstant).
+      publishedISO: israelInstant(f.publicationDate) ?? f.publicationDate,
       docType,
       period,
       pdfUrl: pdf,

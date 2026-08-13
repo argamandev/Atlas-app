@@ -51,3 +51,61 @@ export function windowDays(w: DateWindow): number {
 export function windowIsLegal(w: DateWindow): boolean {
   return windowDays(w) <= MAYA_MAX_RANGE_DAYS
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A THIRD PROBED FACT: MAYA's `publicationDate` carries NO ZONE.
+// `"publicationDate": "2026-05-27T11:27:00.52"` — a naive local datetime from
+// the Tel Aviv exchange, i.e. Israel time. Handing that string to a
+// `timestamptz` column makes Postgres read it in the SESSION zone, which on
+// Supabase is UTC — so the stored instant is 2–3 hours off, and Atlas renders
+// Israel time for every viewer (app.md, founder decision 2026-08-09), which
+// means the error is visible on screen.
+//
+// Fixed HERE, at the door the fact enters Atlas through, so the ingest path and
+// the A4 backfill cannot disagree about what a publication date means (M3.1).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ISRAEL_TZ = 'Asia/Jerusalem'
+
+/**
+ * MAYA's zone-less publication datetime → a true ISO instant.
+ *
+ * The offset is DERIVED per date rather than hardcoded: Israel is +02:00 in
+ * winter and +03:00 under DST, and this corpus spans a decade of filings on
+ * both sides of every changeover. A string that already carries a zone, or one
+ * this cannot parse, is returned untouched — guessing at an unrecognised shape
+ * is how a wrong instant gets stored confidently.
+ */
+export function israelInstant(naive: string | null | undefined): string | null {
+  if (!naive) return null
+  if (/(Z|[+-]\d{2}:?\d{2})$/.test(naive)) return naive
+  const m = naive.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?$/)
+  if (!m) return naive
+
+  const [, y, mo, d, h, mi, s = '00'] = m
+  // Read the wall-clock as UTC first, then ask what that instant looks like in
+  // Israel: the difference IS the offset in force on that date, DST included.
+  const asUtc = Date.parse(`${y}-${mo}-${d}T${h}:${mi}:${s}Z`)
+  const shown = new Intl.DateTimeFormat('en-US', {
+    timeZone: ISRAEL_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(asUtc)
+  const part = (t: string) => Number(shown.find((p) => p.type === t)?.value)
+  const israelAsUtc = Date.UTC(
+    part('year'),
+    part('month') - 1,
+    part('day'),
+    part('hour') % 24,
+    part('minute'),
+    part('second')
+  )
+  const offsetMs = israelAsUtc - asUtc
+  const ms = m[7] ? Number(`0.${m[7]}`) * 1000 : 0
+  return new Date(asUtc - offsetMs + ms).toISOString()
+}

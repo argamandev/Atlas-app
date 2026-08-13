@@ -183,6 +183,7 @@ test('first completion: revision stays 1, timestamps are ALIGNED in the persiste
       'transcripts:vid123': {
         id: 'vid123',
         company_id: 'c-uuid',
+        source_key: 'vid123',
         revision: 1,
         formatted_data: null,
         word_segments: segments,
@@ -213,6 +214,7 @@ test('re-processing the same row bumps revision and re-chunks via the atomic RPC
         id: 'vid123',
         status: 'completed',
         company_id: 'c-uuid',
+        source_key: 'vid123',
         revision: 1,
         formatted_data: formatted,
         word_segments: segments,
@@ -235,6 +237,7 @@ test('saveWordSegments re-aligns the EXISTING formatted_data — the reprocess-a
         id: 'vid123',
         status: 'completed',
         company_id: 'c-uuid',
+        source_key: 'vid123',
         revision: 1,
         formatted_data: formatted,
         word_segments: null,

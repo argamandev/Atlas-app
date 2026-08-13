@@ -163,13 +163,22 @@ export async function reindexTranscript(
 
   const { data: row, error } = await db
     .from('transcripts')
-    .select('id, status, formatted_data, company_id, revision')
+    .select('id, status, formatted_data, company_id, revision, source_key')
     .eq('id', transcriptId)
     .maybeSingle()
   if (error) throw new Error(`reindexTranscript: load failed: ${error.message}`)
   if (!row) throw new Error(`reindexTranscript: no such transcript ${transcriptId}`)
   if (row.status !== 'completed' || !row.formatted_data) {
     return { status: 'skipped', reason: `not completed (status=${row.status})` }
+  }
+  // NO IDENTITY, NO CORPUS (standard §1). `source_key` is the real-world source,
+  // UNIQUE at the DB — so a row without one is either not yet born through the
+  // door, or the losing half of a duplicate pair whose identity another row
+  // already holds (PyuMxe88e8g_live, eval finding 6: no ranker fixes a
+  // duplicate, it dies at this door). Either way it must not become searchable
+  // on the strength of a one-time script remembering to skip it.
+  if (!row.source_key) {
+    return { status: 'skipped', reason: 'no source_key — real-world identity unresolved' }
   }
   if (!row.company_id) {
     // Unreachable for new rows (born attributed; DB CHECK) — old unattributed rows
