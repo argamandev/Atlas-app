@@ -66,8 +66,16 @@ export async function POST(req: NextRequest) {
 
   // Link this call to its company when it was added from a company page — so the
   // transcript shows up under that company and grounds the chat with correct context.
+  // A refused link surfaces (supabase never throws — the error rides the result).
   if (existing && companyId) {
-    await supabaseAdmin.from('transcripts').update({ company_id: companyId }).eq('id', videoId)
+    const { error: linkErr } = await supabaseAdmin
+      .from('transcripts')
+      .update({ company_id: companyId })
+      .eq('id', videoId)
+    if (linkErr) {
+      console.error('[POST] company link failed:', linkErr)
+      return NextResponse.json({ error: `Supabase update failed: ${linkErr.message}` }, { status: 500 })
+    }
   }
 
   // Admin force re-transcribe — inserts a NEW row (suffix _r<timestamp>) so the
