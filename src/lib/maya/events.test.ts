@@ -128,3 +128,35 @@ test('past isDocumentEvent, filingKind and docTypeFor admit exactly the same fil
     assert.equal(filingKind(ids) === null, docTypeFor(ids) === null, `disagreed on [${ids.join(',')}]`)
   }
 })
+
+// ── the deck-period fix (slice A5, founder-approved 2026-08-14) ───────────────
+
+test('a deck with no period code is labelled by its publication DATE', () => {
+  // The 207-collision fix. A bare `270 מצגת` used to return just the year, so
+  // every deck a company filed in one year keyed identically on
+  // (company_id, quarter, doc_type) and silently overwrote its siblings.
+  assert.equal(periodFor([270], 'מצגת משקיעים', '2026-08-13T20:11:04'), '13.08.2026')
+  assert.equal(periodFor([270], 'מצגת משקיעים-נובמבר 2025', '2025-11-20T09:00:00'), '20.11.2025')
+})
+
+test('two decks from one year no longer share a period — the whole point', () => {
+  const a = periodFor([270], 'מצגת משקיעים - רבעון ראשון 2026', '2026-03-19T09:00:00')
+  const b = periodFor([270], 'מצגת משקיעים - רבעון 3 2026', '2026-11-12T09:00:00')
+  assert.notEqual(a, b)
+})
+
+test('a deck that DOES carry a period code is untouched — still Q1 2026', () => {
+  // `104 + 270` is the Q1 deck and already had a distinct period. Only the
+  // code-less decks change, so this fix cannot disturb a label that worked.
+  assert.equal(
+    periodFor([104, 270], 'מצגת משקיעים  - דוחות כספיים לרבעון הראשון של שנת 2026', '2026-05-27T00:00:00'),
+    'Q1 2026'
+  )
+})
+
+test('the fallback year is ISRAEL time, closing the listed UTC leak', () => {
+  // 2026-01-01 00:30 Israel is 2025-12-31 22:30 UTC. `getUTCFullYear` labelled
+  // this filing 2025 — one of the two UTC leaks in docs/open-findings.md.
+  assert.equal(periodFor([106], null, '2026-01-01T00:30:00'), 'Q3 2026')
+  assert.equal(periodFor([270], null, '2026-01-01T00:30:00'), '01.01.2026')
+})

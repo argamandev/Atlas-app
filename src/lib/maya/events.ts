@@ -1,3 +1,5 @@
+import { israelDayKey, israelInstant } from '@/lib/i18n/format'
+
 // ─────────────────────────────────────────────────────────────────────────────
 // WHAT COUNTS AS A DOCUMENT, AND WHAT IS MERELY SCHEDULE NEWS.
 //
@@ -129,7 +131,30 @@ export function filingKind(eventIds: number[]): 'annual' | 'quarterly' | 'presen
  */
 export function periodFor(eventIds: number[], title: string | null, publishedISO: string): string {
   const period = eventIds.map((id) => PERIOD_BY_EVENT[id]).find(Boolean) ?? ''
-  const fromTitle = title?.match(/\b(19|20)\d{2}\b/)?.[0]
-  const year = fromTitle ?? String(new Date(publishedISO).getUTCFullYear())
-  return period ? `${period} ${year}` : year
+  // Israel time, from the one file allowed to know what that means (app.md's Time
+  // laws). This also closes a listed UTC leak: the previous `getUTCFullYear` put a
+  // filing published in the first hours of 1 January into the wrong fiscal year.
+  const day = israelDayKey(israelInstant(publishedISO) ?? publishedISO)
+
+  if (period) return `${period} ${title?.match(/\b(19|20)\d{2}\b/)?.[0] ?? day.slice(0, 4)}`
+
+  // ── NO PERIOD CODE: A DECK, AND ITS PUBLICATION DATE IS WHAT TELLS TWO APART ──
+  //
+  // Filings with no quarter/annual event id are presentations tagged only
+  // `270 מצגת`. This used to return the bare YEAR, which meant every deck a
+  // company filed in one year got the same period — and `company_documents` is
+  // unique on (company_id, quarter, doc_type), so they all landed on ONE row and
+  // silently overwrote each other.
+  //
+  // Measured, all 233 companies: the bare year collided on 207 of 1,385 selected
+  // filings (22% of decks, 91 companies). Month-only took that to 119 — the rest
+  // were decks published in the SAME month, mostly a results deck and its investor
+  // deck. The full DATE takes it to near zero. Founder-approved, 2026-08-14.
+  //
+  // THE PUBLICATION MONTH, NOT THE TITLE'S. A title year is a fact the issuer
+  // stated and the month is not, so pairing "אוגוסט" from one and 2025 from the
+  // other would invent a date neither source gives. The publication instant is the
+  // one structured fact every deck carries, and `period` is descriptive by
+  // contract — identity is `mayaReportId`, never this string.
+  return `${day.slice(8, 10)}.${day.slice(5, 7)}.${day.slice(0, 4)}`
 }

@@ -192,3 +192,34 @@ node's x measured in both. On `מצגת משקיעים August 2026 · d-2 · נ�
 this is the measurement rather than the assumption — a `<bdi>` that changes nothing looks
 identical to one that fixes everything. Two other lines in the same list are unaffected,
 which is why measuring one line and generalising would have been the wrong claim.
+
+---
+
+## 6 · The deck-period fix — founder-approved and measured, 2026-08-14
+
+He took option 2. A presentation carrying no quarter/annual event id is now labelled by its
+publication DATE (`13.08.2026`) instead of the bare year, so a company's decks stop keying
+identically on `(company_id, quarter, doc_type)`. Israel time, via `israelDayKey` — which
+also closes the `getUTCFullYear` leak `docs/open-findings.md` lists against `events.ts`.
+
+Re-measured against all 233 companies after each step, never predicted:
+
+| period for a code-less deck | displaced | documents ingested |
+| --- | --- | --- |
+| bare year (before) | 207 | 1,178 |
+| month + year | 119 | 1,255 |
+| **full date (shipped)** | **102** | **1,272** |
+
+**Why 102 and not zero.** 57 of the remaining pairs carry a period code (`104 + 270`, the
+Q1 deck), so they key on `Q1 2026` and the date never enters; the rest are two decks
+published on one day. Labelling *every* deck by date would catch the first group and cost
+the genuinely useful `Q1 2026` label on a company's main quarterly deck — a bad trade for
+~57 documents. Closing the remainder properly means retiring the
+`(company_id, quarter, doc_type)` constraint so `maya_report_id` is the only key, which is
+hook-blocked SQL plus a change to `ingestDocument`'s conflict target: its own small
+mission, not a rider on this one.
+
+Every displaced filing is still named in the run output. 102 of 1,374 is 7.4%, down from 15%.
+
+**§1 and §2 above record the pre-fix numbers** and are left as measured — they are what the
+decision was taken on.
