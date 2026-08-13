@@ -61,9 +61,18 @@ const LEXICAL_ONLY = process.argv.includes('--lexical')
 // channel) instead of the in-process simulation. Slice A4's acceptance gate.
 const REAL = process.argv.includes('--real')
 const REAL_DEPTH = Number((process.argv.find((a) => a.startsWith('--depth=')) ?? '--depth=300').split('=')[1])
-// The per-channel candidate pool RRF fuses over. Bigger than the corpus on
+// The per-channel candidate pool RRF fuses over. Bigger than the A4 corpus on
 // purpose: the in-process run ranked every chunk, and fusing over a subset would
 // measure the subset.
+//
+// ⚠ THAT PREMISE DOES NOT SURVIVE A5, and whoever reads the next real gate needs
+// to know it before reading the numbers. atlas_search_chunks_v2 clamps
+// hnsw.ef_search at 1000, so once the corpus is bigger than that an unscoped dense
+// channel asking for 5000 CANNOT be served 5000 — it will come back with about
+// 1000 and be reported CUT SHORT on every unscoped case, by construction and not
+// by regression. "Fuse over the whole corpus" was true at 3,181 chunks and is not
+// true at 60K. Do not read those truncations as a defect, and do not read the
+// unscoped MRRs as measuring the same thing A4 measured.
 //
 // ⚠ THE ef_search CEILING IS NOW CAUGHT — but read what the flag means before
 // trusting it. Through slice A4 `truncated` compared a channel's row count against

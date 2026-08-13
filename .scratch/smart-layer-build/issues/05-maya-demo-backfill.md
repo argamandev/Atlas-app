@@ -1,7 +1,54 @@
 # A5 · MAYA demo backfill + freshness
 
-Status: ready-for-agent
-Blocked by: 04
+Status: BUILT, not yet run. Branch `feat/smart-layer-a5-maya-backfill`.
+Blocked by: 04 (landed)
+
+> **Two things need the founder before this can ship.**
+>
+> 1. **Apply migration 031** (`atlas_search_chunks_v2`) — filed, reviewed on the file
+>    across three rounds, appended to `COLLISIONS.md`, NOT applied. It must be applied
+>    BEFORE this branch deploys: `retrieveChunks` calls `_v2`, and 029's function is left
+>    in place precisely so the currently-deployed build keeps working until then.
+> 2. **Say go on the real backfill.** 1,178 documents, ≈$5–8 of embeddings (his approved
+>    figure), hours of runtime. Command and dry-run evidence below.
+>
+> **And one decision:** 207 of the 1,385 selected filings (15%, all presentations, 91 of
+> 233 companies) cannot be stored under `unique (company_id, quarter, doc_type)`. Measured,
+> not predicted. Three ways out with a recommendation:
+> `docs/evidence/feat-smart-layer-a5-maya-backfill/measurements.md` §2.
+
+## What landed on the branch
+
+| | |
+| --- | --- |
+| `filingKind()` + `selectLatestOfEach()` | the approved depth, pure and tested; event ids 101/104/105/106/270, never `.xbrl` |
+| `syncCompanyFilings()` | ONE door for backfill, poller and sweep — what to spend, what is held, what races |
+| `latestDisclosures()` | the live feed, normalised (see below) |
+| `scripts/backfill-maya-corpus.ts` | the backfill, and — run again — the nightly sweep |
+| `scripts/maya-poll.ts` | the ~10-minute poller |
+| `/app/admin/corpus` | `index_status` visible, both locales, every state driven in a browser |
+| migration 031 | the truncation blind spot below, closed |
+| `docs/corpus-freshness.md` | how to schedule the two jobs (**not scheduled yet — Railway, founder**) |
+
+**The trap this found, which no document recorded:** the live feed is MAYA product 1.0.0
+and spells attachments `attachedfiles`, while `by-issuer` spells it `attachedFiles` —
+measured present on 100% and 0% of each other's rows. Unnormalised, the poller would have
+run every ten minutes forever, exited 0, and ingested nothing.
+
+## Both things A4 owed here
+
+1. **The ANN re-run is still OWED and is blocked on the real backfill.** `run.mjs --real`
+   is meaningless until the corpus is big enough to engage the index — that is the whole
+   point of it. Run it after the backfill and compare against
+   `docs/evidence/feat-smart-layer-a4-backfill/gate.md`.
+2. **The `truncated` blind spot is CLOSED** — migration 031. Note that the fix ticket 05
+   prescribed (`saw = least(pool, in_scope)`) was right and my first version was not: I
+   dropped the pool, which makes every production query read as truncated. Caught in
+   pre-apply review. The ticket's own formulation is the one in the code.
+
+   Also: 031 could NOT be a `create or replace` as this ticket assumed — Postgres refuses
+   to widen a `returns table`, and removing the old function is hook-blocked. Hence a new
+   name, with 029's left in place and filed in `docs/open-findings.md`.
 
 Spec §2.7 + §6 A5 (ticket 17's decisions). "Latest of each" per company (latest
 quarterly + latest annual + 12 months of presentations, 234 companies, ≈55–70K pages);

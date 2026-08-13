@@ -137,9 +137,22 @@ declare
   v_tsquery tsquery;
   v_has_text boolean;
   v_ef int;
+  v_pool int;
   v_dense_in_scope int := 0;
   v_lexical_in_scope int := 0;
 begin
+  -- THE POOL IS CLAMPED ONCE, HERE, AND NOTHING BELOW READS p_candidates AGAIN.
+  -- Three ways the raw argument breaks something, none of them loudly:
+  --   null      → `limit null` is NO LIMIT AT ALL, so both probes below silently
+  --               become the unbounded full counts this migration exists to avoid;
+  --               and `least(greatest(null, 40), 1000)` is null, so ef_search would
+  --               quietly fall back to its default 40.
+  --   0 or less → `limit -1` errors, and a zero pool returns nothing while
+  --               reporting a complete, untruncated search.
+  --   int-max   → `p_candidates + 1` raises "integer out of range".
+  -- 10,000 is above any pool this product asks for (the harness's 5,000 is the
+  -- largest) and far below the overflow edge.
+  v_pool := least(greatest(coalesce(p_candidates, 200), 1), 10000);
   v_has_text := p_query_text is not null and btrim(p_query_text) <> '';
   if p_query_embedding is null and not v_has_text then
     raise exception 'atlas_search_chunks_v2: needs a query embedding, a query text, or both';
@@ -163,7 +176,7 @@ begin
   -- deep-rank measurement report "not found" for something the index never looked at (M1).
   -- Clamped: pg raises "outside the valid range" above 1000, and a caller passing a bigger
   -- number should get a working search, not a 22023.
-  v_ef := least(greatest(p_candidates, 40), 1000);
+  v_ef := least(greatest(v_pool, 40), 1000);
   perform set_config('hnsw.ef_search', v_ef::text, true);
 
   -- THE FILTERED-SEARCH TRAP, and the reason this line exists. An HNSW scan walks the
@@ -206,7 +219,7 @@ begin
       from public.document_chunks c
       where c.embedding is not null
         and (p_company_id is null or c.company_id = p_company_id)
-      limit p_candidates + 1
+      limit v_pool + 1
     ) probe;
   end if;
 
@@ -217,7 +230,7 @@ begin
       from public.document_chunks c
       where c.tsv @@ v_tsquery
         and (p_company_id is null or c.company_id = p_company_id)
-      limit p_candidates + 1
+      limit v_pool + 1
     ) probe;
   end if;
 
@@ -235,7 +248,7 @@ begin
       and c.embedding is not null
       and (p_company_id is null or c.company_id = p_company_id)
     order by c.embedding <=> p_query_embedding
-    limit p_candidates
+    limit v_pool
   ),
   dense as (
     -- chunk_id breaks distance ties so a rerun of the same query ranks the same way: an
@@ -249,7 +262,7 @@ begin
       and c.tsv @@ v_tsquery
       and (p_company_id is null or c.company_id = p_company_id)
     order by ts_rank_cd(c.tsv, v_tsquery, 1) desc, c.id
-    limit p_candidates
+    limit v_pool
   ),
   lexical as (
     select chunk_id, row_number() over (order by rank_score desc, chunk_id) as rnk from lexical_raw

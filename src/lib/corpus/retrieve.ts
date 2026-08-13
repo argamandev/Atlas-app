@@ -206,6 +206,11 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
   // (M3.3); a caller who genuinely wants nothing back should not be calling this.
   if (!Number.isInteger(limit) || limit < 1)
     throw new Error(`retrieveChunks: limit must be a positive integer, got ${opts.limit}`)
+  // The same guard, one parameter over. A zero candidate pool returns nothing and
+  // would then be reported as "ran, saw 0, nothing in scope, not truncated" — the
+  // same fabricated fact, assembled the same way, out of the caller's own argument.
+  if (!Number.isInteger(candidates) || candidates < 1)
+    throw new Error(`retrieveChunks: candidates must be a positive integer, got ${opts.candidates}`)
 
   // The dense channel needs the query embedded under RETRIEVAL_QUERY — the other
   // half of the asymmetric pair the corpus was embedded with. An embedding
@@ -230,11 +235,28 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
   // caller that assumed `channels: 'hybrid'` meant both ran would report a
   // half-strength search as a full one.
   //
-  // The fallback applies only when NO row came back at all, which takes both an
-  // empty scope and, for the lexical half, an empty tsquery on top. There it is
-  // the honest reading: nothing ran that could have told us otherwise.
-  const denseRan = rows[0]?.dense_ran ?? channels !== 'lexical'
-  const lexicalRan = rows[0]?.lexical_ran ?? channels !== 'dense'
+  // `dense_ran` is knowable here too: it IS `embedding !== null`, which this
+  // function decided. `lexical_ran` is not — it depends on what the tokenizer made
+  // of the query, and that lives in SQL.
+  const denseRan = channels !== 'lexical'
+
+  // ZERO ROWS CARRY NO BOOLEANS, and this is the one path where a guess would
+  // reinstate the exact bug the booleans were added to remove: an empty scope
+  // (a company whose chunks are not embedded yet — this slice's own mid-backfill
+  // state) plus an emptied tsquery reports a dense-only search as a full hybrid.
+  // So the question goes back to the database rather than being assumed. It costs
+  // one cheap immutable call, only when the result was empty and only when the
+  // caller asked for lexical at all.
+  let lexicalRan: boolean
+  if (channels === 'dense') lexicalRan = false
+  else if (rows.length) lexicalRan = rows[0].lexical_ran
+  else {
+    const { data: tsq, error: tsqError } = await db.rpc('atlas_dual_tsquery', { input: query })
+    // Consistent with the main RPC: a failed read is visible, never a guess
+    // dressed as an answer.
+    if (tsqError) throw new Error(`retrieveChunks: resolving the lexical channel — ${tsqError.message}`)
+    lexicalRan = typeof tsq === 'string' && tsq.trim() !== ''
+  }
 
   const report = (ran: boolean, saw: number, inScopeCapped: number): ChannelReport => ({
     ran,

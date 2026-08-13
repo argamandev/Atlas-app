@@ -17,7 +17,15 @@ import type { CorpusDb } from './reindex'
 // what it actually checks.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function fakeDb(opts: { rows?: unknown[]; error?: string } = {}) {
+function fakeDb(
+  opts: {
+    rows?: unknown[]
+    error?: string
+    /** Per-RPC canned data, for the calls that are not atlas_search_chunks_v2. */
+    rpcOverrides?: Record<string, unknown>
+    rpcErrors?: Record<string, string>
+  } = {}
+) {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = []
   const db = {
     from() {
@@ -25,6 +33,9 @@ function fakeDb(opts: { rows?: unknown[]; error?: string } = {}) {
     },
     rpc(fn: string, args: Record<string, unknown>) {
       calls.push({ fn, args })
+      if (opts.rpcErrors?.[fn]) return Promise.resolve({ data: null, error: { message: opts.rpcErrors[fn] } })
+      if (fn in (opts.rpcOverrides ?? {}))
+        return Promise.resolve({ data: opts.rpcOverrides![fn], error: null })
       return Promise.resolve({
         data: opts.rows ?? [],
         error: opts.error ? { message: opts.error } : null,
@@ -319,13 +330,52 @@ test('a lexical channel the SQL switched off reports ran:false, even though hybr
   assert.equal(res.lexical.truncated, false)
 })
 
-test('with no rows at all, ran falls back to what THIS call switched on', async () => {
-  // Nothing came back, so nothing can say otherwise. Reporting the requested
-  // channels is the honest reading of "we asked for both and the scope was empty".
-  const { db } = fakeDb({ rows: [] })
-  const res = await retrieveChunks(db, { query: 'הרווח של טבע', channels: 'hybrid', embed })
+// WITH NO ROWS, THE QUESTION GOES BACK TO THE DATABASE — it is not guessed.
+//
+// An earlier version of this test asserted that `ran` falls back to whatever the
+// call requested, and called that "the honest reading". It is not: an empty scope
+// (a company whose chunks are not embedded yet — this slice's own mid-backfill
+// state) plus a query the tokenizer empties is reachable, and that fallback
+// reported a dense-only search as a full hybrid one. The battery was pointing the
+// only mechanism that would catch it in the wrong direction (M2).
+
+test('an empty result with an emptied tsquery reports lexical ran:false, asked not assumed', async () => {
+  const { db, calls } = fakeDb({ rows: [], rpcOverrides: { atlas_dual_tsquery: '' } })
+  const res = await retrieveChunks(db, { query: '?!·', channels: 'hybrid', embed })
+  assert.equal(res.lexical.ran, false, 'the SQL emptied the tsquery — that channel never ran')
   assert.equal(res.dense.ran, true)
+  assert.equal(calls[1].fn, 'atlas_dual_tsquery')
+})
+
+test('an empty result with real terms reports lexical ran:true — it ran and found nothing', async () => {
+  const { db } = fakeDb({ rows: [], rpcOverrides: { atlas_dual_tsquery: "'הרווח' | 'טבע'" } })
+  const res = await retrieveChunks(db, { query: 'הרווח של טבע', channels: 'hybrid', embed })
   assert.equal(res.lexical.ran, true)
+  assert.equal(res.lexical.saw, 0, 'ran and found nothing — a different fact from never having run')
+})
+
+test('a dense-only call never asks: it switched lexical off itself', async () => {
+  const { db, calls } = fakeDb({ rows: [] })
+  const res = await retrieveChunks(db, { query: 'הרווח של טבע', embed })
+  assert.equal(res.lexical.ran, false)
+  assert.equal(calls.length, 1, 'no second round trip for a question this call already answered')
+})
+
+test('a failed lexical-channel resolution THROWS rather than guessing', async () => {
+  const { db } = fakeDb({ rows: [], rpcErrors: { atlas_dual_tsquery: 'permission denied' } })
+  await assert.rejects(
+    () => retrieveChunks(db, { query: 'הרווח', channels: 'hybrid', embed }),
+    /resolving the lexical channel/
+  )
+})
+
+test('a candidate pool below 1 is REFUSED, for the same reason a limit is', async () => {
+  const { db, calls } = fakeDb({ rows: [row()] })
+  await assert.rejects(
+    () => retrieveChunks(db, { query: 'הכנסות', candidates: 0, embed }),
+    /candidates must be a positive integer/
+  )
+  assert.deepEqual(calls, [])
 })
 
 test('a limit below 1 is REFUSED, because every completeness figure rides on a row', async () => {
