@@ -1,4 +1,5 @@
 import { MAYA_BASE_URL, MAYA_KEY_HEADER, MAYA_LANGUAGE, MAYA_TIMEOUT_MS } from './config'
+import { mayaLimiter } from './limiter'
 import type { MayaResult } from './types'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,6 +47,13 @@ export async function mayaGet<T>(
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v))
 
   const doFetch = opts.fetchImpl ?? fetch
+
+  // The GLOBAL rate budget (10 req / 2s for the whole key) — one queue for
+  // every consumer in the process, enforced here so no call site can forget it
+  // (ingestion standard §7). The timeout starts AFTER our own queueing: time
+  // spent waiting for the window is ours, not MAYA's.
+  await mayaLimiter.acquire()
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), MAYA_TIMEOUT_MS)
 
