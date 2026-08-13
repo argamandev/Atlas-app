@@ -62,8 +62,9 @@ export async function POST(req: NextRequest) {
     if (inviteErr) return NextResponse.json({ error: inviteErr.message }, { status: 500 })
   }
 
-  // Update request status
-  await supabaseAdmin
+  // Update request status. A refused write surfaces — otherwise the admin sees ok:true
+  // while the request stays pending (supabase never throws; the error rides the result).
+  const { error: updateErr } = await supabaseAdmin
     .from('access_requests')
     .update({
       status: action === 'approve' ? 'approved' : 'rejected',
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
       reviewed_by: admin.id,
     })
     .eq('id', requestId)
+  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

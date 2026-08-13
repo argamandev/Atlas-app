@@ -109,10 +109,12 @@ silently, and silence here reads as "RLS-safe", so re-read the list, never just 
 → `#supabase-admin-bypasses-rls`, `#authn-is-not-authz`
 
 **LAW · Gating an endpoint changes every caller's ERROR path, not just its happy path.**
-**ENFORCED** partially — `src/lib/apiFetchDiscipline.test.ts` (2026-08-13, bought by this law's
-second occurrence: the silent-success speaker-rename toast, after the 401-forever finish poll)
-fails the battery for any direct `/api` fetch whose response nothing reads, over a per-file
-ratchet of stated fire-and-forget exceptions. It proves the response is LOOKED AT, nothing more.
+**ENFORCED** partially — two battery scans, each over a per-file ratchet of stated exceptions:
+`src/lib/apiFetchDiscipline.test.ts` (2026-08-13, the second occurrence: the silent-success
+speaker-rename toast, after the 401-forever finish poll) fails any direct `/api` fetch whose
+response nothing reads; `src/lib/supabaseWriteDiscipline.test.ts` (2026-08-13, the third:
+finishLiveCall's stub upserts discarded `{ error }` — supabase never throws) fails any awaited
+supabase write whose result nothing reads. They prove the result is LOOKED AT, nothing more.
 **VERIFY** WHICH reaction is right is still yours: open every caller, answer "what does this do
 with a 401?" — revert optimistic state, or send the user to sign in (`loginRedirectTarget`).
 Never invent a cause: a "model unavailable" banner for an expired session retries forever.

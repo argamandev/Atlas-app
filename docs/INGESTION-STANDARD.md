@@ -2,9 +2,9 @@
 
 **Status: STANDARD — founder-approved 2026-08-13** (smart-layer ticket 16; his decisions
 quoted in `DECISIONS.md`). Grounded in laws already approved: the measured retrieval shape
-(`../.scratch/smart-layer/research/07-retrieval-eval-results.md`), the architecture
+(`archive/scratch/2026-08-13-smart-layer/research/07-retrieval-eval-results.md`), the architecture
 (ticket 08), and the MAYA structured-data facts
-(`../.scratch/smart-layer/research/14-maya-structured-data.md`).
+(`archive/scratch/2026-08-13-smart-layer/research/14-maya-structured-data.md`).
 
 **Scope: the SHARED corpus** — call transcripts and MAYA filings, the data every user
 searches. Personal rows (workspaces, quotes, agents) are governed by `docs/DATA-MODEL.md`,

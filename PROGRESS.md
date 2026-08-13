@@ -914,3 +914,28 @@ the live hole fixed in the same session.
   credential; limit stated in `docs/evidence/fix-speaker-edit-admin-gate/`). STATUS.md rewrite
   also brought the always-on set back under its 9,000-token budget, which main's battery had
   been failing since the ticket-11 rewrite.
+
+## 2026-08-13 — Slice A1: the smart layer's foundations are in the database (`feat/smart-layer-foundations`)
+
+- **What:** the six founder-approved foundations migrations (spec §6 slice A1) are applied to
+  production: pgvector; `company_aliases` (the resolver's table); `document_chunks` (dual-form
+  `tsvector` via the new immutable `atlas_dual_tsv()`, HNSW + GIN, exactly-one-source and
+  anchors-match-source CHECKs, generated `source_type`); `filing_facts` (UNIQUE NULLS NOT
+  DISTINCT per fact); `company_documents.publication_date`; `transcripts` identity
+  (`source_key` + partial UNIQUE, `revision`, `CHECK (company_id IS NOT NULL) NOT VALID`).
+- **Why:** Phase A of the smart-layer build — the corpus becomes searchable. Every shape is the
+  measured one (eval findings 2/4/6/7); the born-attributed law now lives at the DB, so an
+  unattributed transcript insert fails visibly instead of minting a row search can't reach.
+- **Gate followed:** files → atlas-reviewer on the files (APPROVED) → COLLISIONS.md → founder
+  told in-session → applied via MCP. Live-DB facts verified first (PG 17.6, 5/5 transcripts
+  attributed); spec's `company_id bigint` corrected to uuid against the real `companies.id`.
+- **Review finding → mechanism (ADR-0002):** the third occurrence of "gating changes every
+  caller's error path" (finishLiveCall's stub upserts discarded `{ error }`) bought
+  `src/lib/supabaseWriteDiscipline.test.ts` — any awaited supabase write whose result nothing
+  reads now fails the battery, per-file ratchet with reasons. Two real defects fixed by the
+  scan on the way: admin approve/reject answered `ok:true` on a refused status write;
+  `/api/transcripts`' company-link update was unread.
+- **Verified:** 706/706 · `tsc` clean · post-apply SQL probes: RLS enabled + single
+  SELECT-to-authenticated policy on all three new tables (banned shape nowhere), constraint
+  honestly NOT VALID, and an unattributed insert probe REFUSED (23514). Retired map archived
+  verbatim to `docs/archive/scratch/2026-08-13-smart-layer/`.

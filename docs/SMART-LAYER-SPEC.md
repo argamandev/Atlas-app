@@ -6,8 +6,8 @@ founder-approved in tickets 01–17 of the smart-layer wayfinder map; this docum
 them into one buildable spec, with the cost budgets recomputed at the measured Hebrew token
 rate (§4–5) and the build sequence (§6) both approved with it.
 
-Sources of record: the map and its ticket Answers + fact sheets at `.scratch/smart-layer/`
-(archived to `docs/archive/scratch/` at the map's retirement merge, verbatim),
+Sources of record: the map and its ticket Answers + fact sheets, retired verbatim at the
+map's retirement merge to `docs/archive/scratch/2026-08-13-smart-layer/`,
 `docs/INGESTION-STANDARD.md`, `docs/eval/retrieval-eval-set.md`, `docs/DATA-MODEL.md`,
 `DECISIONS.md`. Where this spec and a ticket record disagree, the ticket record wins and
 this file gets corrected. Build tickets: `.scratch/smart-layer-build/issues/`.
@@ -362,7 +362,8 @@ One branch (`feat/smart-layer-foundations`), six additive migrations under
 
 1. `YYYYMMDD_NNN_pgvector.sql` — `CREATE EXTENSION IF NOT EXISTS vector;`
 2. `YYYYMMDD_NNN_company_aliases.sql` — shared-corpus shape: `id uuid PK`,
-   `company_id bigint NOT NULL REFERENCES companies(id)`, `alias text NOT NULL`,
+   `company_id uuid NOT NULL REFERENCES companies(id)` (uuid — the live `companies.id`
+   type, migration `20260611_006`; an earlier draft said bigint), `alias text NOT NULL`,
    `kind text NOT NULL` (`registered|abbreviation|ticker|latin`), `UNIQUE (alias)`,
    index on `company_id`; RLS + `FOR SELECT TO authenticated USING (true)`; writes
    service-role only (no other policy).
