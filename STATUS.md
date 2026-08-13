@@ -36,6 +36,8 @@ Three small execution missions also open, independent of the build (map ticket 1
 cleanup, `profiles`/`access_requests` policy narrowing, PUT admin-gate.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
-product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s
-mechanism-backed laws to pointers at their tests — the set sits at its 9,000-token budget edge,
-so the next always-on addition pays for itself by that shrink first.
+product:** making `app.md`'s meta-laws visible to the promotion ritual (M1's count-carrying
+clause is meanwhile covered at the gate tier — ship:gate re-measures any claimed Verified
+count), and shrinking `app.md`'s mechanism-backed laws to pointers at their tests — the set
+sits at its 9,000-token budget edge, so the next always-on addition pays for itself by that
+shrink first.
