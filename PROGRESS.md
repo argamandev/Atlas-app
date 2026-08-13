@@ -959,3 +959,32 @@ the live hole fixed in the same session.
   the check's maiden merge is its own first live firing. (The count moved twice while the
   branch was open — a red intermediate commit, then a review-bought test — and the check
   caught the staleness both times before the ritual did.)
+
+## 2026-08-13 - Slice A2: the company resolver (`feat/smart-layer-a2-company-resolver`)
+
+- **What:** `resolveCompany()` (`src/lib/company/resolve.ts`) resolves user language -
+  registered name, abbreviation, ticker, Latin form - to a `companies.id` over the
+  `company_aliases` table A1 created; `buildAliasSeed()` (`src/lib/company/aliasSeed.ts`)
+  derives the seed, and `scripts/seed-company-aliases.ts` wrote it: **246 rows over 234
+  companies** in production, idempotent (second run inserted 0).
+- **Why:** resolving the company FIRST and filtering retrieval by `company_id` was the
+  single biggest measured retrieval multiplier (MRR 0.300 - 0.365, spec S2.5); this slice is
+  how user language reaches that filter, and it unblocks A3 (ticket 03).
+- **The MUST-PASS is green offline** (eval case 14): the seeded chain companies - seed -
+  resolver lands `resolveCompany('בז"א')` on בית זיקוק אשדוד (issuer 1361) and keeps it
+  distinct from בז"ן (issuer 259) in the same rows; unknowns and ambiguity return null
+  honestly. Two-pass matching reuses `maya/issuers.ts`'s proven normalisation + coverage
+  rules (its word helpers are now exported).
+- **Collisions are decisions:** an alias two companies would share is dropped from BOTH and
+  printed for the founder to rule on - the live run reported zero.
+- **Review bought a mechanism:** the cold review's WARNING (a re-run whose derivation
+  diverges from an already-seeded row was silently swallowed by UNIQUE(alias)) became
+  `diffAliasSeedAgainstExisting()` - drift is judged on the normalized form, reported to
+  the founder, and never inserted; verified against production (246 seeded, 0 drift).
+- **Round-2 recurrence bought reach (ADR-0002):** the re-review caught ARCHITECTURE.md's
+  test-count header hand-carried stale - M1's count clause, one branch after the Verified
+  re-measure shipped. The gate now also re-measures the "**N tests across M files**"
+  header (file count vs package.json for free, total vs the battery run), and its maiden
+  firing caught both this header (732 vs 741) and this entry's own previous count (736).
+- **Verified:** 741/741 - `tsc` clean - live-table probe (בז"א - 1361, בז"ן/ORL - 259,
+  ticker 1105022 - תיגבור) - re-run idempotency probe (0 inserts, 246 total).

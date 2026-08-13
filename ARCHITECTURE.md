@@ -305,6 +305,8 @@ the deploy, which comes after this chapter.
 | `demo/DemoStateProvider.tsx` + `demo/reducer.ts` | **Session-only** state for the three surfaces — the reason nothing on them persists. Deliberate: a real store would have locked in shapes before the data model was decided. Unit-tested (`demoState.test.ts`). |
 | `demo/seedDocument.ts` | The working document's fabricated seed content, kept out of React so its DEMO markers are unit-testable. **Read the header before touching the quote block** — it invents financials and a quote from a NAMED executive of a real TASE issuer, and its marker cost three review rounds. Unit-tested. |
 | `company/logo.ts` | Which image represents a company — stored `logo_url`, else an EXACT `tase_security_id` map. Pure so it can be tested; it used to live inside `db/companies.ts` behind `server-only`, where a name-substring guess put one issuer's mark on another for months. Unit-tested. |
+| `company/resolve.ts` | The smart-layer company resolver (slice A2, spec §2.2 `resolve_company`): user language → `companies.id` over `company_aliases` rows. Pure, two-pass like `maya/issuers.ts` (exact-after-normalisation, then safe word coverage); ambiguity and unknowns return null honestly — the corpus holds BOTH refineries (בז"א ≠ בז"ן), so a guess is the wrong company's filings. Unit-tested, incl. the eval case-14 MUST-PASS offline. |
+| `company/aliasSeed.ts` | What goes INTO `company_aliases`: derives the seed from live `companies` rows (name/display → registered, `name_en` → latin, `tase_security_id` → ticker) plus the hand-curated abbreviation list keyed by issuer id. Cross-company collisions are dropped from BOTH sides and reported, never coin-flipped. Pure. Unit-tested. |
 | `calendar/event-meta.ts` | Event kinds: label, accent, tint, and `calendarEmptyState` — the single choke point deciding whether an empty month is empty or filtered. Unit-tested. |
 | `company/documentCatalog.ts` | Pure: MAYA filings → years → periods → which filing fills the report/presentation slot of a period. Knows the Israeli filing calendar has no Q4 (Q1/Q2/Q3 + annual). Unit-tested. |
 | `documents/openFiling.ts` | The `needsIngest` identity guard — what makes "no schema" safe. `company_documents` is unique on `(company_id, quarter, doc_type)` AND on `maya_report_id`, so a Hebrew/English pair or a correction and its original collide on ONE row; a stored row is served only when its `maya_report_id` IS the filing that was clicked, otherwise it is re-ingested. Unit-tested. **Not atomic** — see known gaps. |
@@ -327,7 +329,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **706 tests across 74 files** as of 2026-08-13; the list in `package.json` is explicit — add new test files there)
+### Tests (run via `npm test` — **741 tests across 76 files** as of 2026-08-13; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -341,7 +343,8 @@ run a file cannot tell you it is missing.
 · `auth/verifyUser.test.ts` · `calendar/event-meta.test.ts`
 · `chat/attachments.test.ts` · `chat/documentContext.test.ts`
 · `chat/history.test.ts` · `chat/projectContext.test.ts`
-· `company/documentCatalog.test.ts` · `company/logo.test.ts`
+· `company/aliasSeed.test.ts` · `company/documentCatalog.test.ts`
+· `company/logo.test.ts` · `company/resolve.test.ts`
 · `correction.test.ts` · `curationAuthz.test.ts` · `db/conversationScope.test.ts`
 · `demo/demoState.test.ts`
 · `design/anim.test.ts` · `documents/extract.test.ts`
@@ -437,6 +440,10 @@ run a file cannot tell you it is missing.
   shared placeholder logos by uniqueness rather than a pinned hash, and decides what is an image
   by magic bytes because MAYA's content-type lies). **The two sync scripts** take `--dry-run`;
   `maya-refresh-issuers.ts` does not (`[--sweep] [--from N] [--to N]`).
+- **Smart layer (2026-08-13):** `seed-company-aliases.ts` (seeds `company_aliases` from live
+  `companies` + the curated list in `src/lib/company/aliasSeed.ts`; takes `--dry-run`;
+  insert-only on UNIQUE(alias) so a re-run after new companies only adds — repointing an
+  existing alias is a by-hand founder decision, never a sweep side effect).
   ⚠ `tsconfig.json` excludes `scripts/`, so **`npx tsc --noEmit` does NOT typecheck these** —
   running them against live data is the only gate they get.
 - **Coordination:** `append-log.mjs` — the sanctioned append-only door to `COLLISIONS.md`

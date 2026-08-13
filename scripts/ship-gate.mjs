@@ -36,6 +36,8 @@ import {
   unenforced,
 } from './lib/env-manifest.mjs'
 import {
+  architectureCountClaim,
+  architectureCountProblems,
   closedScratchDirs,
   evictionProblems,
   parseBatterySummary,
@@ -212,8 +214,26 @@ const progressAddedLines = (gitOrNull('diff', `${BASE}...${branch}`, '--', 'PROG
   .filter((l) => l.startsWith('+') && !l.startsWith('+++'))
   .map((l) => l.slice(1))
 const claims = verifiedClaims(progressAddedLines)
-if (claims.length) {
-  console.log(`Verified-count claim found in the new PROGRESS entry — running the battery to check it…`)
+
+// The same re-measure now reaches ARCHITECTURE.md's "**N tests across M files**"
+// header (review recurrence 2026-08-13 — the very next branch after the Verified
+// check hand-carried this one stale). The file count is judged against the
+// branch's own package.json for free; the total joins whatever battery run the
+// gate makes, and a branch that touched ARCHITECTURE.md pays for one itself.
+const archClaim = architectureCountClaim(gitOrNull('show', `${branch}:ARCHITECTURE.md`) ?? '')
+const archTouched = (gitOrNull('diff', '--name-only', `${BASE}...${branch}`) ?? '')
+  .split('\n')
+  .includes('ARCHITECTURE.md')
+const registeredFiles = (() => {
+  const pkg = gitOrNull('show', `${branch}:package.json`)
+  if (pkg === null) return null
+  const script = JSON.parse(pkg)?.scripts?.test ?? ''
+  return (script.match(/[^\s]+\.test\.tsx?/g) ?? []).length
+})()
+
+let run = null
+if (claims.length || (archClaim && archTouched)) {
+  console.log(`Test-count claim found (PROGRESS and/or ARCHITECTURE) — running the battery to check it…`)
   let out = ''
   try {
     // `shell: true` because on Windows npm is npm.cmd, which node refuses to spawn
@@ -224,8 +244,10 @@ if (claims.length) {
   } catch (e) {
     out = `${e.stdout ?? ''}\n${e.stderr ?? ''}`
   }
-  problems.push(...verifiedCountProblems(claims, parseBatterySummary(out)))
+  run = parseBatterySummary(out)
+  problems.push(...verifiedCountProblems(claims, run))
 }
+problems.push(...architectureCountProblems(archClaim, run, registeredFiles))
 
 // The review record. It has to be TRACKED ON THE BRANCH, not merely present on disk:
 // /ship's durable-evidence law exists because a worktree path, a session temp dir and

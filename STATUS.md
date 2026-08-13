@@ -26,11 +26,10 @@ lowest-numbered unblocked ticket, one per session, branch per slice, `/ship`). S
 `docs/INGESTION-STANDARD.md`, the eval harness (`scripts/retrieval-eval/` vs
 `docs/eval/retrieval-eval-set.md`), approved cost budgets (spec §5).
 
-**Slice A1 (foundations migrations) is LIVE in production** — pgvector, `company_aliases`,
-`document_chunks`, `filing_facts`, `publication_date`, transcripts identity. Standing
-consequence: an unattributed transcript insert now FAILS at the DB (the born-attributed law;
-A3 builds the single birth door, A4 VALIDATEs the check). **Next up: slice A2 — company
-resolver** (seed `company_aliases`, `resolveCompany()`, the בז"א MUST-PASS case green offline).
+**Slices A1 (foundations) and A2 (company resolver) are LIVE** — the spec §2.6 shared-corpus
+set applied; `company_aliases` seeded; `resolveCompany()` green offline incl. the בז"א
+MUST-PASS. Standing consequence: an unattributed transcript insert FAILS at the DB (A3
+builds the single birth door, A4 VALIDATEs). **Next up: slice A3 — birth sequence** (ticket 03).
 
 Three small execution missions also open (map ticket 13): leftover cleanup,
 `profiles`/`access_requests` policy narrowing, PUT admin-gate.
