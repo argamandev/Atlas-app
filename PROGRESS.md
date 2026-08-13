@@ -939,3 +939,23 @@ the live hole fixed in the same session.
   SELECT-to-authenticated policy on all three new tables (banned shape nowhere), constraint
   honestly NOT VALID, and an unattributed insert probe REFUSED (23514). Retired map archived
   verbatim to `docs/archive/scratch/2026-08-13-smart-layer/`.
+
+## 2026-08-13 — The gate re-measures the Verified count (`feat/ship-gate-verified-counts`)
+
+- **What:** `npm run ship:gate` now runs the battery itself whenever a branch's new
+  PROGRESS entry claims a `Verified: N/N` count, and refuses the merge if the claim
+  disagrees with what it just measured. Fails closed on an unparsable run; costs nothing
+  when the entry points at the command instead of quoting a number.
+- **Why:** founder decision 2026-08-13 (DECISIONS.md, "let's do what you suggested") after
+  M1's count-carrying clause fired twice on the A1 branch — a stale "706/706" and a stale
+  token figure, both true when written, both false at the tip. M1 is a meta-law the
+  promotion ritual cannot see (deferred 2026-08-12), so this closes the recurring shape at
+  the ritual-gate tier without touching the deferred machinery.
+- **Shape:** pure functions in `scripts/lib/ship-gate.mjs` (`verifiedClaims`,
+  `parseBatterySummary`, `verifiedCountProblems`), unit-tested through their failing cases
+  in `shipGate.test.ts`; the collector only pays for a battery run when a claim exists.
+  Claim grammar (stated limit): the first `N/M` pair directly after the word "Verified".
+- **Verified:** 712/712 · tsc clean — and this very entry quotes that count on purpose, so
+  the check's maiden merge is its own first live firing. (The count moved twice while the
+  branch was open — a red intermediate commit, then a review-bought test — and the check
+  caught the staleness both times before the ritual did.)

@@ -376,3 +376,82 @@ export function closedScratchDirs(entries) {
     .map(([dir]) => dir)
     .sort()
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE VERIFIED-COUNT CHECK (founder decision 2026-08-13, DECISIONS.md).
+//
+// M1's count-carrying clause — "a count restated from another document — wrong
+// every time it was hand-carried" — fired twice on feat/smart-layer-foundations:
+// a PROGRESS entry claimed "Verified: 706/706" and STATUS.md a spare-token figure,
+// both true when written and both false at the tip after a later edit. M1 is a
+// meta-law the promotion ritual cannot see (deferred, founder 2026-08-12), so this
+// closes the one recurring SHAPE at the ritual-gate tier: the gate re-runs the
+// battery and refuses a merge whose NEW PROGRESS lines claim a Verified count that
+// disagrees with the run it just made.
+//
+// STATED LIMITS: the claim grammar is the ritual's own label — the first `N/M`
+// pair DIRECTLY after the word "Verified" on an added line. A count buried later
+// in the sentence is invisible (convention: the battery count comes right after
+// the label, or the line points at the command instead of quoting a number); so
+// is a count in any other file. This proves the CLAIMED count equals the MEASURED
+// one at gate time, nothing more.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The word "Verified", optionally wrapped/followed by bold markers and a colon,
+// then immediately the pass/total pair.
+const VERIFIED_CLAIM = /\bverified\b[:*\s]{0,8}(\d+)\s*\/\s*(\d+)/i
+
+/** Test-count claims in the PROGRESS lines a branch adds. */
+export function verifiedClaims(addedLines) {
+  const claims = []
+  for (const line of addedLines) {
+    const m = VERIFIED_CLAIM.exec(line)
+    if (m) claims.push({ line: line.trim(), pass: Number(m[1]), total: Number(m[2]) })
+  }
+  return claims
+}
+
+/**
+ * The battery's own summary, from `node --test`'s spec reporter output
+ * (`ℹ tests N` / `ℹ pass N`), ANSI stripped. Null when the output carries no
+ * parsable summary — which the caller must treat as a failure to verify, never
+ * as "no disagreement found".
+ */
+export function parseBatterySummary(output) {
+  // eslint-disable-next-line no-control-regex
+  const clean = output.replace(/\u001b\[[0-9;]*m/g, '')
+  const num = (label) => {
+    // The LAST occurrence: the battery's end-of-run summary. A test that echoes a
+    // summary-shaped diagnostic earlier in the stream must not be measured instead
+    // (review NIT, 2026-08-13).
+    const all = [...clean.matchAll(new RegExp(`ℹ ${label} (\\d+)`, 'g'))]
+    return all.length ? Number(all[all.length - 1][1]) : null
+  }
+  const total = num('tests')
+  const pass = num('pass')
+  return total === null || pass === null ? null : { total, pass }
+}
+
+/**
+ * Refusals owed by the claims against the run. `run` is `{ pass, total }` from
+ * `parseBatterySummary`, or null — and null FAILS CLOSED: a battery that cannot
+ * report its own summary cannot corroborate anyone quoting it.
+ */
+export function verifiedCountProblems(claims, run) {
+  if (!claims.length) return []
+  if (!run)
+    return [
+      'the new PROGRESS entry claims a Verified count, but the battery run the gate made produced no ' +
+        'parsable summary — fix the battery (or the claim), then re-run the gate.',
+    ]
+  const problems = []
+  for (const c of claims) {
+    if (c.pass !== run.pass || c.total !== run.total)
+      problems.push(
+        `the new PROGRESS entry claims "Verified: ${c.pass}/${c.total}" but the battery the gate just ran ` +
+          `measured ${run.pass}/${run.total}. Regenerate the count from a run of THIS tree — a count carried ` +
+          `across edits is M1's exact defect, twice recorded. (line: "${c.line.slice(0, 80)}")`
+      )
+  }
+  return problems
+}

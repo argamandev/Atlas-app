@@ -32,10 +32,11 @@ consequence: an unattributed transcript insert now FAILS at the DB (the born-att
 A3 builds the single birth door, A4 VALIDATEs the check). **Next up: slice A2 — company
 resolver** (seed `company_aliases`, `resolveCompany()`, the בז"א MUST-PASS case green offline).
 
-Three small execution missions also open, independent of the build (map ticket 13): leftover
-cleanup, `profiles`/`access_requests` policy narrowing, PUT admin-gate.
+Three small execution missions also open (map ticket 13): leftover cleanup,
+`profiles`/`access_requests` policy narrowing, PUT admin-gate.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
-product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s
-mechanism-backed laws to pointers at their tests — the set sits at its 9,000-token budget edge,
-so the next always-on addition pays for itself by that shrink first.
+product:** making `app.md`'s meta-laws visible to the promotion ritual (its Verified-line
+shape is gate-covered), and shrinking `app.md`'s mechanism-backed laws to pointers at their tests —
+the set sits at its 9,000-token budget edge, so the next always-on addition pays for itself by
+that shrink first.

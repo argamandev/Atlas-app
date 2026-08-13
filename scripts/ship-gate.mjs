@@ -26,7 +26,7 @@
 // `src/lib/shipGate.test.ts`. This file is the git and filesystem half: it turns a
 // branch into the numbers those rules judge.
 
-import { execFileSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 import {
   ALWAYS_ON,
   LAW_FORM_EXEMPT,
@@ -38,10 +38,13 @@ import {
 import {
   closedScratchDirs,
   evictionProblems,
+  parseBatterySummary,
   parseReviewRecord,
   recurrenceProblems,
   reviewProblems,
   stalenessProblems,
+  verifiedClaims,
+  verifiedCountProblems,
 } from './lib/ship-gate.mjs'
 
 const BASE = 'main'
@@ -199,6 +202,30 @@ const problems = evictionProblems({
   unarchivedScratch: closedScratchDirs(entries),
   deletedWithoutArchive,
 })
+
+// The Verified-count check (founder decision 2026-08-13). Only fires when a NEW
+// PROGRESS line actually claims a `Verified: N/M` count — then the gate re-runs the
+// battery and refuses a claim that disagrees with what it just measured. The run is
+// the cost of quoting a number; pointing at the command instead costs nothing.
+const progressAddedLines = (gitOrNull('diff', `${BASE}...${branch}`, '--', 'PROGRESS.md') ?? '')
+  .split('\n')
+  .filter((l) => l.startsWith('+') && !l.startsWith('+++'))
+  .map((l) => l.slice(1))
+const claims = verifiedClaims(progressAddedLines)
+if (claims.length) {
+  console.log(`Verified-count claim found in the new PROGRESS entry — running the battery to check it…`)
+  let out = ''
+  try {
+    // `shell: true` because on Windows npm is npm.cmd, which node refuses to spawn
+    // directly. A red battery exits non-zero and throws — its output still carries
+    // the summary, and a green claim over a red run is exactly the lie this check
+    // exists to refuse.
+    out = execSync('npm test', { cwd, encoding: 'utf8', timeout: 600_000, stdio: ['ignore', 'pipe', 'pipe'] })
+  } catch (e) {
+    out = `${e.stdout ?? ''}\n${e.stderr ?? ''}`
+  }
+  problems.push(...verifiedCountProblems(claims, parseBatterySummary(out)))
+}
 
 // The review record. It has to be TRACKED ON THE BRANCH, not merely present on disk:
 // /ship's durable-evidence law exists because a worktree path, a session temp dir and
