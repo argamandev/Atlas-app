@@ -106,6 +106,10 @@ async function setIndexStatus(db: CorpusDb, table: string, id: string, status: s
  * Swap in the new chunk set atomically, embed what the swap says is missing,
  * and flip index_status. Shared spine of both source types.
  */
+/** Embedding writes in flight at once. Each targets a distinct chunk id, so they
+ *  cannot race; this only bounds how many sockets a backfill opens against a
+ *  database that is also serving live users. */
+const WRITE_CONCURRENCY = 12
 async function replaceAndEmbed(
   db: CorpusDb,
   source: { transcriptId: string | null; documentId: string | null },
@@ -131,12 +135,35 @@ async function replaceAndEmbed(
       need.map((r) => r.embedding_input),
       embed
     )
-    for (let i = 0; i < need.length; i++) {
-      const { error: upErr } = await db
-        .from('document_chunks')
-        .update({ embedding: toVectorLiteral(vectors[i]) })
-        .eq('id', need[i].id)
-      if (upErr) throw new Error(`embedding write failed: ${upErr.message}`)
+    // ONE ROUND TRIP PER CHUNK, BUT NOT ONE AT A TIME.
+    //
+    // Each write targets a distinct id, so nothing here is ordered and nothing
+    // races: the only reason this was sequential is that it was written for a
+    // 3,000-chunk corpus, where the difference did not show. At A5's ~84,000 it
+    // does — measured mid-backfill at ~100 chunks/minute, which is ~8 hours of
+    // round-trip latency for the ~50,000 chunks left to embed. The embedding API
+    // was never the bottleneck; it already batches 100 per request.
+    //
+    // Bounded rather than unbounded: `Promise.all` over 50,000 updates would open
+    // 50,000 sockets and be refused. WRITE_CONCURRENCY is small enough to be
+    // polite to a database that is also serving live users.
+    //
+    // A FAILURE STILL FAILS THE WHOLE SOURCE. Each slice is awaited before the
+    // next starts, and the first error throws out to the caller below, which sets
+    // index_status='failed'. Partial embedding is not a success state (M3.3).
+    for (let i = 0; i < need.length; i += WRITE_CONCURRENCY) {
+      const slice = need.slice(i, i + WRITE_CONCURRENCY)
+      const results = await Promise.all(
+        slice.map((row, j) =>
+          db
+            .from('document_chunks')
+            .update({ embedding: toVectorLiteral(vectors[i + j]) })
+            .eq('id', row.id)
+        )
+      )
+      for (const r of results as Array<{ error: { message: string } | null }>) {
+        if (r?.error) throw new Error(`embedding write failed: ${r.error.message}`)
+      }
     }
   } catch (e) {
     await setIndexStatus(db, statusTable, statusId, 'failed')

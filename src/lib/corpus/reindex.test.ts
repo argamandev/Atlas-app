@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { reindexTranscript, reindexDocument, isDemoTranscriptId, NO_PAGES, type CorpusDb } from './reindex'
+import { toVectorLiteral } from './embed'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The atomic re-chunk mechanism (ingestion standard §5 + §8, "mechanisms owed"):
@@ -276,4 +277,62 @@ test('document reindex: NO PAGES is a failure, never an indexed document with no
     ['failed'],
     'and the row says so — queryable and retryable, per the standard'
   )
+})
+
+test('every chunk gets ITS OWN embedding, across the concurrency boundary', async () => {
+  // The one way the batched write can be catastrophically wrong and look fine:
+  // an off-by-one between the vector list and the row slice would hand chunks
+  // each other's embeddings. Nothing downstream could detect it — search would
+  // simply return the wrong passages forever, confidently. So the pairing gets a
+  // test with MORE chunks than WRITE_CONCURRENCY (12), and a distinct vector per
+  // input rather than the shared [3,4] the other cases use.
+  const N = 29
+  const pages = Array.from({ length: N }, (_, i) => ({ page_no: i + 1, text: `עמוד ${i + 1}.` }))
+  const { db, captured } = makeFakeDb({
+    rows: {
+      'company_documents:dN': { id: 'dN', company_id: 'c-uuid', title: 'דוח' },
+      'companies:c-uuid': { name: 'תיגבור' },
+    },
+    pages,
+    // every chunk the RPC hands back needs embedding
+    rpcResult: (args) => ({
+      data: (args.p_chunks as Array<{ id: string }>).map((c) => ({ chunk_id: c.id })),
+      error: null,
+    }),
+  })
+
+  // A distinct, order-revealing vector per request, numbered globally across the
+  // 100-per-request API batches.
+  let issued = 0
+  const countingFetch = (async (_url: unknown, init?: { body?: string }) => {
+    const n = (JSON.parse(init?.body ?? '{}') as { requests: unknown[] }).requests.length
+    const values = Array.from({ length: n }, () => {
+      issued += 1
+      return { values: [issued, 1] }
+    })
+    return { ok: true, json: async () => ({ embeddings: values }) }
+  }) as unknown as typeof fetch
+
+  const res = await reindexDocument(db, 'dN', { fetchImpl: countingFetch, apiKey: 'k' })
+  assert.equal(res.status, 'indexed')
+
+  const writes = captured.updates.filter((u) => u.table === 'document_chunks')
+  assert.equal(writes.length, N, 'every chunk was written')
+  // The nth chunk must carry the nth vector — [n,0] normalised is [1,0].
+  const chunkIds = (captured.rpcs[0].args.p_chunks as Array<{ id: string }>).map((c) => c.id)
+  assert.deepEqual(writes.map((w) => w.id), chunkIds, 'one write per chunk, none repeated')
+
+  // THE PAIRING ITSELF, checked by RATIO so it does not depend on how many digits
+  // the normaliser keeps. The kth chunk was embedded from the kth vector the API
+  // issued, [k+1, 1]; normalising scales both components equally, so the ratio
+  // survives it up to the digits the normaliser keeps — hence the round, which is
+  // ample: an off-by-one shifts a ratio by a WHOLE integer. That matters because nothing
+  // downstream could ever detect chunks wearing each other's embeddings.
+  for (let k = 0; k < N; k++) {
+    const [a, b] = (writes[k].payload.embedding as string).slice(1, -1).split(',').map(Number)
+    assert.ok(
+      Math.round(a / b) === k + 1,
+      `chunk ${k} carries vector ${(a / b).toFixed(2)}, expected ${k + 1} — the pairing is off`
+    )
+  }
 })
