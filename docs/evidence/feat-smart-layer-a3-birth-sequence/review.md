@@ -67,3 +67,11 @@ error-dropping list reads as VERIFY's explicitly. Battery 787/787 + budget green
 Round 4 (at the tip): final verdict copied verbatim below.
 
 ---
+
+REVIEWED: fcf289e (round 4 — delta from 27f7930 is one commit: the ENFORCED clause now claims only the three scanned shapes, both scans widened to upload/rpc and proven by the reviewer to fire on the shapes they gained, ratchets unchanged, battery 787/787 re-run by the reviewer)
+VERDICT: APPROVED
+FINDINGS: none
+
+The round-1 condition travels with this approval: migration 028 is applied before the merge is
+pushed — the new code writes `index_status`/`facts_status` and calls `atlas_replace_chunks` on
+its first post-deploy ingest, so the apply precedes the Railway deploy of `main`.
