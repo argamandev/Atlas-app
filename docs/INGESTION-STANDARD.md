@@ -250,8 +250,11 @@ corpus is 3,181 rather than the harness's 3,202 because the demo transcript and 
 **The gate did not pass, and the failure is in §5's lexical clause.** Full evidence:
 `docs/evidence/feat-smart-layer-a4-backfill/gate.md`.
 
-- The dense channel reproduces the measurement EXACTLY (MRR 0.254 unscoped, 0.268 scoped, case
-  for case). The `בז"א` MUST-PASS ranks 1 in every design, through the production resolver.
+- The dense channel reproduces the measurement (MRR 0.254 unscoped, 0.268 scoped) — **hit-set for
+  hit-set, with identical missed-sets**, and with two qualifications `gate.md` states in full: three
+  deep ranks moved with the 21 removed chunks, and **the ANN index was never engaged** (the planner
+  seq-scanned 3,181 rows), so this is exact cosine at THIS corpus size, not a statement about HNSW
+  at A5's. The `בז"א` MUST-PASS ranks 1 in every design, through the production resolver.
 - The lexical channel does not: MRR 0.207 → 0.075, dragging the chosen hybrid design to 0.141 —
   **below dense-only**, the reverse of what it was chosen on.
 - Root cause: `ts_rank`/`ts_rank_cd` have **no IDF**. `שנת` is in 96% of chunks and is scored

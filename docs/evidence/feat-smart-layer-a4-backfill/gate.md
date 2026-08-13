@@ -125,8 +125,9 @@ read as a regression.
 - Channel truncation: **none**. Every channel returned fewer rows than its 5,000-row candidate
   pool, so every rank above was measured over the whole corpus the design was allowed to search.
   (An earlier run reported truncation everywhere — that was a bug in the reporting rule, which
-  compared against pgvector's `ef_search` ceiling. `ef_search` bounds the scan's effort, not the
-  answer: the unscoped dense channel returns all 3,181 rows.)
+  compared against pgvector's `ef_search` ceiling — a ceiling that did not apply here at all,
+  because the planner answered by sequential scan: the unscoped dense channel returns all 3,181
+  rows, which an HNSW scan under a 1,000 `ef_search` could not.)
   **Stated limit of the corrected rule**, so nobody reads more into it than it says: it reports
   `truncated` when a channel returned as many rows as the pool allowed. It cannot see a channel cut
   short by `hnsw.ef_search` (≤1,000) or by a scoped iterative scan hitting `hnsw.max_scan_tuples`

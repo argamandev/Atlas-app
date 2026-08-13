@@ -17,7 +17,6 @@ import type { MayaScheduleRow } from './types'
 // who did not know this one existed - and the copy dropped a pass. One
 // conversion, one place to be wrong.
 import { zonedWallClockToUtc, ISRAEL_TZ } from '@/lib/i18n/format'
-export { zonedWallClockToUtc }
 
 /** `financialReportTypeId` — the feed's own two-row `event-types` lookup. */
 export const REPORT_TYPE_CONFERENCE_CALL = 1 // שיחת ועידה

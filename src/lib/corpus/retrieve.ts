@@ -157,8 +157,10 @@ const DEFAULT_CANDIDATES = 200
 //
 // The other residual, which no counter can show: HNSW is APPROXIMATE. A dense
 // channel can miss a genuine neighbour without ever filling its pool. That is a
-// property of the index, not a truncation, and it is measured by the eval gate
-// rather than flagged per query.
+// property of the index, not a truncation — and it is NOT yet measured by
+// anything, which is the honest version. The A4 gate ran with the index never
+// engaged: at 3,181 rows the planner answers exactly by seq scan. Measuring it
+// needs a corpus big enough to make the index engage, i.e. A5 (ticket 05).
 
 export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promise<RetrievalResult> {
   const channels = opts.channels ?? DEFAULT_CHANNELS

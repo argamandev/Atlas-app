@@ -9,6 +9,7 @@ import {
   israelMonthParts,
   israelDayStart,
   israelInstant,
+  zonedWallClockToUtc,
 } from './format'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -170,6 +171,49 @@ test('a real instant is unaffected', () => {
   assert.equal(formatDate('2026-08-09T09:00:00Z', 'en'), 'Aug 9, 2026')
 })
 
+// ── zonedWallClockToUtc — THE conversion, moved here from lib/maya/schedule.ts ─
+//
+// These assertions came with the function. They stayed in schedule.test.ts for one
+// round after the move, which left that file naming zones for a function no longer
+// in it — and the zone ratchet below had to carry an ALLOWED entry saying so. Tests
+// live beside the code they assert; moving them retires that entry.
+
+// ── the timezone conversion, which is where being wrong is invisible ─────────
+
+test('Israeli summer time is UTC+3', () => {
+  // 2026-08-10 is inside Israel DST (IDT, +03:00).
+  assert.equal(zonedWallClockToUtc('2026-08-10', '10:00:00', 'Asia/Jerusalem'), '2026-08-10T07:00:00.000Z')
+})
+
+test('Israeli winter time is UTC+2 — the same wall clock is a DIFFERENT instant', () => {
+  // 2026-01-15 is standard time (IST, +02:00). A fixed offset would put this an
+  // hour out, and an hour is enough to show a call on the wrong side of an hour
+  // boundary without anything looking broken.
+  assert.equal(zonedWallClockToUtc('2026-01-15', '10:00:00', 'Asia/Jerusalem'), '2026-01-15T08:00:00.000Z')
+})
+
+test('US eastern summer time is UTC-4', () => {
+  assert.equal(zonedWallClockToUtc('2026-08-10', '08:30:00', 'America/New_York'), '2026-08-10T12:30:00.000Z')
+})
+
+test('US eastern winter time is UTC-5', () => {
+  assert.equal(zonedWallClockToUtc('2026-01-15', '08:30:00', 'America/New_York'), '2026-01-15T13:30:00.000Z')
+})
+
+test('the two zones disagree by seven hours in summer — the error this guards', () => {
+  const israeli = zonedWallClockToUtc('2026-08-10', '08:30:00', 'Asia/Jerusalem')
+  const newYork = zonedWallClockToUtc('2026-08-10', '08:30:00', 'America/New_York')
+  const gapHours = (Date.parse(newYork) - Date.parse(israeli)) / 3_600_000
+  assert.equal(gapHours, 7)
+})
+
+test('a wall clock immediately after a DST spring-forward resolves to one instant', () => {
+  // Israel springs forward on the last Friday of March. 03:00 on the 28th is
+  // safely after the transition; the two correction passes must settle here.
+  const iso = zonedWallClockToUtc('2026-03-28', '03:00:00', 'Asia/Jerusalem')
+  assert.match(iso, /^2026-03-28T00:00:00\.000Z$/)
+})
+
 // ── israelInstant — a zone-less Israel wall clock → a real instant ───────────
 //
 // MAYA sends `"publicationDate": "2026-05-27T11:27:00.52"` with no zone. Slice
@@ -229,8 +273,10 @@ test('null, empty and unrecognised shapes are never guessed at', () => {
 //      at the single source, not a rival to it.
 //   3. This file is excluded: it is the scanner, and the needle is in its hand.
 //
-// The two ALLOWED entries below are a ratchet, not an amnesty — each states why,
-// and anything not on the list fails.
+// ALLOWED below is a ratchet, not an amnesty — each entry states why, anything
+// not on the list fails, and a stale entry fails too. (No count here: a number
+// in prose, inside the mechanism that exists to stop prose being trusted, is
+// exactly the thing this repo keeps getting wrong.)
 
 const ROOT = resolve(process.cwd())
 
@@ -247,7 +293,6 @@ const ALLOWED: Record<string, string> = {
     'ONE two-entry lookup table (ZONE_BY_TAG: IL/US) — MAYA rows carry a country tag and a ' +
     'dual-listed issuer’s call is America/New_York. No conversion logic lives here any more; ' +
     'it imports zonedWallClockToUtc and ISRAEL_TZ from format.ts.',
-  'src/lib/maya/schedule.test.ts': 'asserts that mapping; naming the zone IS the assertion',
 }
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
