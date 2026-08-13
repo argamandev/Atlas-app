@@ -136,9 +136,31 @@ when it is sparse — and sparse is this slice's own mid-backfill state.
 empty makes the function switch the lexical channel off and the caller was reporting a
 half-strength hybrid search as a full one.
 
+### 031 is APPLIED, and verified through the production module
+
+Applied 2026-08-14 after three pre-apply review rounds. `stable`, SECURITY INVOKER, ACL
+exactly `{postgres, service_role, authenticated}`. 029's function untouched and still
+granted, so the deployed build keeps working until this branch ships.
+
+Driven end to end through `src/lib/corpus/retrieve.ts` against the live corpus:
+
+| call | result |
+| --- | --- |
+| dense, default pool 200 | `saw 200 · inScopeCapped 201 · truncated false` — the ordinary search, complete |
+| dense, pool 5000 | `saw 3181 · inScopeCapped 3181 · truncated false` — exact under the cap, reproducing A4's finding that the planner seq-scans at this size |
+| hybrid, punctuation-only query | `lexical ran FALSE` — the SQL switched it off and said so |
+| hybrid, real terms | both channels ran |
+| `limit: 0` | refused before the RPC |
+
+The second row is the one worth keeping: at 3,181 chunks a 5,000-row request still comes
+back with everything, which is exactly why the old `saw < pool` rule looked fine through
+A4 and why it stops being fine after the backfill.
+
 **Owed and NOT done: the harness re-run.** `run.mjs --real` against the grown corpus is
 what tells us whether HNSW's approximation costs ranking quality. It is meaningless until
-the real backfill runs, and it is the gate B1 inherits.
+the real backfill runs, and it is the gate B1 inherits. Read `run.mjs`'s `REAL_POOL`
+header first: at A5 scale every unscoped dense case will read CUT SHORT by construction,
+because ef_search is clamped at 1000 — that is not a regression.
 
 ---
 
