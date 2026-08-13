@@ -20,9 +20,10 @@ FINDING · WARNING · src/lib/live/finishLiveCall.ts:110 · `resolveFinishCompan
 TASE issuer" (an invented cause), and because that throw precedes `birthLiveStub`, a first-ever
 airing failing there leaves NO row — the poller reads status 'none' instead of a visible failed
 row.
-RECURRENCE: yes → the awaited-supabase-result-is-LOOKED-AT law (app.md "Gating an endpoint
-changes every caller's ERROR path"; supabaseWriteDiscipline's class — the fourth filing of the
-discarded-`{ error }` defect, escaping through the read gap that scan stated in its own limits).
+RECURRENCE: yes → Gating an endpoint changes every caller's ERROR path, not just its happy path.
+(The awaited-supabase-result-is-LOOKED-AT clause; supabaseWriteDiscipline's class — the fourth
+filing of the discarded-`{ error }` defect, escaping through the read gap that scan stated in
+its own limits.)
 
 Per ADR-0002 the `yes` bought a stronger mechanism in the same commit as the fix (d373fd7):
 - The fix: the read error now throws its own distinct, retryable "companies read FAILED …
