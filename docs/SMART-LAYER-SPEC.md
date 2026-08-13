@@ -362,7 +362,8 @@ One branch (`feat/smart-layer-foundations`), six additive migrations under
 
 1. `YYYYMMDD_NNN_pgvector.sql` — `CREATE EXTENSION IF NOT EXISTS vector;`
 2. `YYYYMMDD_NNN_company_aliases.sql` — shared-corpus shape: `id uuid PK`,
-   `company_id bigint NOT NULL REFERENCES companies(id)`, `alias text NOT NULL`,
+   `company_id uuid NOT NULL REFERENCES companies(id)` (uuid — the live `companies.id`
+   type, migration `20260611_006`; an earlier draft said bigint), `alias text NOT NULL`,
    `kind text NOT NULL` (`registered|abbreviation|ticker|latin`), `UNIQUE (alias)`,
    index on `company_id`; RLS + `FOR SELECT TO authenticated USING (true)`; writes
    service-role only (no other policy).
