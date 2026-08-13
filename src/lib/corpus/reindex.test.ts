@@ -94,6 +94,7 @@ const transcriptRow = (over: Record<string, unknown> = {}) => ({
   id: 't1',
   status: 'completed',
   company_id: 'c-uuid',
+  source_key: 'vid-1',
   revision: 3,
   formatted_data: {
     speakers: [{ id: 'sp1', name: 'דנה' }],
@@ -202,6 +203,20 @@ test('a not-yet-completed transcript is skipped, not half-chunked', async () => 
   const res = await reindexTranscript(db, 't1', { apiKey: 'k' })
   assert.equal(res.status, 'skipped')
   assert.equal(captured.rpcs.length, 0)
+})
+
+// NO IDENTITY, NO CORPUS (standard §1). The losing half of a duplicate pair holds
+// no source_key — the canonical row does — so this is what keeps PyuMxe88e8g_live
+// out of search without a one-time script having to remember it (eval finding 6).
+test('a transcript with no source_key is not chunked — identity is the corpus door', async () => {
+  const { db, captured } = makeFakeDb({
+    rows: { 'transcripts:t1': transcriptRow({ source_key: null }) },
+  })
+  const res = await reindexTranscript(db, 't1', { apiKey: 'k' })
+  assert.equal(res.status, 'skipped')
+  assert.match(res.status === 'skipped' ? res.reason : '', /source_key/)
+  assert.equal(captured.rpcs.length, 0)
+  assert.equal(captured.chunkTableOps.length, 0)
 })
 
 test('document reindex: page anchors ride the RPC with the document id', async () => {

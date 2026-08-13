@@ -240,6 +240,44 @@ actually works"). Acceptance: after the backfill, the standing 18-case harness
 Postgres lexical channel — and must reproduce the measured eval results before any
 user-facing surface ships on it.
 
+### RAN 2026-08-14 (slice A4) — result, and what it means for §5
+
+The backfill completed with no failures: **3,181 chunks, all embedded**; 26 documents (not the
+23 estimated) with real publication dates; 1,398 `filing_facts` rows across 19 filings. The
+corpus is 3,181 rather than the harness's 3,202 because the demo transcript and the
+`PyuMxe88e8g_live` duplicate are now visibly `excluded` — §1 working, not a shortfall.
+
+**The gate did not pass, and the failure is in §5's lexical clause.** Full evidence:
+`docs/evidence/feat-smart-layer-a4-backfill/gate.md`.
+
+- The dense channel reproduces the measurement (MRR 0.254 unscoped, 0.268 scoped) — **hit-set for
+  hit-set, with identical missed-sets**, and with two qualifications `gate.md` states in full: three
+  deep ranks moved with the 21 removed chunks, and **the ANN index was never engaged** (the planner
+  seq-scanned 3,181 rows), so this is exact cosine at THIS corpus size, not a statement about HNSW
+  at A5's. The `בז"א` MUST-PASS ranks 1 in every design, through the production resolver.
+- The lexical channel does not: MRR 0.207 → 0.075, dragging the chosen hybrid design to 0.141 —
+  **below dense-only**, the reverse of what it was chosen on.
+- Root cause: `ts_rank`/`ts_rank_cd` have **no IDF**. `שנת` is in 96% of chunks and is scored
+  like `ההכנסות`, which is in 5%; BM25 weights them 75:1. Real BM25 computed in SQL over the
+  same `tsvector` reproduces the measured rank exactly, so the tokenizer, chunks and index are
+  all correct — only the scorer is wrong. Without a precomputed inverted index it takes 31
+  seconds on 3,181 chunks (measured).
+
+§5's sentence *"The lexical channel ships as the dual-indexed `tsvector 'simple'` shape — gated
+by one harness re-run against real Postgres"* did NOT pass its own gate. That gate existed
+because the eval's BM25 was an in-process simulation; it fired exactly as intended, before a
+single surface shipped on it.
+
+**RESOLVED by the founder, 2026-08-14 (`DECISIONS.md`): retrieval ships DENSE-ONLY.** His words:
+*"okay yes lets just go with the semantic search now, and after we finish working on the rest of
+the tickets and test the product we can come back to it and improving it."* So §5's lexical
+clause is **suspended, not deleted** — the `tsvector` column, `atlas_dual_tsv` and
+`atlas_search_chunks`' lexical channel all remain, and `src/lib/corpus/retrieve.ts` defaults to
+`dense` with a battery test holding that default. **Re-enabling the lexical channel is a
+retrieval-shape change and re-runs this gate**, per this section's own law. What a
+re-measurement needs first: the eval set has no exact-lookup case (ticker, `מספר נייר`, verbatim
+figure) — the one class where lexical should beat dense outright.
+
 ---
 
 ## Laws → mechanisms (ADR-0002 accounting — LANDED, slice A3, 2026-08-13)

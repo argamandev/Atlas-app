@@ -8,7 +8,11 @@ import {
   israelDayKey,
   israelMonthParts,
   israelDayStart,
+  israelInstant,
+  zonedWallClockToUtc,
 } from './format'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
 
 // ── Israel time, always ──────────────────────────────────────────────────────
 //
@@ -165,4 +169,167 @@ test('formatTime returns empty for an instant we do not have', () => {
 
 test('a real instant is unaffected', () => {
   assert.equal(formatDate('2026-08-09T09:00:00Z', 'en'), 'Aug 9, 2026')
+})
+
+// ── zonedWallClockToUtc — THE conversion, moved here from lib/maya/schedule.ts ─
+//
+// These assertions came with the function. They stayed in schedule.test.ts for one
+// round after the move, which left that file naming zones for a function no longer
+// in it — and the zone ratchet below had to carry an ALLOWED entry saying so. Tests
+// live beside the code they assert; moving them retires that entry.
+
+// ── the timezone conversion, which is where being wrong is invisible ─────────
+
+test('Israeli summer time is UTC+3', () => {
+  // 2026-08-10 is inside Israel DST (IDT, +03:00).
+  assert.equal(zonedWallClockToUtc('2026-08-10', '10:00:00', 'Asia/Jerusalem'), '2026-08-10T07:00:00.000Z')
+})
+
+test('Israeli winter time is UTC+2 — the same wall clock is a DIFFERENT instant', () => {
+  // 2026-01-15 is standard time (IST, +02:00). A fixed offset would put this an
+  // hour out, and an hour is enough to show a call on the wrong side of an hour
+  // boundary without anything looking broken.
+  assert.equal(zonedWallClockToUtc('2026-01-15', '10:00:00', 'Asia/Jerusalem'), '2026-01-15T08:00:00.000Z')
+})
+
+test('US eastern summer time is UTC-4', () => {
+  assert.equal(zonedWallClockToUtc('2026-08-10', '08:30:00', 'America/New_York'), '2026-08-10T12:30:00.000Z')
+})
+
+test('US eastern winter time is UTC-5', () => {
+  assert.equal(zonedWallClockToUtc('2026-01-15', '08:30:00', 'America/New_York'), '2026-01-15T13:30:00.000Z')
+})
+
+test('the two zones disagree by seven hours in summer — the error this guards', () => {
+  const israeli = zonedWallClockToUtc('2026-08-10', '08:30:00', 'Asia/Jerusalem')
+  const newYork = zonedWallClockToUtc('2026-08-10', '08:30:00', 'America/New_York')
+  const gapHours = (Date.parse(newYork) - Date.parse(israeli)) / 3_600_000
+  assert.equal(gapHours, 7)
+})
+
+test('a wall clock immediately after a DST spring-forward resolves to one instant', () => {
+  // Israel springs forward on the last Friday of March. 03:00 on the 28th is
+  // safely after the transition; the two correction passes must settle here.
+  const iso = zonedWallClockToUtc('2026-03-28', '03:00:00', 'Asia/Jerusalem')
+  assert.match(iso, /^2026-03-28T00:00:00\.000Z$/)
+})
+
+// ── israelInstant — a zone-less Israel wall clock → a real instant ───────────
+//
+// MAYA sends `"publicationDate": "2026-05-27T11:27:00.52"` with no zone. Slice
+// A4 is where that fact first reached a `timestamptz` column, on 26 live rows at
+// once, so both sides of the DST changeover are asserted here — including the
+// changeover DAY itself, which is the only day a single-pass offset probe gets
+// wrong and the reason this shares `israelDayStart`'s two passes.
+
+test('a summer (IDT, +03:00) wall clock resolves to the right instant', () => {
+  assert.equal(israelInstant('2026-05-27T11:27:00.52'), '2026-05-27T08:27:00.520Z')
+})
+
+test('a winter (IST, +02:00) wall clock resolves to the right instant', () => {
+  assert.equal(israelInstant('2021-01-14T09:00:00'), '2021-01-14T07:00:00.000Z')
+})
+
+test('the DST changeover day: an hour past the transition is +03:00, not +02:00', () => {
+  // Israel moved to IDT at 02:00 on 2026-03-27 (last Friday of March).
+  // 01:30 is still IST (+02:00); 03:30 is already IDT (+03:00). A single-pass
+  // probe reads the second one off the wrong side and lands an hour early.
+  assert.equal(israelInstant('2026-03-27T01:30:00'), '2026-03-26T23:30:00.000Z')
+  assert.equal(israelInstant('2026-03-27T03:30:00'), '2026-03-27T00:30:00.000Z')
+})
+
+test('a real backfilled row: the 2020 annual report, published 2021-03-31 08:33 Israel', () => {
+  assert.equal(israelInstant('2021-03-31T08:33:18.363'), '2021-03-31T05:33:18.363Z')
+})
+
+test('a string that already carries a zone is returned untouched', () => {
+  assert.equal(israelInstant('2026-05-27T08:27:00Z'), '2026-05-27T08:27:00Z')
+  assert.equal(israelInstant('2026-05-27T11:27:00+03:00'), '2026-05-27T11:27:00+03:00')
+})
+
+test('null, empty and unrecognised shapes are never guessed at', () => {
+  assert.equal(israelInstant(null), null)
+  assert.equal(israelInstant(''), null)
+  assert.equal(israelInstant('31/03/2021'), '31/03/2021')
+})
+
+// ── THE MECHANISM (ADR-0002) ────────────────────────────────────────────────
+//
+// Every Israel-time law in `.claude/rules/app.md` sits on one premise: that
+// there is ONE place in the source that knows what Israel time is. The premise
+// went unenforced until a second copy of the offset probe appeared in
+// `lib/maya/dates.ts` during slice A4 — a copy that dropped the two-pass fix and
+// was wrong for one hour a year. A reviewer caught it; nothing mechanical would
+// have. This is that mechanism.
+//
+// THREE STATED LIMITS, because a guard that overstates its reach is worse than
+// none (M1):
+//   1. It scans `src/` and `scripts/` for the zone LITERAL. A second
+//      implementation that derived the offset another way — a hardcoded +180, a
+//      table of transition dates — passes this and is still a second copy.
+//   2. COMMENTS ARE BLANKED FIRST. This repo has been fooled by a grep that hit
+//      prose before (`DEMO_USER_ID` read as 14 live sites, 11 of them comments).
+//      A `@deprecated … use the one that pins Asia/Jerusalem` note is a POINTER
+//      at the single source, not a rival to it.
+//   3. This file is excluded: it is the scanner, and the needle is in its hand.
+//
+// ALLOWED below is a ratchet, not an amnesty — each entry states why, anything
+// not on the list fails, and a stale entry fails too. (No count here: a number
+// in prose, inside the mechanism that exists to stop prose being trusted, is
+// exactly the thing this repo keeps getting wrong.)
+
+const ROOT = resolve(process.cwd())
+
+/** file → why this file is allowed to name the zone itself. */
+const ALLOWED: Record<string, string> = {
+  'src/lib/i18n/format.ts': 'THE definition — every Israel-time law resolves here',
+  // NARROWED 2026-08-14 after round 2 of the A4 review. This entry used to be
+  // true-but-incomplete: schedule.ts also held `zonedWallClockToUtc`, a second
+  // two-pass wall-clock→instant probe that `israelInstant` should have used and
+  // didn't — and the ALLOWED reason said only "multi-zone map", so a reader
+  // learned the mechanism covered more than it did. The conversion moved into
+  // format.ts; what is left here really is just the lookup table.
+  'src/lib/maya/schedule.ts':
+    'ONE two-entry lookup table (ZONE_BY_TAG: IL/US) — MAYA rows carry a country tag and a ' +
+    'dual-listed issuer’s call is America/New_York. No conversion logic lives here any more; ' +
+    'it imports zonedWallClockToUtc and ISRAEL_TZ from format.ts.',
+}
+
+function sourceFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules' || entry === '.next' || entry === '.git') continue
+    const p = join(dir, entry)
+    if (statSync(p).isDirectory()) sourceFiles(p, out)
+    else if (/\.(ts|tsx|mjs|js)$/.test(entry)) out.push(p)
+  }
+  return out
+}
+
+const blankComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+
+test('only the files that MAY name Asia/Jerusalem do — a second one is a second answer', () => {
+  const self = 'src/lib/i18n/format.test.ts'
+  const files = [...sourceFiles(join(ROOT, 'src')), ...sourceFiles(join(ROOT, 'scripts'))]
+  assert.ok(files.length > 50, `only ${files.length} source files found — the walk is broken`)
+
+  const holders = files
+    .map((p) => relative(ROOT, p).replace(/\\/g, '/'))
+    .filter((rel) => rel !== self)
+    .filter((rel) => blankComments(readFileSync(join(ROOT, rel), 'utf8')).includes('Asia/Jerusalem'))
+    .sort()
+
+  const unexpected = holders.filter((p) => !(p in ALLOWED))
+  assert.deepEqual(
+    unexpected,
+    [],
+    'These files name the Israel timezone themselves. Import from @/lib/i18n/format instead — ' +
+      'the second copy is where the two-pass DST fix gets dropped, which is exactly what ' +
+      'happened in slice A4:\n' +
+      unexpected.join('\n')
+  )
+
+  // Both jaws: an entry that stopped being true must be removed, or the list
+  // slowly becomes a description of nothing.
+  const stale = Object.keys(ALLOWED).filter((p) => !holders.includes(p))
+  assert.deepEqual(stale, [], `ALLOWED lists files that no longer name the zone:\n${stale.join('\n')}`)
 })

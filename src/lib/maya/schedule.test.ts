@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { zonedWallClockToUtc, toScheduleEvent, dedupeSchedule, type ScheduleEvent } from './schedule'
+import { toScheduleEvent, dedupeSchedule, type ScheduleEvent } from './schedule'
 import type { MayaScheduleRow } from './types'
 
 const row = (o: Partial<MayaScheduleRow>): MayaScheduleRow => ({
@@ -13,42 +13,6 @@ const row = (o: Partial<MayaScheduleRow>): MayaScheduleRow => ({
   timeZone: 'IL',
   url: null,
   ...o,
-})
-
-// ── the timezone conversion, which is where being wrong is invisible ─────────
-
-test('Israeli summer time is UTC+3', () => {
-  // 2026-08-10 is inside Israel DST (IDT, +03:00).
-  assert.equal(zonedWallClockToUtc('2026-08-10', '10:00:00', 'Asia/Jerusalem'), '2026-08-10T07:00:00.000Z')
-})
-
-test('Israeli winter time is UTC+2 — the same wall clock is a DIFFERENT instant', () => {
-  // 2026-01-15 is standard time (IST, +02:00). A fixed offset would put this an
-  // hour out, and an hour is enough to show a call on the wrong side of an hour
-  // boundary without anything looking broken.
-  assert.equal(zonedWallClockToUtc('2026-01-15', '10:00:00', 'Asia/Jerusalem'), '2026-01-15T08:00:00.000Z')
-})
-
-test('US eastern summer time is UTC-4', () => {
-  assert.equal(zonedWallClockToUtc('2026-08-10', '08:30:00', 'America/New_York'), '2026-08-10T12:30:00.000Z')
-})
-
-test('US eastern winter time is UTC-5', () => {
-  assert.equal(zonedWallClockToUtc('2026-01-15', '08:30:00', 'America/New_York'), '2026-01-15T13:30:00.000Z')
-})
-
-test('the two zones disagree by seven hours in summer — the error this guards', () => {
-  const israeli = zonedWallClockToUtc('2026-08-10', '08:30:00', 'Asia/Jerusalem')
-  const newYork = zonedWallClockToUtc('2026-08-10', '08:30:00', 'America/New_York')
-  const gapHours = (Date.parse(newYork) - Date.parse(israeli)) / 3_600_000
-  assert.equal(gapHours, 7)
-})
-
-test('a wall clock immediately after a DST spring-forward resolves to one instant', () => {
-  // Israel springs forward on the last Friday of March. 03:00 on the 28th is
-  // safely after the transition; the two correction passes must settle here.
-  const iso = zonedWallClockToUtc('2026-03-28', '03:00:00', 'Asia/Jerusalem')
-  assert.match(iso, /^2026-03-28T00:00:00\.000Z$/)
 })
 
 // ── row → event ──────────────────────────────────────────────────────────────

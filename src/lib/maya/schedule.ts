@@ -11,6 +11,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { MayaScheduleRow } from './types'
+// The wall-clock conversion this file used to own now lives in lib/i18n/format.ts,
+// re-exported here so its importers and tests keep working. It moved because a
+// SECOND two-pass probe appeared in lib/i18n during slice A4, written by someone
+// who did not know this one existed - and the copy dropped a pass. One
+// conversion, one place to be wrong.
+import { zonedWallClockToUtc, ISRAEL_TZ } from '@/lib/i18n/format'
 
 /** `financialReportTypeId` — the feed's own two-row `event-types` lookup. */
 export const REPORT_TYPE_CONFERENCE_CALL = 1 // שיחת ועידה
@@ -56,51 +62,6 @@ export interface ScheduleEvent {
   mayaReportTypeId: number
 }
 
-/**
- * Wall-clock in a named zone → a UTC instant.
- *
- * WHY NOT `new Date("2026-08-10T10:00:00")`: that is parsed in the SERVER's zone,
- * so the same row would land on a different instant depending on where the sync
- * ran. And a fixed offset (+03:00) is wrong for half the year in both zones —
- * Israel and New York each observe DST, on DIFFERENT dates.
- *
- * The method: ask `Intl` what the given UTC instant looks like in the target
- * zone, measure how far that is from the wall clock we wanted, and shift. One
- * correction pass is enough except exactly at a DST transition, so we run a
- * second — after which the result is stable (the offset can only change once).
- */
-export function zonedWallClockToUtc(dateISO: string, timeHHMMSS: string, ianaZone: string): string {
-  const [y, m, d] = dateISO.split('-').map(Number)
-  const [hh, mm, ss] = (timeHHMMSS || '00:00:00').split(':').map(Number)
-  const wanted = Date.UTC(y!, m! - 1, d!, hh ?? 0, mm ?? 0, ss ?? 0)
-
-  let guess = wanted
-  for (let i = 0; i < 2; i++) {
-    const seen = wallClockOf(guess, ianaZone)
-    const drift = seen - guess
-    if (drift === 0) break
-    guess = wanted - drift
-  }
-  return new Date(guess).toISOString()
-}
-
-/** What `instant` reads as on a wall clock in `zone`, expressed as a UTC-epoch of those digits. */
-function wallClockOf(instant: number, zone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: zone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).formatToParts(new Date(instant))
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value)
-  // Intl renders midnight as hour 24 in some ICU versions; normalise it.
-  const hour = get('hour') % 24
-  return Date.UTC(get('year'), get('month') - 1, get('day'), hour, get('minute'), get('second'))
-}
 
 /**
  * One feed row → one calendar event, or `null` if the row cannot be trusted.
@@ -143,7 +104,7 @@ export function toScheduleEvent(row: MayaScheduleRow): ScheduleEvent | null {
       // treat an unknown-time row as a DAY (see `CompanyOverview`'s `isFuture`).
       // Correct handling for viewers outside Israel is unfinished work, recorded
       // in the evidence rather than papered over.
-      zonedWallClockToUtc(row.scheduledDate, '00:00:00', 'Asia/Jerusalem')
+      zonedWallClockToUtc(row.scheduledDate, '00:00:00', ISRAEL_TZ)
 
   const period = PERIOD_LABEL[row.periodTypeId] ?? ''
   return {

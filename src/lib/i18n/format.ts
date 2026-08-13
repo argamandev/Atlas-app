@@ -60,13 +60,58 @@ export function israelMonthParts(d: Date | string): { year: number; month: numbe
   return { year: p.year, month: p.month - 1 }
 }
 
-/** Minutes Israel is AHEAD of UTC at a given instant — +120 (IST) or +180 (IDT). */
-function israelOffsetMinutes(utcMs: number): number {
-  const p = israelParts(new Date(utcMs))
-  const wallAsUTC = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute)
-  // `israelParts` resolves to the minute, so compare against a floored instant
-  // rather than the raw one, or the seconds land in the offset.
-  return Math.round((wallAsUTC - Math.floor(utcMs / 60_000) * 60_000) / 60_000)
+/**
+ * Wall-clock in a named zone → a UTC instant. THE one conversion in this repo.
+ *
+ * WHY NOT `new Date("2026-08-10T10:00:00")`: that is parsed in the SERVER's zone,
+ * so the same row would land on a different instant depending on where the code
+ * ran. And a fixed offset (+03:00) is wrong for half the year in every zone that
+ * observes DST — Israel and New York do, on DIFFERENT dates.
+ *
+ * The method: ask `Intl` what a given UTC instant looks like in the target zone,
+ * measure how far that is from the wall clock we wanted, and shift. One
+ * correction pass is enough except exactly at a DST transition, so we run a
+ * second — after which the result is stable (the offset can only change once).
+ *
+ * It lives HERE, zone-parameterised, rather than beside either caller: it was
+ * written in `lib/maya/schedule.ts` for the IL/US calendar feed, and slice A4
+ * then grew a SECOND two-pass probe in `lib/i18n` for MAYA publication dates
+ * whose author did not know this one existed — and the copy dropped a pass. Two
+ * implementations of "what time is it really" is the defect; one file naming the
+ * zone does not prevent it, so the conversion itself is what got unified.
+ * `schedule.ts` imports this.
+ */
+export function zonedWallClockToUtc(dateISO: string, timeHHMMSS: string, ianaZone: string): string {
+  const [y, m, d] = dateISO.split('-').map(Number)
+  const [hh, mm, ss] = (timeHHMMSS || '00:00:00').split(':').map(Number)
+  const wanted = Date.UTC(y!, m! - 1, d!, hh ?? 0, mm ?? 0, ss ?? 0)
+
+  let guess = wanted
+  for (let i = 0; i < 2; i++) {
+    const seen = wallClockOf(guess, ianaZone)
+    const drift = seen - guess
+    if (drift === 0) break
+    guess = wanted - drift
+  }
+  return new Date(guess).toISOString()
+}
+
+/** What `instant` reads as on a wall clock in `zone`, expressed as a UTC-epoch of those digits. */
+function wallClockOf(instant: number, zone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(instant))
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value)
+  // Intl renders midnight as hour 24 in some ICU versions; normalise it.
+  const hour = get('hour') % 24
+  return Date.UTC(get('year'), get('month') - 1, get('day'), hour, get('minute'), get('second'))
 }
 
 /**
@@ -77,18 +122,40 @@ function israelOffsetMinutes(utcMs: number): number {
  * SQL, and Postgres compares timestamps, not `YYYY-MM-DD` strings. Everywhere
  * that can compare day KEYS should keep doing that — it needs no offset at all.
  *
- * ⚠ THE OFFSET IS PROBED, NEVER HARDCODED. Israel is UTC+2 in winter and UTC+3
- * under DST, and the transition dates move each year. Reading the offset off the
- * zone at the moment in question is the only version that survives them. The
- * second pass settles the edge case where the first guess lands on the far side
- * of a transition, which is exactly the day this would otherwise be wrong on.
+ * ⚠ THE OFFSET IS PROBED, NEVER HARDCODED — see `zonedWallClockToUtc`, which is
+ * where the probing and its two passes live. Israel is UTC+2 in winter and UTC+3
+ * under DST, and the transition dates move each year.
  */
 export function israelDayStart(dayKey: string): Date {
-  const [y, m, d] = dayKey.split('-').map(Number)
-  const midnightAsUTC = Date.UTC(y, m - 1, d, 0, 0)
-  let ms = midnightAsUTC - israelOffsetMinutes(midnightAsUTC) * 60_000
-  ms = midnightAsUTC - israelOffsetMinutes(ms) * 60_000
-  return new Date(ms)
+  return new Date(zonedWallClockToUtc(dayKey, '00:00:00', ISRAEL_TZ))
+}
+
+/**
+ * A zone-less Israel wall clock → the real instant it names.
+ *
+ * `israelDayStart` generalised past midnight — same conversion, any time of day.
+ *
+ * ITS CALLER: MAYA's `publicationDate` (`lib/maya/filings.ts`) arrives as
+ * `2026-05-27T11:27:00.52` with no zone — the Tel Aviv exchange's local time.
+ * Handed to a `timestamptz` column it would be read in the session zone (UTC on
+ * Supabase) and stored 2–3 hours wrong, on a product that renders Israel time to
+ * every viewer.
+ *
+ * A string that already carries a zone, or one this cannot parse, is returned
+ * untouched — guessing at an unrecognised shape is how a wrong instant gets
+ * stored confidently.
+ */
+export function israelInstant(wallClock: string | null | undefined): string | null {
+  if (!wallClock) return null
+  if (/(Z|[+-]\d{2}:?\d{2})$/.test(wallClock)) return wallClock
+  const m = wallClock.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?$/)
+  if (!m) return wallClock
+
+  const [, y, mo, d, h, mi, s = '00'] = m
+  const iso = zonedWallClockToUtc(`${y}-${mo}-${d}`, `${h}:${mi}:${s}`, ISRAEL_TZ)
+  // Sub-second precision rides along untouched: zone offsets are whole minutes.
+  const ms = m[7] ? Math.round(Number(`0.${m[7]}`) * 1000) : 0
+  return ms ? new Date(Date.parse(iso) + ms).toISOString() : iso
 }
 
 export type GreetingKey = 'morning' | 'afternoon' | 'evening'

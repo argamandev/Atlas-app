@@ -168,12 +168,68 @@ interface FactsDb {
  * uniqueness (NULLS NOT DISTINCT, migration 025) — re-ingest converges on the
  * same rows instead of piling duplicates.
  */
+/**
+ * Collapse facts that share the `filing_facts` uniqueness key
+ * (report, concept, period start, period end).
+ *
+ * WHY THIS IS NEEDED — measured, not guessed (bז"א's 2025 annual report,
+ * mayaReportId 1730576): a ת930 instance repeats a concept once per SIGNATORY.
+ * Three `NameOfFinancialStatementsSignatory` facts, three positions, three line
+ * ids — all textual `ifrs-il` metadata, all sharing one key. Postgres answers a
+ * multi-row upsert on one key with "ON CONFLICT DO UPDATE command cannot affect
+ * row a second time", so the whole filing's facts failed to persist and landed
+ * as a visible `facts_status = 'failed'`. The key models a fact, and a list of
+ * signatories is not one fact.
+ *
+ * REPEATED TEXT IS KEPT, NOT DROPPED: the row carries the first value as `text`
+ * (what every existing reader already looks at) plus the complete ordered list
+ * as `values`. Losing two of three signatories to make an insert succeed would
+ * be exactly the silent degradation the standard forbids.
+ *
+ * A NUMERIC COLLISION IS A DIFFERENT ANIMAL AND THROWS. Two different numbers
+ * for one concept-and-period is a genuine ambiguity — picking one would be
+ * confidently wrong (M3.2), so it surfaces as `facts_status = 'failed'`, which
+ * is retryable and visible, rather than as a number nobody can trust. Identical
+ * numbers repeated are just a duplicate and collapse quietly.
+ */
+export function dedupeFactsByKey(facts: XbrlFact[]): XbrlFact[] {
+  const groups = new Map<string, XbrlFact[]>()
+  for (const f of facts) {
+    const key = `${f.concept}|${f.periodStart ?? ''}|${f.periodEnd ?? ''}`
+    groups.set(key, [...(groups.get(key) ?? []), f])
+  }
+
+  const out: XbrlFact[] = []
+  // Array.from over a spread for the same reason filings.ts uses it: this
+  // repo's tsconfig target predates iterating a Map directly.
+  for (const [key, group] of Array.from(groups.entries())) {
+    if (group.length === 1) {
+      out.push(group[0])
+      continue
+    }
+    const values = Array.from(
+      new Set(group.map((f: XbrlFact) => (f.value !== null ? String(f.value) : (f.metadata.text ?? ''))))
+    )
+    if (group.some((f: XbrlFact) => f.value !== null) && values.length > 1) {
+      throw new Error(
+        `xbrl: ${key} carries ${values.length} different numeric values (${values.join(', ')}) — ` +
+          `ambiguous, not merged`
+      )
+    }
+    out.push({
+      ...group[0],
+      metadata: { ...group[0].metadata, ...(values.length > 1 ? { values: values.join(' | ') } : {}) },
+    })
+  }
+  return out
+}
+
 export async function persistFilingFacts(
   db: FactsDb,
   args: { mayaReportId: number; companyId: string; facts: XbrlFact[] }
 ): Promise<void> {
   if (args.facts.length === 0) return
-  const rows = args.facts.map((f) => ({
+  const rows = dedupeFactsByKey(args.facts).map((f) => ({
     maya_report_id: args.mayaReportId,
     company_id: args.companyId,
     concept: f.concept,

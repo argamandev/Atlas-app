@@ -4,7 +4,7 @@
 If you are tempted to add a dated entry, it belongs in `PROGRESS.md` or `docs/case-history/`.
 Anything here that has landed gets removed, not struck through.
 
-_Last rewritten: 2026-08-13_
+_Last rewritten: 2026-08-14_
 
 ## Where the product is
 
@@ -20,21 +20,23 @@ Live on Railway at `www.timlul-ai.com` since 2026-08-08. A mistake on `main` is 
 
 ## What is being worked on right now — BUILDING the smart layer
 
-The spec of record is `docs/SMART-LAYER-SPEC.md` — read it before any smart-layer work. Build
-tickets: `.scratch/smart-layer-build/issues/` (14 slices, `Blocked by:` edges; take the
-lowest-numbered unblocked ticket, one per session, branch per slice, `/ship`). Standing gates:
-`docs/INGESTION-STANDARD.md`, the eval harness, approved cost budgets (spec §5).
+Spec of record: `docs/SMART-LAYER-SPEC.md` — read before any smart-layer work. Build tickets:
+`.scratch/smart-layer-build/issues/` (14 slices, `Blocked by:` edges; take the lowest-numbered
+unblocked one, branch per slice, `/ship`). Standing gates: `docs/INGESTION-STANDARD.md`, the eval
+harness, spec §5 budgets.
 
-**Slices A1–A3 are LIVE** — schema, resolver (בז"א MUST-PASS green), and the birth sequence:
-one battery-guarded transcript door (attributed, keyed, aligned, atomically re-chunked), XBRL
-facts + `publication_date` with visible statuses, the global MAYA limiter, the harness importing
-the production chunker; the `index_status` admin surface is deferred into A5.
-**Next up: slice A4 — backfill + harness re-run** (ticket 04 — the gate for every surface slice).
+**A1–A4 are built**; A4 sits unmerged on `feat/smart-layer-a4-backfill`. The corpus is searchable:
+3,181 chunks all embedded, 26/26 documents, migrations 029–030 applied. (`index_status` admin
+surface: deferred into A5.)
+
+**Retrieval ships DENSE-ONLY** — semantic search (founder 2026-08-14). The A4 gate found Postgres
+has no IDF, so the lexical channel collapses and the chosen hybrid lands BELOW dense-only; dense
+reproduces the eval exactly, בז"א MUST-PASS ranks 1. Re-enabling lexical re-runs the gate:
+`docs/evidence/feat-smart-layer-a4-backfill/gate.md`. **B1 is unblocked.**
 
 Also open (map ticket 13): leftover cleanup, `profiles`/`access_requests` policy narrowing,
 PUT admin-gate.
 
-**Two deferred calls (2026-08-12, `DECISIONS.md`), self-improving-layer, after the product:**
-meta-laws visible to the promotion ritual, and shrinking `app.md`'s mechanism-backed laws to
-pointers at their tests — the set sits at its 9,000-token budget edge, so the next always-on
-addition pays for itself by that shrink first.
+**Two deferred calls (2026-08-12, `DECISIONS.md`), after the product:** meta-laws visible to the
+promotion ritual, and shrinking `app.md` to pointers at its tests. The set is AT budget — every
+always-on addition evicts its own weight first.

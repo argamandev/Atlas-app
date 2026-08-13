@@ -139,10 +139,8 @@ no repo-wide check, so treat this as `ENFORCED: none` for any new surface.
 `git grep -n 'dir="ltr"' -- src`. Fixing one instance is exactly what hid the others. **(2)** Prove
 it renders differently (M4): put the old `dir` back on the live element and re-measure the runs'
 x-positions. A `<bdi>` that changes nothing looks identical to one that fixes everything.
-**This is the repo's most-repeated defect — 7 recorded occurrences** (source: the FINDING entries
-on `feat/documents-catalog` in `docs/archive/ready-queue-2026-07-03--2026-08-10.md`; the frozen
-case entry predates the last two and says "5th"). Every one
-passed typecheck, tests, and an EN-only screenshot. → `#bidi-bdi`
+**The repo's most-repeated defect — 7 occurrences**, every one green through typecheck, tests and
+an EN-only screenshot. Count and its source: → `#bidi-bdi`.
 
 **LAW · Design parity is judged against the RENDERED design, never bundle CSS** — bundle CSS can be
 a stale iteration. Probe computed styles / canvas `measureText` on the live design page. Two system
@@ -158,12 +156,14 @@ this law forbids judging against. Closing it needs a browser probe, which nothin
 hands the client a finished string the browser never re-formats — and the server is not in Israel.
 **LAW · Atlas renders ISRAEL TIME for every viewer in every timezone** (founder decision
 2026-08-09). Two surfaces can then never disagree.
-**LAW · Bucket days and months with `israelDayKey` / `israelMonthParts`** (`src/lib/i18n/format.ts`,
-which pins `ISRAEL_TZ`). Local date parts put a row stored at Israel midnight on the wrong day for
-viewers either side of Israel.
+**LAW · Bucket days and months with `israelDayKey` / `israelMonthParts`** — and take EVERY
+Israel-time answer from `src/lib/i18n/format.ts`, the only file that may name the zone or convert a
+wall clock: MAYA's zone-less `publicationDate` becomes an instant via `israelInstant`, never handed
+to a `timestamptz` column. Local date parts put an Israel-midnight row on the wrong day either side.
 **LAW · Do not decide date logic inline in JSX** — extract and unit-test it
 (`lib/calendar/event-meta.ts` is the shape). Inline-in-JSX is where the last two defects survived.
-**ENFORCED** `src/lib/i18n/format.test.ts`, `src/lib/transcriptDate.test.ts`.
+**ENFORCED** `src/lib/i18n/format.test.ts` (which also ratchets who may write the zone literal —
+limits in its header), `src/lib/transcriptDate.test.ts`.
 **VERIFY** Run the battery under `TZ=UTC` as well as locally (M1): a test that only ever runs in one
 environment asserts that environment, not the property — the whole battery was green while
 production was three hours wrong. ⚠ **In Git Bash a `TZ=` value containing `/` is silently dropped**
@@ -177,8 +177,8 @@ reassuring green; only slash-free names survive. **Verify the zone, never the co
 **LAW · Degradation must be VISIBLE. Never render success UI for content the server dropped, and
 never add a stub to fill a designed slot.** A failed fetch says so, on screen, in both locales. A
 pane ends in exactly one of: loading · error · empty — never a fabricated fourth state.
-**ENFORCED** none, structurally — enforced only by deleting fallbacks rather than gating them.
-→ `#stubs-on-designed-slots`
+**ENFORCED** partially — `src/lib/corpus/retrieve.test.ts` fails a truncated retrieval channel
+reported as complete. Elsewhere `none`. → `#stubs-on-designed-slots`
 
 **LAW · When a decision rests on a natural-language classifier over an open vocabulary, buy VISIBLE
 FAILURE, not a longer word list.** Hebrew and English both have unbounded ways to say the same
@@ -222,16 +222,14 @@ two imports would close this at the hook tier and has not been written.
 natively because Next 14's webpack mangles the pdfjs ESM bundle — re-sync **both** on any
 pdfjs-dist bump. `getDocument({data})` **detaches** the passed Uint8Array; hand it a copy if you
 still need the bytes. Adopting any mechanism from pdf.js's own viewer means copying its **whole CSS
-cluster** — grep the upstream stylesheet for every selector touching the element, because a
-companion rule three rules away was load-bearing.
+cluster**, grepped from the upstream stylesheet (→ `#pdfjs` for why).
 **ENFORCED** none — nothing compares the committed `public/pdf*.min.mjs` against the installed
 `pdfjs-dist` version, so a bump desyncs them silently and the battery stays green.
 → `#pdfjs`
 
 **LAW · Mutable private resources are served `no-store`.** A bad response plus a long max-age once
-pinned a 0-byte PDF past the server-side fix, and a hard refresh does **not** purge fetch()-cached
-entries — that needs `fetch(url, {cache:'reload'})`. Storage paths are stable per company+quarter,
-so re-ingests must never be cacheable.
+pinned a 0-byte PDF past the server-side fix; a hard refresh does **not** purge fetch()-cached
+entries — that needs `fetch(url, {cache:'reload'})`. Storage paths are stable per company+quarter.
 **ENFORCED** none — no test asserts the cache headers on the private-document responses, so a
 missing `no-store` is invisible until a stale body is served.
 → `#no-store-mutable-private`
