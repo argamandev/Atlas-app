@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { syncCompanyFilings, upsertKeyOf } from './syncFilings'
 import type { SyncDeps } from './syncFilings'
 import type { RemoteSource } from './filings'
+import { NO_PAGES } from '@/lib/corpus/reindex'
 import type { CorpusDb } from '@/lib/corpus/reindex'
 
 /** The ASCII unit separator upsertKeyOf joins on. Spelled as an escape here
@@ -337,4 +338,35 @@ test('a lost race the re-read cannot CONFIRM is a failure, not a "held"', async 
     assert.match((report.outcomes[0] as { error: string }).error, /could not confirm the winner/)
     assert.equal(report.failed, 1)
   }
+})
+
+test('a held document whose TEXT is missing is re-ingested, not re-chunked forever', async () => {
+  // The A5 backfill's own failure mode: a NUL in the extracted text made the pages
+  // insert fail AFTER the document row was upserted, leaving a row with no pages.
+  // reindexDocument now refuses to call that 'indexed' — but re-chunking cannot fix
+  // it either, so the door has to go back to MAYA. Without this the next run would
+  // report the same failure forever and the filing would never join the corpus.
+  const { db } = fakeDb([{ id: 'doc-60', maya_report_id: 60, company_id: CO, index_status: 'failed' }])
+  const d = deps({
+    reindex: async () => ({ status: 'failed' as const, chunkCount: 0, error: NO_PAGES }),
+  })
+  const report = await syncCompanyFilings(
+    { db, ...d },
+    { companyId: CO, sources: [src({ mayaReportId: 60 })] }
+  )
+  assert.deepEqual(d.ingested, [60], 'it went back to MAYA for the bytes')
+  assert.equal(report.outcomes[0].status, 'ingested')
+})
+
+test('an ORDINARY reindex failure is not re-ingested — that would re-download for nothing', async () => {
+  const { db } = fakeDb([{ id: 'doc-61', maya_report_id: 61, company_id: CO, index_status: 'failed' }])
+  const d = deps({
+    reindex: async () => ({ status: 'failed' as const, chunkCount: 4, error: 'embedding write failed' }),
+  })
+  const report = await syncCompanyFilings(
+    { db, ...d },
+    { companyId: CO, sources: [src({ mayaReportId: 61 })] }
+  )
+  assert.deepEqual(d.ingested, [], 'the pages are fine; only the embeddings failed')
+  assert.equal(report.outcomes[0].status, 'reindexed')
 })

@@ -3,6 +3,7 @@ import type { RemoteSource } from './filings'
 // copies of "which filing is newer" that drift are two different answers to the
 // question this module and that one are both deciding on.
 import { newestFirst } from './latestOfEach'
+import { NO_PAGES } from '@/lib/corpus/reindex'
 import type { CorpusDb, ReindexResult } from '@/lib/corpus/reindex'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,7 +93,6 @@ export function upsertKeyOf(source: RemoteSource): string {
   // only job is to find them.
   return `${source.period}${KEY_SEP}${source.docType}`
 }
-
 
 const UNIQUE_VIOLATION = /duplicate key value|23505/i
 
@@ -197,6 +197,16 @@ export async function syncCompanyFilings(deps: SyncDeps, args: SyncArgs): Promis
       }
       try {
         const index = await deps.reindex(row.id)
+        // RE-CHUNKING CANNOT FIX A DOCUMENT WITH NO TEXT. `NO_PAGES` means the row
+        // was upserted and then its pages insert failed — which is what a NUL in
+        // the extracted text did to two filings in this slice's own backfill. The
+        // only repair is to fetch and extract it again, so fall through to a full
+        // re-ingest rather than reporting a failure a re-run would repeat forever.
+        if (index.status === 'failed' && index.error === NO_PAGES) {
+          const { documentId, pageCount } = await deps.ingest(source)
+          outcomes.push({ status: 'ingested', source, documentId, pageCount })
+          continue
+        }
         outcomes.push({ status: 'reindexed', source, documentId: row.id, index })
       } catch (e) {
         outcomes.push({ status: 'failed', source, error: (e as Error).message })

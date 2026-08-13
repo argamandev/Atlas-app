@@ -34,6 +34,12 @@ export interface CorpusDb {
   ): PromiseLike<{ data: unknown; error: { message: string } | null }>
 }
 
+/**
+ * The one reason a HELD document can fail to index: its row exists but its extracted
+ * text does not. Exported so a caller can recognise it and re-ingest — re-chunking
+ * cannot fix a document whose pages were never written.
+ */
+export const NO_PAGES = 'no extracted pages — the document row exists but its text does not'
 export type ReindexResult =
   | { status: 'indexed'; chunkCount: number; embedded: number; reused: number }
   | { status: 'failed'; chunkCount: number; error: string }
@@ -216,6 +222,23 @@ export async function reindexDocument(
     .eq('document_id', documentId)
     .order('page_no')
   if (pagesErr) throw new Error(`reindexDocument: pages load failed: ${pagesErr.message}`)
+
+  // A DOCUMENT WITH NO PAGES IS NOT AN INDEXABLE ONE, and must never come out of
+  // here 'indexed'. `ingestDocument` throws on a zero-page PDF, so zero rows in
+  // `document_pages` means the pages insert FAILED after the document row was
+  // upserted — which is exactly what a NUL in the extracted text did to two
+  // filings in the A5 backfill. Without this, a re-run would chunk nothing, embed
+  // nothing, and flip the row to 'indexed': a document that search can never
+  // return, recorded as fully searchable. Success-with-nothing is not a state this
+  // function may express (M3.3).
+  if (!pages || (pages as unknown[]).length === 0) {
+    await setIndexStatus(db, 'company_documents', documentId, 'failed')
+    return {
+      status: 'failed',
+      chunkCount: 0,
+      error: NO_PAGES,
+    }
+  }
 
   const companyName = await companyNameOf(db, doc.company_id as string)
   const chunks = ((pages as Array<{ page_no: number; text: string }>) ?? []).flatMap((p) =>
