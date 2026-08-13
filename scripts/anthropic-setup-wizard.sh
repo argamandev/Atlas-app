@@ -186,7 +186,7 @@ finish() {
 
 TOTAL_STAGES=5
 ENV_FILE=".env.local"
-RESULTS_FILE="docs/archive/scratch/smart-layer-map-2026-08/research/11-key-verification.md"
+RESULTS_FILE="docs/archive/scratch/2026-08-13-smart-layer/research/11-key-verification.md"
 
 banner "Anthropic account + API key for Atlas (ticket 11)"
 

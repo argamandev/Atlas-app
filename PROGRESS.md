@@ -938,4 +938,4 @@ the live hole fixed in the same session.
 - **Verified:** 706/706 · `tsc` clean · post-apply SQL probes: RLS enabled + single
   SELECT-to-authenticated policy on all three new tables (banned shape nowhere), constraint
   honestly NOT VALID, and an unattributed insert probe REFUSED (23514). Retired map archived
-  verbatim to `docs/archive/scratch/smart-layer-map-2026-08/`.
+  verbatim to `docs/archive/scratch/2026-08-13-smart-layer/`.
