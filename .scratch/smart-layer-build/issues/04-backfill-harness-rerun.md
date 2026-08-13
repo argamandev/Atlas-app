@@ -81,6 +81,26 @@ seconds on 3,181 chunks, measured.
 **Option 3 — re-measure and re-choose.** The eval was run against an in-process BM25 that
 production cannot cheaply have. Re-approve the design against what production can actually do.
 
+**Option 4 — dense now, lexical demoted to exact-match only (RECOMMENDED).** Ship Option 1's
+dense channel as the ranker, and keep the tsvector for the one job it is still perfect at:
+finding an exact string. Dense embeddings are weakest exactly where lexical is strongest — a
+ticker, a `מספר נייר`, a figure like `358.7`, a quoted phrase — and for those the ordering
+problem does not arise, because a query of one rare term has nothing to mis-weight. Concretely:
+route to the lexical channel only when the query carries a term the corpus rarely holds, and rank
+with dense otherwise.
+
+Why this one: it unblocks B1 today at no cost, it keeps the exact-lookup ability that a financial
+product cannot do without, and it does not spend a migration on a design the eval has not
+re-approved. It also leaves Option 2 fully open — an inverted index can be added later without
+undoing anything, and by then A5's real corpus (~60K pages) will say whether the cost is worth
+it on data that actually matters. The measured downside is real and should be said plainly: the
+in-process hybrid scored 0.365 against dense-only's 0.268, so this defers a ~36% relative
+retrieval gain that may or may not survive contact with real BM25 in Postgres.
+
+**This needs a measurement before it is trusted, not just an argument** — the eval set has no
+exact-lookup case today (no ticker, no `מספר נייר`, no verbatim-figure question). Adding two and
+re-running the gate is the cheap next step whichever option is chosen.
+
 Also for the founder: a stray diagnostic function `public.probe_idf_tsquery(text, float)` sits on
 production (recorded in `COLLISIONS.md`). It is referenced by nothing; removing it is hook-blocked
 and needs an explicit OK.
