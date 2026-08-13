@@ -1,4 +1,14 @@
-import 'server-only'
+// NO `server-only`, DELIBERATELY, and it used to be here. The real constraint on
+// this file is the one `documents/ingest.ts` states about itself — it reaches
+// pdfjs, so it may run in scripts (tsx) and in Next server code, and nowhere
+// else. `server-only` asserts something stricter and wrong: it makes the module
+// unimportable from a script, and slice A5's backfill is a script that MUST come
+// through this door rather than re-implement the birth sequence beside it.
+//
+// Removing it costs nothing real — a client bundle reaches pdfjs, node crypto and
+// a service-role key one import further down and fails there — and this repo has
+// twice recorded `server-only` as the reason a defect stayed invisible
+// (`company/logo.ts`, `db/companies.ts`: "no test could reach it").
 import { createClient } from '@supabase/supabase-js'
 import { downloadFiling } from './files'
 import { describeFailure } from './types'

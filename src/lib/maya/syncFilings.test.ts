@@ -5,6 +5,11 @@ import type { SyncDeps } from './syncFilings'
 import type { RemoteSource } from './filings'
 import type { CorpusDb } from '@/lib/corpus/reindex'
 
+/** The ASCII unit separator upsertKeyOf joins on. Spelled as an escape here
+ *  for the same reason it is spelled as one there: a raw control character in
+ *  a source file is invisible in every diff that would catch it changing. */
+const SEP = '\u001f'
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ONE DOOR FOR THE THREE WAYS A FILING CAN ARRIVE — the backfill, the 10-minute
 // poller and the nightly sweep. The ingestion standard §7 requires exactly that:
@@ -250,10 +255,18 @@ test('filings that differ in period or type do NOT collide', async () => {
 test('the upsert key is the DB’s, not a paraphrase of it', () => {
   // If this drifts from `unique (company_id, quarter, doc_type)` the collision
   // detector goes quietly blind, which is worse than not having one.
-  assert.equal(upsertKeyOf(src({ period: 'Q1 2026', docType: 'report' })), 'Q1 2026 report')
+  assert.equal(upsertKeyOf(src({ period: 'Q1 2026', docType: 'report' })), `Q1 2026${SEP}report`)
   assert.notEqual(
     upsertKeyOf(src({ period: 'Q1 2026', docType: 'report' })),
     upsertKeyOf(src({ period: 'Q1 2026', docType: 'slides' }))
+  )
+  // The separator is a character `period` cannot contain. `period` is free-form —
+  // built from a regex match on the issuer's own Hebrew title — so joining on a
+  // space would let two different (period, type) pairs produce one key and hide a
+  // collision from the very check that exists to find them.
+  assert.notEqual(
+    upsertKeyOf(src({ period: 'Q1', docType: 'report' })),
+    upsertKeyOf(src({ period: `Q1${SEP}report`, docType: 'report' }))
   )
 })
 
