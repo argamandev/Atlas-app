@@ -1,7 +1,7 @@
 import { mayaGet, type MayaGetOptions } from './client'
-import { MAYA_MIN_REQUEST_GAP_MS, PATH_DISCLOSURES_BY_ISSUER } from './config'
+import { MAYA_MIN_REQUEST_GAP_MS, PATH_DISCLOSURES_BY_ISSUER, PATH_LATEST_DISCLOSURES } from './config'
 import { yearWindows } from './dates'
-import type { MayaEnvelope, MayaFiling, MayaResult } from './types'
+import type { MayaEnvelope, MayaFiling, MayaLatestResponse, MayaLatestRow, MayaResult } from './types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // One issuer's filing catalog over a span of years.
@@ -62,4 +62,50 @@ export async function listDisclosures(
     x.publicationDate < y.publicationDate ? 1 : x.publicationDate > y.publicationDate ? -1 : 0
   )
   return { ok: true, data }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE LIVE FEED — the market's most recent disclosures, every issuer, ONE request.
+//
+// Slice A5's freshness layer, half one: poll this every ~10 minutes and a filing
+// published at 09:00 is searchable by about 09:15. The nightly per-company sweep
+// is the other half, because an earnings-season burst can push a filing off a
+// fixed-length feed before any poll sees it — this is the fast path, not the
+// guarantee.
+//
+// IT NORMALISES, AND THAT IS ITS MAIN JOB. The endpoint belongs to MAYA product
+// 1.0.0 and answers in a different dialect from the 2.0.0 `by-issuer` catalog:
+// a `{ mayaReports: { result } }` wrapper instead of `MayaEnvelope`, and
+// `attachedfiles` with a lower-case f. Measured across both endpoints on
+// 2026-08-14: `attachedFiles` is present on 100% of by-issuer's rows and 0% of
+// this feed's. Everything downstream — `toRemoteSources`, the event-id rules, the
+// birth sequence — reads `attachedFiles`, so without this translation every row
+// would look like a filing with no PDF and be dropped, silently and forever.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** One v1 feed row → the v2 shape the rest of the product speaks. */
+export function normaliseLatestRow(row: MayaLatestRow): MayaFiling {
+  return {
+    publicationDate: row.publicationDate,
+    mayaReportId: row.mayaReportId,
+    isPriorityReport: row.isPriorityReport,
+    title: row.title,
+    isCorrection: row.isCorrection,
+    url: row.url,
+    issuer: (row.issuer ?? []).map((i) => ({
+      issuerId: i.issuerId,
+      issuerName: i.issuerName,
+      assosiated: i.associated,
+    })),
+    events: row.events ?? [],
+    attachedFiles: row.attachedfiles ?? [],
+  }
+}
+
+export async function latestDisclosures(opts: MayaGetOptions = {}): Promise<MayaResult<MayaFiling[]>> {
+  const res = await mayaGet<MayaLatestResponse>(PATH_LATEST_DISCLOSURES, {}, opts)
+  if (!res.ok) return { ok: false, failure: res.failure }
+
+  const rows = res.data?.mayaReports?.result ?? []
+  return { ok: true, data: rows.map(normaliseLatestRow) }
 }
