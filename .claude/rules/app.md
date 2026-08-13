@@ -100,8 +100,8 @@ client.
 `supabaseAdmin\.` grep returns this list BACKWARDS — it hits `projects`/`workspaces` on their own
 prose and misses `calls`/`conversations`/`transcripts`, which chain `await supabaseAdmin` +
 newline + `.from(`. The import grep is still a proxy (M3.2): a line-WRAPPED import drops a module
-silently — and `transcripts.ts` (the birth door since 2026-08-13) DYNAMIC-imports it, invisible to
-that grep: sweep `git grep -l "import('@/lib/supabase')" -- src/lib/db` too. Silence reads as
+silently — and `transcripts.ts` (the birth door) DYNAMIC-imports it, invisible to that grep:
+sweep `git grep -l "import('@/lib/supabase')" -- src/lib/db` too. Silence reads as
 "RLS-safe", so re-read the list, never just the count.
 - **user client, RLS load-bearing — copy these:** `projects.ts`, `workspaces.ts`
 - **`supabaseAdmin` over personal rows — must filter by owner in application code:**
@@ -111,12 +111,13 @@ that grep: sweep `git grep -l "import('@/lib/supabase')" -- src/lib/db` too. Sil
 → `#supabase-admin-bypasses-rls`, `#authn-is-not-authz`
 
 **LAW · Gating an endpoint changes every caller's ERROR path, not just its happy path.**
-**ENFORCED** partially — two battery scans, each over a per-file ratchet of stated exceptions:
-`src/lib/apiFetchDiscipline.test.ts` (2026-08-13, the second occurrence: the silent-success
-speaker-rename toast, after the 401-forever finish poll) fails any direct `/api` fetch whose
-response nothing reads; `src/lib/supabaseWriteDiscipline.test.ts` (2026-08-13, the third:
-finishLiveCall's stub upserts discarded `{ error }` — supabase never throws) fails any awaited
-supabase write whose result nothing reads. They prove the result is LOOKED AT, nothing more.
+**ENFORCED** partially — three battery scans, each over a per-file ratchet of stated exceptions,
+each occurrence filed in its test's own header: `src/lib/apiFetchDiscipline.test.ts` (any direct
+`/api` fetch whose response nothing reads), `src/lib/supabaseWriteDiscipline.test.ts` (any
+awaited supabase write whose result nothing reads — supabase never throws), and
+`src/lib/supabaseReadDiscipline.test.ts` (any `.single()`/`.maybeSingle()` read whose destructure
+drops `error` — a dropped read error once invented a cause). They prove the result is LOOKED AT,
+nothing more.
 **VERIFY** WHICH reaction is right is still yours: open every caller, answer "what does this do
 with a 401?" — revert optimistic state, or send the user to sign in (`loginRedirectTarget`).
 Never invent a cause: a "model unavailable" banner for an expired session retries forever.

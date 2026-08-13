@@ -106,11 +106,19 @@ export async function resolveFinishCompanyId(input: {
   if (input.companyId) return input.companyId
   if (input.companyTicker) {
     const { supabaseAdmin } = await import('@/lib/supabase')
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('companies')
       .select('id')
       .eq('tase_security_id', input.companyTicker)
       .maybeSingle()
+    // A failed READ is not an attribution verdict (review finding 2026-08-13,
+    // the discarded-{error} class's fourth filing): inventing "no such issuer"
+    // for a transient DB failure is the invented-cause shape app.md forbids.
+    if (error) {
+      throw new Error(
+        `live finish: companies read FAILED while resolving "${input.companyName}" — ${error.message} (transient; retry the finish, this is not an attribution verdict)`
+      )
+    }
     if (data?.id) return data.id as string
   }
   throw new Error(
