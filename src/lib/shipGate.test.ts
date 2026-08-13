@@ -35,6 +35,8 @@ import { join } from 'node:path'
 
 import {
   MIN_REASON,
+  architectureCountClaim,
+  architectureCountProblems,
   closedScratchDirs,
   evictionProblems,
   parseBatterySummary,
@@ -421,7 +423,8 @@ test('a count NOT adjacent to the label is no claim — the stated limit, both w
 })
 
 test('the battery summary parses through ANSI color, and fails closed when absent', () => {
-  const colored = '\u001b[34mℹ tests 706\u001b[39m\n\u001b[34mℹ pass 705\u001b[39m\n\u001b[34mℹ fail 1\u001b[39m'
+  const colored =
+    '\u001b[34mℹ tests 706\u001b[39m\n\u001b[34mℹ pass 705\u001b[39m\n\u001b[34mℹ fail 1\u001b[39m'
   assert.deepEqual(parseBatterySummary(colored), { total: 706, pass: 705 })
   assert.equal(parseBatterySummary('npm ERR! something died before the reporter spoke'), null)
 })
@@ -444,4 +447,52 @@ test('no claim, no problem — and a claim over an unparsable run fails closed',
 test('the LAST summary in the stream wins - a summary-shaped diagnostic must not be measured', () => {
   const echoed = 'ℹ tests 3\nℹ pass 3\n(more tests run)\nℹ tests 711\nℹ pass 711'
   assert.deepEqual(parseBatterySummary(echoed), { total: 711, pass: 711 })
+})
+
+// ─── The ARCHITECTURE-count check (review recurrence, 2026-08-13) ─────────────
+// The Verified-line re-measure shipped one branch earlier; the very next branch
+// hand-carried ARCHITECTURE.md's "**N tests across M files**" header stale in the
+// same commit that regenerated PROGRESS's count. Same law (M1's count-carrying
+// clause), different count — so the re-measure's reach grows to cover it.
+
+const ARCH_HEADER =
+  '### Tests (run via `npm test` — **732 tests across 76 files** as of 2026-08-13; the list is explicit)'
+
+test('the ARCHITECTURE test-count header reads as a claim', () => {
+  assert.deepEqual(architectureCountClaim(ARCH_HEADER), {
+    total: 732,
+    files: 76,
+    line: ARCH_HEADER.trim(),
+  })
+})
+
+test('an ARCHITECTURE without the header shape claims nothing', () => {
+  assert.equal(architectureCountClaim('# Architecture\n\nno counts here'), null)
+  // A bare pair without the "tests across … files" words is someone else's number.
+  assert.equal(architectureCountClaim('**732** things over **76** places'), null)
+})
+
+test('an ARCHITECTURE total that disagrees with the run is refused; agreement is not', () => {
+  const claim = architectureCountClaim(ARCH_HEADER)
+  assert.deepEqual(architectureCountProblems(claim, { pass: 732, total: 732 }, 76), [])
+  const refused = architectureCountProblems(claim, { pass: 736, total: 736 }, 76)
+  assert.equal(refused.length, 1)
+  assert.match(refused[0], /736/)
+  assert.match(refused[0], /ARCHITECTURE/)
+})
+
+test('the registered-file count is checked even without a battery run', () => {
+  const claim = architectureCountClaim(ARCH_HEADER)
+  const problems = architectureCountProblems(claim, null, 78)
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /76/)
+  assert.match(problems[0], /78/)
+})
+
+test('no ARCHITECTURE claim, no problem — and a null run checks only the file count', () => {
+  assert.deepEqual(architectureCountProblems(null, { pass: 1, total: 1 }, 1), [])
+  const claim = architectureCountClaim(ARCH_HEADER)
+  // Run not made, file count agrees: nothing to refuse — the total is only
+  // judged against a battery the gate actually ran (stated limit).
+  assert.deepEqual(architectureCountProblems(claim, null, 76), [])
 })

@@ -981,5 +981,10 @@ the live hole fixed in the same session.
   diverges from an already-seeded row was silently swallowed by UNIQUE(alias)) became
   `diffAliasSeedAgainstExisting()` - drift is judged on the normalized form, reported to
   the founder, and never inserted; verified against production (246 seeded, 0 drift).
-- **Verified:** 736/736 - `tsc` clean - live-table probe (בז"א - 1361, בז"ן/ORL - 259,
+- **Round-2 recurrence bought reach (ADR-0002):** the re-review caught ARCHITECTURE.md's
+  test-count header hand-carried stale - M1's count clause, one branch after the Verified
+  re-measure shipped. The gate now also re-measures the "**N tests across M files**"
+  header (file count vs package.json for free, total vs the battery run), and its maiden
+  firing caught both this header (732 vs 741) and this entry's own previous count (736).
+- **Verified:** 741/741 - `tsc` clean - live-table probe (בז"א - 1361, בז"ן/ORL - 259,
   ticker 1105022 - תיגבור) - re-run idempotency probe (0 inserts, 246 total).

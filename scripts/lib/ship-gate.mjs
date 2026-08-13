@@ -432,6 +432,54 @@ export function parseBatterySummary(output) {
   return total === null || pass === null ? null : { total, pass }
 }
 
+// ── The ARCHITECTURE-count check (review recurrence, 2026-08-13) ─────────────
+// The Verified-line re-measure above shipped one branch earlier; the very next
+// branch (smart-layer A2) hand-carried ARCHITECTURE.md's "**N tests across M
+// files**" header stale in the same commit that regenerated PROGRESS's Verified
+// count — the same M1 clause, a count the re-measure did not reach. So its reach
+// grows: the header's file count is checked against `package.json`'s registered
+// list (free), and its test total against the battery run the gate already makes.
+//
+// STATED LIMIT: the total is judged only when a run exists — the gate runs the
+// battery when a Verified claim appears in new PROGRESS lines or the branch
+// touched ARCHITECTURE.md while its header carries a claim. A branch that adds
+// tests, quotes no count anywhere and never touches ARCHITECTURE.md leaves the
+// header stale and unjudged until the next branch that does.
+
+const ARCH_CLAIM = /\*\*(\d+) tests across (\d+) files\*\*/
+
+/** The "**N tests across M files**" header claim in ARCHITECTURE.md, or null. */
+export function architectureCountClaim(text) {
+  for (const line of text.split(/\r?\n/)) {
+    const m = ARCH_CLAIM.exec(line)
+    if (m) return { total: Number(m[1]), files: Number(m[2]), line: line.trim() }
+  }
+  return null
+}
+
+/**
+ * Refusals owed by ARCHITECTURE.md's header against reality. `run` is the
+ * battery summary or null — null skips the total (the file count is still
+ * checked, it costs nothing); `registeredFiles` is the count of test files in
+ * `package.json`'s test script, or null when the caller could not read it.
+ */
+export function architectureCountProblems(claim, run, registeredFiles) {
+  if (!claim) return []
+  const problems = []
+  if (registeredFiles !== null && claim.files !== registeredFiles)
+    problems.push(
+      `ARCHITECTURE.md claims "${claim.files} files" of tests but package.json's test script registers ` +
+        `${registeredFiles}. Regenerate the header from the commands its own text names — a hand-carried ` +
+        `count is M1's exact defect. (line: "${claim.line.slice(0, 80)}")`
+    )
+  if (run !== null && claim.total !== run.total)
+    problems.push(
+      `ARCHITECTURE.md claims "${claim.total} tests" but the battery the gate just ran measured ` +
+        `${run.total}. Regenerate the header from a run of THIS tree. (line: "${claim.line.slice(0, 80)}")`
+    )
+  return problems
+}
+
 /**
  * Refusals owed by the claims against the run. `run` is `{ pass, total }` from
  * `parseBatterySummary`, or null — and null FAILS CLOSED: a battery that cannot
