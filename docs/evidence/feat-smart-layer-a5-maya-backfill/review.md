@@ -15,17 +15,17 @@ happened before and the answer had to be a mechanism, not a promise (ADR-0002).
 production — which is the entire argument for the pre-apply gate, since a narrowing would
 have needed hook-blocked SQL.
 
-- **FINDING · BLOCKER · `truncated = saw < in_scope` is permanently true** for any scope
+FINDING · BLOCKER · `truncated = saw < in_scope` is permanently true for any scope
   larger than the pool — i.e. every production query after this slice's backfill. I had
   dropped the pool from ticket 05's own prescribed form. **Answer:** the rule is
   `saw < least(pool, in_scope_capped)`. The pool belongs in the comparison because the
   CALLER chose it; `ef_search` and `max_scan_tuples` do not, because nobody did.
-  **RECURRENCE: yes → Degradation must be VISIBLE.** Third wrong version of this flag; the
+RECURRENCE: yes → Degradation must be VISIBLE. Third wrong version of this flag; the
   mechanism is now two tests that each kill a previously-shipped rule.
-- **FINDING · BLOCKER · the battery certified that premise** — a test asserting 200-of-61,402
+FINDING · BLOCKER · the battery certified that premise — a test asserting 200-of-61,402
   with a 200 pool "was cut off", which is the shape of a perfectly healthy query.
   **Answer:** replaced with the pool-limited-and-complete case it was missing.
-  **RECURRENCE: yes → M2 · Never let a test certify an untrue premise.**
+RECURRENCE: yes → M2 · Never let a test certify an untrue premise
 - WARNING · `run.mjs` still printed "filled its N-row pool" as the truncation reason →
   reason string and header rewritten. RECURRENCE: no.
 - WARNING · "counted off an index by the same statement" untrue — they are separate
@@ -38,7 +38,7 @@ have needed hook-blocked SQL.
 
 **Round 2 — CHANGES.** The rule survived every boundary attack; the rest was over-claiming.
 
-- **FINDING · BLOCKER · the harness's no-truncation line** ("Every channel saw fewer rows
+FINDING · BLOCKER · the harness's no-truncation line ("Every channel saw fewer rows
   than its candidate pool") is what it now prints for the very event A5's re-run exists to
   announce. **Answer:** both report branches and the collection comment rewritten to
   cut-short. **RECURRENCE: yes → Degradation must be VISIBLE.**
@@ -58,15 +58,15 @@ have needed hook-blocked SQL.
 
 **Round 3 — CHANGES, with "APPLY: yes after the clamp".**
 
-- **FINDING · BLOCKER · the zero-row `ran` fallback reinstated the round-2 bug** on the one
+FINDING · BLOCKER · the zero-row `ran` fallback reinstated the round-2 bug on the one
   path where no row can carry the boolean: an empty scope (a company not yet embedded —
   again this slice's own state) plus an emptied tsquery. **Answer:** the question goes back
   to the database via `atlas_dual_tsquery`, one cheap immutable call, only on the empty path
   and only when lexical was asked for. A failed read throws.
-  **RECURRENCE: yes → Degradation must be VISIBLE.**
-- **FINDING · BLOCKER · the test asserted that fallback was "the honest reading"** →
+RECURRENCE: yes → Degradation must be VISIBLE
+FINDING · BLOCKER · the test asserted that fallback was "the honest reading" →
   replaced with four cases, including the dense-only path that must NOT spend the round trip.
-  **RECURRENCE: yes → M2.**
+RECURRENCE: yes → M2
 - **WARNING · `p_candidates` null/int-max.** `limit null` is NO LIMIT, so both probes became
   the unbounded full counts the migration exists to prevent, and `least(greatest(null,40),1000)`
   would have dropped `ef_search` to 40 silently. **Answer:** clamped once into `v_pool`;
@@ -89,7 +89,7 @@ table in `measurements.md` §4.
 
 ## Branch review · Standards axis
 
-- **FINDING · BLOCKER · `indexHealthDb.ts` read every row with no `.range()`.** PostgREST
+FINDING · BLOCKER · `indexHealthDb.ts` read every row with no `.range()`. PostgREST
   caps a select at 1000; this repo already pages around that in `lib/db/calls.ts`; and A5's
   own backfill takes `company_documents` to ~1,178. The screen built to reveal an
   under-indexed corpus would have begun under-reporting at exactly the size that made it
@@ -97,17 +97,18 @@ table in `measurements.md` §4.
   **Answer:** it now COUNTS (`head: true` + `count: 'exact'`), exact at any corpus size. The
   only list reads left are the troubled set, bounded by a status filter and a limit, with
   its true total counted separately and rendered, so a cut list is reported as cut.
-  **RECURRENCE: yes → M1 · A green signal proves only what it measured**, and →
+RECURRENCE: yes → M1 · A green signal proves only what it measured, and →
   Degradation must be VISIBLE.
-- **FINDING · BLOCKER · the 23505 re-read dropped its error**, so a failed re-read reported
+FINDING · BLOCKER · the 23505 re-read dropped its error, so a failed re-read reported
   `held` with an empty `documentId` — a filing declared present with nothing having looked.
   This is a LIST read, which `supabaseReadDiscipline.test.ts` states is outside its scope.
   **Answer:** an unconfirmed race is now `failed` with a message naming the report id, and a
   test covers both the failed-read and no-row-came-back paths — the only mechanism there is.
-  **RECURRENCE: yes → M3.3 · make the lying state unrepresentable.**
-- **FINDING · the ticket said 031 was "NOT applied" while COLLISIONS said it was.**
-  **RECURRENCE: yes → M1** (a hand-carried fact, wrong in the direction that costs the
-  founder a pointless action). Ticket corrected.
+RECURRENCE: yes → M3.3 · make the lying state unrepresentable
+FINDING · NIT · the ticket said 031 was "NOT applied" while COLLISIONS said it was — a
+  hand-carried fact, wrong in the direction that costs the founder a pointless action.
+  Ticket corrected.
+RECURRENCE: yes → M1 · A green signal proves only what it measured
 - JUDGEMENT · `ingestFiling.ts` drops `server-only`. **Kept, deliberately.** Its real
   constraint is the one `documents/ingest.ts` states (pdfjs ⇒ scripts and Next server code);
   `server-only` asserted something stricter and wrong, and made the ONE birth door
