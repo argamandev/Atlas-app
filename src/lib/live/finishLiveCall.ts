@@ -266,7 +266,10 @@ export async function runDemoFinish(opts: { markProcessing?: boolean } = {}): Pr
   const userId = arg && /^[0-9a-fA-F-]{36}$/.test(arg) ? arg : await resolveOwnerUserId()
 
   if (opts.markProcessing) {
-    await supabaseAdmin.from('transcripts').upsert(
+    // A silently-failed stub would leave the poller waiting on a row that never appeared —
+    // and on a fresh environment this insert violates transcripts_company_required (no
+    // company_id), which must surface, not vanish (migration 027; review finding 2026-08-13).
+    const { error: stubErr } = await supabaseAdmin.from('transcripts').upsert(
       {
         id: DEMO_CALL_ID,
         user_id: userId,
@@ -277,6 +280,7 @@ export async function runDemoFinish(opts: { markProcessing?: boolean } = {}): Pr
       },
       { onConflict: 'id' }
     )
+    if (stubErr) throw new Error(`processing-stub upsert failed: ${stubErr.message}`)
   }
 
   return finishLiveCall({
@@ -324,7 +328,8 @@ export async function runLiveBroadcastFinish(opts: { markProcessing?: boolean } 
 
   const userId = await resolveOwnerUserId()
   if (opts.markProcessing) {
-    await supabaseAdmin.from('transcripts').upsert(
+    // Same law as runDemoFinish's stub: a failed write surfaces, never vanishes (027).
+    const { error: stubErr } = await supabaseAdmin.from('transcripts').upsert(
       {
         id: DEMO_CALL_ID,
         user_id: userId,
@@ -335,6 +340,7 @@ export async function runLiveBroadcastFinish(opts: { markProcessing?: boolean } 
       },
       { onConflict: 'id' }
     )
+    if (stubErr) throw new Error(`processing-stub upsert failed: ${stubErr.message}`)
   }
 
   // Audio is final once the source ended (PCM stopped growing); captions trail by up to ~188s. Wait
