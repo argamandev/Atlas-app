@@ -1,7 +1,9 @@
 import 'server-only'
+import { createClient } from '@supabase/supabase-js'
 import { downloadFiling } from './files'
 import { describeFailure } from './types'
 import type { RemoteSource } from './filings'
+import { downloadXbrl, parseFilingFacts, persistFilingFacts } from './xbrl'
 import { ingestDocument } from '@/lib/documents/ingest'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14,11 +16,18 @@ import { ingestDocument } from '@/lib/documents/ingest'
 // are not workspace-specific: the chat and the calendar will want the same
 // ingest.
 //
-// FAILURES THROW, deliberately, and this is the boundary where the layer's
-// result-type discipline ends. The caller is a route handling ONE file inside a
-// loop over several, and the panel already renders a per-file `failures[]` of
-// {title, error}; an exception with a readable message is exactly what that
-// wants. Returning a MayaResult here would only be unwrapped into a throw.
+// FAILURES THROW for the DOCUMENT (the caller renders per-file failures[]) —
+// but NOT for the structured facts: a filing whose PDF ingested fine and whose
+// XBRL fetch failed is a real document with `facts_status = 'failed'`, visibly
+// (ingestion standard §6). The three states:
+//   'facts'  — the ת930 instance parsed, filing_facts rows written
+//   'none'   — no .xbrl attachment (ICL-shaped foreign-track, or not a
+//              financial statement), or an instance with no numeric fact set
+//   'failed' — the attachment exists but could not be fetched/parsed (retryable)
+// Never zeros, never silence.
+//
+// publication_date rides in from `publishedISO` — MAYA sends it on every row;
+// until slice A3 it was dropped at this door (a schema gap, research/14 §2).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type IngestFilingArgs = {
@@ -37,7 +46,7 @@ export async function ingestFiling(a: IngestFilingArgs): Promise<{ documentId: s
     throw new Error(`could not fetch the filing from MAYA — ${describeFailure(got.failure)}`)
   }
 
-  return ingestDocument({
+  const result = await ingestDocument({
     supabaseUrl: a.supabaseUrl,
     serviceRoleKey: a.serviceRoleKey,
     fileBytes: got.data,
@@ -47,9 +56,49 @@ export async function ingestFiling(a: IngestFilingArgs): Promise<{ documentId: s
     title: a.source.title,
     source: 'maya',
     mayaReportId: a.source.mayaReportId,
+    publicationDate: a.source.publishedISO,
     // KEYED BY THE FILING, NOT BY THE PERIOD. Several filings can map to one
     // period and type, and the default path would have them overwrite each
     // other's bytes in storage even where the rows stay distinct.
     storagePath: `${a.companyId}/maya/${a.source.mayaReportId}.pdf`,
   })
+
+  // Structured facts (standard §6) — after the document exists, status on it.
+  const db = createClient(a.supabaseUrl, a.serviceRoleKey)
+  let factsStatus: 'facts' | 'none' | 'failed' = 'none'
+  if (a.source.xbrlUrl) {
+    const xml = await downloadXbrl(a.source.xbrlUrl)
+    if (!xml.ok) {
+      console.error(
+        `[ingestFiling] xbrl fetch failed for ${a.source.mayaReportId}: ${describeFailure(xml.failure)}`
+      )
+      factsStatus = 'failed'
+    } else {
+      try {
+        const parsed = parseFilingFacts(xml.data)
+        if (parsed.numericCount > 0) {
+          await persistFilingFacts(db, {
+            mayaReportId: a.source.mayaReportId,
+            companyId: a.companyId,
+            facts: parsed.facts,
+          })
+          factsStatus = 'facts'
+        } else {
+          // An instance with no numeric fact set is "no structured facts" —
+          // NEVER zeros (research/14's guard).
+          factsStatus = 'none'
+        }
+      } catch (e) {
+        console.error(`[ingestFiling] xbrl parse/persist failed for ${a.source.mayaReportId}:`, e)
+        factsStatus = 'failed'
+      }
+    }
+  }
+  const { error: fsErr } = await db
+    .from('company_documents')
+    .update({ facts_status: factsStatus })
+    .eq('id', result.documentId)
+  if (fsErr) console.error(`[ingestFiling] facts_status update failed: ${fsErr.message}`)
+
+  return result
 }

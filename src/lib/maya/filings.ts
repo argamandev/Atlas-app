@@ -29,6 +29,10 @@ export type RemoteSource = {
   /** descriptive only — identity is mayaReportId, never this */
   period: string
   pdfUrl: string
+  /** The ISA ת930 instance (`X{mayaReportId}.xbrl`), when the filing carries one.
+   *  Its PRESENCE is the reliable marker of a real financial-statement filing
+   *  (research/14); its absence is the visible "no structured facts" case. */
+  xbrlUrl: string | null
 }
 
 export const MAYA_SOURCE_PREFIX = 'maya:'
@@ -57,6 +61,8 @@ export function toRemoteSources(filings: MayaFiling[]): RemoteSource[] {
     const pdf = (f.attachedFiles ?? []).map((a) => a.url).find(isPdf)
     if (!pdf) continue
 
+    const xbrl = (f.attachedFiles ?? []).map((a) => a.url).find((u) => /\.xbrl(?:$|\?)/i.test(u)) ?? null
+
     const issuer = f.issuer?.[0]
     if (!issuer) continue
 
@@ -75,6 +81,7 @@ export function toRemoteSources(filings: MayaFiling[]): RemoteSource[] {
       docType,
       period,
       pdfUrl: pdf,
+      xbrlUrl: xbrl,
     })
   }
 

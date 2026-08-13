@@ -5,6 +5,7 @@
 // Idempotent on (company, quarter, docType) — NOT on maya_report_id, see IngestArgs.
 import { createClient } from '@supabase/supabase-js'
 import { extractPdfPages } from './extract'
+import { reindexDocument, type CorpusDb } from '@/lib/corpus/reindex'
 
 export const DOCUMENTS_BUCKET = 'company-documents'
 
@@ -36,6 +37,13 @@ export interface IngestArgs {
    * other's BYTES in storage even when the rows are distinct.
    */
   storagePath?: string
+  /**
+   * MAYA's `publicationDate`, recorded at birth (ingestion standard §6). The
+   * shipped embarrassment this closes: a 2020 annual report shown as published
+   * the afternoon we ingested it — `created_at` is ingestion time, a different
+   * fact, never shown as the publication date.
+   */
+  publicationDate?: string
 }
 
 export async function ingestDocument(a: IngestArgs): Promise<{ documentId: string; pageCount: number }> {
@@ -75,6 +83,10 @@ export async function ingestDocument(a: IngestArgs): Promise<{ documentId: strin
         // Spread rather than `?? null`: a manual re-ingest of a row that came
         // from MAYA must not erase which filing it is.
         ...(a.mayaReportId === undefined ? {} : { maya_report_id: a.mayaReportId }),
+        // Same spread rule: a re-ingest without the date must not erase it.
+        ...(a.publicationDate === undefined ? {} : { publication_date: a.publicationDate }),
+        // Fresh content is un-indexed until the rebuild below says otherwise.
+        index_status: 'pending',
       },
       { onConflict: 'company_id,quarter,doc_type' }
     )
@@ -91,5 +103,14 @@ export async function ingestDocument(a: IngestArgs): Promise<{ documentId: strin
     const ins = await db.from('document_pages').insert(rows.slice(i, i + 50))
     if (ins.error) throw new Error(`pages insert failed: ${ins.error.message}`)
   }
+
+  // 6. chunks + embeddings — the birth sequence's step 5 (standard §5), atomic
+  //    swap + visible index_status. A failure is recorded on the row, never
+  //    thrown past: the document itself ingested fine and says so.
+  const reindex = await reindexDocument(db as unknown as CorpusDb, documentId)
+  if (reindex.status === 'failed') {
+    console.error(`[ingest] ${documentId} indexing failed (visible in index_status): ${reindex.error}`)
+  }
+
   return { documentId, pageCount }
 }

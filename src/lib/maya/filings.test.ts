@@ -31,6 +31,19 @@ test('a presentation becomes a source the shelf can name', () => {
   assert.equal(s.docType, 'slides')
   assert.equal(s.period, 'Q1 2026')
   assert.equal(s.pdfUrl, 'https://mayafiles.tase.co.il/rpdf/1744001-1745000/P1744031-00.pdf')
+  assert.equal(s.xbrlUrl, null, 'no .xbrl attachment → visibly null, the "no structured facts" case')
+})
+
+test('a financial report carries its ת930 XBRL attachment through (standard §6)', () => {
+  const [s] = toRemoteSources([
+    filing({
+      attachedFiles: [
+        { url: 'https://mayafiles.tase.co.il/rpdf/1744001-1745000/P1744027-00.pdf' },
+        { url: 'https://mayafiles.tase.co.il/xbrl/1744001-1745000/X1744027.xbrl' },
+      ],
+    }),
+  ])
+  assert.equal(s.xbrlUrl, 'https://mayafiles.tase.co.il/xbrl/1744001-1745000/X1744027.xbrl')
 })
 
 // A SOURCE THAT CANNOT BE OPENED MUST NEVER REACH A SHELF.
