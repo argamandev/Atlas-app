@@ -5,6 +5,35 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-14 — The corpus becomes real (`feat/smart-layer-a5-maya-backfill`, slice A5)
+
+- **26 documents → 1,296, across 233 TASE issuers.** `selectLatestOfEach` implements the depth the
+  founder approved (latest quarterly + latest annual + 12 months of decks), classifying by event ids
+  101/104/105/106/270 and never by `.xbrl` presence — the rule that keeps dual-listed issuers like
+  ICL and אבוג'ן in the corpus instead of silently dropping them. Backfill, the 10-minute poller and
+  the nightly sweep (which IS the backfill re-run) all reconcile through ONE door,
+  `syncCompanyFilings`, so a poll and a sweep racing on one filing converge on one row.
+- **`index_status` is visible to a person** at `/app/admin/corpus`, which A3 deferred and this slice
+  owed. It COUNTS rather than lists — a cold review caught that listing every row would have made
+  the screen start under-reporting at ~1,000 documents, i.e. exactly the size that made it worth
+  building, and my browser check had passed it against 26.
+- **Migration 031 closes the truncation blind spot A4 owed** (`atlas_search_chunks_v2`): completeness
+  now reads `saw < least(pool, in_scope_capped)` instead of comparing against a pool. Three pre-apply
+  review rounds killed two wrong versions of that rule before either reached production — including
+  one of mine that would have reported every production query as truncated.
+- **Four defects the run itself surfaced, each fixed at the choke point:** a NUL in extracted PDF
+  text was killing whole documents at the pages insert (~0.5%); a text-less row would have been
+  marked `indexed`; the run reported `failed: 0` while 816 documents had no embeddings; and the
+  embedding writes were sequential, one round trip per chunk. The third is the one worth remembering
+  — every ROW was honest and the SUMMARY was not, which is the same lie one layer up, in the place a
+  person actually reads.
+- **Verified:** battery green (874 tests); migration applied and driven end-to-end through
+  `retrieveChunks` against the live corpus; the admin screen in both locales with the bidi law's
+  x-position probe; the poller and live feed run against real MAYA. **NOT verified: the retrieval
+  gate at this corpus size** — deferred past the merge by founder decision to unblock B1, which is a
+  real weakening of A5's own acceptance and is recorded as such in STATUS.md and the ticket.
+
+---
 ## 2026-08-13 — Search mode's quality is gated, not assumed (`feat/discovery-eval-cases`, ticket 15)
 
 - **Two discovery cases join the standing eval set as class G** (`docs/eval/retrieval-eval-set.md`
