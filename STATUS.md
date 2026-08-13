@@ -4,7 +4,7 @@
 If you are tempted to add a dated entry, it belongs in `PROGRESS.md` or `docs/case-history/`.
 Anything here that has landed gets removed, not struck through.
 
-_Last rewritten: 2026-08-13_
+_Last rewritten: 2026-08-14_
 
 ## Where the product is
 
@@ -20,34 +20,23 @@ Live on Railway at `www.timlul-ai.com` since 2026-08-08. A mistake on `main` is 
 
 ## What is being worked on right now — BUILDING the smart layer
 
-The spec of record is `docs/SMART-LAYER-SPEC.md` — read it before any smart-layer work. Build
-tickets: `.scratch/smart-layer-build/issues/` (14 slices, `Blocked by:` edges; take the
-lowest-numbered unblocked ticket, one per session, branch per slice, `/ship`). Standing gates:
-`docs/INGESTION-STANDARD.md`, the eval harness, approved cost budgets (spec §5).
+Spec of record: `docs/SMART-LAYER-SPEC.md` — read before any smart-layer work. Build tickets:
+`.scratch/smart-layer-build/issues/` (14 slices, `Blocked by:` edges; take the lowest-numbered
+unblocked one, branch per slice, `/ship`). Standing gates: `docs/INGESTION-STANDARD.md`, the eval
+harness, spec §5 budgets.
 
-**Slices A1–A3 are LIVE** — schema, resolver (בז"א MUST-PASS green), and the birth sequence:
-one battery-guarded transcript door (attributed, keyed, aligned, atomically re-chunked), XBRL
-facts + `publication_date` with visible statuses, the global MAYA limiter, the harness importing
-the production chunker; the `index_status` admin surface is deferred into A5.
+**A1–A4 are built**; A4 sits unmerged on `feat/smart-layer-a4-backfill`. The corpus is searchable:
+3,181 chunks all embedded, 26/26 documents, migrations 029–030 applied. (`index_status` admin
+surface: deferred into A5.)
 
-**Slice A4 — the corpus is SEARCHABLE, and the gate found something.** On
-`feat/smart-layer-a4-backfill`, not yet merged. The backfill ran clean: **3,181 chunks, all
-embedded**, 26/26 documents indexed with real publication dates, 1,398 XBRL facts, the duplicate
-and demo transcripts visibly `excluded`. Migrations 029 (`atlas_search_chunks` — the one retrieval
-door) and 030 (VALIDATE the company CHECK) are applied.
-
-**The gate's verdict blocks B1 on a founder decision.** Dense retrieval reproduces the measured
-eval EXACTLY (MRR 0.268 scoped) and the בז"א MUST-PASS ranks 1 — but Postgres's `ts_rank_cd` has
-no IDF (`שנת` is in 96% of chunks and scores like `ההכנסות`, in 5%), so the lexical channel
-collapses 0.207 → 0.075 and drags the chosen hybrid design to 0.141, BELOW dense-only. Real BM25
-in SQL reproduces exactly, but needs a precomputed inverted index to be fast (31s without one).
-Three options, costed, in `docs/evidence/feat-smart-layer-a4-backfill/gate.md` and ticket 04.
-**Do not ship a surface slice on the hybrid channel until he chooses.**
+**BLOCKED ON A FOUNDER DECISION that holds every surface slice.** Dense retrieval reproduces the
+eval exactly and בז"א MUST-PASS ranks 1, but Postgres has no IDF, so the lexical channel collapses
+and the chosen hybrid lands BELOW dense-only. Three costed options in
+`docs/evidence/feat-smart-layer-a4-backfill/gate.md`. **Do not ship B1 on hybrid until he picks.**
 
 Also open (map ticket 13): leftover cleanup, `profiles`/`access_requests` policy narrowing,
 PUT admin-gate.
 
-**Two deferred calls (2026-08-12, `DECISIONS.md`), self-improving-layer, after the product:**
-meta-laws visible to the promotion ritual, and shrinking `app.md`'s mechanism-backed laws to
-pointers at their tests — the set sits at its 9,000-token budget edge, so the next always-on
-addition pays for itself by that shrink first.
+**Two deferred calls (2026-08-12, `DECISIONS.md`), after the product:** meta-laws visible to the
+promotion ritual, and shrinking `app.md` to pointers at its tests. The set is AT budget — every
+always-on addition evicts its own weight first.
