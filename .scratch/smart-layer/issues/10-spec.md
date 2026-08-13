@@ -2,7 +2,7 @@
 
 Type: grilling
 Status: open
-Blocked by: 06, 07, 08, 09, 16, 17 (06/07/08/09 resolved; 16, 17 open)
+Blocked by: 06, 07, 08, 09, 16, 17 (all resolved 2026-08-13 — unblocked, the map's last open ticket)
 
 **Carried in from ticket 09 (2026-08-12):** the cost budgets in `research/09-cost-budgets.md`
 §5 are PROPOSED, not approved — this grilling includes the founder's veto/approve on them,

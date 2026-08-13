@@ -29,17 +29,14 @@ Agents is the surface that does not exist yet, so it is the one that decides the
 ## What is being worked on right now
 
 **The smart layer** — via the wayfinder map (`.scratch/smart-layer/map.md`; read
-`foundations.md` beside it before any ticket; work the frontier via `/wayfinder`). The big
-decisions are made, founder-approved, gists + full records on the map: retrieval (07), agent
-experience (06), architecture (08), cost budgets proposed (09), Anthropic key live (11),
-speaker edits = admin-only corpus curation (12 — the write-authorization law is in
-`docs/DATA-MODEL.md`), Timlul leftovers all-go (13 — iron rule #1 now reads "Atlas
-PRODUCTION"; three small execution missions listed in its Answer: cleanup, policy
-narrowing, PUT admin-gate), discovery eval cases live and measured (15 — search mode
-is now eval-gated), the ingestion standard approved (16 — `docs/INGESTION-STANDARD.md`,
-with its six-migration list and the existing-corpus backfill as the pipeline's proving
-ground). The frontier now: **MAYA filings at scale** (17), the last ticket before the
-spec (10) closes the map.
+`foundations.md` beside it before any ticket; work the frontier via `/wayfinder`). **Every
+decision ticket is resolved and founder-approved** — gists + full records live on the map's
+Decisions-so-far, not here. Standing artifacts already landed: the ingestion standard
+(`docs/INGESTION-STANDARD.md`), the eval gate (`docs/eval/retrieval-eval-set.md`), the
+write-authorization law (`docs/DATA-MODEL.md`), cost budgets proposed pending approval in
+the spec. Three small execution missions wait outside the map (ticket 13's Answer: cleanup,
+policy narrowing, PUT admin-gate). The frontier now: **the spec (10)** — the map's last
+open ticket; resolving it reaches the destination and building starts.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
 product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s

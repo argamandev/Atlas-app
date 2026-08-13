@@ -153,6 +153,17 @@ cost budgets approved, and the first slice fully specified.
   additive migrations; existing corpus backfilled in one pass with the standing harness
   re-run as the acceptance proof.
 
+- [MAYA filings at scale — growing the searchable filing corpus](issues/17-maya-filings-at-scale.md) —
+  approved 2026-08-13 in one round: scope = periodic reports + presentations (immediate
+  disclosures out — probe-confirmed as 85–95% of volume, mostly mechanical noise); 3 years
+  back (Mid, ≈$19–39 one-time, ≈2.1GB pgvector); freshness layered (~10-min feed poll +
+  nightly per-company sweep, both through the ingestion standard's birth sequence);
+  plain-text extraction, blurbs only after a measured yes. Probe facts for the spec:
+  detect financial statements by event ids 101/104/105/106 (not `.xbrl` presence —
+  dual-listed issuers have none), `.htm`-only rows are a scope boundary, a full-market
+  ingest would need an event denylist. The spec (10) is now unblocked — the map's last
+  open ticket.
+
 ## Not yet specified
 
 - When and how user memory (cross-surface) joins agent memory.
