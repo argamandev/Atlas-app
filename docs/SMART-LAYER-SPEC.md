@@ -1,15 +1,16 @@
 # The Smart Layer — Architecture Spec & Build Sequence
 
-Status: DRAFT — awaiting founder approval (ticket 10). Nothing here is new: every decision
-below was made and founder-approved in tickets 01–17 of the smart-layer map; this document
-assembles them into one buildable spec. The two things that ARE new and need his sign-off:
-the **recomputed cost budgets** (§5 — the numbers moved because Hebrew measured worse than
-assumed) and the **build sequence** (§6).
+**Status: APPROVED — founder, 2026-08-13** (smart-layer ticket 10; his words quoted in
+`DECISIONS.md`). Nothing here was newly decided: every decision below was made and
+founder-approved in tickets 01–17 of the smart-layer wayfinder map; this document assembles
+them into one buildable spec, with the cost budgets recomputed at the measured Hebrew token
+rate (§4–5) and the build sequence (§6) both approved with it.
 
-Sources of record: the map (`map.md`), ticket Answers under `issues/`, fact sheets under
-`research/`, `docs/INGESTION-STANDARD.md`, `docs/eval/retrieval-eval-set.md`,
-`docs/DATA-MODEL.md`, `DECISIONS.md`. Where this spec and a ticket record disagree, the
-ticket record wins and this file gets corrected.
+Sources of record: the map and its ticket Answers + fact sheets at `.scratch/smart-layer/`
+(archived to `docs/archive/scratch/` at the map's retirement merge, verbatim),
+`docs/INGESTION-STANDARD.md`, `docs/eval/retrieval-eval-set.md`, `docs/DATA-MODEL.md`,
+`DECISIONS.md`. Where this spec and a ticket record disagree, the ticket record wins and
+this file gets corrected. Build tickets: `.scratch/smart-layer-build/issues/`.
 
 ---
 

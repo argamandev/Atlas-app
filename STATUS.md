@@ -18,25 +18,19 @@ Live on Railway at `www.timlul-ai.com` since 2026-08-08. A mistake on `main` is 
 | Workspace | Works — intake, tables, chat over the document set. |
 | Agents | **Stub.** The page and `src/lib/agents/data.ts` exist; there is no agent machinery behind them. |
 
-## What's next — the smart layer
+## What is being worked on right now — BUILDING the smart layer
 
-Make chat, workspace and agents *good*, not merely present. These three are one piece of work,
-not three: the same grounding, memory and retrieval serve all of them, and building them
-separately is how you get three mediocre versions of the same thing.
-
-Agents is the surface that does not exist yet, so it is the one that decides the shape.
-
-## What is being worked on right now
-
-**The smart layer** — via the wayfinder map (`.scratch/smart-layer/map.md`; read
-`foundations.md` beside it before any ticket; work the frontier via `/wayfinder`). **Every
-decision ticket is resolved and founder-approved** — gists + full records live on the map's
-Decisions-so-far, not here. Standing artifacts already landed: the ingestion standard
-(`docs/INGESTION-STANDARD.md`), the eval gate (`docs/eval/retrieval-eval-set.md`), the
-write-authorization law (`docs/DATA-MODEL.md`), cost budgets proposed pending approval in
-the spec. Three small execution missions wait outside the map (ticket 13's Answer: cleanup,
-policy narrowing, PUT admin-gate). The frontier now: **the spec (10)** — the map's last
-open ticket; resolving it reaches the destination and building starts.
+The planning map is COMPLETE (2026-08-13): **the spec is approved and lives at
+`docs/SMART-LAYER-SPEC.md`** — read it before any smart-layer work. Build tickets are at
+`.scratch/smart-layer-build/issues/` (14 slices, `Blocked by:` edges per the spec's
+phases; take the lowest-numbered unblocked ticket, one per session, branch per slice,
+`/ship`). Standing gates: the ingestion standard (`docs/INGESTION-STANDARD.md`), the eval
+harness (`scripts/retrieval-eval/` vs `docs/eval/retrieval-eval-set.md`), approved cost
+budgets (spec §5). **Next up: slice A1 — foundations migrations** (production DB: file →
+review → COLLISIONS.md → founder told → apply). Three small execution missions also open,
+independent of the build (from map ticket 13: leftover cleanup, `profiles`/
+`access_requests` policy narrowing, PUT admin-gate). The retired map archives from
+`.scratch/smart-layer/` at the next merge (ship-gate enforced).
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
 product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s

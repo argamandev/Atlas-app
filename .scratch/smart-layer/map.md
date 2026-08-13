@@ -166,6 +166,14 @@ cost budgets approved, and the first slice fully specified.
   ingest would need an event denylist. The spec (10) is now unblocked — the map's last
   open ticket.
 
+- [The smart-layer spec + build sequence](issues/10-spec.md) — **the destination, reached
+  2026-08-13**: the spec is approved and lives at `docs/SMART-LAYER-SPEC.md` — architecture
+  from tickets 01–17, budgets recomputed at measured Hebrew (answer ≤ $0.06/$0.15, agent
+  run ≤ $0.60/$1.00, ~$40/fund/mo), build sequence in four phases with slice A1 fully
+  specified. Build tickets: `.scratch/smart-layer-build/issues/`. **The map is complete —
+  every ticket resolved, zero fog on the route. Remaining fog below is V2 territory beyond
+  this map's destination.**
+
 ## Not yet specified
 
 - When and how user memory (cross-surface) joins agent memory.
