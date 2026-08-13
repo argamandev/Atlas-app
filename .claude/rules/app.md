@@ -111,13 +111,12 @@ sweep `git grep -l "import('@/lib/supabase')" -- src/lib/db` too. Silence reads 
 → `#supabase-admin-bypasses-rls`, `#authn-is-not-authz`
 
 **LAW · Gating an endpoint changes every caller's ERROR path, not just its happy path.**
-**ENFORCED** partially — three battery scans, each over a per-file ratchet of stated exceptions,
-each occurrence filed in its test's own header: `src/lib/apiFetchDiscipline.test.ts` (any direct
-`/api` fetch whose response nothing reads), `src/lib/supabaseWriteDiscipline.test.ts` (any
-awaited supabase write whose result nothing reads — supabase never throws), and
-`src/lib/supabaseReadDiscipline.test.ts` (any `.single()`/`.maybeSingle()` read whose destructure
-drops `error` — a dropped read error once invented a cause). They prove the result is LOOKED AT,
-nothing more.
+**ENFORCED** three battery scans, one per result channel this repo has — per-file ratchets,
+histories in the test headers: `apiFetchDiscipline.test.ts` (a direct `/api` fetch whose response
+nothing reads), `supabaseWriteDiscipline.test.ts` (an awaited supabase write whose result nothing
+reads — supabase never throws), `supabaseReadDiscipline.test.ts` (a `.single()`/`.maybeSingle()`
+read whose destructure drops `error`; promoted from partial at the fourth occurrence,
+2026-08-13). They prove the result is LOOKED AT — WHICH reaction is right stays VERIFY's, below.
 **VERIFY** WHICH reaction is right is still yours: open every caller, answer "what does this do
 with a 401?" — revert optimistic state, or send the user to sign in (`loginRedirectTarget`).
 Never invent a cause: a "model unavailable" banner for an expired session retries forever.
