@@ -52,7 +52,7 @@ export type SelectLatestOptions = {
  * run would ingest a DIFFERENT document and pay for it, while the first one stayed
  * in the corpus.
  */
-function newestFirst(a: RemoteSource, b: RemoteSource): number {
+export function newestFirst(a: RemoteSource, b: RemoteSource): number {
   if (a.publishedISO !== b.publishedISO) return a.publishedISO < b.publishedISO ? 1 : -1
   return b.mayaReportId - a.mayaReportId
 }

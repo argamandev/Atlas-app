@@ -3,14 +3,14 @@
 Status: BUILT, not yet run. Branch `feat/smart-layer-a5-maya-backfill`.
 Blocked by: 04 (landed)
 
-> **Two things need the founder before this can ship.**
+> **Migration 031 IS APPLIED** (`atlas_search_chunks_v2`) — filed, reviewed on the file
+> across three rounds, appended to `COLLISIONS.md`, then applied and verified through
+> `retrieveChunks` against the live corpus. 029's function is deliberately left in place
+> so the currently-deployed build keeps working until this branch ships.
 >
-> 1. **Apply migration 031** (`atlas_search_chunks_v2`) — filed, reviewed on the file
->    across three rounds, appended to `COLLISIONS.md`, NOT applied. It must be applied
->    BEFORE this branch deploys: `retrieveChunks` calls `_v2`, and 029's function is left
->    in place precisely so the currently-deployed build keeps working until then.
-> 2. **Say go on the real backfill.** 1,178 documents, ≈$5–8 of embeddings (his approved
->    figure), hours of runtime. Command and dry-run evidence below.
+> **One thing needs the founder before this can ship: say go on the real backfill.**
+> 1,178 documents, ≈$5–8 of embeddings (his approved figure), hours of runtime. Command
+> and dry-run evidence below.
 >
 > **And one decision:** 207 of the 1,385 selected filings (15%, all presentations, 91 of
 > 233 companies) cannot be stored under `unique (company_id, quarter, doc_type)`. Measured,

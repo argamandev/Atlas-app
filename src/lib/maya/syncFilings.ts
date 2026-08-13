@@ -1,4 +1,8 @@
 import type { RemoteSource } from './filings'
+// The SAME total order the selector uses, imported rather than restated: two
+// copies of "which filing is newer" that drift are two different answers to the
+// question this module and that one are both deciding on.
+import { newestFirst } from './latestOfEach'
 import type { CorpusDb, ReindexResult } from '@/lib/corpus/reindex'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -89,11 +93,6 @@ export function upsertKeyOf(source: RemoteSource): string {
   return `${source.period}${KEY_SEP}${source.docType}`
 }
 
-/** Newest first, ties on identity — the same total order the selector uses. */
-function newestFirst(a: RemoteSource, b: RemoteSource): number {
-  if (a.publishedISO !== b.publishedISO) return a.publishedISO < b.publishedISO ? 1 : -1
-  return b.mayaReportId - a.mayaReportId
-}
 
 const UNIQUE_VIOLATION = /duplicate key value|23505/i
 
@@ -222,12 +221,26 @@ export async function syncCompanyFilings(deps: SyncDeps, args: SyncArgs): Promis
       // pattern. Not a failure: the filing IS in the corpus, put there by whoever
       // won, and one run of 234 companies must not end on a race it survived.
       if (UNIQUE_VIOLATION.test(message)) {
-        const { data: after } = await deps.db
+        const { data: after, error: reReadError } = await deps.db
           .from('company_documents')
           .select('id, maya_report_id, company_id, index_status')
           .in('maya_report_id', [source.mayaReportId])
         const winner = ((after as HeldRow[] | null) ?? [])[0]
-        outcomes.push({ status: 'held', source, documentId: winner?.id ?? '' })
+        // THE RE-READ HAS TO CONFIRM IT, or this is not a resolved race — it is a
+        // guess wearing one's clothes. An earlier version took `data` and dropped
+        // `error`, so a failed re-read reported `held` with an empty documentId:
+        // a filing declared present in the corpus with nothing having looked
+        // (M3.3, and the list-read gap `supabaseReadDiscipline.test.ts` states it
+        // does not cover).
+        if (reReadError || !winner) {
+          outcomes.push({
+            status: 'failed',
+            source,
+            error: `lost a write race on maya:${source.mayaReportId} and could not confirm the winner — ${reReadError?.message ?? 'no row came back'}`,
+          })
+          continue
+        }
+        outcomes.push({ status: 'held', source, documentId: winner.id })
         continue
       }
       // One bad PDF must not end a 234-company pass. The failure lands on the

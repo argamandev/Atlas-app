@@ -15,9 +15,18 @@
 // can see is a status nobody checks, and a corpus quietly 8% unindexed answers
 // questions confidently out of the 92% it happens to hold.
 //
-// PURE, taking rows in and giving a view model out, for the usual reason: this is
-// the part that can be wrong in a way that looks right, and a Server Component
-// cannot be unit-tested.
+// ⚠ IT TAKES COUNTS, NOT ROWS, AND THAT IS THE POINT. The first version of this
+// module tallied a list of every row — which a cold review caught: PostgREST caps
+// a select at 1000 rows, this repo already pages around that cap elsewhere
+// (`lib/db/calls.ts`), and A5's own backfill takes `company_documents` past it.
+// A screen built to reveal an under-indexed corpus would itself have started
+// under-reporting at exactly the size that made it necessary, and the browser
+// check that passed it measured a 26-document corpus (M1 — a green signal proves
+// only what it measured). Counts are exact at any corpus size and cost one head
+// request each.
+//
+// PURE, for the usual reason: this is the part that can be wrong in a way that
+// looks right, and a Server Component cannot be unit-tested.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** The four states migration 028 defines, plus a bucket for anything else the
@@ -57,65 +66,70 @@ export interface CorpusIndexHealth {
   /** `failed` first, then `pending` — a failure is a thing to act on, a pending
    *  row is usually a thing in flight. */
   troubled: TroubledSource[]
+  /** How many troubled sources exist in total. `troubled.length` can be smaller:
+   *  the list is bounded, and a screen that showed 200 of 900 without saying so
+   *  would be the same lie one level down. */
+  troubledTotal: number
   /** True when every corpus source has reached a settled state. NOT the same as
    *  "nothing is wrong": an `excluded` row is settled and deliberate. */
   settled: boolean
 }
 
-export interface StatusRow {
-  id: string
-  title: string
-  index_status: string | null
+/** What the DB layer counts, per table. `total` is counted separately from the
+ *  four known states precisely so an unrecognised one cannot hide. */
+export interface StatusCounts {
+  total: number
+  pending: number
+  indexed: number
+  failed: number
+  excluded: number
 }
 
-export interface DocumentStatusRow extends StatusRow {
-  facts_status: string | null
+export interface HealthInput {
+  transcripts: StatusCounts
+  documents: StatusCounts
+  facts: { total: number; facts: number; none: number; failed: number }
+  chunks: number
+  troubled: TroubledSource[]
+  troubledTotal: number
 }
 
-const EMPTY: StatusTally = { pending: 0, indexed: 0, failed: 0, excluded: 0, other: 0, total: 0 }
-
-function tally(rows: Array<{ index_status: string | null }>): StatusTally {
-  const out: StatusTally = { ...EMPTY }
-  for (const r of rows) {
-    out.total++
-    // A NULL index_status is 'pending' at the database (028 declares the column
-    // NOT NULL DEFAULT 'pending'), but this reads a query result, not the schema.
-    // Treating an unexpected value as 'indexed' is the one mistake that would
-    // make this screen lie in the reassuring direction, so anything unrecognised
-    // goes to `other` and stays visible.
-    const s = r.index_status ?? 'pending'
-    if (s === 'pending' || s === 'indexed' || s === 'failed' || s === 'excluded') out[s]++
-    else out.other++
+function tally(c: StatusCounts): StatusTally {
+  // `other` IS A SUBTRACTION, and that is deliberate: it cannot be enumerated,
+  // because the whole point is to catch a status nobody has thought of yet. Any
+  // value the column grows later lands here and stays visible instead of being
+  // silently read as one of the four we know. Clamped at 0 so a count taken across
+  // a concurrent write — which this slice's three unattended writers make routine —
+  // shows 0 rather than a negative that reads as a bug in the screen.
+  const known = c.pending + c.indexed + c.failed + c.excluded
+  return {
+    pending: c.pending,
+    indexed: c.indexed,
+    failed: c.failed,
+    excluded: c.excluded,
+    other: Math.max(0, c.total - known),
+    total: c.total,
   }
-  return out
 }
 
 const TROUBLED_ORDER: Record<string, number> = { failed: 0, pending: 1 }
-const isTroubled = (s: string) => s === 'failed' || s === 'pending'
 
-export function buildCorpusIndexHealth(input: {
-  transcripts: StatusRow[]
-  documents: DocumentStatusRow[]
-  chunks: number
-}): CorpusIndexHealth {
+export function assembleCorpusIndexHealth(input: HealthInput): CorpusIndexHealth {
   const transcripts = tally(input.transcripts)
   const documents = tally(input.documents)
 
-  const facts: FactsTally = { facts: 0, none: 0, failed: 0, unknown: 0 }
-  for (const d of input.documents) {
-    if (d.facts_status === 'facts') facts.facts++
-    else if (d.facts_status === 'none') facts.none++
-    else if (d.facts_status === 'failed') facts.failed++
-    else facts.unknown++
+  const f = input.facts
+  const facts: FactsTally = {
+    facts: f.facts,
+    none: f.none,
+    failed: f.failed,
+    unknown: Math.max(0, f.total - (f.facts + f.none + f.failed)),
   }
 
-  const troubled: TroubledSource[] = [
-    ...input.transcripts.map((r) => ({ kind: 'transcript' as const, ...r })),
-    ...input.documents.map((r) => ({ kind: 'document' as const, ...r })),
-  ]
-    .map((r) => ({ kind: r.kind, id: r.id, title: r.title, status: r.index_status ?? 'pending' }))
-    .filter((r) => isTroubled(r.status))
-    .sort((a, b) => TROUBLED_ORDER[a.status] - TROUBLED_ORDER[b.status] || a.title.localeCompare(b.title))
+  const troubled = [...input.troubled].sort(
+    (a, b) =>
+      (TROUBLED_ORDER[a.status] ?? 9) - (TROUBLED_ORDER[b.status] ?? 9) || a.title.localeCompare(b.title)
+  )
 
   return {
     transcripts,
@@ -123,6 +137,7 @@ export function buildCorpusIndexHealth(input: {
     facts,
     chunks: input.chunks,
     troubled,
+    troubledTotal: input.troubledTotal,
     // `other` counts too: an unrecognised state is not a settled one, whatever
     // else it might be.
     settled:

@@ -709,6 +709,7 @@ export const en = {
     settled: 'Every source has finished indexing.',
     troubledTitle: 'Not finished indexing',
     troubledEmpty: 'Nothing is waiting or failed.',
+    troubledCapped: 'Showing {shown} of {total}. The list is capped; the count above is the real one.',
     excludedNote: 'Excluded rows are deliberate — demo content and known duplicates never enter the corpus.',
   },
   // Projects — the chat sub-panel feature (design lines 1099-1262).

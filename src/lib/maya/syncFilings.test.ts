@@ -42,9 +42,17 @@ function src(over: Partial<RemoteSource> = {}): RemoteSource {
   }
 }
 
+type HeldRow = { id: string; maya_report_id: number; company_id: string; index_status: string }
+
 /** The `company_documents` rows the DB is pretending to hold. */
 function fakeDb(
-  held: Array<{ id: string; maya_report_id: number; company_id: string; index_status: string }>
+  held: HeldRow[],
+  opts: {
+    /** Rows that only exist by the time of the post-race re-read. */
+    appearsAfterRace?: HeldRow[]
+    /** Make the post-race re-read itself fail. */
+    reReadError?: string
+  } = {}
 ) {
   const queries: number[][] = []
   const db = {
@@ -55,8 +63,15 @@ function fakeDb(
           return {
             in(_col: string, ids: number[]) {
               queries.push(ids)
+              // The RE-READ after a lost race is the second query, and the whole
+              // point of a race is that the row was not there on the first one.
+              // A fake that answered both the same way could not tell the two
+              // apart, and the test would pass for the wrong reason.
+              const rows = queries.length === 1 ? held : [...held, ...(opts.appearsAfterRace ?? [])]
+              if (opts.reReadError && queries.length > 1)
+                return Promise.resolve({ data: null, error: { message: opts.reReadError } })
               return Promise.resolve({
-                data: held.filter((h) => ids.includes(h.maya_report_id)),
+                data: rows.filter((h) => ids.includes(h.maya_report_id)),
                 error: null,
               })
             },
@@ -173,7 +188,9 @@ test('a 23505 race resolves to the row that won — the sweep and the click conv
   // Standard §7's requirement, verbatim. The dedupe read is a separate statement
   // from the write, so two callers can both pass it; the unique index is the
   // guarantee and this is the catch-and-reread the from-maya route established.
-  const { db } = fakeDb([])
+  const { db } = fakeDb([], {
+    appearsAfterRace: [{ id: 'doc-4', maya_report_id: 4, company_id: CO, index_status: 'indexed' }],
+  })
   const d = deps({
     ingest: async () => {
       throw new Error('duplicate key value violates unique constraint "company_documents_maya_report_uniq"')
@@ -183,6 +200,7 @@ test('a 23505 race resolves to the row that won — the sweep and the click conv
     { db, ...d },
     { companyId: CO, sources: [src({ mayaReportId: 4 })] }
   )
+  assert.equal((report.outcomes[0] as { documentId: string }).documentId, 'doc-4')
   assert.equal(report.outcomes[0].status, 'held', 'the other caller got there first — not a failure')
   assert.equal(report.failed, 0)
 })
@@ -296,4 +314,27 @@ test('an empty selection is an empty report, not an error', async () => {
   const report = await syncCompanyFilings({ db, ...d }, { companyId: CO, sources: [] })
   assert.deepEqual(report.outcomes, [])
   assert.deepEqual(queries, [], 'and it does not spend a query asking about nothing')
+})
+
+test('a lost race the re-read cannot CONFIRM is a failure, not a "held"', async () => {
+  // The re-read is what turns "someone else won" from a guess into a fact. An
+  // earlier version took `data` and dropped `error`, so a failed re-read reported
+  // `held` with an empty documentId — a filing declared present in the corpus with
+  // nothing having looked (M3.3). This is a LIST read, which
+  // supabaseReadDiscipline.test.ts states is outside its scope, so this case is
+  // the only mechanism there is.
+  const raced = async () => {
+    throw new Error('duplicate key value violates unique constraint "company_documents_maya_report_uniq"')
+  }
+  for (const opts of [{ reReadError: 'connection reset by peer' }, {}]) {
+    const { db } = fakeDb([], opts)
+    const d = deps({ ingest: raced })
+    const report = await syncCompanyFilings(
+      { db, ...d },
+      { companyId: CO, sources: [src({ mayaReportId: 5 })] }
+    )
+    assert.equal(report.outcomes[0].status, 'failed')
+    assert.match((report.outcomes[0] as { error: string }).error, /could not confirm the winner/)
+    assert.equal(report.failed, 1)
+  }
 })

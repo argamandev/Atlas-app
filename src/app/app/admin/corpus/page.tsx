@@ -113,7 +113,13 @@ function Health({ health, d }: { health: CorpusIndexHealth; d: Dict }) {
       </Surface>
 
       <Surface tone="canvas" className="border border-hairline p-5">
-        <div className="text-sm font-semibold text-ink">{d.troubledTitle}</div>
+        <div className="flex items-baseline justify-between gap-4">
+          <div className="text-sm font-semibold text-ink">{d.troubledTitle}</div>
+          {/* THE TRUE TOTAL, always — the list below is capped at 200. Showing 200
+              of 900 without saying so is the same lie this screen exists to catch,
+              one level down. */}
+          <div className="text-sm text-ink-muted tabular-nums">{health.troubledTotal}</div>
+        </div>
         {health.troubled.length === 0 ? (
           <p className="mt-2 text-sm text-ink-muted">{health.settled ? d.settled : d.troubledEmpty}</p>
         ) : (
@@ -139,6 +145,13 @@ function Health({ health, d }: { health: CorpusIndexHealth; d: Dict }) {
             ))}
           </ul>
         )}
+        {health.troubled.length < health.troubledTotal ? (
+          <p className="mt-3 text-xs text-ink">
+            {d.troubledCapped
+              .replace('{shown}', String(health.troubled.length))
+              .replace('{total}', String(health.troubledTotal))}
+          </p>
+        ) : null}
         <p className="mt-3 text-xs text-ink-faint">{d.excludedNote}</p>
       </Surface>
     </>

@@ -202,8 +202,30 @@ Three things that follow, none of them small:
 |---|---|
 | `…/events/company` | **227 event types** — the full company disclosure vocabulary |
 | `…/events/tase` | 44 exchange-notice types |
-| `…/latest-companies-disclosures` | the 30 most recent filings, live |
+| `…/latest-companies-disclosures` | the market's most recent filings, live — see the box below |
 | `/v1/corporate-actions/assembly/by-dates` | **500** with no parameters — it wants dates |
+
+### ⚠ `latest-companies-disclosures` DOES NOT SPEAK THE SAME DIALECT (measured 2026-08-14)
+
+Both endpoints probed in one run, slice A5. The differences are not cosmetic — the first
+one silently empties the feed:
+
+| | `latest-companies-disclosures` (1.0.0) | `by-issuer` (2.0.0) |
+| --- | --- | --- |
+| wrapper | `{ mayaReports: { result: [] } }` | `MayaEnvelope { data: [] }` |
+| attachments key | **`attachedfiles`** (lower-case f) | **`attachedFiles`** |
+| the other spelling appears on | **0 rows** | **0 rows** |
+| issuer flag | `associated` | `assosiated` (TASE's own misspelling) |
+
+`toRemoteSources` reads `attachedFiles`, so feeding it raw feed rows finds no PDF on any of
+them and drops every filing — a poller that runs forever, exits 0 and ingests nothing.
+**`latestDisclosures()` in `src/lib/maya/disclosures.ts` normalises at the door; use it,
+never `mayaGet` on that path directly.**
+
+**It returned 295–298 rows, not 30.** The "30 most recent" in the table above was a 2026-08-09
+sample and is not a contract — do not size anything off it. Of one 298-row snapshot, 76 were
+corpus-eligible (reports + presentations), which is what earnings season looks like and why a
+poller alone is not a coverage guarantee.
 
 **Event ids that matter for the calendar**, now read from the vocabulary rather than sampled:
 `233 שיחת ועידה` · `108 שיחות ועידה` (plural — a distinct code) · `270 מצגת` ·
