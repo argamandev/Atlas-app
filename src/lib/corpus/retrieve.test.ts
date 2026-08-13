@@ -64,8 +64,8 @@ const row = (over: Record<string, unknown> = {}) => ({
   score: 0.0384,
   dense_candidates: 12,
   lexical_candidates: 7,
-  dense_in_scope: 12,
-  lexical_in_scope: 7,
+  dense_in_scope_capped: 12,
+  lexical_in_scope_capped: 7,
   ...over,
 })
 
@@ -149,8 +149,8 @@ test('the ef_search ceiling is NOT a truncation — a channel under its pool saw
       row({
         dense_candidates: 3181,
         lexical_candidates: 2500,
-        dense_in_scope: 3181,
-        lexical_in_scope: 2500,
+        dense_in_scope_capped: 3181,
+        lexical_in_scope_capped: 2500,
       }),
     ],
   })
@@ -175,50 +175,85 @@ test('rows come back with their anchors and per-channel ranks intact', async () 
 
 // ── completeness: a thin answer must not look like a complete one ────────────
 
-test('a channel that saw less than its scope holds is reported TRUNCATED', async () => {
+test('a channel that filled the pool it was ASKED for is complete, not truncated', async () => {
+  // THE ORDINARY PRODUCTION SEARCH, and the case a cold review had to put back.
+  // A top-20 answer over a 60K-chunk corpus examines 200 candidates by design; the
+  // caller picked 200. Calling that "truncated" would fire the degradation signal
+  // on every query the product ever serves — the loud failure mode this flag has
+  // now been got wrong in twice, and a green test asserting it would have made the
+  // battery certify it (M2).
+  //
+  // Note what the capped count reads here: 201, not 61,402. The SQL stops counting
+  // at pool + 1 because nothing past it changes this answer.
   const { db } = fakeDb({
     rows: [
-      row({ dense_candidates: 200, lexical_candidates: 7, dense_in_scope: 61_402, lexical_in_scope: 7 }),
+      row({
+        dense_candidates: 200,
+        lexical_candidates: 7,
+        dense_in_scope_capped: 201,
+        lexical_in_scope_capped: 7,
+      }),
     ],
   })
   const res = await retrieveChunks(db, { query: 'הכנסות', candidates: 200, embed })
-  assert.equal(res.dense.truncated, true, '200 of 61,402 rows in scope — it was cut off')
+  assert.equal(res.dense.truncated, false, 'it returned exactly what this call asked for')
   assert.equal(res.dense.saw, 200)
-  assert.equal(res.dense.inScope, 61_402)
+  assert.equal(res.dense.inScopeCapped, 201, 'saturated: "more than the pool", never a corpus total')
   assert.equal(res.lexical.truncated, false, 'saw all 7 matching rows — that is everything there was')
 })
 
-// ── the A5 fix: completeness compares against the SCOPE, never against a ceiling ──
+// ── the A5 fix: a channel that stopped SHORT of what was asked for ───────────
 //
-// The blind spot ticket 05 owed. `saw < pool` was read as "saw everything", which
-// holds only while every scan is exhaustive — true at A4's 3,181 chunks, where the
-// planner seq-scans, and false the moment the corpus is big enough for HNSW to
-// engage. Both cases below returned FEWER rows than the pool asked for and were
-// reported complete by the old rule; both are thin answers.
+// The blind spot ticket 05 owed. `saw < pool` alone was read as "saw everything",
+// which holds only while every scan is exhaustive — true at A4's 3,181 chunks,
+// where the planner seq-scans, and false the moment the corpus is big enough for
+// HNSW to engage. Both cases below came back with FEWER rows than the caller asked
+// for AND fewer than the scope holds, and both were reported complete by the old
+// rule. That pair of conditions is the whole test: either one alone is a rule this
+// file has already shipped and had to withdraw.
 test('an HNSW scan cut short by ef_search is TRUNCATED even though it never filled the pool', async () => {
-  // ef_search clamps at 1000, so a 5,000-row pool over a 61,402-chunk corpus can
-  // only ever come back with ≤1000. The old ceiling-free rule called this complete.
+  // ef_search clamps at 1000, so a 5,000-row pool over a 61K-chunk corpus can only
+  // ever come back with ≤1000 — under what was asked for, with plenty left unseen.
   const { db } = fakeDb({
-    rows: [row({ dense_candidates: 1000, lexical_candidates: 0, dense_in_scope: 61_402 })],
+    rows: [row({ dense_candidates: 1000, lexical_candidates: 0, dense_in_scope_capped: 5001 })],
   })
   const res = await retrieveChunks(db, { query: 'הכנסות', candidates: 5000, embed })
   assert.equal(res.dense.saw, 1000)
-  assert.equal(res.dense.truncated, true, '1000 of 61,402 — the index stopped, the scope did not')
+  assert.equal(res.dense.truncated, true, 'asked for 5000, the index stopped it at 1000, more was there')
 })
 
 test('a scoped iterative scan stopped by max_scan_tuples is TRUNCATED', async () => {
   // hnsw.max_scan_tuples (20,000 by default) ends a strict_order iterative scan
   // under a company filter before the pool is anywhere near full.
   const { db } = fakeDb({
-    rows: [row({ dense_candidates: 640, lexical_candidates: 0, dense_in_scope: 4_100 })],
+    rows: [row({ dense_candidates: 640, lexical_candidates: 0, dense_in_scope_capped: 2001 })],
   })
   const res = await retrieveChunks(db, { query: 'המרווח', companyId: 'co-bza', candidates: 2000, embed })
-  assert.equal(res.dense.truncated, true, '640 of the company’s 4,100 chunks is not the company’s corpus')
+  assert.equal(res.dense.truncated, true, '640 of the company’s chunks when 2000 were asked for')
+})
+
+test('a scope SMALLER than the pool is complete at whatever it holds', async () => {
+  // A company with 150 chunks, asked for 200. The count is exact here — under the
+  // cap — and the channel saw all of it. Reporting this as truncated would tell a
+  // user their company's own corpus was only partly searched.
+  const { db } = fakeDb({
+    rows: [row({ dense_candidates: 150, lexical_candidates: 0, dense_in_scope_capped: 150 })],
+  })
+  const res = await retrieveChunks(db, { query: 'המרווח', companyId: 'co-small', candidates: 200, embed })
+  assert.equal(res.dense.truncated, false)
+  assert.equal(res.dense.inScopeCapped, 150, 'exact, because it landed under the cap')
 })
 
 test('a switched-off channel reports ran:false, which is not the same as found-nothing', async () => {
   const { db } = fakeDb({
-    rows: [row({ dense_candidates: 0, lexical_candidates: 9, dense_in_scope: 0, lexical_in_scope: 9 })],
+    rows: [
+      row({
+        dense_candidates: 0,
+        lexical_candidates: 9,
+        dense_in_scope_capped: 0,
+        lexical_in_scope_capped: 9,
+      }),
+    ],
   })
   const res = await retrieveChunks(db, {
     query: 'כושר זיקוק',
@@ -236,7 +271,7 @@ test('an empty result is returned as empty — the honest cannot-ground signal, 
   const res = await retrieveChunks(db, { query: 'הרווח של טבע', embed })
   assert.deepEqual(res.chunks, [])
   assert.equal(res.dense.saw, 0)
-  assert.equal(res.dense.inScope, 0, 'no rows came back, so no scope count came back either')
+  assert.equal(res.dense.inScopeCapped, 0, 'no rows came back, so no scope count came back either')
   assert.equal(res.dense.truncated, false, 'nothing found is complete information, not a truncation')
 })
 

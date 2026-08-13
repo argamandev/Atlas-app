@@ -15,16 +15,17 @@
 // reproduced its measured numbers exactly. Full evidence and the four options he
 // chose between: docs/evidence/feat-smart-layer-a4-backfill/gate.md.
 //
-// The lexical channel is NOT deleted. `atlas_search_chunks` still accepts it, so
-// the revisit he asked for costs a flag rather than a rebuild — but it must not
+// The lexical channel is NOT deleted. `atlas_search_chunks_v2` still accepts it,
+// so the revisit he asked for costs a flag rather than a rebuild — but it must not
 // become the default again without a fresh harness run (§5 of the ingestion
 // standard is explicit that changing the retrieval shape re-runs the gate).
 //
 // ONE RETRIEVER, for the same reason there is one chunker (standard §5): the
 // harness scores THIS module, so what the gate certifies and what a user's
 // question runs through cannot drift apart. All ranking lives in
-// `atlas_search_chunks` (migration 029); this file adds the query embedding and
-// the row shape and nothing else.
+// `atlas_search_chunks_v2` (migration 031, which supersedes 029's
+// `atlas_search_chunks` — same ranking, plus the scope counts below); this file
+// adds the query embedding and the row shape and nothing else.
 //
 // FAILURE IS VISIBLE: an RPC error throws with its message. An empty result is
 // NOT an error — "the resolved scope has no corpus content" is the honest
@@ -85,20 +86,29 @@ export interface RetrievedChunk {
 /**
  * What one channel actually saw, against what there was to see.
  *
- * `inScope` is the fact, not a proxy for it: the number of rows this channel
- * could have matched in this scope — chunks carrying an embedding for dense,
- * chunks matching the tsquery for lexical — counted off an index by the same
- * statement that produced the answer. `truncated` is then simply `saw < inScope`,
- * with no ceiling anywhere in the comparison (M3.2).
+ * `truncated` means the channel was CUT SHORT: it returned less than both what
+ * this call asked for and what the scope holds. A top-20 search that examined 200
+ * of 61,402 chunks is not cut short — that is the search working as asked — and a
+ * flag that fired on it would be as useless as the one it replaced was blind.
  *
  * `ran: false` is a channel this call switched off — a different fact from one
  * that ran and found nothing.
  */
 export interface ChannelReport {
   ran: boolean
+  /** Rows this channel produced before ranking. */
   saw: number
-  /** Rows this channel could have matched in this scope. `saw < inScope` = cut off. */
-  inScope: number
+  /**
+   * Rows in scope, COUNTED NO FURTHER THAN `candidates + 1` — exact at or below
+   * the pool, saturated above it. It is the only range that changes the answer,
+   * and counting past it would mean scanning a table whose rows carry a
+   * vector(1536) on every search.
+   *
+   * ⚠ NOT the size of the corpus or of the company's holdings. Never render it as
+   * one: at the default pool it reads 201 for a company with 12 chunks' worth of
+   * relevance and for one with forty thousand.
+   */
+  inScopeCapped: number
   truncated: boolean
 }
 
@@ -139,8 +149,8 @@ type ChunkRpcRow = {
   score: number
   dense_candidates: number
   lexical_candidates: number
-  dense_in_scope: number
-  lexical_in_scope: number
+  dense_in_scope_capped: number
+  lexical_in_scope_capped: number
 }
 
 const DEFAULT_LIMIT = 20
@@ -149,9 +159,9 @@ const DEFAULT_CANDIDATES = 200
 // ⚠ WHAT `truncated` DOES AND DOES NOT MEAN — worth stating, because both
 // earlier versions of this got it wrong, once in each direction.
 //
-// It means one thing: the channel saw FEWER rows than its scope holds, so there
-// was more it did not look at. The comparison is against the scope, never
-// against a ceiling — `saw < inScope`, both facts, both from the same statement.
+// It means one thing: the channel was CUT SHORT — it came back with less than
+// both what this call asked for and what the scope holds. `saw < least(pool,
+// inScopeCapped)`, two facts and the caller's own parameter.
 //
 // The loud wrong version compared the count against `hnsw.ef_search` (capped at
 // 1000 by Postgres). That GUC bounds the index scan's EFFORT, not the row count;
@@ -160,20 +170,25 @@ const DEFAULT_CANDIDATES = 200
 // cases as truncated when not one of them was.
 //
 // The quiet wrong version — the one this file shipped through A4 — compared the
-// count against the requested POOL: `saw < pool` read as "saw everything". That
-// holds only while every scan is exhaustive, which is a property of a 3,181-row
-// corpus and not of the code. It goes silently false the moment the planner DOES
-// use HNSW and `ef_search` caps the channel below the pool, or a scoped iterative
-// scan stops at `hnsw.max_scan_tuples` (default 20,000). A5's corpus is where the
-// index engages, so A5 is where migration 031 replaced the pool with the scope.
+// count against the requested POOL alone: `saw < pool` read as "saw everything".
+// That holds only while every scan is exhaustive, which is a property of a
+// 3,181-row corpus and not of the code. It goes silently false the moment the
+// planner DOES use HNSW and `ef_search` caps the channel below the pool, or a
+// scoped iterative scan stops at `hnsw.max_scan_tuples` (default 20,000). A5's
+// corpus is where the index engages, so A5 is where migration 031 closed it.
+//
+// And a third wrong version, caught in review before it was ever applied: dropping
+// the pool from the comparison entirely, `saw < inScope`. True, useless, and true
+// of EVERY query once the corpus outgrows the pool — the loud failure again, with
+// the numbers rearranged. The pool belongs in the comparison because the caller
+// chose it; the two Postgres ceilings do not, because nobody did.
 //
 // The residual no counter can show: HNSW is APPROXIMATE. A dense channel can miss
 // a genuine neighbour while reporting a complete, untruncated scope — that is a
 // property of the index, not a truncation, and `truncated: false` must not be read
-// as "these are the true nearest rows". It is measured by re-running the standing
-// harness against a corpus big enough to engage the index, which is what A5's
-// backfill finally makes possible; the answer lives in
-// docs/evidence/feat-smart-layer-a5-maya-backfill/.
+// as "these are the true nearest rows". Measuring it needs a corpus big enough to
+// engage the index, which is what A5's backfill makes possible; until that
+// harness re-run lands under docs/evidence/, it is UNMEASURED, not fine.
 
 export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promise<RetrievalResult> {
   const channels = opts.channels ?? DEFAULT_CHANNELS
@@ -197,11 +212,14 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
   if (error) throw new Error(`retrieveChunks: ${error.message}`)
 
   const rows = (data as ChunkRpcRow[] | null) ?? []
-  const report = (ran: boolean, saw: number, inScope: number): ChannelReport => ({
+  const report = (ran: boolean, saw: number, inScopeCapped: number): ChannelReport => ({
     ran,
     saw: ran ? saw : 0,
-    inScope: ran ? inScope : 0,
-    truncated: ran && saw < inScope,
+    inScopeCapped: ran ? inScopeCapped : 0,
+    // Cut short = returned less than BOTH what was asked for and what is there.
+    // `least` is why a pool-limited search reads complete: at the pool, the
+    // channel delivered exactly what this call requested.
+    truncated: ran && saw < Math.min(candidates, inScopeCapped),
   })
 
   return {
@@ -227,7 +245,15 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
     // rather than an absent field the caller would have to guess about. Zero seen
     // out of zero in scope is complete information — the empty scope really is
     // empty — which is the one case where `saw === inScope` and both are 0.
-    dense: report(channels !== 'lexical', rows[0]?.dense_candidates ?? 0, rows[0]?.dense_in_scope ?? 0),
-    lexical: report(channels !== 'dense', rows[0]?.lexical_candidates ?? 0, rows[0]?.lexical_in_scope ?? 0),
+    dense: report(
+      channels !== 'lexical',
+      rows[0]?.dense_candidates ?? 0,
+      rows[0]?.dense_in_scope_capped ?? 0
+    ),
+    lexical: report(
+      channels !== 'dense',
+      rows[0]?.lexical_candidates ?? 0,
+      rows[0]?.lexical_in_scope_capped ?? 0
+    ),
   }
 }

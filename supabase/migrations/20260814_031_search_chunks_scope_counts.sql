@@ -28,8 +28,28 @@
 --
 -- THE FIX IS TO STOP INFERRING. Give the caller the fact instead of a proxy for it
 -- (app.md M3.2): how many rows the channel could have matched IN THIS SCOPE.
--- Completeness is then `saw < in_scope`, and no ceiling appears in the comparison
--- anywhere — not ef_search, not max_scan_tuples, not the pool.
+-- Completeness is then `saw < least(pool, in_scope)` — the channel is cut short
+-- when it returned less than BOTH what the caller asked for and what the scope
+-- holds. Neither Postgres ceiling appears in that comparison; the pool does, and
+-- must, because the pool is a number the CALLER chose. A top-20 search over 60K
+-- chunks is not a degradation, and a rule that flagged it would be the loud
+-- failure mode this file already made once (see below) wearing new clothes.
+--
+-- ⚠ THE FIRST VERSION OF THIS MIGRATION GOT EXACTLY THAT WRONG — `saw < in_scope`,
+-- which is permanently true for any scope bigger than the pool, i.e. every
+-- production query after this slice's backfill. Caught in pre-apply review, which
+-- is what the pre-apply review is for: applied, it could only have been narrowed
+-- by a hook-blocked DROP.
+--
+-- COUNTED UP TO `p_candidates + 1`, NEVER FURTHER, and that bound is load-bearing
+-- rather than an optimisation. `least(pool, in_scope)` cannot tell the difference
+-- between an in_scope of 201 and one of 61,402 when the pool is 200, so counting
+-- past the pool buys nothing and costs a full scan of a table whose rows carry a
+-- vector(1536) — ~6KB each, ~400MB across this slice's corpus, on the read path of
+-- every search. The capped count is therefore EXACT whenever it lands at or below
+-- the pool (which is the only range that changes the answer) and saturates at
+-- pool+1 otherwise. It is named `_capped` so nothing downstream can mistake it for
+-- "how much the corpus holds" and print it at a user.
 --
 -- ─────────────────────────────────────────────────────────────────────────────
 -- WHY A NEW NAME RATHER THAN `create or replace` ON 029. Ticket 05 assumed this
@@ -80,11 +100,13 @@ create or replace function public.atlas_search_chunks_v2(
   -- HOW MUCH EACH CHANNEL ACTUALLY SAW …
   dense_candidates int,
   lexical_candidates int,
-  -- … AND HOW MUCH THERE WAS TO SEE. The pair is the point: either number alone
-  -- is a proxy, and it was reasoning from the first one alone that produced the
-  -- blind spot this migration closes.
-  dense_in_scope int,
-  lexical_in_scope int
+  -- … AND HOW MUCH THERE WAS TO SEE, counted no further than p_candidates + 1.
+  -- The pair is the point: either number alone is a proxy, and it was reasoning
+  -- from the first one alone that produced the blind spot this migration closes.
+  -- `_capped` is not decoration — at p_candidates + 1 this says "more than the
+  -- pool", NOT how many chunks the scope holds.
+  dense_in_scope_capped int,
+  lexical_in_scope_capped int
 )
 language plpgsql
 stable
@@ -134,29 +156,45 @@ begin
     perform set_config('hnsw.iterative_scan', 'strict_order', true);
   end if;
 
-  -- ── the scope counts ───────────────────────────────────────────────────────
-  -- COUNTED ONLY FOR A CHANNEL THAT RAN. A count for a switched-off channel would
-  -- be a number nobody asked for, paid for on every query; and the caller reports
+  -- ── the capped scope counts ────────────────────────────────────────────────
+  -- COUNTED ONLY FOR A CHANNEL THAT RAN. A count for a switched-off channel is a
+  -- number nobody asked for, paid for on every query; and the caller reports
   -- `ran: false` for it anyway, which is a different fact from "ran and saw none".
   --
-  -- Index-backed on the path that matters: scoped queries hit
-  -- document_chunks(company_id) (024) for dense and the GIN tsv index for lexical.
-  -- An UNSCOPED dense count is a full count of document_chunks — ~60K rows after
-  -- this slice's backfill, single-digit milliseconds, and the honest cost of
-  -- knowing rather than assuming. Stated here so whoever profiles a slow query
-  -- finds it written down instead of discovering it.
+  -- THE INNER `limit` IS WHAT MAKES THIS AFFORDABLE. Each count stops after
+  -- p_candidates + 1 rows, so the work is bounded by a number the caller chose
+  -- (200 by default) rather than by the size of the corpus — no scan of the
+  -- vector-carrying heap, at any corpus size, ever. The predicates are
+  -- character-for-character the ones the two channels below use, which is the only
+  -- reason `saw <= in_scope_capped` holds: a count over a DIFFERENT predicate
+  -- would be a proxy again, and could hand back an incoherent pair.
+  --
+  -- Both counts and both channels read one snapshot because this function is
+  -- declared `stable` — the whole call sees the calling query's snapshot. That is
+  -- load-bearing at THIS slice above all others: the backfill and the poller insert
+  -- chunks while users are searching, and under `volatile` a count taken after the
+  -- channel ran could include rows the channel could not have seen, making
+  -- `saw > in_scope` unrepresentable only by luck. Do not relax `stable`.
   if p_query_embedding is not null then
     select count(*)::int into v_dense_in_scope
-    from public.document_chunks c
-    where c.embedding is not null
-      and (p_company_id is null or c.company_id = p_company_id);
+    from (
+      select 1
+      from public.document_chunks c
+      where c.embedding is not null
+        and (p_company_id is null or c.company_id = p_company_id)
+      limit p_candidates + 1
+    ) probe;
   end if;
 
   if v_has_text then
     select count(*)::int into v_lexical_in_scope
-    from public.document_chunks c
-    where c.tsv @@ v_tsquery
-      and (p_company_id is null or c.company_id = p_company_id);
+    from (
+      select 1
+      from public.document_chunks c
+      where c.tsv @@ v_tsquery
+        and (p_company_id is null or c.company_id = p_company_id)
+      limit p_candidates + 1
+    ) probe;
   end if;
 
   return query

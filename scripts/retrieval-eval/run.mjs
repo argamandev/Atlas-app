@@ -65,13 +65,17 @@ const REAL_DEPTH = Number((process.argv.find((a) => a.startsWith('--depth=')) ??
 // purpose: the in-process run ranked every chunk, and fusing over a subset would
 // measure the subset.
 //
-// ⚠ NO SAFETY NET FOR THE ef_search CEILING, contrary to what this comment used
-// to promise. `truncated` compares a channel's row count against THIS pool, so a
-// dense channel capped at pgvector's 1000-row `ef_search` ceiling while under
-// 5000 is reported as complete. It does not bite at 3,181 chunks — the planner
-// answers exactly by seq scan, returning all of them — but it will at A5 scale,
-// and a reader trusting a net that is not there is worse than knowing there is
-// none (M1).
+// ⚠ THE ef_search CEILING IS NOW CAUGHT — but read what the flag means before
+// trusting it. Through slice A4 `truncated` compared a channel's row count against
+// THIS pool alone, so a dense channel capped at pgvector's 1000-row `ef_search`
+// ceiling while under 5000 was reported complete. Harmless at 3,181 chunks (the
+// planner answered exactly by seq scan, returning all of them) and precisely the
+// hazard at A5 scale, where a 5000-row pool CANNOT be filled by an index scan.
+// Migration 031 closed it: the channel now also reports how much was in scope,
+// capped at pool + 1, and `truncated` means "returned less than both what was
+// asked for and what was there". A truncation printed below is therefore a real
+// one, and at this pool it most likely means the ANN index engaged — which is the
+// thing A5's re-run exists to find out about.
 const REAL_POOL = 5000
 const TOP_K = 20
 
@@ -548,7 +552,8 @@ async function buildRealDesigns() {
     ]) {
       if (ch.truncated)
         truncations.push(
-          `case ${id} · ${channels}${scoped ? '-scoped' : ''} · ${name} channel filled its ${ch.saw}-row pool`
+          `case ${id} · ${channels}${scoped ? '-scoped' : ''} · ${name} channel was CUT SHORT: ` +
+            `${ch.saw} rows for a ${REAL_POOL}-row request, with ≥${ch.inScopeCapped} in scope`
         )
     }
     const chunks = res.chunks.map(toChunk)
