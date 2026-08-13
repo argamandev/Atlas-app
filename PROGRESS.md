@@ -1024,3 +1024,44 @@ the live hole fixed in the same session.
   three scanned shapes - M1 in action, filed in the evidence record.
 - **Verified:** 787/787 across 85 files - `tsc` clean - `next build` green - harness
   lexical re-run identical - migration 028 reviewed on file (4 rounds) before apply.
+
+## 2026-08-14 - Slice A4: the corpus becomes searchable, and the gate earns its keep (`feat/smart-layer-a4-backfill`)
+
+- **The backfill ran against production, clean.** The existing corpus is through the
+  ingestion standard: **3,181 chunks, every one embedded**; 26 documents (not the 23
+  estimated) each carrying a real `publication_date`; 1,398 `filing_facts` rows across
+  19 filings, with the 7 presentations honestly `none`. The demo transcript and the
+  `PyuMxe88e8g_live` duplicate are `excluded`, visibly. Zero failures, ~$0.35.
+  `scripts/backfill-corpus.ts` is idempotent, resumable and `--dry-run`-able, and writes
+  only through doors that already existed - it owns `source_key` and nothing else.
+- **THE GATE DID NOT PASS, WHICH IS WHY IT EXISTS.** `run.mjs --real` scores the
+  production module against pgvector + real Postgres. Dense reproduces the measured eval
+  (MRR 0.254/0.268, identical hit-sets, בז"א MUST-PASS rank 1); the lexical channel
+  collapses 0.207 → 0.075 and drags the CHOSEN hybrid to 0.141, below dense-only. Root
+  cause, verified not theorised: Postgres has no IDF - `שנת` is in 96% of chunks and
+  scores like `ההכנסות`, in 5% - and BM25-in-SQL reproduces the measured rank exactly.
+  A df-threshold substitute was tested and rejected (it discards `תיגבור`).
+  `docs/evidence/feat-smart-layer-a4-backfill/gate.md`.
+- **Founder call, filed same day:** *"okay yes lets just go with the semantic search
+  now"* - retrieval ships DENSE-ONLY, held by a battery test, with the lexical channel
+  suspended rather than deleted so his revisit costs a flag. **B1 is unblocked.**
+- **Three defects the backfill exposed, all fixed at the choke point:** MAYA's
+  `publicationDate` carries no zone (every filing date was being stored 2-3 hours wrong);
+  a ת930 instance repeats a concept per SIGNATORY, which cost 19 filings their entire
+  fact set behind a visible `facts_status='failed'`; and a transcript with no `source_key`
+  could still be chunked.
+- **Review bought two mechanisms (three rounds):** the pgvector post-filter blocker
+  promoted `Degradation must be VISIBLE` none → partially (`retrieveChunks` returns
+  per-channel `{ran, saw, truncated}`; the test fails a truncated channel reported as
+  complete), and the duplicated Israel offset probe collapsed THREE wall-clock
+  implementations into one - `zonedWallClockToUtc` now lives in `lib/i18n/format.ts` and
+  `schedule.ts` imports it - ratcheted by a test the reviewer proved goes red. Round 2
+  also caught a diagnostic function I left anon-callable on production (EXECUTE defaults
+  to PUBLIC; PostgREST exposes it) - revoked.
+- **Owned, not argued:** migration 029 was rewritten after its round-1 verdict and applied
+  before re-review - a second occurrence of `db.md`'s own case. Recorded in `COLLISIONS.md`
+  and the review record. Also filed for the founder: `db.md` states no laws in marker form,
+  so no database rule can ever be cited in a `RECURRENCE: yes`.
+- **Verified:** 810/810 across 86 files - `tsc` clean - `env:health` 8,995/9,000 (the
+  slice's law changes paid for themselves by evicting provenance to case-history) -
+  migrations 029 and 030 applied, `transcripts_company_required` now VALIDATED.
