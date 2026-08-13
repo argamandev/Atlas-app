@@ -96,10 +96,10 @@ const GENERIC_TOKENS = new Set([
   'company',
 ])
 
-const wordsOf = (s: string): string[] => s.split(' ').filter((t) => t.length >= MIN_FRAGMENT)
+export const wordsOf = (s: string): string[] => s.split(' ').filter((t) => t.length >= MIN_FRAGMENT)
 
 /** The words that actually identify a company, industry nouns removed. */
-const identifyingWords = (s: string): string[] => wordsOf(s).filter((t) => !GENERIC_TOKENS.has(t))
+export const identifyingWords = (s: string): string[] => wordsOf(s).filter((t) => !GENERIC_TOKENS.has(t))
 
 /** Hebrew and English company names carry a lot of noise that is never part of
  *  what a person types: the corporate suffix, quote marks in several Unicode
