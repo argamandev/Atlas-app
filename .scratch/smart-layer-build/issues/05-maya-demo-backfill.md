@@ -1,50 +1,44 @@
 # A5 · MAYA demo backfill + freshness
 
-Status: BUILT, not yet run. Branch `feat/smart-layer-a5-maya-backfill`.
+Status: MERGED to main 2026-08-14, with TWO THINGS OPEN. Read those first.
 Blocked by: 04 (landed)
 
-> **Migration 031 IS APPLIED** (`atlas_search_chunks_v2`) — filed, reviewed on the file
-> across three rounds, appended to `COLLISIONS.md`, then applied and verified through
-> `retrieveChunks` against the live corpus. 029's function is deliberately left in place
-> so the currently-deployed build keeps working until this branch ships.
->
-> **THE BACKFILL IS RUNNING** (founder said go, 2026-08-14). Resume/finish it with:
-> `node --import tsx scripts/backfill-maya-corpus.ts` — idempotent and resumable, so an
-> interrupted run costs nothing but the MAYA reads to find its place again.
->
-> **A second pass is required regardless of how the first ends.** Two mid-run fixes landed
-> after it started: `pgSafe` (a NUL in extracted text was killing whole documents at the
-> pages insert) and the no-pages repair path. The ~0.5% of documents that failed before
-> those landed are self-healing — the next pass re-fetches them — but only if a next pass
-> runs.
->
-> **⚠ COST IS TRACKING ABOVE THE APPROVED FIGURE.** At 80/233 companies: 420 documents,
-> 27,661 pages, i.e. ~66 pages/document against the 47–60 the $5–8 estimate assumed.
-> Extrapolated: ~1,220 documents, ~80K pages, **≈$10–14 of embeddings rather than $5–8**.
-> Not a defect — the corpus is simply denser than ticket 17 projected — but it is his money
-> and his number, so tell him before the final pass rather than after.
->
-> ## THEN, IN ORDER — and B1 must not start before this lands
->
-> 1. **Finish the backfill**, then run it once more (see above).
-> 2. **Re-run the gate:** `node --import tsx scripts/retrieval-eval/run.mjs --real`, compare
->    against `docs/evidence/feat-smart-layer-a4-backfill/gate.md`. Read `REAL_POOL`'s header
->    first — at this corpus size every unscoped dense case reads CUT SHORT by construction,
->    because ef_search clamps at 1000. That is not a regression.
-> 3. **`/ship`** — it still owes STATUS.md, PROGRESS.md, a final review verdict + sha, and
->    one real ADR-0002 call (see `docs/evidence/.../review.md`, last section).
->
-> **Do not start ticket 06 (B1a) from `main` until this merges.** B1a's main surface is the
-> retrieval contract, and `src/lib/corpus/retrieve.ts` on `main` is the pre-A5 version — it
-> calls `atlas_search_chunks` and its `ChannelReport` has neither `inScopeCapped` nor the
-> `ran` semantics. Building B1a against that means a guaranteed conflict in the one file it
-> touches most. B1a's `Blocked by: 04` is formally satisfied; this is a practical ordering,
-> not a dependency.
->
-> **And one decision:** 207 of the 1,385 selected filings (15%, all presentations, 91 of
-> 233 companies) cannot be stored under `unique (company_id, quarter, doc_type)`. Measured,
-> not predicted. Three ways out with a recommendation:
-> `docs/evidence/feat-smart-layer-a5-maya-backfill/measurements.md` §2.
+## OPEN · what a session picking this up does, in order
+
+**1 · Finish the embedding.** The Gemini prepaid credits ran out mid-backfill and were topped up
+(founder, 2026-08-14). A repair pass may still be running; if not, run it — it is idempotent and
+costs nothing for what is already indexed:
+
+    node --import tsx scripts/backfill-maya-corpus.ts
+
+Check progress at `/app/admin/corpus`, or
+`select index_status, count(*) from company_documents group by 1`. Done = zero rows `failed`.
+Documents that are ingested but unembedded are INVISIBLE to search (dense retrieval filters on
+`embedding is not null`) — honest, but a thinner corpus than the document count suggests.
+
+**2 · Re-run the retrieval gate. THIS IS A5'S OWN ACCEPTANCE AND IT WAS DEFERRED PAST THE MERGE**
+by founder decision (`DECISIONS.md`, 2026-08-14) to unblock ticket 06. It gates B1 SHIPPING, not
+B1 starting.
+
+    node --import tsx scripts/retrieval-eval/run.mjs --real
+
+Compare against `docs/evidence/feat-smart-layer-a4-backfill/gate.md`, and file the result in
+`docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`.
+
+**Read `REAL_POOL`'s header in `run.mjs` BEFORE reading the numbers.** At this corpus size
+`hnsw.ef_search` is clamped at 1000, so every unscoped dense case will report CUT SHORT by
+construction. That is not a regression. What the run exists to answer is whether HNSW's
+approximation costs ranking quality now that the index really engages — A4 measured with the
+planner seq-scanning 3,181 rows, which is not the same thing. A drop is an index-tuning problem
+(`m`, `ef_construction`, `ef_search`), not a design one.
+
+**Open, not blocking:** 102 of 1,374 selected filings cannot be stored under
+`unique (company_id, quarter, doc_type)` — measured, named per filing at run time, three ways out
+in `measurements.md` §2 and §6. And neither the poller nor the sweep is SCHEDULED; the founder
+deferred that until after V1 ("those sweep and poller are too advanced for us... after atlas v1 is
+done"). `docs/corpus-freshness.md` carries the cron lines for the day that changes.
+
+---
 
 ## What landed on the branch
 
