@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { reindexTranscript, reindexDocument, isDemoTranscriptId, type CorpusDb } from './reindex'
+import { reindexTranscript, reindexDocument, isDemoTranscriptId, NO_PAGES, type CorpusDb } from './reindex'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The atomic re-chunk mechanism (ingestion standard §5 + §8, "mechanisms owed"):
@@ -248,5 +248,32 @@ test('document reindex: page anchors ride the RPC with the document id', async (
   assert.deepEqual(
     statusWrites.map((u) => u.payload.index_status),
     ['indexed']
+  )
+})
+
+test('document reindex: NO PAGES is a failure, never an indexed document with no chunks', async () => {
+  // The A5 backfill's own failure mode. A NUL in the extracted text made the pages
+  // insert fail AFTER the document row was upserted, leaving a row whose text does
+  // not exist. Chunking that yields zero chunks, and flipping the row to 'indexed'
+  // would record a document search can never return as fully searchable —
+  // success-with-nothing, which this function may not express (M3.3).
+  //
+  // `ingestDocument` throws on a zero-page PDF, so zero rows in document_pages can
+  // ONLY mean the insert failed. There is no legitimate empty document to protect.
+  const { db, captured } = makeFakeDb({
+    rows: {
+      'company_documents:d9': { id: 'd9', company_id: 'c-uuid', title: 'דוח תקופתי' },
+      'companies:c-uuid': { name: 'תיגבור' },
+    },
+    pages: [],
+  })
+  const res = await reindexDocument(db, 'd9', { fetchImpl: okEmbedFetch, apiKey: 'k' })
+  assert.equal(res.status, 'failed')
+  assert.equal(res.status === 'failed' ? res.error : '', NO_PAGES)
+  assert.equal(captured.rpcs.length, 0, 'it never reached the chunk swap')
+  assert.deepEqual(
+    captured.updates.filter((u) => u.table === 'company_documents').map((u) => u.payload.index_status),
+    ['failed'],
+    'and the row says so — queryable and retryable, per the standard'
   )
 })

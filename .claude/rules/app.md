@@ -177,8 +177,8 @@ reassuring green; only slash-free names survive. **Verify the zone, never the co
 **LAW · Degradation must be VISIBLE. Never render success UI for content the server dropped, and
 never add a stub to fill a designed slot.** A failed fetch says so, on screen, in both locales. A
 pane ends in exactly one of: loading · error · empty — never a fabricated fourth state.
-**ENFORCED** partially — `src/lib/corpus/retrieve.test.ts` fails a truncated retrieval channel
-reported as complete. Elsewhere `none`. → `#stubs-on-designed-slots`
+**ENFORCED** partially — four tests fail a thin answer sold as whole: `retrieve`, `indexHealth`,
+`reindex`, `syncFilings`; a new surface gets `none`. → `#stubs-on-designed-slots`
 
 **LAW · When a decision rests on a natural-language classifier over an open vocabulary, buy VISIBLE
 FAILURE, not a longer word list.** Hebrew and English both have unbounded ways to say the same
