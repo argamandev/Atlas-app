@@ -37,10 +37,13 @@ import {
   MIN_REASON,
   closedScratchDirs,
   evictionProblems,
+  parseBatterySummary,
   parseReviewRecord,
   recurrenceProblems,
   reviewProblems,
   stalenessProblems,
+  verifiedClaims,
+  verifiedCountProblems,
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore -- plain ESM module, deliberately outside tsconfig's TS program
 } from '../../scripts/lib/ship-gate.mjs'
@@ -396,4 +399,44 @@ test('a folder with no status line at all is not "closed" by vacuous truth', () 
   // damage is moving live notes into history.
   assert.deepEqual(closedScratchDirs([]), [])
   assert.deepEqual(closedScratchDirs([{ dir: '.scratch/loose', status: null }]), [])
+})
+
+// ─── The Verified-count check (founder decision 2026-08-13) ──────────────────
+
+test('a Verified count right after the label reads as a claim, in bold or plain', () => {
+  assert.deepEqual(verifiedClaims(['- **Verified:** 706/706 · tsc clean · probes green']), [
+    { line: '- **Verified:** 706/706 · tsc clean · probes green', pass: 706, total: 706 },
+  ])
+  assert.deepEqual(verifiedClaims(['Verified: 702/702']), [
+    { line: 'Verified: 702/702', pass: 702, total: 702 },
+  ])
+})
+
+test('a count NOT adjacent to the label is no claim — the stated limit, both ways', () => {
+  // Convention: the battery count comes right after "Verified:", or the line points
+  // at the command. A pair buried later in the sentence is deliberately invisible —
+  // "6/6 lib/db modules" must not be read as a battery count.
+  assert.deepEqual(verifiedClaims(['- **Verified:** tsc clean · 6/6 lib/db modules read']), [])
+  assert.deepEqual(verifiedClaims(['ran 706/706 tests before writing this']), [])
+})
+
+test('the battery summary parses through ANSI color, and fails closed when absent', () => {
+  const colored = '\u001b[34mℹ tests 706\u001b[39m\n\u001b[34mℹ pass 705\u001b[39m\n\u001b[34mℹ fail 1\u001b[39m'
+  assert.deepEqual(parseBatterySummary(colored), { total: 706, pass: 705 })
+  assert.equal(parseBatterySummary('npm ERR! something died before the reporter spoke'), null)
+})
+
+test('a claim that disagrees with the run is refused; one that agrees is not', () => {
+  const claim = [{ line: 'Verified: 706/706', pass: 706, total: 706 }]
+  assert.deepEqual(verifiedCountProblems(claim, { pass: 706, total: 706 }), [])
+  const refused = verifiedCountProblems(claim, { pass: 705, total: 706 })
+  assert.equal(refused.length, 1)
+  assert.match(refused[0], /705\/706/)
+})
+
+test('no claim, no problem — and a claim over an unparsable run fails closed', () => {
+  assert.deepEqual(verifiedCountProblems([], null), [])
+  const problems = verifiedCountProblems([{ line: 'Verified: 1/1', pass: 1, total: 1 }], null)
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /no parsable summary/)
 })

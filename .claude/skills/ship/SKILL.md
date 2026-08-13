@@ -11,8 +11,10 @@ pair of eyes is now the `atlas-reviewer` subagent, dispatched in step 5 — **co
 retire with the fleet, and it is the step that repeatedly caught what the author missed.**
 
 **Most of this file is no longer the thing that makes it happen.** `npm run ship:gate` checks the
-mechanical half — STATUS.md rewritten, PROGRESS.md appended, closed working notes filed as
-history, every review finding answered against the recurrence question — and
+mechanical half — STATUS.md rewritten, PROGRESS.md appended (and any `Verified: N/N` count in the
+new entry re-measured against a battery run the gate makes itself; founder decision 2026-08-13),
+closed working notes filed as history, every review finding answered against the recurrence
+question — and
 `.claude/hooks/pre-bash-gate.mjs` runs it again at the `git merge` onto main, so it fires whether
 or not anyone opened this skill. That is deliberate: `CONTEXT.md` counts prose as the weakest tier
 and not as enforcement, and ADR-0002 does not exempt the workflow from the rule it imposes on the
