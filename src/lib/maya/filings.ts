@@ -1,6 +1,6 @@
 import type { MayaFiling } from './types'
 import { docTypeFor, isDocumentEvent, periodFor } from './events'
-import { israelInstant } from './dates'
+import { israelInstant } from '@/lib/i18n/format'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A MAYA FILING BECOMES SOMETHING THE SHELF CAN SPEAK ABOUT.

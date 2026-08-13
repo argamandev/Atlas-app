@@ -29,7 +29,20 @@ lowest-numbered unblocked ticket, one per session, branch per slice, `/ship`). S
 one battery-guarded transcript door (attributed, keyed, aligned, atomically re-chunked), XBRL
 facts + `publication_date` with visible statuses, the global MAYA limiter, the harness importing
 the production chunker; the `index_status` admin surface is deferred into A5.
-**Next up: slice A4 — backfill + harness re-run** (ticket 04 — the gate for every surface slice).
+
+**Slice A4 — the corpus is SEARCHABLE, and the gate found something.** On
+`feat/smart-layer-a4-backfill`, not yet merged. The backfill ran clean: **3,181 chunks, all
+embedded**, 26/26 documents indexed with real publication dates, 1,398 XBRL facts, the duplicate
+and demo transcripts visibly `excluded`. Migrations 029 (`atlas_search_chunks` — the one retrieval
+door) and 030 (VALIDATE the company CHECK) are applied.
+
+**The gate's verdict blocks B1 on a founder decision.** Dense retrieval reproduces the measured
+eval EXACTLY (MRR 0.268 scoped) and the בז"א MUST-PASS ranks 1 — but Postgres's `ts_rank_cd` has
+no IDF (`שנת` is in 96% of chunks and scores like `ההכנסות`, in 5%), so the lexical channel
+collapses 0.207 → 0.075 and drags the chosen hybrid design to 0.141, BELOW dense-only. Real BM25
+in SQL reproduces exactly, but needs a precomputed inverted index to be fast (31s without one).
+Three options, costed, in `docs/evidence/feat-smart-layer-a4-backfill/gate.md` and ticket 04.
+**Do not ship a surface slice on the hybrid channel until he chooses.**
 
 Also open (map ticket 13): leftover cleanup, `profiles`/`access_requests` policy narrowing,
 PUT admin-gate.

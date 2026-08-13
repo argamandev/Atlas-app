@@ -91,6 +91,43 @@ export function israelDayStart(dayKey: string): Date {
   return new Date(ms)
 }
 
+/**
+ * A zone-less Israel wall clock → the real instant it names.
+ *
+ * `israelDayStart` generalised past midnight, and it lives HERE rather than
+ * beside its caller for the reason this file exists: the offset probe and
+ * `ISRAEL_TZ` are stated once, so there is exactly one place that can be wrong
+ * about what Israel time means.
+ *
+ * ⚠ THE SAME TWO PASSES, for the same reason (see `israelDayStart`): the first
+ * probe can land on the far side of a DST transition, and the day it would
+ * otherwise be wrong on is precisely the changeover day. A single pass turns
+ * 2026-03-27 01:30 into 22:30Z instead of 23:30Z.
+ *
+ * ITS CALLER: MAYA's `publicationDate` (`lib/maya/filings.ts`) arrives as
+ * `2026-05-27T11:27:00.52` with no zone — the Tel Aviv exchange's local time.
+ * Handed to a `timestamptz` column it would be read in the session zone (UTC on
+ * Supabase) and stored 2–3 hours wrong, on a product that renders Israel time
+ * to every viewer.
+ *
+ * A string that already carries a zone, or one this cannot parse, is returned
+ * untouched — guessing at an unrecognised shape is how a wrong instant gets
+ * stored confidently.
+ */
+export function israelInstant(wallClock: string | null | undefined): string | null {
+  if (!wallClock) return null
+  if (/(Z|[+-]\d{2}:?\d{2})$/.test(wallClock)) return wallClock
+  const m = wallClock.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?$/)
+  if (!m) return wallClock
+
+  const [, y, mo, d, h, mi, s = '00'] = m
+  const wallAsUTC = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s)
+  let ms = wallAsUTC - israelOffsetMinutes(wallAsUTC) * 60_000
+  ms = wallAsUTC - israelOffsetMinutes(ms) * 60_000
+  // Sub-second precision rides along untouched: the offset is whole minutes.
+  return new Date(ms + (m[7] ? Math.round(Number(`0.${m[7]}`) * 1000) : 0)).toISOString()
+}
+
 export type GreetingKey = 'morning' | 'afternoon' | 'evening'
 
 export function greetingKey(date = new Date()): GreetingKey {

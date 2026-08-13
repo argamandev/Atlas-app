@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { looksLikeXml, parseFilingFacts, downloadXbrl, persistFilingFacts } from './xbrl'
+import {
+  looksLikeXml,
+  parseFilingFacts,
+  downloadXbrl,
+  persistFilingFacts,
+  dedupeFactsByKey,
+  type XbrlFact,
+} from './xbrl'
 
 // A minimal ת930-shaped instance: duration + instant contexts, an ILS unit,
 // three ifrs-full numerics and two ifrs-il metadata facts.
@@ -104,4 +111,59 @@ test('persistFilingFacts upserts on the (report, concept, period) identity', asy
   assert.equal(rev.maya_report_id, 1744027)
   assert.equal(rev.company_id, 'c-uuid')
   assert.equal(rev.value, 358700000)
+})
+
+// ── dedupeFactsByKey — the multi-signatory collision ─────────────────────────
+//
+// Measured on bז"א's 2025 annual report (mayaReportId 1730576): the ת930 instance
+// repeats a concept once per signatory. Nine keys collided; Postgres refused the
+// whole upsert ("ON CONFLICT DO UPDATE command cannot affect row a second time")
+// and the filing's 26 numeric facts were lost with them.
+
+const signatory = (text: string): XbrlFact => ({
+  concept: 'ifrs-il:NameOfFinancialStatementsSignatory',
+  value: null,
+  periodStart: '2026-03-25',
+  periodEnd: '2026-03-25',
+  currency: null,
+  metadata: { text },
+})
+
+test('repeated TEXTUAL facts collapse to one row that keeps every value', () => {
+  const out = dedupeFactsByKey([
+    signatory('עופר אורליצקי'),
+    signatory('רונן יחזקאל'),
+    signatory('אסתר פינסלר'),
+  ])
+  assert.equal(out.length, 1, 'one row per uniqueness key, or the upsert cannot run')
+  assert.equal(out[0].metadata.text, 'עופר אורליצקי')
+  assert.equal(out[0].metadata.values, 'עופר אורליצקי | רונן יחזקאל | אסתר פינסלר')
+})
+
+test('the 26 numeric facts survive a filing whose metadata collides', () => {
+  const revenue: XbrlFact = {
+    concept: 'ifrs-full:Revenue',
+    value: 358700000,
+    periodStart: '2026-01-01',
+    periodEnd: '2026-03-31',
+    currency: 'ILS',
+    metadata: {},
+  }
+  const out = dedupeFactsByKey([signatory('א'), revenue, signatory('ב')])
+  assert.equal(out.length, 2)
+  assert.equal(out.find((f) => f.concept === 'ifrs-full:Revenue')!.value, 358700000)
+})
+
+test('two DIFFERENT numbers for one concept and period throw — never a picked one', () => {
+  const at = (value: number): XbrlFact => ({
+    concept: 'ifrs-full:Revenue',
+    value,
+    periodStart: '2026-01-01',
+    periodEnd: '2026-03-31',
+    currency: 'ILS',
+    metadata: {},
+  })
+  assert.throws(() => dedupeFactsByKey([at(1), at(2)]), /ambiguous/)
+  // The same number twice is a duplicate, not an ambiguity.
+  assert.equal(dedupeFactsByKey([at(1), at(1)]).length, 1)
 })

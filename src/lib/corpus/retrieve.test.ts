@@ -3,7 +3,20 @@ import assert from 'node:assert/strict'
 import { retrieveChunks } from './retrieve'
 import type { CorpusDb } from './reindex'
 
-// A CorpusDb whose rpc() records the arguments and replays a canned result.
+// ─────────────────────────────────────────────────────────────────────────────
+// WHAT THESE TESTS DO AND DO NOT CERTIFY.
+//
+// They cover the TypeScript half: which channels a call switches on, what
+// reaches the RPC, how rows and per-channel completeness come back, and that a
+// failed search never looks like an empty corpus. Every RANKING claim — that
+// the scope really pre-filters, that RRF reproduces the measured order — lives
+// in SQL and is measured by the harness re-run (`run.mjs --real`), never here.
+// An earlier version of this file carried a test called "the company scope is
+// passed as a PRE-FILTER", which asserted only that an argument was forwarded:
+// a green test standing for a premise nothing had measured (M2). Renamed to
+// what it actually checks.
+// ─────────────────────────────────────────────────────────────────────────────
+
 function fakeDb(opts: { rows?: unknown[]; error?: string } = {}) {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = []
   const db = {
@@ -28,7 +41,11 @@ const fetchImpl = (async () => ({
 
 const embed = { fetchImpl, apiKey: 'k' }
 
-const ROW = {
+const noNetwork = (async () => {
+  throw new Error('must not embed')
+}) as unknown as typeof fetch
+
+const row = (over: Record<string, unknown> = {}) => ({
   id: 'c1',
   source_type: 'transcript',
   transcript_id: 't1',
@@ -45,7 +62,10 @@ const ROW = {
   dense_rank: 3,
   lexical_rank: 1,
   score: 0.0384,
-}
+  dense_candidates: 12,
+  lexical_candidates: 7,
+  ...over,
+})
 
 test('hybrid sends BOTH channels: a RETRIEVAL_QUERY embedding and the query text', async () => {
   const bodies: Array<{ requests: Array<{ taskType: string }> }> = []
@@ -64,10 +84,6 @@ test('hybrid sends BOTH channels: a RETRIEVAL_QUERY embedding and the query text
 })
 
 test('lexical-only makes NO embedding call; dense-only sends no query text', async () => {
-  const noNetwork = (async () => {
-    throw new Error('must not embed')
-  }) as unknown as typeof fetch
-
   const lex = fakeDb()
   await retrieveChunks(lex.db, {
     query: 'כושר זיקוק',
@@ -83,17 +99,36 @@ test('lexical-only makes NO embedding call; dense-only sends no query text', asy
   assert.equal(dense.calls[0].args.p_query_text, null)
 })
 
-test('the company scope is passed as a PRE-filter argument, not applied after the fact', async () => {
-  const { db, calls } = fakeDb({ rows: [ROW] })
-  await retrieveChunks(db, { query: 'המרווח האחרון', companyId: 'co-bza', limit: 5, candidates: 500, embed })
+test('the resolved company reaches the RPC as its own argument (the SQL does the filtering)', async () => {
+  const { db, calls } = fakeDb({ rows: [row()] })
+  await retrieveChunks(db, { query: 'המרווח האחרון', companyId: 'co-bza', limit: 5, embed })
   assert.equal(calls[0].args.p_company_id, 'co-bza')
   assert.equal(calls[0].args.p_limit, 5)
-  assert.equal(calls[0].args.p_candidates, 500)
+})
+
+test('a pool bigger than 1000 passes through — only the DENSE channel is capped, in SQL', async () => {
+  // The 1000 ceiling is `hnsw.ef_search`'s, so it binds the dense channel alone.
+  // Clamping the request here would have silently shrunk the lexical pool too.
+  const { db, calls } = fakeDb()
+  await retrieveChunks(db, { query: 'הכנסות', candidates: 4000, embed })
+  assert.equal(calls[0].args.p_candidates, 4000)
+})
+
+test('the ef_search ceiling is NOT a truncation — a channel under its pool saw everything', async () => {
+  // Measured on the live corpus: an unscoped dense channel returns all 3,181
+  // rows even though `hnsw.ef_search` clamps at 1000, because that GUC bounds
+  // the index scan's effort, not the answer. Treating the ceiling as a row cap
+  // reported five designs × nineteen cases as truncated when none was.
+  const { db } = fakeDb({ rows: [row({ dense_candidates: 3181, lexical_candidates: 2500 })] })
+  const res = await retrieveChunks(db, { query: 'הכנסות', candidates: 5000, embed })
+  assert.equal(res.dense.truncated, false, '3181 of a 5000 pool — nothing was cut off')
+  assert.equal(res.lexical.truncated, false, '2500 of a 5000 pool — complete')
 })
 
 test('rows come back with their anchors and per-channel ranks intact', async () => {
-  const { db } = fakeDb({ rows: [ROW] })
-  const [hit] = await retrieveChunks(db, { query: 'הכנסות', embed })
+  const { db } = fakeDb({ rows: [row()] })
+  const { chunks } = await retrieveChunks(db, { query: 'הכנסות', embed })
+  const hit = chunks[0]
   assert.equal(hit.sourceType, 'transcript')
   assert.equal(hit.transcriptId, 't1')
   assert.equal(hit.firstLineId, 'L0010')
@@ -104,20 +139,43 @@ test('rows come back with their anchors and per-channel ranks intact', async () 
   assert.equal(hit.content, 'ההכנסות ברבעון היו 100 מיליון ש"ח')
 })
 
+// ── completeness: a thin answer must not look like a complete one ────────────
+
+test('a channel that filled its candidate pool is reported TRUNCATED', async () => {
+  const { db } = fakeDb({ rows: [row({ dense_candidates: 200, lexical_candidates: 7 })] })
+  const res = await retrieveChunks(db, { query: 'הכנסות', candidates: 200, embed })
+  assert.equal(res.dense.truncated, true, 'saw exactly the pool size — it may have been cut off')
+  assert.equal(res.dense.saw, 200)
+  assert.equal(res.lexical.truncated, false, 'saw fewer than the pool — that is everything there was')
+})
+
+test('a switched-off channel reports ran:false, which is not the same as found-nothing', async () => {
+  const { db } = fakeDb({ rows: [row({ dense_candidates: 0, lexical_candidates: 9 })] })
+  const res = await retrieveChunks(db, {
+    query: 'כושר זיקוק',
+    channels: 'lexical',
+    embed: { fetchImpl: noNetwork, apiKey: 'k' },
+  })
+  assert.equal(res.dense.ran, false)
+  assert.equal(res.dense.truncated, false, 'a channel that never ran cannot have been truncated')
+  assert.equal(res.lexical.ran, true)
+  assert.equal(res.lexical.saw, 9)
+})
+
+test('an empty result is returned as empty — the honest cannot-ground signal, not an error', async () => {
+  const { db } = fakeDb({ rows: [] })
+  const res = await retrieveChunks(db, { query: 'הרווח של טבע', embed })
+  assert.deepEqual(res.chunks, [])
+  assert.equal(res.dense.saw, 0)
+  assert.equal(res.dense.truncated, false, 'nothing found is complete information, not a truncation')
+})
+
 test('an RPC error THROWS — a failed search must never look like an empty corpus', async () => {
   const { db } = fakeDb({ error: 'relation "document_chunks" does not exist' })
   await assert.rejects(() => retrieveChunks(db, { query: 'הכנסות', embed }), /does not exist/)
 })
 
-test('an empty result is returned as empty — the honest cannot-ground signal, not an error', async () => {
-  const { db } = fakeDb({ rows: [] })
-  assert.deepEqual(await retrieveChunks(db, { query: 'הרווח של טבע', embed }), [])
-})
-
 test('a blank query throws before any embedding spend', async () => {
-  const noNetwork = (async () => {
-    throw new Error('must not embed')
-  }) as unknown as typeof fetch
   const { db } = fakeDb()
   await assert.rejects(
     () => retrieveChunks(db, { query: '   ', embed: { fetchImpl: noNetwork, apiKey: 'k' } }),

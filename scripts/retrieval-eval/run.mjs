@@ -57,6 +57,15 @@ for (const f of ['.env.local', '.env']) {
 }
 
 const LEXICAL_ONLY = process.argv.includes('--lexical')
+// --real: score the PRODUCTION pipeline (pgvector + the real Postgres lexical
+// channel) instead of the in-process simulation. Slice A4's acceptance gate.
+const REAL = process.argv.includes('--real')
+const REAL_DEPTH = Number((process.argv.find((a) => a.startsWith('--depth=')) ?? '--depth=300').split('=')[1])
+// The per-channel candidate pool RRF fuses over. Bigger than the corpus on
+// purpose: the in-process run ranked every chunk, and fusing over a subset would
+// measure the subset. (The dense channel still stops at pgvector's ef_search
+// ceiling of 1000 — reported as a truncation when it bites.)
+const REAL_POOL = 5000
 const TOP_K = 20
 
 // ---------------------------------------------------------------- corpus → chunks
@@ -449,9 +458,115 @@ function scoreDiscovery(ranked, chunks, c) {
   return { rank: worst, leads, companiesTop: order.slice(0, 8) }
 }
 
+// ---------------------------------------------------------------- the REAL pipeline (--real)
+
+// Everything above this line is the in-process SIMULATION the design was chosen
+// on: brute-force cosine and an in-memory BM25 standing in for a 'simple'
+// tsvector. Everything below scores what a user's question will actually run
+// through — src/lib/corpus/retrieve.ts over pgvector and the real dual-form
+// tsvector, the same module and the same SQL, with nothing re-implemented here.
+// A harness measuring a copy certifies a fiction (ingestion standard §5).
+
+async function buildRealDesigns() {
+  const { retrieveChunks } = await import('../../src/lib/corpus/retrieve.ts')
+  const { resolveCompany } = await import('../../src/lib/company/resolve.ts')
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY')
+  const db = createClient(url, key, { auth: { persistSession: false } })
+
+  const { data: companies } = await db.from('companies').select('id, name')
+  const companyName = Object.fromEntries((companies ?? []).map((c) => [c.id, c.name]))
+  const { data: aliases } = await db.from('company_aliases').select('company_id, alias, kind')
+  const aliasRows = (aliases ?? []).map((a) => ({ companyId: a.company_id, alias: a.alias, kind: a.kind }))
+
+  // The corpus AS INDEXED — counted from the table, never restated from the
+  // chunker's own idea of how many chunks it produced (M1).
+  const count = async (q) => (await q).count ?? 0
+  const total = await count(db.from('document_chunks').select('id', { count: 'exact', head: true }))
+  const tCount = await count(
+    db.from('document_chunks').select('id', { count: 'exact', head: true }).eq('source_type', 'transcript')
+  )
+  const unembedded = await count(
+    db.from('document_chunks').select('id', { count: 'exact', head: true }).is('embedding', null)
+  )
+
+  const toChunk = (r) => ({
+    key: r.transcriptId
+      ? `t:${r.transcriptId}:${lineNo(r.firstLineId)}-${lineNo(r.lastLineId)}`
+      : `d:${r.documentId}:${r.pageNo}${r.partNo ? `:${r.partNo}` : ''}`,
+    kind: r.sourceType === 'transcript' ? 'transcript' : 'document',
+    srcId: r.transcriptId ?? r.documentId,
+    company: companyName[r.companyId] ?? '?',
+    firstLine: r.firstLineId ? lineNo(r.firstLineId) : null,
+    lastLine: r.lastLineId ? lineNo(r.lastLineId) : null,
+    page: r.pageNo,
+    content: r.content,
+  })
+
+  // The case's documented scope, resolved through the PRODUCTION resolver against
+  // the live alias table — the same call `resolve_company` will make. `undefined`
+  // means "this case has no scope"; `null` means "the resolver could not resolve
+  // it", which is a different fact and is reported as such rather than quietly
+  // becoming an unscoped search.
+  const scopeCache = new Map()
+  const scopeIdFor = (c) => {
+    if (!c?.scope) return undefined
+    if (!scopeCache.has(c.scope)) scopeCache.set(c.scope, resolveCompany(c.scope, aliasRows))
+    return scopeCache.get(c.scope)
+  }
+
+  // Every channel truncation this run hits, collected as it happens. A ranking
+  // measured over a candidate pool that filled up is a ranking over less than
+  // the corpus, and the report must say so rather than let the numbers imply
+  // otherwise (M1).
+  const truncations = []
+
+  const design = (channels, scoped) => async (q, id, c) => {
+    const companyId = scoped ? (scopeIdFor(c) ?? null) : null
+    const res = await retrieveChunks(db, {
+      query: q,
+      companyId,
+      channels,
+      limit: REAL_DEPTH,
+      // FUSE OVER THE WHOLE CORPUS, report the top REAL_DEPTH. The in-process
+      // run ranked all 3,202 chunks, so a small candidate pool here would not be
+      // measuring the same design — it would be measuring the pool.
+      candidates: REAL_POOL,
+    })
+    for (const [name, ch] of [
+      ['dense', res.dense],
+      ['lexical', res.lexical],
+    ]) {
+      if (ch.truncated)
+        truncations.push(
+          `case ${id} · ${channels}${scoped ? '-scoped' : ''} · ${name} channel filled its ${ch.saw}-row pool`
+        )
+    }
+    const chunks = res.chunks.map(toChunk)
+    return { ranked: chunks.map((_, i) => ({ i, s: res.chunks[i].score })), chunks }
+  }
+
+  return {
+    designs: {
+      'L-real': design('lexical', false),
+      'B-gemini-real': design('dense', false),
+      'C-gemini-real': design('hybrid', false),
+      'B-gemini-scoped-real': design('dense', true),
+      'C-gemini-scoped-real': design('hybrid', true),
+    },
+    scopeIdFor,
+    companyName,
+    truncations,
+    stats: { total, tCount, dCount: total - tCount, unembedded },
+  }
+}
+
 // ---------------------------------------------------------------- main
 
 async function main() {
+  if (REAL) return mainReal()
   console.log('Loading corpus…')
   const { chunks, stats } = await loadCorpus()
   const tChunks = chunks.filter((c) => c.kind === 'transcript').length
@@ -517,6 +632,41 @@ async function main() {
     designs['B-gemini-scoped'] = scoped(designs['B-gemini'])
   }
 
+  // Design A — scoped long-context arithmetic. In-process only: it is measured
+  // from the raw corpus, not from a ranking, so --real has nothing to add to it.
+  const designA = ['## Design A — scoped long-context arithmetic (measured token counts)', '']
+  designA.push('| Transcript | company | chars | ~tokens |', '| --- | --- | --- | --- |')
+  for (const t of stats.transcripts)
+    designA.push(`| ${t.id} | ${t.company} | ${t.chars.toLocaleString()} | ${t.tokens.toLocaleString()} |`)
+  const allT = stats.transcripts.reduce((n, t) => n + t.tokens, 0)
+  designA.push(
+    '',
+    `All transcripts together ≈ **${allT.toLocaleString()} tokens** (whole-transcript-corpus stuffing is viable today). ` +
+      `All filing pages ≈ **${Math.round(stats.docChars / 2.3).toLocaleString()} tokens** (${stats.docChars.toLocaleString()} chars — NOT stuffable).`,
+    '',
+    '## Spend this run',
+    '',
+    `- Gemini embedding input: ${spend.geminiChars.toLocaleString()} chars sent (≈ ${Math.round(spend.geminiChars / 2.3).toLocaleString()} tokens; ~$${((spend.geminiChars / 2.3 / 1e6) * 0.15).toFixed(2)} at the unverified $0.15/M)`,
+    `- OpenAI embedding input: ${spend.openaiTokens.toLocaleString()} tokens metered (~$${((spend.openaiTokens / 1e6) * 0.13).toFixed(2)} at the unverified $0.13/M)`,
+    ''
+  )
+
+  return scoreAndReport({
+    designs,
+    chunks,
+    scoredCases,
+    title: '# Retrieval eval — run ' + new Date().toISOString(),
+    corpusLine: `Corpus: ${chunks.length} chunks — ${tChunks} transcript windows (target ${WINDOW.TARGET}/max ${WINDOW.MAX} chars, speaker-seam cuts), ${dChunks} filing page chunks (split over ${PAGE.SPLIT} chars).`,
+    tail: designA,
+  })
+}
+
+/**
+ * Score every design over every case and write the report. Shared by the
+ * in-process run and --real, deliberately: two report writers would let the two
+ * measurements diverge in presentation and hide a real difference in the noise.
+ */
+async function scoreAndReport({ designs, chunks, scoredCases, title, corpusLine, tail }) {
   console.log('Scoring…')
   const results = {} // design → case id → result
   const debug = {}
@@ -524,25 +674,30 @@ async function main() {
     results[name] = {}
     debug[name] = {}
     for (const c of scoredCases) {
-      const ranked = rank(c.query, c.id, c)
+      // A design returns either a ranking over the GLOBAL chunk array (in-process
+      // designs) or its own {ranked, chunks} pair (the --real designs, whose rows
+      // come back from the database one query at a time).
+      const got = await rank(c.query, c.id, c)
+      const ranked = Array.isArray(got) ? got : got.ranked
+      const over = Array.isArray(got) ? chunks : got.chunks
       debug[name][c.id] = ranked.slice(0, TOP_K).map(({ i, s }) => ({
-        key: chunks[i].key,
-        company: chunks[i].company,
+        key: over[i].key,
+        company: over[i].company,
         score: Number(s.toFixed(4)),
       }))
       if (c.mode === 'info') {
         results[name][c.id] = { info: debug[name][c.id].slice(0, 5) }
       } else if (c.mode === 'discovery') {
-        results[name][c.id] = scoreDiscovery(ranked, chunks, c)
+        results[name][c.id] = scoreDiscovery(ranked, over, c)
       } else if (c.mode === 'company') {
-        results[name][c.id] = { rank: firstCompanyRank(ranked, chunks, c.expectCompany) }
+        results[name][c.id] = { rank: firstCompanyRank(ranked, over, c.expectCompany) }
       } else if (c.mode === 'duplicate') {
         results[name][c.id] = {
-          rank: rankAllCovered(ranked, chunks, c.anchors),
-          dupRank: bestTranscriptRank(ranked, chunks, c.duplicate),
+          rank: rankAllCovered(ranked, over, c.anchors),
+          dupRank: bestTranscriptRank(ranked, over, c.duplicate),
         }
       } else {
-        results[name][c.id] = { rank: rankAllCovered(ranked, chunks, c.anchors) }
+        results[name][c.id] = { rank: rankAllCovered(ranked, over, c.anchors) }
       }
     }
   }
@@ -551,11 +706,9 @@ async function main() {
   const ranked = scoredCases.filter((c) => c.mode !== 'info' && c.mode !== 'discovery')
   const fmtRank = (r) => (r === Infinity ? '—' : String(r))
   const lines = []
-  lines.push('# Retrieval eval — run ' + new Date().toISOString())
+  lines.push(title)
   lines.push('')
-  lines.push(
-    `Corpus: ${chunks.length} chunks — ${tChunks} transcript windows (target ${WINDOW.TARGET}/max ${WINDOW.MAX} chars, speaker-seam cuts), ${dChunks} filing page chunks (split over ${PAGE.SPLIT} chars).`
-  )
+  lines.push(corpusLine)
   lines.push('')
   lines.push("## Summary (rank at which ALL of a case's anchors are covered; lower is better)")
   lines.push('')
@@ -655,35 +808,92 @@ async function main() {
     }
     lines.push('')
   }
-  lines.push('## Design A — scoped long-context arithmetic (measured token counts)')
-  lines.push('')
-  lines.push('| Transcript | company | chars | ~tokens |')
-  lines.push('| --- | --- | --- | --- |')
-  for (const t of stats.transcripts)
-    lines.push(`| ${t.id} | ${t.company} | ${t.chars.toLocaleString()} | ${t.tokens.toLocaleString()} |`)
-  const allT = stats.transcripts.reduce((n, t) => n + t.tokens, 0)
-  lines.push('')
-  lines.push(
-    `All transcripts together ≈ **${allT.toLocaleString()} tokens** (whole-transcript-corpus stuffing is viable today). ` +
-      `All filing pages ≈ **${Math.round(stats.docChars / 2.3).toLocaleString()} tokens** (${stats.docChars.toLocaleString()} chars — NOT stuffable).`
-  )
-  lines.push('')
-  lines.push('## Spend this run')
-  lines.push('')
-  lines.push(
-    `- Gemini embedding input: ${spend.geminiChars.toLocaleString()} chars sent (≈ ${Math.round(spend.geminiChars / 2.3).toLocaleString()} tokens; ~$${((spend.geminiChars / 2.3 / 1e6) * 0.15).toFixed(2)} at the unverified $0.15/M)`
-  )
-  lines.push(
-    `- OpenAI embedding input: ${spend.openaiTokens.toLocaleString()} tokens metered (~$${((spend.openaiTokens / 1e6) * 0.13).toFixed(2)} at the unverified $0.13/M)`
-  )
-  lines.push('')
+  // `tail` may be a THUNK: --real's tail reports the channel truncations this
+  // run hit, which are only known once every design has been scored.
+  lines.push(...(typeof tail === 'function' ? tail() : tail))
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const outMd = join(RESULTS, `run-${stamp}.md`)
+  const outMd = join(RESULTS, `run-${REAL ? 'real-' : ''}${stamp}.md`)
   writeFileSync(outMd, lines.join('\n'), 'utf8')
-  writeFileSync(join(RESULTS, `debug-${stamp}.json`), JSON.stringify(debug, null, 1), 'utf8')
+  writeFileSync(
+    join(RESULTS, `debug-${REAL ? 'real-' : ''}${stamp}.json`),
+    JSON.stringify(debug, null, 1),
+    'utf8'
+  )
   console.log('\n' + lines.join('\n'))
   console.log(`\nWritten: ${outMd}`)
+}
+
+// ---------------------------------------------------------------- main (--real)
+
+async function mainReal() {
+  console.log('Scoring the REAL pipeline (pgvector + Postgres tsvector)…')
+  const { designs, scopeIdFor, companyName, truncations, stats } = await buildRealDesigns()
+  const { cases } = JSON.parse(readFileSync(join(HERE, 'cases.json'), 'utf8'))
+  const scoredCases = cases.filter((c) => c.mode !== 'skip')
+
+  console.log(
+    `  ${stats.total} chunks indexed (${stats.tCount} transcript windows, ${stats.dCount} page chunks)`
+  )
+  if (stats.unembedded > 0) {
+    // A dense channel silently missing rows would report ranks for a corpus
+    // smaller than the one it claims to measure (M1). Say it in the report, not
+    // only on the console.
+    console.log(`  WARNING: ${stats.unembedded} chunk(s) have no embedding`)
+  }
+
+  // How each case's documented scope actually resolved, printed rather than
+  // assumed: "scoped" means nothing if the resolver returned null and the search
+  // quietly ran over the whole market.
+  const scopeNotes = []
+  for (const c of scoredCases) {
+    if (!c.scope) continue
+    const id = scopeIdFor(c)
+    scopeNotes.push(
+      `- case ${c.id}: \`${c.scope}\` → ${id ? `${companyName[id] ?? id}` : '**unresolved** (ran unscoped)'}`
+    )
+  }
+
+  const tail = () => [
+    '## How this run differs from the in-process measurement',
+    '',
+    `- Ranking is \`atlas_search_chunks\` (migration 029) through \`src/lib/corpus/retrieve.ts\` — pgvector cosine over an HNSW index, \`ts_rank_cd\` over the dual-form \`simple\` tsvector, RRF k=50 weights 1/1.`,
+    `- **Ranks are measured to depth ${REAL_DEPTH} only.** Anything deeper reports \`—\`, which is NOT the same as the in-process run's \`—\` (that one searched the whole corpus). hit@5, hit@20 and the MUST-PASS cases are unaffected; MRR contributions below 1/${REAL_DEPTH} are lost.`,
+    `- The scoped designs use a TRUE company pre-filter. The in-process scoped numbers were a documented post-filter approximation of it.`,
+    `- The lexical channel is \`ts_rank_cd\`, not BM25. Recall (which rows match) is the same tokenizer on both sides; the SCORE function is genuinely different, and that difference is the thing this run exists to measure.`,
+    `- OpenAI and the no-prefix ablation are absent by construction: one \`embedding\` column holds one model's vectors, and the corpus is embedded with the prefix as law.`,
+    '',
+    '### Scope resolution (through the production resolver, against the live alias table)',
+    '',
+    ...scopeNotes,
+    '',
+    '## Corpus as indexed',
+    '',
+    `- \`document_chunks\`: ${stats.total} (${stats.tCount} transcript windows, ${stats.dCount} filing page chunks)`,
+    `- chunks missing an embedding: ${stats.unembedded}${stats.unembedded ? ' — **the dense channel cannot see these**' : ''}`,
+    '',
+    '## Channel truncation',
+    '',
+    ...(truncations.length
+      ? [
+          '**Some rankings below were measured over a candidate pool that filled up** — they rank less than the corpus:',
+          '',
+          ...truncations.map((t) => `- ${t}`),
+        ]
+      : [
+          'None. Every channel saw fewer rows than its candidate pool, so every ranking below is over the whole corpus it was allowed to search.',
+        ]),
+    '',
+  ]
+
+  return scoreAndReport({
+    designs,
+    chunks: [],
+    scoredCases,
+    title: '# Retrieval eval — REAL pipeline run ' + new Date().toISOString(),
+    corpusLine: `Corpus: ${stats.total} chunks as INDEXED in \`document_chunks\` — ${stats.tCount} transcript windows, ${stats.dCount} filing page chunks. Ranked to depth ${REAL_DEPTH}.`,
+    tail,
+  })
 }
 
 main().catch((e) => {

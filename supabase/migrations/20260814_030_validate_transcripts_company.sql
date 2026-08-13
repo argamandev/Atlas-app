@@ -1,0 +1,25 @@
+-- 030 — VALIDATE transcripts_company_required (smart-layer slice A4).
+--
+-- ADDITIVE, and the smallest migration in this repo: it adds no object and changes no
+-- data. Migration 027 added `CHECK (company_id IS NOT NULL) NOT VALID`, which binds every
+-- new write immediately but leaves existing rows unchecked; spec §6 A1 says A4 validates it
+-- "after the 5 rows are confirmed attributed". This is that step.
+--
+-- CONFIRMED BEFORE FILING, against the live database (2026-08-14):
+--   select count(*) from public.transcripts where company_id is null;  -- 0
+-- All five rows carry a company. The 55 unattributed Timlul-era rows were exported and
+-- deleted on 2026-08-12 (COLLISIONS.md, founder-decided), which is what made this possible.
+--
+-- WHAT VALIDATE ACTUALLY DOES, so nobody has to guess: it scans the table once to prove the
+-- existing rows satisfy the constraint, then clears the NOT VALID marker. It takes a SHARE
+-- UPDATE EXCLUSIVE lock — reads and writes continue throughout. On a five-row table it is
+-- instant. It cannot fail destructively: a row violating the check would abort the
+-- statement and leave the constraint exactly as it is now.
+--
+-- WHAT THIS BUYS beyond what 027 already had: the planner may now rely on the constraint,
+-- and — the reason it matters here — "no unattributed corpus row exists" stops being a
+-- claim about the code that writes rows and becomes a fact about the table. Company scoping
+-- was the single biggest measured retrieval multiplier (eval finding 4); an unattributed
+-- row is invisible to the very filter that makes search good.
+
+alter table public.transcripts validate constraint transcripts_company_required;

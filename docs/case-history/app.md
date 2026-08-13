@@ -173,6 +173,14 @@ evidence behind it. 24 entries, verbatim.
 
 ## bidi-bdi
 
+**The count and where it comes from** (moved out of `rules/app.md` 2026-08-14 — history is
+on-demand, never always-on; `CONTEXT.md` → *History*): **7 recorded occurrences.** Source: the
+FINDING entries on `feat/documents-catalog` in
+`docs/archive/ready-queue-2026-07-03--2026-08-10.md`. The frozen entry below predates the last two
+and still says "5th" — it is left as written, because the archive is never rewritten. Regenerate
+the count from that source; never restate it from prose (the always-on file has been wrong that
+way three times).
+
 - **A line that mixes Hebrew and Latin needs `<bdi>`, not `dir` — 5th occurrence as of 2026-08-09,
   and the last two landed INSIDE the branch that quotes this rule.** `dir="auto"` resolves from the
   line's FIRST strong character, so one Hebrew name at the start flips the whole line and throws

@@ -83,7 +83,7 @@ const wants = (phase: string) => !ONLY || ONLY === phase
 const log = (...a: unknown[]) => console.log(...a)
 const say = (s: string) => log(`${DRY ? '[dry] ' : ''}${s}`)
 
-/** The canonical half of the one known duplicate pair (eval set case 18). */
+/** The non-canonical half of the one known duplicate pair (eval set case 18). */
 const DUPLICATE_ROW_ID = 'PyuMxe88e8g_live'
 
 // ── db ───────────────────────────────────────────────────────────────────────
@@ -114,7 +114,13 @@ type TranscriptRow = {
  * derivable at all rather than a guess.
  */
 function sourceKeyFor(row: TranscriptRow): string | null {
-  if (row.id === DUPLICATE_ROW_ID) return null // identity belongs to PyuMxe88e8g
+  // ANY sibling-id shape refuses to be keyed, not just the one we know about.
+  // `<id>_live` and `<id>_r<ts>` are the two forms the standard names as banned
+  // minted siblings; a row wearing one has no identity of its own, and guessing
+  // one would key it OUTSIDE the `live:<callId>` namespace the live door writes,
+  // so dedup would not fire on its next airing. Whoever adds a new one gets a
+  // refusal to look at rather than a quiet mis-key.
+  if (/_live$|_r\d+$/.test(row.id)) return null
   if (isDemoTranscriptId(row.id)) return `live:${row.id}`
   return row.id
 }
@@ -186,7 +192,10 @@ async function phaseDocuments(docs: DocRow[]): Promise<void> {
 
   for (const [companyId, companyDocs] of byCompany) {
     const company = issuerOf.get(companyId)
-    const pending = companyDocs.filter((d) => !d.publication_date || d.facts_status === null)
+    // 'failed' is a RETRYABLE state by law (standard §6), so a re-run must pick it
+    // up. 'facts' and 'none' are settled answers and are left alone.
+    const needsFacts = (d: DocRow) => d.facts_status === null || d.facts_status === 'failed'
+    const pending = companyDocs.filter((d) => !d.publication_date || needsFacts(d))
     if (!pending.length) {
       log(`  ${company?.name ?? companyId}: nothing pending`)
       continue
@@ -215,8 +224,15 @@ async function phaseDocuments(docs: DocRow[]): Promise<void> {
         continue
       }
 
-      if (!doc.publication_date) {
-        say(`    ${doc.title}: publication_date = ${src.publishedISO}`)
+      // MAYA IS THE SOURCE OF TRUTH, so this CORRECTS as well as fills. A
+      // fill-only rule would leave any row ingested between A3 and the
+      // israelInstant fix holding the naive string Postgres read as UTC, and the
+      // column would carry two different readings of "publication date" with
+      // nothing on the row saying which is which.
+      const stored = doc.publication_date ? new Date(doc.publication_date).toISOString() : null
+      const fresh = new Date(src.publishedISO).toISOString()
+      if (stored !== fresh) {
+        say(`    ${doc.title}: publication_date = ${src.publishedISO}${stored ? ` (was ${stored})` : ''}`)
         if (!DRY) {
           const { error } = await raw
             .from('company_documents')
@@ -226,7 +242,7 @@ async function phaseDocuments(docs: DocRow[]): Promise<void> {
         }
       }
 
-      if (doc.facts_status === null) await backfillFacts(doc, src.xbrlUrl)
+      if (needsFacts(doc)) await backfillFacts(doc, src.xbrlUrl)
     }
   }
 }
@@ -280,9 +296,19 @@ function describe(r: ReindexResult): string {
 async function phaseIndex(rows: TranscriptRow[], docs: DocRow[]): Promise<boolean> {
   log('\n── phase 3 · index (alignment → chunks → embeddings) ─────────────')
   if (DRY) {
+    // Both counts read the SAME column the real pass branches on. An earlier
+    // version counted documents by `facts_status !== undefined`, true of every
+    // loaded row — so the dry run always announced the whole shelf, whether it
+    // had one document left to do or none (M1).
+    const { data: docStatus } = await raw.from('company_documents').select('id, index_status')
+    const indexed = new Set(
+      ((docStatus as Array<{ id: string; index_status: string }>) ?? [])
+        .filter((d) => d.index_status === 'indexed')
+        .map((d) => d.id)
+    )
     const t = rows.filter((r) => r.index_status !== 'indexed').length
-    const d = docs.filter((x) => x.facts_status !== undefined).length
-    say(`would index ${t} transcript(s) and ${d} document(s) — ~3,200 chunks, ≈ $0.35`)
+    const d = docs.filter((x) => !indexed.has(x.id)).length
+    say(`would index ${t} transcript(s) and ${d} document(s)`)
     return true
   }
 
@@ -299,7 +325,12 @@ async function phaseIndex(rows: TranscriptRow[], docs: DocRow[]): Promise<boolea
     // which records the honest status instead of pretending.
     const keyed = sourceKeyFor(row) !== null
     let result: ReindexResult
-    if (keyed && !isDemoTranscriptId(row.id) && row.formatted_data) {
+    // `status === 'completed'` is NOT redundant: saveFormattedData is the
+    // completion door, so it writes status='completed', clears error_message and
+    // bumps revision unconditionally. Running it over a failed or mid-processing
+    // production row would relabel it finished — a backfill quietly declaring
+    // work done that never was.
+    if (keyed && row.status === 'completed' && !isDemoTranscriptId(row.id) && row.formatted_data) {
       const res = await saveFormattedData(row.id, row.formatted_data, db)
       log(
         `  ${row.id}: rev ${res.revision}, ${res.timedLines}/${res.totalLines} lines timed — ${describe(res.reindex)}`

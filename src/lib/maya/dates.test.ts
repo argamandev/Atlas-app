@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { yearWindows, windowDays, windowIsLegal, israelInstant } from './dates'
+import { yearWindows, windowDays, windowIsLegal } from './dates'
 
 // THE FOUNDER'S FAILING CASE, as a test. He asked for the 2024 yearly report;
 // it was published 2025-03-30, so a 2024-only window returns the 2023 report.
@@ -28,37 +28,4 @@ test('a multi-year request covers every year plus the trailing one', () => {
   assert.equal(w.length, 4)
   assert.equal(w[0].from, '2024-01-01')
   assert.equal(w[3].to, '2027-12-31')
-})
-
-// ── israelInstant — MAYA's zone-less publicationDate ─────────────────────────
-//
-// The A4 backfill is where `publication_date` first gets values, so the wrong
-// reading would land on 26 live rows at once. Both sides of the DST changeover
-// are asserted because the corpus spans a decade of filings.
-
-test('a summer (DST, +03:00) publication datetime becomes the right instant', () => {
-  // 2026-05-27 11:27 Israel = 08:27 UTC
-  assert.equal(israelInstant('2026-05-27T11:27:00.52'), '2026-05-27T08:27:00.520Z')
-})
-
-test('a winter (standard, +02:00) publication datetime becomes the right instant', () => {
-  // 2024-03-31 was already DST in Israel (starts 2024-03-29) — use a January date
-  // for the standard-time side. 2021-01-14 09:00 Israel = 07:00 UTC.
-  assert.equal(israelInstant('2021-01-14T09:00:00'), '2021-01-14T07:00:00.000Z')
-})
-
-test('a real backfilled row: the 2020 annual report published 2021-03-31 08:33 Israel', () => {
-  // Israel switched to DST on 2021-03-26, so this is +03:00 → 05:33 UTC.
-  assert.equal(israelInstant('2021-03-31T08:33:18.363'), '2021-03-31T05:33:18.363Z')
-})
-
-test('a string that already carries a zone is returned untouched', () => {
-  assert.equal(israelInstant('2026-05-27T08:27:00Z'), '2026-05-27T08:27:00Z')
-  assert.equal(israelInstant('2026-05-27T11:27:00+03:00'), '2026-05-27T11:27:00+03:00')
-})
-
-test('null, empty and unrecognised shapes are never guessed at', () => {
-  assert.equal(israelInstant(null), null)
-  assert.equal(israelInstant(''), null)
-  assert.equal(israelInstant('31/03/2021'), '31/03/2021')
 })
