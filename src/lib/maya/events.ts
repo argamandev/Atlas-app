@@ -92,6 +92,33 @@ export function docTypeFor(eventIds: number[]): 'report' | 'slides' | null {
 }
 
 /**
+ * WHICH OF THE THREE APPROVED CLASSES a filing belongs to — the fact the backfill
+ * selector decides "latest of each" on.
+ *
+ * READ OFF THE EVENT IDS, NEVER OFF THE `.xbrl` ATTACHMENT. That is a measured
+ * rule, not a preference: the 2026-08-13 volume probe found ICL — a dual-listed
+ * issuer — filing 61 disclosures with ZERO xbrl attachments, because foreign-track
+ * issuers have no ISA XBRL at all. Detecting "this is a real financial statement"
+ * by the presence of an instance would have silently dropped every one of them
+ * from the corpus while looking like it worked.
+ *
+ * `null` for anything else, including a `113` scheduling notice — which carries the
+ * event id of the report it ANNOUNCES, and would otherwise be selected as that
+ * report (the defect `isAnnouncement` exists for).
+ *
+ * PRESENTATION WINS over a report code, exactly as `docTypeFor` resolves it: a
+ * filing tagged `104 + 270` is the Q1 deck, and counting it as the Q1 report would
+ * let a slide deck displace the actual statements as "the latest quarterly".
+ */
+export function filingKind(eventIds: number[]): 'annual' | 'quarterly' | 'presentation' | null {
+  if (isAnnouncement(eventIds)) return null
+  if (eventIds.includes(EVENT_PRESENTATION)) return 'presentation'
+  if (eventIds.includes(EVENT_ANNUAL)) return 'annual'
+  if (eventIds.some((id) => id === EVENT_Q1 || id === EVENT_Q2 || id === EVENT_Q3)) return 'quarterly'
+  return null
+}
+
+/**
  * A human label like `"Q1 2026"` or `"FY 2024"`.
  *
  * DESCRIPTIVE ONLY — identity is `maya_report_id`, never this string. That

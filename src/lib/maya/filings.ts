@@ -1,5 +1,5 @@
 import type { MayaFiling } from './types'
-import { docTypeFor, isDocumentEvent, periodFor } from './events'
+import { docTypeFor, filingKind, isDocumentEvent, periodFor } from './events'
 import { israelInstant } from '@/lib/i18n/format'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +27,11 @@ export type RemoteSource = {
   title: string
   publishedISO: string
   docType: 'report' | 'slides'
+  /** Which of the three approved classes this is, read off the event ids (never
+   *  off the `.xbrl` attachment — see `filingKind`). The backfill selector picks
+   *  "latest of each" on this, so it has to be the fact and not a re-parse of
+   *  `period`, which is a descriptive string built partly from the title. */
+  kind: 'annual' | 'quarterly' | 'presentation'
   /** descriptive only — identity is mayaReportId, never this */
   period: string
   pdfUrl: string
@@ -53,6 +58,15 @@ export function toRemoteSources(filings: MayaFiling[]): RemoteSource[] {
 
     const docType = docTypeFor(eventIds)
     if (!docType) continue
+
+    // Both readings of the same event ids, resolved at the same door. `docTypeFor`
+    // answers "what does the reader see" (a report or a deck); `filingKind` answers
+    // "which of the three approved classes is it", which is what the backfill
+    // selects on. They cannot disagree — `docTypeFor` returning non-null means at
+    // least one whitelisted code is present and 113 is not — and the guard says so
+    // rather than casting the null away.
+    const kind = filingKind(eventIds)
+    if (!kind) continue
 
     // ONLY THE FIRST PDF. The 2024 annual report carries two (`P1655039-00.pdf`
     // and `-01.pdf`), and v1 attaches the first. Recorded as a known limitation
@@ -82,6 +96,7 @@ export function toRemoteSources(filings: MayaFiling[]): RemoteSource[] {
       // read it as UTC and store the wrong instant (dates.ts, israelInstant).
       publishedISO: israelInstant(f.publicationDate) ?? f.publicationDate,
       docType,
+      kind,
       period,
       pdfUrl: pdf,
       xbrlUrl: xbrl,

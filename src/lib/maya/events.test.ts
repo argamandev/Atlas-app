@@ -4,6 +4,7 @@ import {
   DOCUMENT_EVENT_IDS,
   SCHEDULE_EVENT_IDS,
   docTypeFor,
+  filingKind,
   periodFor,
   isAnnouncement,
   isDocumentEvent,
@@ -68,4 +69,62 @@ test('the period is read from the Hebrew title, falling back to the publication 
   )
   assert.equal(periodFor([106], null, '2025-11-30T00:00:00'), 'Q3 2025')
   assert.equal(periodFor([105], 'דוח רבעון 2/חצי שנתי לשנת 2025', '2025-08-27T00:00:00'), 'Q2 2025')
+})
+
+// ── filingKind — the class the A5 backfill selects "latest of each" on ────────
+//
+// THE RULE THIS ENCODES IS A MEASURED ONE (ticket 17's probe, 2026-08-13): detect
+// a real financial statement by event ids 101/104/105/106, NEVER by the presence
+// of an `.xbrl` attachment. ICL, dual-listed, files 61 disclosures with zero xbrl
+// instances because foreign-track issuers have no ISA XBRL at all — an
+// attachment-based rule would have dropped every one of them out of the corpus
+// while reporting success.
+
+test('the three approved classes are read off the event ids', () => {
+  assert.equal(filingKind([101]), 'annual')
+  assert.equal(filingKind([104]), 'quarterly')
+  assert.equal(filingKind([105]), 'quarterly')
+  assert.equal(filingKind([106]), 'quarterly')
+  assert.equal(filingKind([270]), 'presentation')
+})
+
+test('a deck tagged with its period code is a PRESENTATION, not that period’s report', () => {
+  // `104 + 270` is the Q1 deck. Counting it as the Q1 report would let a slide
+  // deck displace the actual statements as "the latest quarterly" — and
+  // docTypeFor already resolves the same collision the same way.
+  assert.equal(filingKind([104, 270]), 'presentation')
+  assert.equal(docTypeFor([104, 270]), 'slides')
+  assert.equal(filingKind([101, 270]), 'presentation')
+})
+
+test('a scheduling notice is not the report it announces', () => {
+  // 113 always carries the event id of the report it is announcing — that is how
+  // it says WHICH report — so an id-membership rule admits it as that report.
+  assert.equal(filingKind([104, 113]), null)
+  assert.equal(filingKind([101, 113]), null)
+})
+
+test('anything outside the three classes is null, never guessed', () => {
+  assert.equal(filingKind([114]), null) // מצבת התחיבויות
+  assert.equal(filingKind([231]), null) // the 6-K/8-K foreign-track code
+  assert.equal(filingKind([]), null)
+})
+
+test('past isDocumentEvent, filingKind and docTypeFor admit exactly the same filings', () => {
+  // toRemoteSources runs the three in that order — isDocumentEvent, then docTypeFor,
+  // then filingKind — and drops the row if any says no. So the property is not
+  // "these two functions agree everywhere": docTypeFor deliberately does NOT know
+  // about announcements, because isDocumentEvent owns that question one line
+  // earlier. The first version of this test asserted the unconditional version and
+  // failed on [101,113], which is docTypeFor answering a question nobody asked it.
+  //
+  // What must hold is that neither of the last two silently discards something the
+  // other admitted — a row dropped there is a document missing from the corpus with
+  // nothing anywhere saying why.
+  const vocabulary = [[101], [104], [105], [106], [270], [104, 270], [101, 113], [114], [231], []]
+  const admitted = vocabulary.filter(isDocumentEvent)
+  assert.deepEqual(admitted, [[101], [104], [105], [106], [270], [104, 270]])
+  for (const ids of admitted) {
+    assert.equal(filingKind(ids) === null, docTypeFor(ids) === null, `disagreed on [${ids.join(',')}]`)
+  }
 })

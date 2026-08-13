@@ -127,3 +127,39 @@ test('a scheduling announcement never reaches the shelf', () => {
     [1743923]
   )
 })
+
+// EVERY ADMITTED SOURCE CARRIES ITS CLASS. The A5 backfill selects "latest of
+// each" on `kind`, so a source reaching the shelf without one would be a filing
+// the selector silently cannot see — invisible in exactly the direction that
+// looks like success (a company simply appearing to have no annual report).
+test('every source that reaches the shelf carries the class the backfill selects on', () => {
+  const out = toRemoteSources([
+    filing({
+      mayaReportId: 1,
+      title: 'דוח תקופתי ושנתי לשנת 2025',
+      publicationDate: '2026-03-19T09:00:00',
+      events: [{ eventId: 101, eventName: 'דוח תקופתי ושנתי' }],
+    }),
+    filing({
+      mayaReportId: 2,
+      title: 'דוח רבעון 1 לשנת 2026',
+      publicationDate: '2026-05-27T09:00:00',
+      events: [{ eventId: 104, eventName: 'דוח רבעון 1' }],
+    }),
+    filing({
+      mayaReportId: 3,
+      title: 'מצגת משקיעים',
+      publicationDate: '2026-05-27T10:00:00',
+      events: [
+        { eventId: 104, eventName: 'דוח רבעון 1' },
+        { eventId: 270, eventName: 'מצגת' },
+      ],
+    }),
+  ])
+  assert.deepEqual(
+    out.map((s) => `${s.mayaReportId}:${s.kind}`),
+    ['3:presentation', '2:quarterly', '1:annual']
+  )
+  // and the deck is a deck by BOTH readings — never the Q1 report
+  assert.equal(out.find((s) => s.mayaReportId === 3)?.docType, 'slides')
+})

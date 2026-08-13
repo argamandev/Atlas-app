@@ -83,14 +83,22 @@ export interface RetrievedChunk {
 }
 
 /**
- * What one channel actually saw. `saw === candidates` means the channel filled
- * its pool and MAY have been cut off; anything below it saw everything there was
- * to see. `ran: false` is a channel this call switched off — a different fact
- * from one that ran and found nothing.
+ * What one channel actually saw, against what there was to see.
+ *
+ * `inScope` is the fact, not a proxy for it: the number of rows this channel
+ * could have matched in this scope — chunks carrying an embedding for dense,
+ * chunks matching the tsquery for lexical — counted off an index by the same
+ * statement that produced the answer. `truncated` is then simply `saw < inScope`,
+ * with no ceiling anywhere in the comparison (M3.2).
+ *
+ * `ran: false` is a channel this call switched off — a different fact from one
+ * that ran and found nothing.
  */
 export interface ChannelReport {
   ran: boolean
   saw: number
+  /** Rows this channel could have matched in this scope. `saw < inScope` = cut off. */
+  inScope: number
   truncated: boolean
 }
 
@@ -131,36 +139,41 @@ type ChunkRpcRow = {
   score: number
   dense_candidates: number
   lexical_candidates: number
+  dense_in_scope: number
+  lexical_in_scope: number
 }
 
 const DEFAULT_LIMIT = 20
 const DEFAULT_CANDIDATES = 200
 
-// ⚠ WHAT `truncated` DOES AND DOES NOT MEAN — worth stating, because the first
-// version of this got it wrong in the loud direction. It means one thing: the
-// channel returned as many rows as the pool allowed, so there may have been
-// more. Nothing else. In particular `hnsw.ef_search` (capped at 1000 by
-// Postgres) bounds the index scan's EFFORT, not the row count — the planner is
-// free to answer exactly, and on this corpus it does, returning all 3,181 rows
-// for an unscoped query. Comparing the count against that ceiling reported five
-// designs × nineteen cases as truncated when not one of them was.
+// ⚠ WHAT `truncated` DOES AND DOES NOT MEAN — worth stating, because both
+// earlier versions of this got it wrong, once in each direction.
 //
-// ⚠ ITS ONE BLIND SPOT, in the quiet direction: `saw < pool` is read as "saw
-// everything", which holds only while every scan is exhaustive. It goes silently
-// false when the planner DOES use HNSW and `hnsw.ef_search` caps the channel
-// (≤1000) below the requested pool, or when a scoped iterative scan stops at
-// `hnsw.max_scan_tuples` (default 20,000). Unreachable at today's 3,181 chunks —
-// the planner answers exactly by seq scan — and reachable at A5's ~60K pages.
-// THE FIX, owed at A5 and recorded in ticket 05: return one more index-backed
-// count from the RPC (rows in scope carrying an embedding); completeness then
-// reads `saw = least(pool, in_scope)`, with no ceiling comparison anywhere.
+// It means one thing: the channel saw FEWER rows than its scope holds, so there
+// was more it did not look at. The comparison is against the scope, never
+// against a ceiling — `saw < inScope`, both facts, both from the same statement.
 //
-// The other residual, which no counter can show: HNSW is APPROXIMATE. A dense
-// channel can miss a genuine neighbour without ever filling its pool. That is a
-// property of the index, not a truncation — and it is NOT yet measured by
-// anything, which is the honest version. The A4 gate ran with the index never
-// engaged: at 3,181 rows the planner answers exactly by seq scan. Measuring it
-// needs a corpus big enough to make the index engage, i.e. A5 (ticket 05).
+// The loud wrong version compared the count against `hnsw.ef_search` (capped at
+// 1000 by Postgres). That GUC bounds the index scan's EFFORT, not the row count;
+// the planner is free to answer exactly, and at 3,181 chunks it did, returning
+// all of them for an unscoped query. That rule reported five designs × nineteen
+// cases as truncated when not one of them was.
+//
+// The quiet wrong version — the one this file shipped through A4 — compared the
+// count against the requested POOL: `saw < pool` read as "saw everything". That
+// holds only while every scan is exhaustive, which is a property of a 3,181-row
+// corpus and not of the code. It goes silently false the moment the planner DOES
+// use HNSW and `ef_search` caps the channel below the pool, or a scoped iterative
+// scan stops at `hnsw.max_scan_tuples` (default 20,000). A5's corpus is where the
+// index engages, so A5 is where migration 031 replaced the pool with the scope.
+//
+// The residual no counter can show: HNSW is APPROXIMATE. A dense channel can miss
+// a genuine neighbour while reporting a complete, untruncated scope — that is a
+// property of the index, not a truncation, and `truncated: false` must not be read
+// as "these are the true nearest rows". It is measured by re-running the standing
+// harness against a corpus big enough to engage the index, which is what A5's
+// backfill finally makes possible; the answer lives in
+// docs/evidence/feat-smart-layer-a5-maya-backfill/.
 
 export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promise<RetrievalResult> {
   const channels = opts.channels ?? DEFAULT_CHANNELS
@@ -174,7 +187,7 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
   // half-strength search that looks like a full one is the lie M3.3 forbids.
   const embedding = channels === 'lexical' ? null : toVectorLiteral(await embedQuery(query, opts.embed ?? {}))
 
-  const { data, error } = await db.rpc('atlas_search_chunks', {
+  const { data, error } = await db.rpc('atlas_search_chunks_v2', {
     p_query_embedding: embedding,
     p_query_text: channels === 'dense' ? null : query,
     p_company_id: opts.companyId ?? null,
@@ -184,10 +197,11 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
   if (error) throw new Error(`retrieveChunks: ${error.message}`)
 
   const rows = (data as ChunkRpcRow[] | null) ?? []
-  const report = (ran: boolean, saw: number, pool: number): ChannelReport => ({
+  const report = (ran: boolean, saw: number, inScope: number): ChannelReport => ({
     ran,
     saw: ran ? saw : 0,
-    truncated: ran && saw >= pool,
+    inScope: ran ? inScope : 0,
+    truncated: ran && saw < inScope,
   })
 
   return {
@@ -210,8 +224,10 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
       score: r.score,
     })),
     // Zero rows carry no per-channel count, so both report the honest zero
-    // rather than an absent field the caller would have to guess about.
-    dense: report(channels !== 'lexical', rows[0]?.dense_candidates ?? 0, candidates),
-    lexical: report(channels !== 'dense', rows[0]?.lexical_candidates ?? 0, candidates),
+    // rather than an absent field the caller would have to guess about. Zero seen
+    // out of zero in scope is complete information — the empty scope really is
+    // empty — which is the one case where `saw === inScope` and both are 0.
+    dense: report(channels !== 'lexical', rows[0]?.dense_candidates ?? 0, rows[0]?.dense_in_scope ?? 0),
+    lexical: report(channels !== 'dense', rows[0]?.lexical_candidates ?? 0, rows[0]?.lexical_in_scope ?? 0),
   }
 }
