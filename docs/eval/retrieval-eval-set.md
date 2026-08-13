@@ -157,6 +157,10 @@ of BOTH refineries, so the distinction is load-bearing. The case targets **בי�
 אשדוד**; case 09 already covers the בז"ן alias. Measured note: unscoped retrieval bridged
 בז"א at rank 1–2 only because the company's own filings write the acronym — corpus luck,
 not a mechanism; the MUST-PASS still closes via the resolver + alias table.*
+*Amendment 2026-08-13 (slice A2): the resolver half is built and green offline —
+`company_aliases` is seeded in production and `resolveCompany('בז"א')` lands on בית זיקוק
+אשדוד (unit-tested end-to-end over the seed derivation, `src/lib/company/resolve.test.ts`).
+The case stays open end-to-end until B1 wires the chat surface to `resolve_company`.*
 
 ## F. Adversarial and negative
 

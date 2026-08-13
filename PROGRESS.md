@@ -959,3 +959,23 @@ the live hole fixed in the same session.
   the check's maiden merge is its own first live firing. (The count moved twice while the
   branch was open — a red intermediate commit, then a review-bought test — and the check
   caught the staleness both times before the ritual did.)
+
+## 2026-08-13 - Slice A2: the company resolver (`feat/smart-layer-a2-company-resolver`)
+
+- **What:** `resolveCompany()` (`src/lib/company/resolve.ts`) resolves user language -
+  registered name, abbreviation, ticker, Latin form - to a `companies.id` over the
+  `company_aliases` table A1 created; `buildAliasSeed()` (`src/lib/company/aliasSeed.ts`)
+  derives the seed, and `scripts/seed-company-aliases.ts` wrote it: **246 rows over 234
+  companies** in production, idempotent (second run inserted 0).
+- **Why:** resolving the company FIRST and filtering retrieval by `company_id` was the
+  single biggest measured retrieval multiplier (MRR 0.300 - 0.365, spec S2.5); this slice is
+  how user language reaches that filter, and it unblocks A3 (ticket 03).
+- **The MUST-PASS is green offline** (eval case 14): the seeded chain companies - seed -
+  resolver lands `resolveCompany('בז"א')` on בית זיקוק אשדוד (issuer 1361) and keeps it
+  distinct from בז"ן (issuer 259) in the same rows; unknowns and ambiguity return null
+  honestly. Two-pass matching reuses `maya/issuers.ts`'s proven normalisation + coverage
+  rules (its word helpers are now exported).
+- **Collisions are decisions:** an alias two companies would share is dropped from BOTH and
+  printed for the founder to rule on - the live run reported zero.
+- **Verified:** 732/732 - `tsc` clean - live-table probe (בז"א - 1361, בז"ן/ORL - 259,
+  ticker 1105022 - תיגבור) - re-run idempotency probe (0 inserts, 246 total).

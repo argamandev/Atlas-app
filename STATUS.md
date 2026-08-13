@@ -26,11 +26,14 @@ lowest-numbered unblocked ticket, one per session, branch per slice, `/ship`). S
 `docs/INGESTION-STANDARD.md`, the eval harness (`scripts/retrieval-eval/` vs
 `docs/eval/retrieval-eval-set.md`), approved cost budgets (spec §5).
 
-**Slice A1 (foundations migrations) is LIVE in production** — pgvector, `company_aliases`,
-`document_chunks`, `filing_facts`, `publication_date`, transcripts identity. Standing
-consequence: an unattributed transcript insert now FAILS at the DB (the born-attributed law;
-A3 builds the single birth door, A4 VALIDATEs the check). **Next up: slice A2 — company
-resolver** (seed `company_aliases`, `resolveCompany()`, the בז"א MUST-PASS case green offline).
+**Slices A1 (foundations migrations) and A2 (company resolver) are LIVE in production** —
+pgvector, `document_chunks`, `filing_facts`, `publication_date`, transcripts identity, and
+`company_aliases` seeded (246 rows / 234 companies; `resolveCompany()` green offline incl.
+the בז"א MUST-PASS). Standing consequences: an unattributed transcript insert FAILS at the
+DB (the born-attributed law; A3 builds the single birth door, A4 VALIDATEs the check), and
+user language now reaches the `company_id` retrieval filter. **Next up: slice A3 — birth
+sequence** (one shared chunker, single transcript birth door, line-timestamp alignment,
+XBRL facts + publication date in `ingestFiling()`, global MAYA limiter).
 
 Three small execution missions also open (map ticket 13): leftover cleanup,
 `profiles`/`access_requests` policy narrowing, PUT admin-gate.
