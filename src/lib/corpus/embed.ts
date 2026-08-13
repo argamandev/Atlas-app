@@ -30,10 +30,17 @@ function normalize(v: number[]): number[] {
 }
 
 /**
- * Embed document texts (taskType RETRIEVAL_DOCUMENT). Returns one 1536-dim
- * unit vector per input, in order.
+ * Embed `texts` under one taskType. gemini-embedding-001 is ASYMMETRIC: a
+ * corpus chunk and the question that should find it are embedded under
+ * different taskTypes, and embedding a query as a document is a measurable
+ * quality loss, not a formality — which is why the taskType is a parameter of
+ * this one shared path rather than a constant repeated at two call sites.
  */
-export async function embedDocuments(texts: string[], opts: EmbedOptions = {}): Promise<number[][]> {
+async function embedWith(
+  texts: string[],
+  taskType: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY',
+  opts: EmbedOptions
+): Promise<number[][]> {
   if (texts.length === 0) return []
   const key = opts.apiKey ?? process.env.GEMINI_API_KEY
   if (!key) throw new Error('GEMINI_API_KEY not set — cannot embed corpus chunks')
@@ -49,7 +56,7 @@ export async function embedDocuments(texts: string[], opts: EmbedOptions = {}): 
         requests: batch.map((text) => ({
           model: 'models/gemini-embedding-001',
           content: { parts: [{ text }] },
-          taskType: 'RETRIEVAL_DOCUMENT',
+          taskType,
           outputDimensionality: DIM,
         })),
       }),
@@ -67,6 +74,23 @@ export async function embedDocuments(texts: string[], opts: EmbedOptions = {}): 
     out.push(...embs.map((e) => normalize(e.values)))
   }
   return out
+}
+
+/**
+ * Embed corpus chunks (taskType RETRIEVAL_DOCUMENT). Returns one 1536-dim unit
+ * vector per input, in order.
+ */
+export async function embedDocuments(texts: string[], opts: EmbedOptions = {}): Promise<number[][]> {
+  return embedWith(texts, 'RETRIEVAL_DOCUMENT', opts)
+}
+
+/**
+ * Embed a search query (taskType RETRIEVAL_QUERY) — the retrieval half of the
+ * asymmetric pair. One vector, ready for `toVectorLiteral`.
+ */
+export async function embedQuery(text: string, opts: EmbedOptions = {}): Promise<number[]> {
+  const [v] = await embedWith([text], 'RETRIEVAL_QUERY', opts)
+  return v
 }
 
 /** pgvector literal — what supabase-js can write into a vector column. */
