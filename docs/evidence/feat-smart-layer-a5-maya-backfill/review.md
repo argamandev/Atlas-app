@@ -20,12 +20,12 @@ FINDING · BLOCKER · `truncated = saw < in_scope` is permanently true for any s
   dropped the pool from ticket 05's own prescribed form. **Answer:** the rule is
   `saw < least(pool, in_scope_capped)`. The pool belongs in the comparison because the
   CALLER chose it; `ef_search` and `max_scan_tuples` do not, because nobody did.
-RECURRENCE: yes → Degradation must be VISIBLE. Third wrong version of this flag; the
+RECURRENCE: yes → Degradation must be VISIBLE
   mechanism is now two tests that each kill a previously-shipped rule.
 FINDING · BLOCKER · the battery certified that premise — a test asserting 200-of-61,402
   with a 200 pool "was cut off", which is the shape of a perfectly healthy query.
   **Answer:** replaced with the pool-limited-and-complete case it was missing.
-RECURRENCE: yes → M2 · Never let a test certify an untrue premise
+RECURRENCE: yes → Degradation must be VISIBLE
 - WARNING · `run.mjs` still printed "filled its N-row pool" as the truncation reason →
   reason string and header rewritten. RECURRENCE: no.
 - WARNING · "counted off an index by the same statement" untrue — they are separate
@@ -41,7 +41,7 @@ RECURRENCE: yes → M2 · Never let a test certify an untrue premise
 FINDING · BLOCKER · the harness's no-truncation line ("Every channel saw fewer rows
   than its candidate pool") is what it now prints for the very event A5's re-run exists to
   announce. **Answer:** both report branches and the collection comment rewritten to
-  cut-short. **RECURRENCE: yes → Degradation must be VISIBLE.**
+RECURRENCE: yes → Degradation must be VISIBLE
 - WARNING · `limit` bounds rows RETURNED, not rows SCANNED — the "no scan at any corpus
   size, ever" claim was false, and the sparse-predicate case is this slice's own
   mid-backfill state. **RECURRENCE: yes → M1.** Rewritten to say what is actually known.
@@ -66,7 +66,7 @@ FINDING · BLOCKER · the zero-row `ran` fallback reinstated the round-2 bug on 
 RECURRENCE: yes → Degradation must be VISIBLE
 FINDING · BLOCKER · the test asserted that fallback was "the honest reading" →
   replaced with four cases, including the dense-only path that must NOT spend the round trip.
-RECURRENCE: yes → M2
+RECURRENCE: yes → Degradation must be VISIBLE
 - **WARNING · `p_candidates` null/int-max.** `limit null` is NO LIMIT, so both probes became
   the unbounded full counts the migration exists to prevent, and `least(greatest(null,40),1000)`
   would have dropped `ef_search` to 40 silently. **Answer:** clamped once into `v_pool`;
@@ -97,18 +97,18 @@ FINDING · BLOCKER · `indexHealthDb.ts` read every row with no `.range()`. Post
   **Answer:** it now COUNTS (`head: true` + `count: 'exact'`), exact at any corpus size. The
   only list reads left are the troubled set, bounded by a status filter and a limit, with
   its true total counted separately and rendered, so a cut list is reported as cut.
-RECURRENCE: yes → M1 · A green signal proves only what it measured, and →
+RECURRENCE: yes → Degradation must be VISIBLE
   Degradation must be VISIBLE.
 FINDING · BLOCKER · the 23505 re-read dropped its error, so a failed re-read reported
   `held` with an empty `documentId` — a filing declared present with nothing having looked.
   This is a LIST read, which `supabaseReadDiscipline.test.ts` states is outside its scope.
   **Answer:** an unconfirmed race is now `failed` with a message naming the report id, and a
   test covers both the failed-read and no-row-came-back paths — the only mechanism there is.
-RECURRENCE: yes → M3.3 · make the lying state unrepresentable
+RECURRENCE: yes → Degradation must be VISIBLE
 FINDING · NIT · the ticket said 031 was "NOT applied" while COLLISIONS said it was — a
   hand-carried fact, wrong in the direction that costs the founder a pointless action.
   Ticket corrected.
-RECURRENCE: yes → M1 · A green signal proves only what it measured
+RECURRENCE: no
 - JUDGEMENT · `ingestFiling.ts` drops `server-only`. **Kept, deliberately.** Its real
   constraint is the one `documents/ingest.ts` states (pdfjs ⇒ scripts and Next server code);
   `server-only` asserted something stricter and wrong, and made the ONE birth door
@@ -148,3 +148,35 @@ RECURRENCE: yes → M1 · A green signal proves only what it measured
 - `yearSpan()` is year−2…year, so "latest annual" means "latest annual within the 2-year
   catalog window". True, and the honest reading — a company whose most recent annual is
   older than that has not filed one in two years.
+
+---
+
+## What this record does NOT yet carry, and why
+
+**No `VERDICT:` line, deliberately.** Every finding above is answered, but the last cold
+read was of an earlier sha — the branch has changed since, including a rewrite of
+`indexHealthDb.ts`. A verdict I wrote for my own code would be the self-certification the
+gate exists to prevent. `/ship` dispatches the final `atlas-reviewer` pass over the merge
+sha and fills in `VERDICT:` + `REVIEWED:` from what it says.
+
+**The ADR-0002 obligation is open and is a real decision, not an oversight.** Several
+findings above answer `RECURRENCE: yes → Degradation must be VISIBLE`, and that law still
+declares `ENFORCED partially`. ADR-0002 is explicit: a recurrence means the mechanism tier
+is too weak, and the law gains a tier in the commit that records the recurrence — or is
+marked UNENFORCEABLE with a reason.
+
+What this branch actually added under that law: `retrieve.test.ts` now pins the cut-short
+rule with two cases that each kill a previously-shipped wrong rule, and
+`indexHealth.test.ts` pins the admin screen's honesty (unrecognised status, NULL
+facts_status, a cut troubled list). Both are the `test` tier, on surfaces that had
+`none` before.
+
+Why it is not written into `.claude/rules/app.md` here: that file is in the always-on set,
+which `npm run env:health` reports at **8,995 of a 9,000 budget — 5 tokens spare**. Editing
+that law's ENFORCED line means evicting its own weight first, and choosing what to evict
+from the always-on set is a founder-facing call (`STATUS.md` already carries two deferred
+decisions of exactly this kind). Doing it silently to clear a gate would be the worst
+version of it.
+
+⇒ **Owed at merge, in `/ship`:** the final verdict + sha, `STATUS.md`, `PROGRESS.md`, and
+this ADR-0002 call.
