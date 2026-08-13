@@ -16,9 +16,10 @@ import { join } from 'node:path'
 // … to a TASE issuer" — an INVENTED CAUSE for a read that never happened.
 //
 // THE RULE: a destructure of an awaited supabase client whose chain (up to the
-// next await) ends in `.single(` / `.maybeSingle(` — "one row I will now decide
-// on" — must capture `error`, or be accounted for in DROPPED below, a per-file
-// ratchet with the reason. A new unaccounted site fails; fixing an accounted
+// next await) contains `.single(` / `.maybeSingle(` — "one row I will now decide
+// on" — or `.rpc(` (same never-throws contract, named an unscanned channel by
+// the round-3 review of slice A3) must capture `error`, or be accounted for in
+// DROPPED below, a per-file ratchet with the reason. A new unaccounted site fails; fixing an accounted
 // one fails too (shrink the ratchet deliberately). Fail-closed reads (a failure
 // DENIES) may stay ratcheted; a read whose failure INVENTS a state may not.
 //
@@ -88,7 +89,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const DESTRUCTURE = /const\s*\{([^}]*)\}\s*=\s*await\s+(supabaseAdmin|supabase)\b/g
-const SINGLE_ROW = /\.(single|maybeSingle)\(/
+const SINGLE_ROW = /\.(single|maybeSingle|rpc)\(/
 
 test('every single-row supabase read captures its error, or is ratcheted with a reason', () => {
   const failures: string[] = []

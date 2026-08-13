@@ -50,3 +50,20 @@ The round-1 condition stands: migration 028 applied before the merge is pushed.
 REVIEWED: d373fd7 (round 2 — delta from approved 81e8b0a is this one commit; fix, mechanism and declaration verified, scan proven to fire on the defect it was built for)
 VERDICT: APPROVED
 FINDINGS: none
+
+Round 3 (at 27f7930, docs-only delta): CHANGES — one WARNING: the promoted ENFORCED clause
+"three battery scans, one per result channel this repo has" OVERSTATED the mechanism's reach:
+supabase `.rpc()` results, storage `.upload()` results and error-dropping list reads are result
+channels no scan matched (no live defect — the reviewer checked every current rpc/upload site
+reads its result). The reviewer answered the recurrence question `yes → M1 · A green signal
+proves only what it measured` — a META-LAW outside the LAW-block set the gate's promotion
+ritual resolves against (the A2-record precedent, deferred meta-law-visibility decision,
+DECISIONS.md 2026-08-12), so it is closed here in prose: the truth GREW to the clause and the
+clause SHRANK to the truth in the same commit — `upload|rpc` joined the write scan's verb list,
+`.rpc(` joined the read scan's chain match (both ratchets unchanged: every current site already
+reads its result), and the app.md clause now claims the three scanned SHAPES, naming
+error-dropping list reads as VERIFY's explicitly. Battery 787/787 + budget green after.
+
+Round 4 (at the tip): final verdict copied verbatim below.
+
+---

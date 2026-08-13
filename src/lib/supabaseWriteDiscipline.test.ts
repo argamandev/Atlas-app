@@ -17,7 +17,8 @@ import { join } from 'node:path'
 //
 // THE RULE: an `await supabaseAdmin…` / `await supabase…` in STATEMENT POSITION (result
 // discarded — the previous code character is `;`, `{`, `}`, `)` or file start) whose chain,
-// up to the next `await`, calls a write verb (.insert/.upsert/.update/.delete/.remove) must
+// up to the next `await`, calls a write verb (.insert/.upsert/.update/.delete/.remove, and —
+// since the round-3 review of slice A3 named them as unscanned channels — .upload/.rpc) must
 // not exist — read the result and react — or be accounted for in DISCARDED below, a per-file
 // ratchet with the reason. A new unaccounted site fails; fixing an accounted one fails too
 // (shrink the ratchet deliberately).
@@ -57,7 +58,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-const WRITE_VERB = /\.(insert|upsert|update|delete|remove)\(/
+const WRITE_VERB = /\.(insert|upsert|update|delete|remove|upload|rpc)\(/
 const AWAIT_SUPABASE = /\bawait\s+(supabaseAdmin|supabase)\b/g
 
 test('every awaited supabase write captures its result, or is ratcheted with a reason', () => {
