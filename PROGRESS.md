@@ -1017,5 +1017,10 @@ the live hole fixed in the same session.
   view (the column + failure states exist and are tested); the live path still finishes
   into the demo-family row id, which reindex EXCLUDES from the corpus by law - real live
   calls join the corpus when scheduling-born ids land.
-- **Verified:** 786/786 across 84 files - `tsc` clean - `next build` green - harness
-  lexical re-run identical - migration 028 reviewed on file before apply.
+- **Review bought two mechanisms (four rounds, all findings closed):** the round-1 WARNING
+  (a discarded read error inventing "cannot attribute") became `supabaseReadDiscipline.test.ts`
+  and promoted the error-path law partial → mechanism; round 3 caught that promotion's own
+  clause overclaiming, so both scans widened to `upload`/`rpc` and the clause shrank to the
+  three scanned shapes - M1 in action, filed in the evidence record.
+- **Verified:** 787/787 across 85 files - `tsc` clean - `next build` green - harness
+  lexical re-run identical - migration 028 reviewed on file (4 rounds) before apply.
