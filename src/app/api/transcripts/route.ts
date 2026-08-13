@@ -14,6 +14,8 @@ import {
   formatTranscript,
   formatDuration,
 } from '@/lib/transcription'
+import { birthTranscript, stageTranscriptContent, finalizeTranscript } from '@/lib/db/transcripts'
+import { reindexTranscript, type CorpusDb } from '@/lib/corpus/reindex'
 import * as fs from 'fs'
 
 export async function GET(req: NextRequest) {
@@ -67,6 +69,8 @@ export async function POST(req: NextRequest) {
   // Link this call to its company when it was added from a company page — so the
   // transcript shows up under that company and grounds the chat with correct context.
   // A refused link surfaces (supabase never throws — the error rides the result).
+  // The chunk prefix carries the company name, so a re-link re-chunks (reindex
+  // skips rows that are not completed; failure lands in the visible index_status).
   if (existing && companyId) {
     const { error: linkErr } = await supabaseAdmin
       .from('transcripts')
@@ -76,34 +80,32 @@ export async function POST(req: NextRequest) {
       console.error('[POST] company link failed:', linkErr)
       return NextResponse.json({ error: `Supabase update failed: ${linkErr.message}` }, { status: 500 })
     }
+    await reindexTranscript(supabaseAdmin as unknown as CorpusDb, videoId)
   }
 
-  // Admin force re-transcribe — inserts a NEW row (suffix _r<timestamp>) so the
-  // original is preserved for side-by-side comparison in the dashboard.
+  // Admin force re-transcribe — re-runs the full pipeline on the SAME row.
+  // (It used to mint a `_r<timestamp>` sibling; minting a second corpus row for
+  // one real-world event is banned — the PyuMxe88e8g_live duplicate outranked
+  // its twin in every retrieval design. Ingestion standard §1.)
   if (existing && force) {
     const admin = await isAdminUser(userId)
     if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    const retryId = `${videoId}_r${Date.now().toString(36)}`
-    console.log(`[POST] admin force re-transcribe → new id=${retryId}`)
-    const { error: insertErr } = await supabaseAdmin.from('transcripts').insert({
-      id: retryId,
-      youtube_url: url,
-      status: 'processing',
-      processing_step: 'downloading',
-      user_id: userId,
-      company_id: companyId ?? null,
-    })
-    if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
+    console.log(`[POST] admin force re-transcribe → re-processing ${videoId} in place`)
+    const { error: resetErr } = await supabaseAdmin
+      .from('transcripts')
+      .update({ status: 'processing', processing_step: 'downloading', error_message: null })
+      .eq('id', videoId)
+    if (resetErr) return NextResponse.json({ error: resetErr.message }, { status: 500 })
     setImmediate(() => {
-      runPipeline(retryId, url).catch(async (err: Error) => {
+      runPipeline(videoId, url).catch(async (err: Error) => {
         console.error('[pipeline] FAILED:', err.message)
         await supabaseAdmin
           .from('transcripts')
           .update({ status: 'failed', error_message: err.message })
-          .eq('id', retryId)
+          .eq('id', videoId)
       })
     })
-    return NextResponse.json({ id: retryId })
+    return NextResponse.json({ id: videoId })
   }
 
   if (existing) {
@@ -150,29 +152,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Supabase update failed: ${updateErr.message}` }, { status: 500 })
     }
   } else {
-    const { data: insertedRows, error: insertErr } = await supabaseAdmin
-      .from('transcripts')
-      .insert({
+    // Born attributed (ingestion standard §2): the company is picked BEFORE the
+    // pipeline starts — an import with no company is refused visibly, never
+    // stored as an unattributed corpus row. The only shipped caller
+    // (AddInvestorCall on the company page) always sends companyId.
+    if (!companyId) {
+      return NextResponse.json(
+        { error: 'לא ניתן להעלות שיחה ללא שיוך לחברה — פתחו את עמוד החברה והעלו משם' },
+        { status: 400 }
+      )
+    }
+    // The birth door: identity (source_key = video id) + attribution enforced in
+    // one place. A duplicate source answers with the EXISTING row, never a twin.
+    let birth
+    try {
+      birth = await birthTranscript({
         id: videoId,
-        youtube_url: url,
-        status: 'processing',
-        processing_step: 'downloading',
-        user_id: userId,
-        company_id: companyId ?? null,
+        sourceKey: videoId,
+        companyId,
+        userId,
+        youtubeUrl: url,
       })
-      .select()
-    console.log(
-      `[POST] insert result: data=${JSON.stringify(insertedRows)}, error=${JSON.stringify(insertErr)}`
-    )
-    if (insertErr) {
-      console.error('[POST] insert failed:', insertErr)
-      return NextResponse.json({ error: `Supabase insert failed: ${insertErr.message}` }, { status: 500 })
+    } catch (e) {
+      console.error('[POST] birth failed:', e)
+      return NextResponse.json({ error: (e as Error).message }, { status: 500 })
     }
-    if (!insertedRows?.length) {
-      console.error(`[POST] INSERT SILENT FAILURE — SDK returned no error but no row data for ${videoId}`)
-      return NextResponse.json({ error: 'Insert silent failure — row not created' }, { status: 500 })
+    if (!birth.born) {
+      console.log(`[POST] duplicate source ${videoId} → existing row ${birth.existingId}`)
+      return NextResponse.json({ id: birth.existingId, alreadyExists: true })
     }
-    console.log(`[POST] inserted row for ${videoId}`)
+    console.log(`[POST] born ${videoId}`)
   }
 
   // Fire-and-forget. A failed/reset row that already has a transcript only needs
@@ -229,34 +238,24 @@ async function runPipeline(videoId: string, url: string) {
       `[pipeline:${videoId}] transcription OK (${elapsed()}) — ${rawText.length} chars via ${engine} (${model})`
     )
 
-    const { error: upd3err } = await supabaseAdmin
-      .from('transcripts')
-      .update({
-        raw_transcript: rawText,
-        word_segments: segments ?? null,
-        audio_url: audioUrl ?? null,
-        processing_step: 'formatting',
-      })
-      .eq('id', videoId)
-      .select()
-    if (upd3err) console.error(`[pipeline:${videoId}] update3 error:`, upd3err)
+    await stageTranscriptContent(videoId, {
+      rawTranscript: rawText,
+      wordSegments: segments ?? null,
+      audioUrl: audioUrl ?? null,
+      processingStep: 'formatting',
+    })
 
     const formatted = await formatTranscript(rawText, videoId, info.title, { engine, model })
     formatted.processingSecs = Math.round((Date.now() - t0) / 1000)
     console.log(`[pipeline:${videoId}] formatting OK (${elapsed()})`)
 
-    const { error: upd4err } = await supabaseAdmin
-      .from('transcripts')
-      .update({
-        formatted_data: formatted,
-        status: 'completed',
-        processing_step: 'completed',
-      })
-      .eq('id', videoId)
-      .select()
-    if (upd4err) console.error(`[pipeline:${videoId}] update4 error:`, upd4err)
-
-    console.log(`[pipeline:${videoId}] DONE (${elapsed()})`)
+    // The one exit of every pipeline: aligned line times persisted, revision
+    // accounted, chunks rebuilt atomically. Index failures land in the visible
+    // index_status, not in this log line (standard §4–§5).
+    const fin = await finalizeTranscript(videoId, formatted)
+    console.log(
+      `[pipeline:${videoId}] DONE (${elapsed()}) — rev ${fin.revision}, ${fin.timedLines}/${fin.totalLines} lines timed, index ${fin.reindex.status}`
+    )
   } finally {
     if (audioPath && fs.existsSync(audioPath)) {
       fs.unlinkSync(audioPath)
@@ -288,11 +287,8 @@ async function reformatPipeline(videoId: string) {
   )
   formatted.processingSecs = Math.round((Date.now() - t0) / 1000)
 
-  const { error: updErr } = await supabaseAdmin
-    .from('transcripts')
-    .update({ formatted_data: formatted, status: 'completed', processing_step: 'completed' })
-    .eq('id', videoId)
-    .select()
-  if (updErr) console.error(`[reformat:${videoId}] update error:`, updErr)
-  console.log(`[reformat:${videoId}] DONE (${((Date.now() - t0) / 1000).toFixed(1)}s)`)
+  const fin = await finalizeTranscript(videoId, formatted)
+  console.log(
+    `[reformat:${videoId}] DONE (${((Date.now() - t0) / 1000).toFixed(1)}s) — rev ${fin.revision}, index ${fin.reindex.status}`
+  )
 }

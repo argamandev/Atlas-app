@@ -1,11 +1,18 @@
-// CLI: npx tsx scripts/retranscribe-call.ts --url <youtube> --id <new-row-id> [--company <uuid>]
+// CLI: npx tsx scripts/retranscribe-call.ts --url <youtube> [--company <uuid>]
 //
 // Runs the product's own transcription pipeline (yt-dlp → IVRIT/RunPod word timestamps →
-// Gemini format) into a NEW transcripts row — the additive way to re-transcribe a video
-// whose original row predates the karaoke pipeline (no word_segments/audio_url), without
-// touching that row and without needing the admin force path of POST /api/transcripts.
+// Gemini format) through the BIRTH DOOR (src/lib/db/transcripts.ts, ingestion standard §1–§2):
+//
+//   * The row id IS the video id — one real-world event, one corpus row. The pre-A3
+//     version minted a sibling row (`--id <new-row-id>`) for a video that already had one;
+//     that is the exact shape that produced the PyuMxe88e8g_live duplicate, and the door
+//     now makes it unrepresentable. An existing row is RE-PROCESSED in place
+//     (revision + 1, chunks rebuilt atomically); comparison runs happen off-corpus.
+//   * A NEW row requires --company (born attributed). An existing row keeps its
+//     attribution; --company re-links it.
+//
 // Refuses to run without RunPod env: the Whisper fallback has no word timings, and a
-// word-less demo call would silently defeat the point.
+// word-less call would silently defeat the karaoke + line-timestamp alignment.
 import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -27,12 +34,9 @@ function arg(name: string): string | undefined {
 
 async function main() {
   const url = arg('url')
-  const id = arg('id')
   const companyId = arg('company') ?? null
-  if (!url || !id) {
-    console.error(
-      'Usage: npx tsx scripts/retranscribe-call.ts --url <youtube> --id <new-row-id> [--company <uuid>]'
-    )
+  if (!url) {
+    console.error('Usage: npx tsx scripts/retranscribe-call.ts --url <youtube> [--company <uuid>]')
     process.exit(1)
   }
   if (!process.env.RUNPOD_API_KEY || !process.env.RUNPOD_IVRIT_ENDPOINT_ID) {
@@ -46,36 +50,63 @@ async function main() {
   const { getVideoInfo, downloadAudio, transcribeAudio, formatTranscript, formatDuration } =
     await import('../src/lib/transcription')
   const { supabaseAdmin } = await import('../src/lib/supabase')
+  const { birthTranscript, stageTranscriptContent, finalizeTranscript } =
+    await import('../src/lib/db/transcripts')
+  const { extractVideoId } = await import('../src/lib/utils')
 
-  // Reuse the row only if a previous run of THIS script failed on it — anything else is
-  // someone's data (additive-only, no overwrites).
-  const { data: clash } = await supabaseAdmin.from('transcripts').select('id, status').eq('id', id).limit(1)
-  if (clash?.length && clash[0].status !== 'failed') {
-    console.error(`Row ${id} already exists (status ${clash[0].status}) — pick a fresh id.`)
+  const id = extractVideoId(url)
+  if (!id) {
+    console.error(`cannot extract a video id from ${url}`)
     process.exit(1)
   }
-  if (clash?.length) {
-    const { error: updErr } = await supabaseAdmin
+
+  const { data: existing } = await supabaseAdmin
+    .from('transcripts')
+    .select('id, status, company_id, user_id')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (existing) {
+    console.log(
+      `[retranscribe:${id}] row exists (status ${existing.status}) — RE-PROCESSING the same row (standard §1: never a sibling id)`
+    )
+    if (companyId && companyId !== existing.company_id) {
+      const { error } = await supabaseAdmin.from('transcripts').update({ company_id: companyId }).eq('id', id)
+      if (error) throw new Error(`company re-link failed: ${error.message}`)
+    }
+    const { error } = await supabaseAdmin
       .from('transcripts')
-      .update({
-        status: 'processing',
-        processing_step: 'downloading',
-        error_message: null,
-        company_id: companyId,
-      })
+      .update({ status: 'processing', processing_step: 'downloading', error_message: null })
       .eq('id', id)
-    if (updErr) throw new Error(`reset failed: ${updErr.message}`)
-    console.log(`[retranscribe:${id}] retrying failed row`)
+    if (error) throw new Error(`reset failed: ${error.message}`)
   } else {
-    const { error: insErr } = await supabaseAdmin.from('transcripts').insert({
+    if (!companyId) {
+      console.error('a NEW row needs --company <uuid> — corpus rows are born attributed (standard §2)')
+      process.exit(1)
+    }
+    // FK-valid owner for a script-born row: the admin profile.
+    const { data: admin } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('role', 'admin')
+      .limit(1)
+      .maybeSingle()
+    if (!admin?.id) {
+      console.error('no admin profile found to own the row — aborting')
+      process.exit(1)
+    }
+    const birth = await birthTranscript({
       id,
-      youtube_url: url,
-      status: 'processing',
-      processing_step: 'downloading',
-      company_id: companyId,
+      sourceKey: id,
+      companyId,
+      userId: admin.id as string,
+      youtubeUrl: url,
     })
-    if (insErr) throw new Error(`insert failed: ${insErr.message}`)
-    console.log(`[retranscribe:${id}] row inserted`)
+    if (!birth.born) {
+      console.error(`source already in the corpus as ${birth.existingId} — nothing to do`)
+      process.exit(1)
+    }
+    console.log(`[retranscribe:${id}] born`)
   }
 
   try {
@@ -101,23 +132,18 @@ async function main() {
     if (!segments?.length) {
       console.warn(`[retranscribe:${id}] WARNING: no word segments — karaoke will not sync`)
     }
-    await supabaseAdmin
-      .from('transcripts')
-      .update({
-        raw_transcript: text,
-        word_segments: segments ?? null,
-        audio_url: audioUrl ?? null,
-        processing_step: 'formatting',
-      })
-      .eq('id', id)
+    await stageTranscriptContent(id, {
+      rawTranscript: text,
+      wordSegments: segments ?? null,
+      audioUrl: audioUrl ?? null,
+      processingStep: 'formatting',
+    })
 
     const formatted = await formatTranscript(text, id, info.title, { engine, model })
-    await supabaseAdmin
-      .from('transcripts')
-      .update({ formatted_data: formatted, status: 'completed', processing_step: 'completed' })
-      .eq('id', id)
+    const fin = await finalizeTranscript(id, formatted)
     console.log(
-      `[retranscribe:${id}] DONE — company "${(formatted as { company?: string }).company}" quarter "${(formatted as { quarter?: string }).quarter}"`
+      `[retranscribe:${id}] DONE — company "${(formatted as { company?: string }).company}" ` +
+        `rev ${fin.revision}, ${fin.timedLines}/${fin.totalLines} lines timed, index ${fin.reindex.status}`
     )
   } catch (err) {
     await supabaseAdmin

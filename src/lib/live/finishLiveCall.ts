@@ -78,6 +78,8 @@ export function pcmByteLength(durationSec: number, sampleRate = 16000, bytesPerF
 
 export interface FinishInput {
   callId: string // synthetic transcripts id (idempotent upsert key)
+  /** Resolved company id (e.g. from scheduling). Wins over companyTicker. */
+  companyId?: string | null
   companyTicker?: string | null // links company_id via companies.tase_security_id
   companyName: string // header + Gemini context
   quarter: string // e.g. "Q1 2026"
@@ -88,6 +90,32 @@ export interface FinishInput {
   channels?: number // default 1
   userId: string
   tailPad?: number // default 0.5
+}
+
+/**
+ * Born attributed (ingestion standard §2): the company is resolved BEFORE any
+ * row exists — an unresolvable company THROWS visibly instead of quietly
+ * storing null (the pre-A3 behavior this replaces). The company should ride in
+ * from scheduling (`companyId`); the ticker lookup is the live path's fallback.
+ */
+export async function resolveFinishCompanyId(input: {
+  companyId?: string | null
+  companyTicker?: string | null
+  companyName: string
+}): Promise<string> {
+  if (input.companyId) return input.companyId
+  if (input.companyTicker) {
+    const { supabaseAdmin } = await import('@/lib/supabase')
+    const { data } = await supabaseAdmin
+      .from('companies')
+      .select('id')
+      .eq('tase_security_id', input.companyTicker)
+      .maybeSingle()
+    if (data?.id) return data.id as string
+  }
+  throw new Error(
+    `live finish: cannot attribute "${input.companyName}" (ticker ${input.companyTicker ?? 'none'}) to a TASE issuer — corpus rows are born attributed`
+  )
 }
 
 export interface FinishResult {
@@ -109,11 +137,15 @@ export async function finishLiveCall(input: FinishInput): Promise<FinishResult> 
   const ffmpegPath = (await import('@ffmpeg-installer/ffmpeg')).default
   const { supabaseAdmin } = await import('@/lib/supabase')
   const { formatTranscript, formatDuration } = await import('@/lib/transcription')
+  const { birthLiveStub, finalizeTranscript } = await import('@/lib/db/transcripts')
   ffmpeg.setFfmpegPath(ffmpegPath.path)
 
   const sampleRate = input.sampleRate ?? 16000
   const channels = input.channels ?? 1
   const tailPad = input.tailPad ?? 0.5
+
+  // Attribution FIRST — before audio work, before any row write (standard §2).
+  const companyId = await resolveFinishCompanyId(input)
 
   const words = normalizeFeedWords(input.words)
   if (words.length === 0) throw new Error('finishLiveCall: no words after normalization')
@@ -162,36 +194,24 @@ export async function finishLiveCall(input: FinishInput): Promise<FinishResult> 
   const durationStr = formatDuration(Math.round(durationSec))
   formatted.duration = durationStr
 
-  // 3. resolve company_id from the ticker (optional)
-  let companyId: string | null = null
-  if (input.companyTicker) {
-    const { data } = await supabaseAdmin
-      .from('companies')
-      .select('id')
-      .eq('tase_security_id', input.companyTicker)
-      .maybeSingle()
-    companyId = (data?.id as string) ?? null
-  }
-
-  // 4. upsert the completed row (idempotent on id)
-  const { error } = await supabaseAdmin.from('transcripts').upsert(
-    {
-      id: input.callId,
-      youtube_url: `live://${input.callId}`,
-      youtube_title: title,
-      status: 'completed',
-      processing_step: 'completed',
-      user_id: input.userId,
-      company_id: companyId,
-      raw_transcript: input.rawText,
-      formatted_data: formatted,
-      audio_url: audioUrl,
-      word_segments: segments,
-      duration: durationStr,
-    },
-    { onConflict: 'id' }
-  )
-  if (error) throw new Error(`transcripts upsert failed: ${error.message}`)
+  // 3. the birth door: ensure the attributed, source-keyed row exists (a
+  //    re-airing re-processes the SAME row), then finalize — which persists the
+  //    ALIGNED line times, bumps revision on re-processing, and rebuilds chunks
+  //    atomically. Demo-family ids are excluded from the corpus by reindex.
+  await birthLiveStub({
+    id: input.callId,
+    sourceKey: `live:${input.callId}`,
+    companyId,
+    userId: input.userId,
+    youtubeUrl: `live://${input.callId}`,
+    title,
+  })
+  await finalizeTranscript(input.callId, formatted, {
+    rawTranscript: input.rawText,
+    wordSegments: segments,
+    audioUrl,
+    duration: durationStr,
+  })
 
   return {
     id: input.callId,
@@ -240,7 +260,6 @@ async function resolveOwnerUserId(): Promise<string> {
 export async function runDemoFinish(opts: { markProcessing?: boolean } = {}): Promise<FinishResult> {
   const fs = await import('fs')
   const path = await import('path')
-  const { supabaseAdmin } = await import('@/lib/supabase')
 
   const sessDir = path.join(process.cwd(), 'scripts', 'out', 'sessions')
   const recs = fs
@@ -266,21 +285,18 @@ export async function runDemoFinish(opts: { markProcessing?: boolean } = {}): Pr
   const userId = arg && /^[0-9a-fA-F-]{36}$/.test(arg) ? arg : await resolveOwnerUserId()
 
   if (opts.markProcessing) {
-    // A silently-failed stub would leave the poller waiting on a row that never appeared —
-    // and on a fresh environment this insert violates transcripts_company_required (no
-    // company_id), which must surface, not vanish (migration 027; review finding 2026-08-13).
-    const { error: stubErr } = await supabaseAdmin.from('transcripts').upsert(
-      {
-        id: DEMO_CALL_ID,
-        user_id: userId,
-        youtube_url: `live://${DEMO_CALL_ID}`,
-        youtube_title: 'תמיס Q1 2026',
-        status: 'processing',
-        processing_step: 'formatting',
-      },
-      { onConflict: 'id' }
-    )
-    if (stubErr) throw new Error(`processing-stub upsert failed: ${stubErr.message}`)
+    // The stub rides the birth door: attributed + source-keyed like every row,
+    // and a failed write surfaces, never vanishes (migration 027; standard §2).
+    const { birthLiveStub } = await import('@/lib/db/transcripts')
+    const companyId = await resolveFinishCompanyId({ companyTicker: '1097229', companyName: 'תמיס' })
+    await birthLiveStub({
+      id: DEMO_CALL_ID,
+      sourceKey: `live:${DEMO_CALL_ID}`,
+      companyId,
+      userId,
+      youtubeUrl: `live://${DEMO_CALL_ID}`,
+      title: 'תמיס Q1 2026',
+    })
   }
 
   return finishLiveCall({
@@ -308,7 +324,6 @@ export async function runDemoFinish(opts: { markProcessing?: boolean } = {}): Pr
 export async function runLiveBroadcastFinish(opts: { markProcessing?: boolean } = {}): Promise<FinishResult> {
   const fs = await import('fs')
   const path = await import('path')
-  const { supabaseAdmin } = await import('@/lib/supabase')
 
   const outDir = path.join(process.cwd(), 'scripts', 'out')
   const linesPath = path.join(outDir, 'broadcast-lines.jsonl')
@@ -328,19 +343,18 @@ export async function runLiveBroadcastFinish(opts: { markProcessing?: boolean } 
 
   const userId = await resolveOwnerUserId()
   if (opts.markProcessing) {
-    // Same law as runDemoFinish's stub: a failed write surfaces, never vanishes (027).
-    const { error: stubErr } = await supabaseAdmin.from('transcripts').upsert(
-      {
-        id: DEMO_CALL_ID,
-        user_id: userId,
-        youtube_url: `live://${DEMO_CALL_ID}`,
-        youtube_title: 'תמיס Q2 2026',
-        status: 'processing',
-        processing_step: 'formatting',
-      },
-      { onConflict: 'id' }
-    )
-    if (stubErr) throw new Error(`processing-stub upsert failed: ${stubErr.message}`)
+    // Same law as runDemoFinish's stub: attributed, keyed, and a failed write
+    // surfaces, never vanishes (027; standard §2).
+    const { birthLiveStub } = await import('@/lib/db/transcripts')
+    const companyId = await resolveFinishCompanyId({ companyTicker: '1097229', companyName: 'תמיס' })
+    await birthLiveStub({
+      id: DEMO_CALL_ID,
+      sourceKey: `live:${DEMO_CALL_ID}`,
+      companyId,
+      userId,
+      youtubeUrl: `live://${DEMO_CALL_ID}`,
+      title: 'תמיס Q2 2026',
+    })
   }
 
   // Audio is final once the source ended (PCM stopped growing); captions trail by up to ~188s. Wait
