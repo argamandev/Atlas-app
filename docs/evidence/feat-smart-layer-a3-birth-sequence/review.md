@@ -47,9 +47,10 @@ reintroducing the dropped-error shape fails the test naming the exact site; the 
 exactly the obligation's four files; battery 787/787 + tsc clean, run by the reviewer.
 The round-1 condition stands: migration 028 applied before the merge is pushed.
 
-REVIEWED: d373fd7 (round 2 — delta from approved 81e8b0a is this one commit; fix, mechanism and declaration verified, scan proven to fire on the defect it was built for)
-VERDICT: APPROVED
-FINDINGS: none
+> REVIEWED: d373fd7 (round 2 — delta from approved 81e8b0a is this one commit; fix, mechanism and declaration verified, scan proven to fire on the defect it was built for)
+> VERDICT: APPROVED
+> FINDINGS: none
+> (historical round-2 block, superseded by round 4 below — blockquoted so the gate binds to the FINAL verdict)
 
 Round 3 (at 27f7930, docs-only delta): CHANGES — one WARNING: the promoted ENFORCED clause
 "three battery scans, one per result channel this repo has" OVERSTATED the mechanism's reach:
