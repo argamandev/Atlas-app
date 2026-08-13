@@ -36,8 +36,10 @@ speaker edits = admin-only corpus curation (12 — the write-authorization law i
 `docs/DATA-MODEL.md`), Timlul leftovers all-go (13 — iron rule #1 now reads "Atlas
 PRODUCTION"; three small execution missions listed in its Answer: cleanup, policy
 narrowing, PUT admin-gate), discovery eval cases live and measured (15 — search mode
-is now eval-gated). The frontier now: the **ingestion standard** (16) and **MAYA
-filings at scale** (17). The spec (ticket 10) waits on 16/17 and closes the map.
+is now eval-gated), the ingestion standard approved (16 — `docs/INGESTION-STANDARD.md`,
+with its six-migration list and the existing-corpus backfill as the pipeline's proving
+ground). The frontier now: **MAYA filings at scale** (17), the last ticket before the
+spec (10) closes the map.
 
 **Two deferred calls, filed 2026-08-12 in `DECISIONS.md`, both self-improving-layer, after the
 product:** making `app.md`'s meta-laws visible to the promotion ritual, and shrinking `app.md`'s

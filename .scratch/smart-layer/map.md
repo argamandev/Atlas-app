@@ -143,6 +143,16 @@ cost budgets approved, and the first slice fully specified.
   the dense-only and OpenAI designs each fail a case — search mode's quality is now
   gated, not assumed.
 
+- [The ingestion standard — how a document is born](issues/16-ingestion-standard.md) —
+  approved 2026-08-13: the standard lives at `docs/INGESTION-STANDARD.md` (the spec cites
+  it) — identity/dedup at birth via `source_key`, born attributed at every door (live
+  calls inherit the company from scheduling; backlog imports admin-curated), real
+  per-line timestamps persisted from word timings, measured chunk shapes with
+  content/embedding_input separation and one shared chunker, XBRL facts +
+  `publication_date`, atomic re-chunk with drift rendering, one global MAYA limiter, six
+  additive migrations; existing corpus backfilled in one pass with the standing harness
+  re-run as the acceptance proof.
+
 ## Not yet specified
 
 - When and how user memory (cross-surface) joins agent memory.

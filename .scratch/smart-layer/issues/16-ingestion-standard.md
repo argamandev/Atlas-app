@@ -1,7 +1,7 @@
 # The ingestion standard — how a document is born
 
 Type: grilling
-Status: claimed
+Status: resolved (2026-08-13)
 Blocked by: (none — frontier; its inputs 07, 08 and 14 are all resolved)
 
 ## Question
@@ -22,6 +22,30 @@ and anchors when `formatted_data` regenerates (drift is rendered, never hidden).
 Most of this is engineering under laws already set; the founder confirms the product-visible
 calls. Deliverable: the standard as a document the spec cites, plus the migration list it
 implies.
+
+## Answer
+
+Resolved 2026-08-13, founder-approved (*"Approved do it."* — his words quoted in
+`DECISIONS.md`). **The standard is `docs/INGESTION-STANDARD.md`** — the document the spec
+(ticket 10) cites. Birth sequence: identity/dedup (`source_key` = the real-world source,
+never our row id) → attribution (born attributed, one birth door per corpus type) →
+content → anchors (real per-line timestamps persisted from the word timings at birth) →
+chunks + embeddings (the measured shapes; verbatim `content` separate from
+`embedding_input`; one chunker shared with the harness) → XBRL facts + `publication_date`.
+Re-processing: same row, revision++, atomic re-chunk, drift rendered. MAYA: one
+process-global limiter. Six additive migrations listed in the standard, each through the
+DDL gate; a mechanisms-owed table covers every law (ADR-0002).
+
+The four product calls, decided: (1) attribution at every remaining door — live calls
+inherit the company from scheduling, backlog imports are admin-curated; the company-page
+upload button is non-essential ("we will maybe remove it"); non-TASE content stays out.
+(2) Duplicates: "already in the archive" + re-processing updates the same row.
+(3) Timestamps: new calls born timed; the 5 existing backfilled only where
+`word_segments` exist (his karaoke-sync observation confirmed those timings are real —
+the player re-derives the alignment every load; the standard persists it); no old-audio
+re-processing. (4) The existing corpus is backfilled in one pass (~$0.35) — and the
+backfill is the proving ground: the standing 18-case harness re-runs against the real
+pipeline as acceptance before any user-facing surface ships on it.
 
 ## Comments
 

@@ -1,9 +1,9 @@
 # The Ingestion Standard — how a document is born
 
-**Status: DRAFT** (smart-layer ticket 16) — four product-visible calls await the founder
-(marked ⚑ Q1–Q4). Everything else is engineering under laws already approved: the measured
-retrieval shape (`../.scratch/smart-layer/research/07-retrieval-eval-results.md`), the
-architecture (ticket 08), and the MAYA structured-data facts
+**Status: STANDARD — founder-approved 2026-08-13** (smart-layer ticket 16; his decisions
+quoted in `DECISIONS.md`). Grounded in laws already approved: the measured retrieval shape
+(`../.scratch/smart-layer/research/07-retrieval-eval-results.md`), the architecture
+(ticket 08), and the MAYA structured-data facts
 (`../.scratch/smart-layer/research/14-maya-structured-data.md`).
 
 **Scope: the SHARED corpus** — call transcripts and MAYA filings, the data every user
@@ -21,11 +21,11 @@ must be VISIBLE).
 
 1. **Identity** — compute the real-world identity key; already in the corpus → stop and
    point at the existing row.
-2. **Attribution** — resolve the TASE issuer; no company, no corpus row. ⚑ Q1
+2. **Attribution** — resolve the TASE issuer; no company, no corpus row.
 3. **Content** — extract text (existing pipelines: IVRIT/RunPod + Gemini polish for calls;
    pdf.js RTL reassembly for filings — `src/lib/documents/extract.ts`).
 4. **Anchors** — stable line ids + real per-line timestamps (transcripts); page numbers
-   (filings). ⚑ Q3
+   (filings).
 5. **Chunks + embeddings** — the measured shapes; derived data, rebuildable.
 6. **Facts + publication date** — XBRL structured facts; `publication_date` (filings).
 
@@ -51,8 +51,8 @@ DB or a `status` that excludes the row from search — never a second corpus row
 **LAW · Demo/test content never enters the corpus.** The demo finish paths write rows the
 chunker and search must not see (excluded by status/flag).
 
-Duplicate attempt UX (⚑ Q2): the user is told it's already in the archive and taken to the
-existing document — never a silent twin, never a silent overwrite of someone else's copy.
+Duplicate attempt UX (founder-approved): the user is told it's already in the archive and
+taken to the existing document — never a silent twin, never a silent overwrite.
 
 **ENFORCED (owed at build):** UNIQUE index on `transcripts.source_key`; the birth choke
 point (below) computes it; a route test feeds a known-duplicate source and asserts
@@ -66,12 +66,18 @@ single biggest measured retrieval multiplier (eval finding 4) — an unattribute
 invisible to the very filter that makes search good, and the 55-row Timlul export is the
 proof this cannot be retrofitted.
 
-- Uploads/imports: the company is chosen before the pipeline starts. ⚑ Q1
-- Live calls: the company rides in from scheduling (`scheduled_calls` carries the issuer)
-  — resolved when the bot is created, not guessed from a ticker at finish time
-  (today `finishLiveCall.ts` resolves after the fact and quietly stores null on a miss).
+- Live calls — **the main door from here on** (founder 2026-08-13: "All of the
+  transcripts will come from live investor calls being transcribed from now on, or we
+  will delicately create a backlog of transcripts"): the company rides in from scheduling
+  (`scheduled_calls` carries the issuer) — resolved when the bot is created, not guessed
+  from a ticker at finish time (today `finishLiveCall.ts` resolves after the fact and
+  quietly stores null on a miss).
+- Backlog imports: admin-curated; the company is picked at import. The company-page
+  upload button is non-essential and may be removed — if it stays, it requires the
+  company before the pipeline starts. Fewer doors never weakens the law; every remaining
+  door obeys it.
 - Filings: already safe — `ingestDocument()` requires `companyId`, DB column is NOT NULL.
-- Content about no TASE issuer (the Zim/Knesset hearing class) does not enter Atlas. ⚑ Q1
+- Content about no TASE issuer (the Zim/Knesset hearing class) does not enter Atlas.
 - Mis-attribution stays a corpus-curation fix: admin-only edit (ticket 12's law), and the
   W1 guard ("no management statement exists") lives at the answer layer, per the eval set.
 
@@ -101,7 +107,13 @@ while real word timings from IVRIT/Recall already sit in `word_segments`. At bir
 pipeline aligns polished lines to the timed word stream (the `loadCall.ts` alignment, run
 once and PERSISTED, with a firmer join than the proportional map where word text allows)
 and writes per-line start times. This makes the founding citation law ("Q1 call · 14:02 ·
-L0031") real — W6 closes for every new transcript. Existing 5 transcripts: ⚑ Q3.
+L0031") real — W6 closes for every new transcript.
+
+The founder's karaoke observation is the confirming fact: playback IS in sync because the
+word-level timings are real — the player just re-derives the alignment at every page load
+instead of it being persisted. Existing 5 transcripts (founder-approved): backfill
+per-line times where `word_segments` exist; lines that cannot be timed keep line-id-only
+citations, visibly; **no re-processing of old audio**.
 
 **LAW · `formatted_data`, `word_segments` and chunks are ONE consistency unit.**
 Regenerating any of them re-runs alignment and re-chunks in the same operation
@@ -211,13 +223,20 @@ all additive:
 6. (Owned by ticket 08's build, referenced here: `company_aliases` — attribution's
    resolver feeds this standard's step 2.)
 
-## Backfill — the standard applied to what already exists ⚑ Q4
+## Backfill — the standard applied to what already exists (founder-approved)
 
 One-time pass, order: publication dates for the 23 documents (one `by-issuer` read per
 company under the global limiter) → XBRL facts where the filing carries one → `source_key`
 backfill for the 5 transcripts → timestamp alignment where `word_segments` exist →
 chunk + embed everything (~3,200 chunks ≈ $0.35, hash-cached). Ticket 17 decides how much
 MORE filing history joins; this backfill only brings the EXISTING corpus up to standard.
+
+**The backfill doubles as the pipeline's proving ground** (the founder's own framing:
+"That's also the way to try out and see our search and chunking methods (rag pipeline)
+actually works"). Acceptance: after the backfill, the standing 18-case harness
+(`scripts/retrieval-eval/`) re-runs against the REAL pipeline — pgvector + the real
+Postgres lexical channel — and must reproduce the measured eval results before any
+user-facing surface ships on it.
 
 ---
 
