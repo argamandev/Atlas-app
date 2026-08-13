@@ -42,14 +42,26 @@
 -- by a hook-blocked DROP.
 --
 -- COUNTED UP TO `p_candidates + 1`, NEVER FURTHER, and that bound is load-bearing
--- rather than an optimisation. `least(pool, in_scope)` cannot tell the difference
--- between an in_scope of 201 and one of 61,402 when the pool is 200, so counting
--- past the pool buys nothing and costs a full scan of a table whose rows carry a
--- vector(1536) — ~6KB each, ~400MB across this slice's corpus, on the read path of
--- every search. The capped count is therefore EXACT whenever it lands at or below
--- the pool (which is the only range that changes the answer) and saturates at
--- pool+1 otherwise. It is named `_capped` so nothing downstream can mistake it for
--- "how much the corpus holds" and print it at a user.
+-- rather than an optimisation. `least(pool, in_scope)` cannot tell an in_scope of
+-- 201 from one of 61,402 when the pool is 200, so counting past the pool changes
+-- no answer and would make every search pay for a full count of document_chunks.
+-- The capped count is EXACT whenever it lands at or below the pool — the only
+-- range that changes the answer — and saturates at pool+1 otherwise. It is named
+-- `_capped` so nothing downstream can mistake it for "how much the corpus holds"
+-- and print it at a user.
+--
+-- ⚠ WHAT THE `limit` DOES AND DOES NOT BOUND, because the first version of this
+-- comment claimed more than it can deliver: it bounds rows RETURNED, not rows
+-- SCANNED. The scan ends as soon as 201 matching rows have been found, so the work
+-- is small exactly when the predicate is dense and NOT when it is sparse — and the
+-- sparse case is this slice's own mid-backfill state, where most chunks have no
+-- embedding yet and the dense probe walks a long way to find 201 that do. The
+-- lexical probe has a second shape: a GIN scan builds its match bitmap before any
+-- limit applies, so a term the corpus holds everywhere (`שנת`, 96% of chunks per
+-- the A4 gate) is a bitmap over most of the table whatever the limit says. Neither
+-- is measured here. What IS true unconditionally is that the bound removes the
+-- unbounded-by-construction full count, and that both probes read the null bitmap
+-- / the index rather than detoasting any vector.
 --
 -- ─────────────────────────────────────────────────────────────────────────────
 -- WHY A NEW NAME RATHER THAN `create or replace` ON 029. Ticket 05 assumed this
@@ -106,7 +118,16 @@ create or replace function public.atlas_search_chunks_v2(
   -- `_capped` is not decoration — at p_candidates + 1 this says "more than the
   -- pool", NOT how many chunks the scope holds.
   dense_in_scope_capped int,
-  lexical_in_scope_capped int
+  lexical_in_scope_capped int,
+  -- WHICH CHANNELS ACTUALLY RAN, from the only place that knows. The caller can
+  -- work out that it switched a channel off, but not that THIS FUNCTION did: a
+  -- query whose tsquery comes out empty (punctuation only, or terms the tokenizer
+  -- drops) downgrades the lexical channel below, and without this the caller
+  -- reports a half-strength hybrid search as a full one — `ran and found nothing`
+  -- wearing `never ran`'s clothes, which is the distinction its own ChannelReport
+  -- documents.
+  dense_ran boolean,
+  lexical_ran boolean
 )
 language plpgsql
 stable
@@ -161,13 +182,16 @@ begin
   -- number nobody asked for, paid for on every query; and the caller reports
   -- `ran: false` for it anyway, which is a different fact from "ran and saw none".
   --
-  -- THE INNER `limit` IS WHAT MAKES THIS AFFORDABLE. Each count stops after
-  -- p_candidates + 1 rows, so the work is bounded by a number the caller chose
-  -- (200 by default) rather than by the size of the corpus — no scan of the
-  -- vector-carrying heap, at any corpus size, ever. The predicates are
-  -- character-for-character the ones the two channels below use, which is the only
-  -- reason `saw <= in_scope_capped` holds: a count over a DIFFERENT predicate
-  -- would be a proxy again, and could hand back an incoherent pair.
+  -- THE INNER `limit` REMOVES THE UNBOUNDED FULL COUNT — read the ⚠ in the header
+  -- for what it does and does not bound; it is not a promise about scan cost.
+  --
+  -- Each probe's row predicate is the same as its channel's below, term for term
+  -- (`embedding is not null` + the company filter; `tsv @@ v_tsquery` + the company
+  -- filter). The channel-on conditions — `p_query_embedding is not null` and
+  -- `v_has_text` — are the same too, hoisted into the enclosing `if` rather than
+  -- repeated in the WHERE. That correspondence is the whole reason
+  -- `saw <= in_scope_capped` holds: a probe over a DIFFERENT predicate would be a
+  -- proxy again, and could hand back an incoherent pair.
   --
   -- Both counts and both channels read one snapshot because this function is
   -- declared `stable` — the whole call sees the calling query's snapshot. That is
@@ -262,7 +286,9 @@ begin
     seen.d,
     seen.l,
     v_dense_in_scope,
-    v_lexical_in_scope
+    v_lexical_in_scope,
+    (p_query_embedding is not null),
+    v_has_text
   from fused f
   join public.document_chunks c on c.id = f.chunk_id
   cross join seen

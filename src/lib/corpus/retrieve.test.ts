@@ -66,6 +66,8 @@ const row = (over: Record<string, unknown> = {}) => ({
   lexical_candidates: 7,
   dense_in_scope_capped: 12,
   lexical_in_scope_capped: 7,
+  dense_ran: true,
+  lexical_ran: true,
   ...over,
 })
 
@@ -252,6 +254,9 @@ test('a switched-off channel reports ran:false, which is not the same as found-n
         lexical_candidates: 9,
         dense_in_scope_capped: 0,
         lexical_in_scope_capped: 9,
+        // What the SQL really returns for a lexical-only call: `dense_ran` IS
+        // `p_query_embedding is not null`, and this call sends no embedding.
+        dense_ran: false,
       }),
     ],
   })
@@ -286,4 +291,52 @@ test('a blank query throws before any embedding spend', async () => {
     () => retrieveChunks(db, { query: '   ', embed: { fetchImpl: noNetwork, apiKey: 'k' } }),
     /empty query/
   )
+})
+
+// ── which channels RAN is the SQL's answer, not this file's assumption ───────
+
+test('a lexical channel the SQL switched off reports ran:false, even though hybrid was asked for', async () => {
+  // `atlas_search_chunks_v2` downgrades the lexical channel when the query's
+  // tsquery comes out empty — punctuation only, or nothing but terms the
+  // tokenizer drops. Before migration 031 said so in its return, this call
+  // reported a dense-only search as a full hybrid one: the switched-off /
+  // ran-and-found-nothing distinction that ChannelReport exists to draw,
+  // collapsed in the direction that overstates the answer.
+  const { db } = fakeDb({
+    rows: [
+      row({
+        dense_candidates: 40,
+        dense_in_scope_capped: 40,
+        lexical_candidates: 0,
+        lexical_in_scope_capped: 0,
+        lexical_ran: false,
+      }),
+    ],
+  })
+  const res = await retrieveChunks(db, { query: 'מה קרה?!', channels: 'hybrid', embed })
+  assert.equal(res.dense.ran, true)
+  assert.equal(res.lexical.ran, false, 'the SQL says it never ran — not that it found nothing')
+  assert.equal(res.lexical.truncated, false)
+})
+
+test('with no rows at all, ran falls back to what THIS call switched on', async () => {
+  // Nothing came back, so nothing can say otherwise. Reporting the requested
+  // channels is the honest reading of "we asked for both and the scope was empty".
+  const { db } = fakeDb({ rows: [] })
+  const res = await retrieveChunks(db, { query: 'הרווח של טבע', channels: 'hybrid', embed })
+  assert.equal(res.dense.ran, true)
+  assert.equal(res.lexical.ran, true)
+})
+
+test('a limit below 1 is REFUSED, because every completeness figure rides on a row', async () => {
+  // Zero rows would come back by construction, and the report would then state —
+  // in its own words — that the scope is empty: a fact fabricated out of the
+  // caller's own argument. Unrepresentable beats guarded (M3.3).
+  const { db, calls } = fakeDb({ rows: [row()] })
+  await assert.rejects(
+    () => retrieveChunks(db, { query: 'הכנסות', limit: 0, embed }),
+    /limit must be a positive integer/
+  )
+  await assert.rejects(() => retrieveChunks(db, { query: 'הכנסות', limit: -3, embed }), /positive/)
+  assert.deepEqual(calls, [], 'and it is refused before the RPC, not after')
 })

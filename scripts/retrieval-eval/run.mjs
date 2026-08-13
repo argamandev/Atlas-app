@@ -528,10 +528,17 @@ async function buildRealDesigns() {
     return scopeCache.get(c.scope)
   }
 
-  // Every channel truncation this run hits, collected as it happens. A ranking
-  // measured over a candidate pool that filled up is a ranking over less than
-  // the corpus, and the report must say so rather than let the numbers imply
-  // otherwise (M1).
+  // Every channel this run found CUT SHORT, collected as it happens. Since
+  // migration 031 that means one thing: the channel came back with fewer rows
+  // than this harness asked for AND fewer than the scope holds, i.e. something
+  // stopped it — at this pool, almost certainly the ANN index engaging. A ranking
+  // measured over a cut-short channel is a ranking over less than the corpus it
+  // was allowed to search, and the report must say so rather than let the numbers
+  // imply otherwise (M1).
+  //
+  // NOTE what is NOT collected here: a channel that filled the 5,000-row pool
+  // exactly. That is this harness getting what it asked for, and through slice A4
+  // it was the only thing this list ever contained.
   const truncations = []
 
   const design = (channels, scoped) => async (q, id, c) => {
@@ -888,12 +895,12 @@ async function mainReal() {
     '',
     ...(truncations.length
       ? [
-          '**Some rankings below were measured over a candidate pool that filled up** — they rank less than the corpus:',
+          '**Some rankings below were measured over a channel that was CUT SHORT** — they rank less than the corpus the query was allowed to search:',
           '',
           ...truncations.map((t) => `- ${t}`),
         ]
       : [
-          'None. Every channel saw fewer rows than its candidate pool, so every ranking below is over the whole corpus it was allowed to search.',
+          'None. No channel came back with less than both what it was asked for and what its scope holds, so every ranking below is over the whole corpus that query was allowed to search.',
         ]),
     '',
   ]

@@ -151,6 +151,8 @@ type ChunkRpcRow = {
   lexical_candidates: number
   dense_in_scope_capped: number
   lexical_in_scope_capped: number
+  dense_ran: boolean
+  lexical_ran: boolean
 }
 
 const DEFAULT_LIMIT = 20
@@ -195,6 +197,15 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
   const query = opts.query ?? ''
   if (!query.trim()) throw new Error('retrieveChunks: an empty query retrieves nothing meaningful')
   const candidates = opts.candidates ?? DEFAULT_CANDIDATES
+  const limit = opts.limit ?? DEFAULT_LIMIT
+  // A LIMIT BELOW 1 IS REFUSED, not served. Every completeness figure this
+  // function returns rides on a returned row, so a call that asks for zero rows
+  // gets zero rows and would then be told, in the report's own words, that the
+  // scope is empty — a fabricated fact assembled out of the caller's own
+  // argument. Refusing makes that state unrepresentable rather than guarded
+  // (M3.3); a caller who genuinely wants nothing back should not be calling this.
+  if (!Number.isInteger(limit) || limit < 1)
+    throw new Error(`retrieveChunks: limit must be a positive integer, got ${opts.limit}`)
 
   // The dense channel needs the query embedded under RETRIEVAL_QUERY — the other
   // half of the asymmetric pair the corpus was embedded with. An embedding
@@ -206,12 +217,25 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
     p_query_embedding: embedding,
     p_query_text: channels === 'dense' ? null : query,
     p_company_id: opts.companyId ?? null,
-    p_limit: opts.limit ?? DEFAULT_LIMIT,
+    p_limit: limit,
     p_candidates: candidates,
   })
   if (error) throw new Error(`retrieveChunks: ${error.message}`)
 
   const rows = (data as ChunkRpcRow[] | null) ?? []
+
+  // WHETHER A CHANNEL RAN IS THE SQL'S ANSWER, NOT THIS FILE'S GUESS. A query
+  // whose tsquery comes out empty — punctuation only, or nothing but terms the
+  // tokenizer drops — makes the function switch the lexical channel off, and a
+  // caller that assumed `channels: 'hybrid'` meant both ran would report a
+  // half-strength search as a full one.
+  //
+  // The fallback applies only when NO row came back at all, which takes both an
+  // empty scope and, for the lexical half, an empty tsquery on top. There it is
+  // the honest reading: nothing ran that could have told us otherwise.
+  const denseRan = rows[0]?.dense_ran ?? channels !== 'lexical'
+  const lexicalRan = rows[0]?.lexical_ran ?? channels !== 'dense'
+
   const report = (ran: boolean, saw: number, inScopeCapped: number): ChannelReport => ({
     ran,
     saw: ran ? saw : 0,
@@ -241,19 +265,13 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
       lexicalRank: r.lexical_rank,
       score: r.score,
     })),
-    // Zero rows carry no per-channel count, so both report the honest zero
-    // rather than an absent field the caller would have to guess about. Zero seen
-    // out of zero in scope is complete information — the empty scope really is
-    // empty — which is the one case where `saw === inScope` and both are 0.
-    dense: report(
-      channels !== 'lexical',
-      rows[0]?.dense_candidates ?? 0,
-      rows[0]?.dense_in_scope_capped ?? 0
-    ),
-    lexical: report(
-      channels !== 'dense',
-      rows[0]?.lexical_candidates ?? 0,
-      rows[0]?.lexical_in_scope_capped ?? 0
-    ),
+    // Zero rows carry no per-channel counts, so both report the honest zero rather
+    // than an absent field the caller would have to guess about. Zero seen out of
+    // zero in scope is complete information — the empty scope really is empty.
+    // That reading is only safe because a `limit` below 1 was refused above: a
+    // call that returns no rows BY CONSTRUCTION would otherwise land here and
+    // fabricate "the corpus has nothing" out of its own argument.
+    dense: report(denseRan, rows[0]?.dense_candidates ?? 0, rows[0]?.dense_in_scope_capped ?? 0),
+    lexical: report(lexicalRan, rows[0]?.lexical_candidates ?? 0, rows[0]?.lexical_in_scope_capped ?? 0),
   }
 }
