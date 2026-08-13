@@ -24,7 +24,10 @@ import type { CorpusIndexHealth, DocumentStatusRow, StatusRow } from './indexHea
 
 export async function readCorpusIndexHealth(): Promise<CorpusIndexHealth | null> {
   const [transcripts, documents, chunks] = await Promise.all([
-    supabaseAdmin.from('transcripts').select('id, title, index_status'),
+    // `youtube_title`, not `title` — the transcripts table has no `title` column
+    // (the birth door writes `youtube_title`, and a live call has no YouTube
+    // anything). Aliased so the pure module keeps one row shape for both sources.
+    supabaseAdmin.from('transcripts').select('id, title:youtube_title, index_status'),
     supabaseAdmin.from('company_documents').select('id, title, index_status, facts_status'),
     supabaseAdmin.from('document_chunks').select('id', { count: 'exact', head: true }),
   ])
