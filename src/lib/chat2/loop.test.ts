@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { runChatLoop, TERMINAL_EVENTS, type ChatEvent } from './loop'
+import { runChatLoop, TERMINAL_EVENTS, QUOTE_VERIFICATION_ENABLED, type ChatEvent } from './loop'
 
 async function collect(gen: AsyncGenerator<ChatEvent>): Promise<ChatEvent[]> {
   const out: ChatEvent[] = []
@@ -146,48 +146,6 @@ test('a citation verified against a real search_corpus result passes straight th
   assert.equal(events.at(-1)?.type, 'done')
 })
 
-test('an invented quote is caught: the model is asked to fix it, and a still-bad answer ends INCOMPLETE', async () => {
-  const client = fakeClient([
-    {
-      content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'רבעון' } }],
-      stop_reason: 'tool_use',
-    },
-    {
-      content: [{ type: 'text', text: 'לפי הדוח, "הרווח שולש פי שלוש" ברבעון.' }],
-      stop_reason: 'end_turn',
-    },
-    // model is told to fix it and tries again, still wrong
-    {
-      content: [{ type: 'text', text: 'לפי הדוח, "הרווח גדל משמעותית" ברבעון.' }],
-      stop_reason: 'end_turn',
-    },
-  ])
-  const handlers = {
-    async search_corpus() {
-      return { content: 'ההכנסות גדלו ברבעון השני, ללא אזכור לרווח' }
-    },
-  }
-  const events = await collect(
-    runChatLoop({
-      client,
-      scope: { userId: 'u1' },
-      history: [],
-      message: 'מה קרה?',
-      todayIsrael: '2026-08-14',
-      handlers,
-    })
-  )
-  // The turn must NOT end in `done`: an answer carrying a quote that could not be
-  // verified is not a clean finish, and `done` is the only event that says it is.
-  assert.equal(events.at(-1)?.type, 'incomplete')
-  // the invented-quote answer is never silently dropped — it still reaches the user, flagged
-  assert.ok(events.some((e) => e.type === 'delta' && e.text.includes('הרווח גדל משמעותית')))
-  assert.equal(
-    events.some((e) => e.type === 'done'),
-    false
-  )
-})
-
 test('exhausting the round-trip cap ends INCOMPLETE, never in the clean-finish event', async () => {
   const toolTurn = {
     content: [{ type: 'tool_use', id: 't', name: 'noop', input: {} }],
@@ -292,73 +250,6 @@ test('every terminal path ends in exactly ONE terminal event', async () => {
   }
 })
 
-test('a Hebrew gershayim quote is extracted and verified like any other', async () => {
-  // The extractor was blind to `״` while its own comment claimed it, and while
-  // citations.ts already normalised it — so a Hebrew-punctuated invented quote
-  // passed as though it had been checked.
-  const client = fakeClient([
-    {
-      content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'x' } }],
-      stop_reason: 'tool_use',
-    },
-    { content: [{ type: 'text', text: 'לפי הדוח, ״הרווח שולש פי שלוש״ ברבעון.' }], stop_reason: 'end_turn' },
-    { content: [{ type: 'text', text: 'לפי הדוח, ״עדיין לא נכון״ ברבעון.' }], stop_reason: 'end_turn' },
-  ])
-  const handlers = {
-    async search_corpus() {
-      return { content: 'ההכנסות גדלו ברבעון השני, ללא אזכור לרווח' }
-    },
-  }
-  const events = await collect(
-    runChatLoop({
-      client,
-      scope: { userId: 'u1' },
-      history: [],
-      message: 'מה קרה?',
-      todayIsrael: '2026-08-14',
-      handlers,
-    })
-  )
-  assert.equal(events.at(-1)?.type, 'incomplete')
-})
-
-test('a citation failure on the LAST round-trip reports the citation, not the cap', async () => {
-  // Previously the retry was issued with no round-trip left to land in, so the
-  // answer was discarded entirely and the tail blamed the round-trip limit for
-  // what was actually a citation failure — the wrong cause, which app.md warns
-  // sends a user to retry forever against a problem they cannot fix.
-  const toolTurn = {
-    content: [{ type: 'tool_use', id: 't', name: 'search_corpus', input: {} }],
-    stop_reason: 'tool_use',
-  }
-  const client = fakeClient([
-    toolTurn,
-    toolTurn,
-    toolTurn,
-    { content: [{ type: 'text', text: 'לפי הדוח, "משפט מומצא לגמרי" ברבעון.' }], stop_reason: 'end_turn' },
-  ])
-  const handlers = {
-    async search_corpus() {
-      return { content: 'טקסט אחר לגמרי' }
-    },
-  }
-  const events = await collect(
-    runChatLoop({
-      client,
-      scope: { userId: 'u1' },
-      history: [],
-      message: 'מה קרה?',
-      todayIsrael: '2026-08-14',
-      handlers,
-    })
-  )
-  const last = events.at(-1)
-  assert.equal(last?.type, 'incomplete')
-  assert.match((last as { reason: string }).reason, /quoted claim/)
-  // and the answer text is not thrown away
-  assert.ok(events.some((e) => e.type === 'delta' && e.text.includes('משפט מומצא')))
-})
-
 test('an empty clean answer is INCOMPLETE, not success with nothing', async () => {
   // Round 2 measured the old chain returning exactly [{type:'done'}] here — zero
   // deltas, terminated as complete. The file's own header calls that state
@@ -373,41 +264,6 @@ test('an empty clean answer is INCOMPLETE, not success with nothing', async () =
   )
   assert.equal(events.at(-1)?.type, 'incomplete')
   assert.match((events.at(-1) as { reason: string }).reason, /no answer text/)
-})
-
-test('when EVERY tool fails, an invented quote can no longer slip through as done', async () => {
-  // The nastiest of round 2's findings: only non-error results were appended to the
-  // source pool, so a turn whose tools all failed had an empty pool — and the
-  // `pool ? verify : skip` guard then switched citation checking OFF entirely.
-  // Precisely when grounding is impossible, verification stopped happening.
-  const client = fakeClient([
-    {
-      content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'x' } }],
-      stop_reason: 'tool_use',
-    },
-    { content: [{ type: 'text', text: 'לפי הדוח, "משפט שהומצא לגמרי" ברבעון.' }], stop_reason: 'end_turn' },
-  ])
-  const handlers = {
-    async search_corpus() {
-      return { content: 'search failed: connection reset', isError: true }
-    },
-  }
-  const events = await collect(
-    runChatLoop({
-      client,
-      scope: { userId: 'u1' },
-      history: [],
-      message: 'מה קרה?',
-      todayIsrael: '2026-08-14',
-      handlers,
-    })
-  )
-  assert.equal(events.at(-1)?.type, 'incomplete')
-  assert.match((events.at(-1) as { reason: string }).reason, /every source lookup failed/)
-  assert.equal(
-    events.some((e) => e.type === 'done'),
-    false
-  )
 })
 
 test('a failing tool-registry import ends in an error event, never in silence', async () => {
@@ -434,47 +290,6 @@ test('a failing tool-registry import ends in an error event, never in silence', 
   assert.equal(terminals[0]?.type, 'error')
 })
 
-test('an invented quote in a PRE-TOOL preamble is caught, even when the final answer is clean', async () => {
-  // Round 3's blocker, measured: only the FINAL message was quote-checked, so a
-  // model could stream an invented quote before calling a tool, then answer
-  // innocuously, and the turn ended in `done` with the fabrication already on the
-  // user's screen. The facts are now taken at the point deltas are EMITTED.
-  const client = fakeClient([
-    {
-      content: [
-        { type: 'text', text: 'לפי הדוח, "הרווח שולש פי שלוש" ברבעון.' },
-        { type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'רווח' } },
-      ],
-      stop_reason: 'tool_use',
-    },
-    { content: [{ type: 'text', text: 'סיכום ללא ציטוט.' }], stop_reason: 'end_turn' },
-  ])
-  const handlers = {
-    async search_corpus() {
-      return { content: 'ההכנסות גדלו ברבעון השני, ללא אזכור לרווח' }
-    },
-  }
-  const events = await collect(
-    runChatLoop({
-      client,
-      scope: { userId: 'u1' },
-      history: [],
-      message: 'מה קרה?',
-      todayIsrael: '2026-08-14',
-      handlers,
-    })
-  )
-  // the preamble reached the user — that is real and is not hidden
-  assert.ok(events.some((e) => e.type === 'delta' && e.text.includes('הרווח שולש')))
-  // ...and the turn must NOT claim to have finished cleanly
-  assert.equal(events.at(-1)?.type, 'incomplete')
-  assert.equal((events.at(-1) as { code: string }).code, 'unverified_quote')
-  assert.equal(
-    events.some((e) => e.type === 'done'),
-    false
-  )
-})
-
 test('a turn whose whole answer arrived as pre-tool deltas is not called empty', async () => {
   // The paired round-3 warning: `anyTextEmitted` came from the final message
   // alone, so a turn that said everything before its tool call ended in
@@ -489,7 +304,11 @@ test('a turn whose whole answer arrived as pre-tool deltas is not called empty',
     },
     { content: [{ type: 'text', text: '' }], stop_reason: 'end_turn' },
   ])
-  const handlers = { async noop() { return { content: 'ok' } } }
+  const handlers = {
+    async noop() {
+      return { content: 'ok' }
+    },
+  }
   const events = await collect(
     runChatLoop({
       client,
@@ -510,13 +329,154 @@ test('every incomplete carries a machine-readable code, so a Hebrew surface need
   // The degradation law wants the failure visible in BOTH locales. Ticket 07
   // renders from `code`; `reason` is developer prose and must never be the
   // contract a surface string-matches on.
-  const client = fakeClient([
-    { content: [{ type: 'text', text: 'חלקי' }], stop_reason: 'max_tokens' },
-  ])
+  const client = fakeClient([{ content: [{ type: 'text', text: 'חלקי' }], stop_reason: 'max_tokens' }])
   const events = await collect(
     runChatLoop({ client, scope: { userId: 'u1' }, history: [], message: 'hi', todayIsrael: '2026-08-14' })
   )
   const last = events.at(-1)
   assert.equal(last?.type, 'incomplete')
-  assert.equal((last as { code: string }).code, 'stopped_early')
+  assert.equal((last as { code: string }).code, 'length_limit')
+})
+
+// ─── QUOTE VERIFICATION IS OFF (founder, 2026-08-14) ─────────────────────────
+// These tests assert what is TRUE now, not what we wish were true. The previous
+// five asserted that quotes are verified; keeping them green by weakening them
+// would be a test certifying an untrue premise, which app.md's M2 calls strictly
+// worse than no test — the mechanism meant to catch the recurrence would point
+// the wrong way. They are deleted and replaced by the honest pair below.
+
+test('REGRESSION: an ordinary Hebrew sentence is NOT degraded by its own abbreviations', async () => {
+  // The round-4 blocker, and the reason verification is off. In Hebrew the double
+  // quote is also the ACRONYM sign, so `בע"מ` and `ש"ח` in one sentence paired into
+  // a span that was never a quotation: the extractor returned `מ הסתכם ב-5 מיליון ש`
+  // from a correct, grounded answer, failed to verify it, burned a retry, and ended
+  // the turn `incomplete{unverified_quote}` citing a quote the model never wrote.
+  // Every Hebrew answer naming shekels twice did this — the happy path, not an edge.
+  const client = fakeClient([
+    {
+      content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'רווח' } }],
+      stop_reason: 'tool_use',
+    },
+    {
+      content: [
+        { type: 'text', text: 'הרווח הנקי של החברה בע"מ הסתכם ב-5 מיליון ש"ח, לעומת 3 מיליון ש"ח אשתקד.' },
+      ],
+      stop_reason: 'end_turn',
+    },
+  ])
+  const handlers = {
+    async search_corpus() {
+      return { content: 'נתוני הרווח לרבעון' }
+    },
+  }
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה הרווח?',
+      todayIsrael: '2026-08-14',
+      handlers,
+    })
+  )
+  assert.equal(events.at(-1)?.type, 'done', 'a correct Hebrew answer must not be reported degraded')
+  assert.ok(events.some((e) => e.type === 'delta' && e.text.includes('ש"ח')))
+  // and only ONE model call — no retry was burned chasing a phantom quote
+  assert.equal(events.filter((e) => e.type === 'incomplete').length, 0)
+})
+
+test('quote verification is OFF and says so — no answer is silently claimed as verified', async () => {
+  // The honest half. While the flag is false, an unfaithful quote is NOT caught,
+  // and nothing in the loop pretends otherwise: `unverifiedQuotes` is always 0, so
+  // the turn never invents a degradation it cannot justify — and never implies a
+  // guarantee it is not providing. Re-enabling means structural citations, not a
+  // better regex; the flag exists so this stays a decision rather than a drift.
+  assert.equal(QUOTE_VERIFICATION_ENABLED, false)
+
+  const client = fakeClient([
+    {
+      content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'x' } }],
+      stop_reason: 'tool_use',
+    },
+    { content: [{ type: 'text', text: 'לפי הדוח, "משפט שהומצא לגמרי" ברבעון.' }], stop_reason: 'end_turn' },
+  ])
+  const handlers = {
+    async search_corpus() {
+      return { content: 'טקסט אחר לגמרי' }
+    },
+  }
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה קרה?',
+      todayIsrael: '2026-08-14',
+      handlers,
+    })
+  )
+  // Documents the real exposure: this fabricated quote reaches the user unflagged.
+  assert.equal(events.at(-1)?.type, 'done')
+})
+
+test('every OTHER degradation still fires — turning the check off narrowed nothing else', async () => {
+  // A control. Disabling quote verification must not quietly relax the terminal
+  // honesty the previous three rounds bought.
+  const capTurn = {
+    content: [{ type: 'tool_use', id: 't', name: 'noop', input: {} }],
+    stop_reason: 'tool_use',
+  }
+  const handlers = {
+    async noop() {
+      return { content: 'ok' }
+    },
+  }
+  const cases: Array<[string, unknown[], string]> = [
+    [
+      'max_tokens',
+      [{ content: [{ type: 'text', text: 'חלקי' }], stop_reason: 'max_tokens' }],
+      'length_limit',
+    ],
+    ['empty answer', [{ content: [{ type: 'text', text: '' }], stop_reason: 'end_turn' }], 'no_answer_text'],
+    ['round-trip cap', [capTurn, capTurn, capTurn, capTurn, capTurn], 'round_trip_cap'],
+  ]
+  for (const [name, script, expectedCode] of cases) {
+    const events = await collect(
+      runChatLoop({
+        client: fakeClient(script),
+        scope: { userId: 'u1' },
+        history: [],
+        message: 'hi',
+        todayIsrael: '2026-08-14',
+        handlers,
+      })
+    )
+    const last = events.at(-1)
+    assert.equal(last?.type, 'incomplete', `${name} must still degrade`)
+    assert.equal((last as { code: string }).code, expectedCode, `${name} code`)
+  }
+})
+
+test('a turn whose every tool failed still ends incomplete, with or without quote checking', async () => {
+  const client = fakeClient([
+    { content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: {} }], stop_reason: 'tool_use' },
+    { content: [{ type: 'text', text: 'תשובה כלשהי.' }], stop_reason: 'end_turn' },
+  ])
+  const handlers = {
+    async search_corpus() {
+      return { content: 'search failed: connection reset', isError: true }
+    },
+  }
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה קרה?',
+      todayIsrael: '2026-08-14',
+      handlers,
+    })
+  )
+  assert.equal(events.at(-1)?.type, 'incomplete')
+  assert.equal((events.at(-1) as { code: string }).code, 'all_sources_failed')
 })

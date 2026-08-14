@@ -50,21 +50,50 @@ export const MODEL = 'claude-sonnet-5'
 export const MAX_ROUND_TRIPS = 4
 export const MAX_TOKENS = 4096
 
-// Straight or curly double quotes AND the Hebrew gershayim `״` (U+05F4) — the
-// punctuation this repo's corpus and system prompt ask the model to quote with.
-// Round 1's review caught the comment claiming gershayim while the character was
-// absent from the class: a Hebrew answer quoting `״…״` was never extracted, so it
-// was never verified, and it passed as though it had been checked. `citations.ts`
-// already normalises `״`; only the EXTRACTOR was blind to it.
+// ─── QUOTE VERIFICATION IS OFF. Read this before switching it back on. ───────
 //
-// The upper bound is a real, stated limit: a quote longer than MAX_QUOTE_CHARS is
-// not extracted and therefore not verified. It is set high enough to cover any
-// quote the corpus's own chunking can produce (~2,200 chars at the largest split).
-const MAX_QUOTE_CHARS = 2400
-const QUOTE_RE = new RegExp(`["“״][^"“”״]{4,${MAX_QUOTE_CHARS}}["”״]`, 'g')
+// FOUNDER DECISION 2026-08-14, at round 4 of this branch's cold review. Not a
+// simplification and not a TODO: the check as built is WRONG FOR HEBREW, which is
+// this product's primary language, and being off is strictly better than being on
+// and wrong.
+//
+// WHY. In Hebrew the double quote is also the ACRONYM sign — ש״ח (shekels),
+// בע״מ (Ltd), דו״ח (report), מנכ״ל (CEO). Any punctuation-based extractor pairs
+// two ordinary abbreviations into a span that was never a quotation. Measured on
+// the real sentence `הרווח הנקי של החברה בע"מ הסתכם ב-5 מיליון ש"ח.`, the
+// extractor returned `מ הסתכם ב-5 מיליון ש` — from an answer that was correct and
+// faithfully grounded. That fabrication then failed verification, spent a whole
+// extra model call retrying, and ended the turn `incomplete{unverified_quote}`.
+// **Every Hebrew answer naming shekels twice did this**, so the failure sat on the
+// happy path, not an edge.
+//
+// THE COLLISION IS ORIGINAL, not a regression: the first version of this regex
+// (`["“][^"“”]{4,400}["”]`, before any review round) matched that sentence too.
+// Adding `״` at round 1 widened it. Four review rounds went by before anyone ran
+// an ordinary Hebrew sentence through it — while three of those rounds hardened
+// the machinery DOWNSTREAM of this check, making a systematically wrong signal
+// more reliably visible.
+//
+// WHY NOT A BETTER REGEX. `app.md`: *when a decision rests on a natural-language
+// classifier over an open vocabulary, buy VISIBLE FAILURE, not a longer word
+// list.* Adding a character to a class is the longer word list. Hebrew genuinely
+// spells quotation and abbreviation with the same mark, so no character class
+// separates them. The real fix is to stop INFERRING quotes from prose: have the
+// model return citations structurally, where there is no ambiguity to classify.
+// That is a change to the model contract and is its own ticket.
+//
+// WHAT IS TRUE WHILE THIS IS OFF, and it must be said out loud rather than
+// implied: a quote in an answer is NOT verified against its source. The fencing,
+// the scoping and the terminal-event honesty are all unaffected — `unverifiedQuotes`
+// is simply always 0, so the loop never invents a degradation it cannot justify.
+// Tracked in `docs/open-findings.md` and in ticket 06.
+export const QUOTE_VERIFICATION_ENABLED = false
 
-function extractQuotes(text: string): string[] {
-  return (text.match(QUOTE_RE) ?? []).map((m) => m.slice(1, -1))
+function extractQuotes(_text: string): string[] {
+  if (!QUOTE_VERIFICATION_ENABLED) return []
+  // Deliberately unreachable until citations are structural — see above. Left as a
+  // marker of where the replacement lands, NOT as a regex waiting to be re-enabled.
+  return []
 }
 
 /**
@@ -164,9 +193,13 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // the second is an ordinary ungrounded answer, which is the prompt's problem.
   let anyToolRan = false
   let anySourceSurvived = false
-  // EVERY delta this turn sends, accumulated at the one point they are yielded.
-  // The terminal facts are derived from THIS, not from the last API response, so
-  // no text can reach the user without having been quote-checked.
+  // EVERY delta this turn sends, accumulated at the one point they are yielded, so
+  // `anyTextEmitted` describes what the USER SAW rather than what the last API
+  // response happened to contain. It does NOT mean every delta is quote-checked:
+  // verification is off (see the flag above), and even when it returns, the check
+  // necessarily runs after the deltas are already on screen — what it can change is
+  // the terminal event, not the text. Round 4 caught the earlier wording here
+  // claiming the stronger thing.
   let emittedText = ''
 
   for (let roundTrip = 0; roundTrip < MAX_ROUND_TRIPS; roundTrip++) {

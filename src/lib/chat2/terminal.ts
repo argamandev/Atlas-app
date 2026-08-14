@@ -40,8 +40,28 @@
  * of. The code is the contract; `reason` stays as the developer-facing fallback
  * and for logs.
  */
+// The four non-clean stops are SEPARATE codes, not one `stopped_early`. Round 4:
+// collapsing them forces a Hebrew surface to show one message for four materially
+// different situations — "too long", "the model declined", "it paused", "unknown"
+// — or to string-match the English `reason` these codes exist to replace. And
+// splitting a code AFTER ticket 07 ships against it is a breaking change.
 export type IncompleteCode =
-  'round_trip_cap' | 'all_sources_failed' | 'unverified_quote' | 'stopped_early' | 'no_answer_text'
+  | 'round_trip_cap'
+  | 'all_sources_failed'
+  | 'unverified_quote'
+  | 'length_limit'
+  | 'model_refused'
+  | 'model_paused'
+  | 'stopped_unknown'
+  | 'no_answer_text'
+
+/** The stop reason a non-clean stop maps to. One place, so code and prose agree. */
+export function stopReasonCode(stop: string | null): IncompleteCode {
+  if (stop === 'max_tokens') return 'length_limit'
+  if (stop === 'refusal') return 'model_refused'
+  if (stop === 'pause_turn') return 'model_paused'
+  return 'stopped_unknown'
+}
 
 /** The terminal events. Exactly one ends every turn, and it is always last. */
 export type TerminalEvent = { type: 'done' } | { type: 'incomplete'; code: IncompleteCode; reason: string }
@@ -104,7 +124,7 @@ export function decideTerminal(facts: TerminalFacts): TerminalEvent {
   if (!CLEAN_STOPS.has(facts.stopReason ?? '')) {
     return {
       type: 'incomplete',
-      code: 'stopped_early',
+      code: stopReasonCode(facts.stopReason),
       reason: stopReasonExplanation(facts.stopReason),
     }
   }

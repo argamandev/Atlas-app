@@ -145,7 +145,10 @@ test('EXHAUSTIVE: every incomplete carries a known CODE — the locale-safe cont
     'round_trip_cap',
     'all_sources_failed',
     'unverified_quote',
-    'stopped_early',
+    'length_limit',
+    'model_refused',
+    'model_paused',
+    'stopped_unknown',
     'no_answer_text',
   ])
   const used = new Set<string>()
