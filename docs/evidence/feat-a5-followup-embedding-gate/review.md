@@ -52,10 +52,31 @@ RECURRENCE: no
   answer reading as complete — not about error text entering the answer channel. The half of ticket
   06's premise that concerns error framing holds; the half that concerns completeness does not.
 
-## Author's answers
+## Author's answers — all twelve accepted, none disputed
 
-Pending — round 1 has just landed. The two `RECURRENCE: yes` findings oblige the author under
-ADR-0002: `Degradation must be VISIBLE` must gain a mechanism one tier stronger in the same commit
-as the fix, or be marked `UNENFORCEABLE` with a stated reason. It currently declares
-`ENFORCED partially` over four surfaces (`retrieve`, `indexHealth`, `reindex`, `syncFilings`),
-none of which is this one.
+Every finding was re-verified against the code before being acted on. All twelve were real,
+including two that were the author's own errors from earlier in this same ship (the "SSE" line and
+the ticket's "Nothing open"). Fixed in `44d50d0` (code + law) and `2defc79` (docs).
+
+**The two `RECURRENCE: yes` findings are paid for in `44d50d0`, the same commit as the fix**, as
+ADR-0002 requires. `Degradation must be VISIBLE` moves from `ENFORCED partially` / four tests to
+**two tiers**: `impossible` for the chat stream — `done` and `incomplete` are now distinct terminal
+event types, so "complete but truncated" cannot be expressed rather than merely being checked for
+— plus `test` over six surfaces (`retrieve`, `indexHealth`, `reindex`, `syncFilings`, `chat2/loop`,
+`chat2/tools`). A new surface still gets `none`, stated. The case's story went to
+`case-history/app.md#stubs-on-designed-slots`; the rule keeps only the law.
+
+| Finding | What was done |
+| --- | --- |
+| BLOCKER `loop.ts:122` stop_reason | `CLEAN_STOPS` is now an explicit allowlist (`end_turn`, `stop_sequence`); `max_tokens`/`refusal`/`pause_turn`/unknown each end in `incomplete` with their own reason. Partial text is still delivered — hiding it would be its own invisible failure. |
+| BLOCKER `loop.ts:202` terminal event | `degraded` is GONE from the union. Every early ending is `incomplete`; `done` is emitted only on a clean stop with no failed citation. `loop.test.ts` now pins exactly-one-terminal-event, last, across clean / max_tokens / round-trip-cap. |
+| WARNING `loop.ts:33` QUOTE_RE | Gershayim `״` added to both delimiter classes; bound raised to a NAMED `MAX_QUOTE_CHARS = 2400` above the corpus's largest chunk, with the residual limit stated rather than implied. |
+| WARNING `loop.ts:130` retry on last round-trip | Retry is now conditional on a round-trip remaining; without one the answer is emitted and terminated with the CITATION reason, not the cap's. |
+| WARNING `tools.ts:4` false law 1 | Header rewritten to what is true: `userId`/`workspaceId` are closure-only, `companyId` IS model-settable on three tools, and that is safe **only** because they read the shared corpus — with the condition under which the argument evaporates spelled out. |
+| WARNING `route.ts:86` raw companyId into the system prompt | All three client-supplied ids are uuid-gated **where scope is built**, not at the interpolation (M3.1) — so the prompt, the handlers and the queries are all covered by one guard. |
+| WARNING `tools.ts:31` no tests | New `tools.test.ts`, 11 cases, via a `ToolDeps` seam. Drives hostile fence delimiters through a chunk BODY and a chunk LABEL, the supabase-error branch, absent-vs-zero, and both `read_workspace` refusals. `db/workspaces` became a lazy import because `server-only` made the registry unloadable from a test process. |
+| WARNING `citations.ts:38` overstated scope | Docstring now states the actual property — "quoted from something shown this turn", not "from the document named beside it" — at both the function and its call site, and the real gap is filed in `docs/open-findings.md`. |
+| NIT `ARCHITECTURE.md` SSE | Corrected to NDJSON with the content-type and framing spelled out, since ticket 07's client is built from that line. |
+| NIT `systemPrompt.ts` phantom cache | **Deliberately not "fixed" by adding a breakpoint.** Measured: the static block is ~361 tokens against Sonnet's 1,024-token minimum, so `cache_control` there could not engage — enforcement in appearance only. The comment now says so and the cost budget is explicitly forbidden from leaning on it. Filed in `open-findings.md`. |
+| NIT `tools.ts:55` `as never` | Now `as unknown as CorpusDb`, the repo's existing idiom, which still checks the target shape. |
+| NIT ticket 06 "Nothing open" | Replaced with the two acceptance items that were substituted or unmeasured: cost was never priced, and route tests were substituted by unit + structural tests. |
