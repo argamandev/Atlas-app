@@ -133,6 +133,28 @@ export interface ChatMsg {
    * Sanitise on READ like `projectContext`: only `true` counts.
    */
   truncated?: boolean | null
+  /**
+   * The CALL this answer was grounded in did not fit in one turn, so the model
+   * read a prefix of it (ticket 08b, whole-call injection). PERSISTED, for
+   * exactly the reason its two neighbours are.
+   *
+   * A DIFFERENT FACT FROM `truncated`, and merging them would state something
+   * untrue. `truncated` says the ANSWER stopped early; this says the INPUT was
+   * partial. An answer can be complete, correct and saved, and still have been
+   * written from two thirds of the call the chip above it names — so the two are
+   * separate fields and can both be set.
+   *
+   * It was session-only in this branch's first draft, on the reasoning that
+   * "nothing re-derives it on reload, and inventing it would be worse than
+   * silence". Cold review rejected that and was right: this is a MEASURED fact
+   * the server reported on its `grounding` event, so persisting it is recording
+   * a measurement, not inventing one — and the alternative is that one refresh
+   * turns "based on part of the call" into an answer that looks whole, which is
+   * the same defect `truncated` exists to close, arriving through a new door.
+   *
+   * Sanitise on READ like the others: only `true` counts.
+   */
+  callTruncated?: boolean | null
 }
 
 export interface Conversation {

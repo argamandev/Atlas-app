@@ -49,6 +49,19 @@ export function sanitizeTruncated(raw: unknown): boolean {
 }
 
 /**
+ * Was the CALL this stored answer was grounded in read only in part? Read side.
+ *
+ * Its own function rather than a second call to `sanitizeTruncated`, even though
+ * the body is identical today. These two answer different questions — "the answer
+ * stopped early" and "the input was partial" — and a shared reader is how a later
+ * change to one silently redefines the other. The names are what keep the two
+ * facts apart at every call site, which is the whole reason they are two fields.
+ */
+export function sanitizeCallTruncated(raw: unknown): boolean {
+  return raw === true
+}
+
+/**
  * Should this message be STORED as truncated? Write side.
  *
  * Two sources, and both are needed. `errorKind` is this session's live failure

@@ -150,3 +150,17 @@ test('the default budget stays inside the spec §2.3 range at BOTH measured rati
   assert.ok(CALL_BUDGET_CHARS / 4.03 >= 6_000, 'below the range at the lean ratio')
   assert.ok(CALL_BUDGET_CHARS / 3.6 <= 18_000, 'above the range at the fat ratio')
 })
+
+test('a call whose FIRST line alone busts the budget says nothing fit, not that it is empty', () => {
+  // Review finding. "Nothing fit" and "there is nothing" are different facts, and
+  // the first version gave them the same sentence: the prompt said the call had no
+  // transcribed lines while `truncated` was true, so the surface simultaneously
+  // said the answer was based on the first part of it.
+  const built = buildCallBlock(
+    call({ sections: [{ lines: [{ id: 'L0001', speakerId: 's1', text: 'x'.repeat(500) }] }] }),
+    50
+  )
+  assert.equal(built.truncated, true)
+  assert.ok(!built.text.includes('no transcribed lines yet'), built.text)
+  assert.ok(built.text.includes('NOT been shown any of it'), built.text)
+})

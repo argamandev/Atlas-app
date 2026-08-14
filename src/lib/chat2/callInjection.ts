@@ -122,13 +122,23 @@ export function buildCallBlock(call: CallForInjection, budgetChars: number = CAL
   // text, not a constant.
   const label = [company, quarter, date && `(${date})`].filter(Boolean).join(' — ') || 'investor call'
 
+  // THREE STATES, NOT TWO, and conflating the last two was a review finding. A
+  // call whose very first line is longer than the whole budget keeps nothing —
+  // and the first version then told the model "(this call has no transcribed
+  // lines yet)" while the surface, reading the same build's `truncated: true`,
+  // said the answer was "based on the first part of it". The prompt and the
+  // notice contradicted each other about a call that does have lines. "Nothing
+  // fit" and "there is nothing" are different facts and now say different things.
+  const dropped = lines.length - kept.length
   const body =
     kept.length > 0
       ? kept.join('\n') +
         (truncated
-          ? `\n\n[This call was longer than one turn can carry — ${lines.length - kept.length} of ${lines.length} lines are NOT shown. Say so if the answer depends on the part you cannot see.]`
+          ? `\n\n[This call was longer than one turn can carry — ${dropped} of ${lines.length} lines are NOT shown. Say so if the answer depends on the part you cannot see.]`
           : '')
-      : '(this call has no transcribed lines yet)'
+      : truncated
+        ? `[None of this call's ${lines.length} lines fit in one turn, so you have NOT been shown any of it. Say that you cannot read this call rather than answering from anything else.]`
+        : '(this call has no transcribed lines yet)'
 
   return {
     text: fenceSource({ kind: 'transcript', label, content: body }),

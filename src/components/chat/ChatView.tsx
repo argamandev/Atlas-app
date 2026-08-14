@@ -16,6 +16,7 @@ import { PencilIcon, ProjectsIcon, WorkspacesIcon, AgentsIcon } from '@/componen
 import { streamChat } from '@/lib/api/chat'
 import type { ChatSource } from '@/lib/chat/grounding'
 import {
+  sanitizeCallTruncated,
   sanitizeContextStatus,
   sanitizeTruncated,
   truncatedForPersist,
@@ -95,9 +96,13 @@ interface Msg {
    * chip above it names. Merging it into either neighbour would tell the user
    * their answer was cut off, which is a different and untrue statement.
    *
-   * Session-only, like `errorKind`: it is a fact about how THIS turn was built.
-   * A reopened thread does not restate it, because nothing re-derives it and
-   * inventing it on reload would be worse than silence.
+   * PERSISTED, and the first draft of this branch had it session-only with a
+   * comment arguing that a reopened thread should stay silent because "nothing
+   * re-derives it". Cold review called that a BLOCKER and it was right: the
+   * server MEASURED this and said so on its `grounding` event, so storing it
+   * records a measurement rather than inventing one — and the version being
+   * defended was one refresh away from showing a partly-grounded answer as a
+   * whole one, which is exactly what `truncated` above exists to prevent.
    */
   callTruncated?: boolean
 }
@@ -445,6 +450,10 @@ export function ChatView({
             // partial text persists as an ordinary complete answer, because it
             // has content and therefore survives the filter above.
             truncated: truncatedForPersist(m),
+            // The INPUT-partial fact, carried through unchanged like
+            // `projectContext`. Prior turns keep whatever they were saved with,
+            // whether they were written this session or read back from storage.
+            callTruncated: m.callTruncated ?? null,
           })),
         { role: 'user' as const, content: text },
         // The stream RESOLVED — which under v2 is no longer the same question as
@@ -464,6 +473,10 @@ export function ChatView({
           // history mapper, where the identical inline guess had just been
           // removed for missing a field. One function decides "is this partial".
           truncated: truncatedForPersist({ incomplete: outcome.incomplete }),
+          // Taken from the server's `grounding` event, which is a measurement —
+          // so this survives a reload instead of dying with the session and
+          // leaving a partly-grounded answer looking whole.
+          callTruncated: outcome.callTruncated,
         },
       ]
       let cid = conversationId
@@ -529,6 +542,7 @@ export function ChatView({
         content: m.content,
         projectContext: sanitizeContextStatus(m.projectContext),
         truncated: sanitizeTruncated(m.truncated),
+        callTruncated: sanitizeCallTruncated(m.callTruncated),
       }))
     )
     // Last, and only on success: a rejected fetch must leave the surface where

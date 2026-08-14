@@ -17,7 +17,15 @@
 // authenticated: `/api/chat/v2` resolves a user before anything else runs.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import 'server-only'
+// NO `import 'server-only'`, and that is the same decision `tools.ts` documents
+// one directory over rather than an oversight. `server-only` resolves ONLY
+// inside Next's build, so a static import makes this module unloadable from any
+// plain node process — which is exactly what `scripts/measure-chat-answer.mjs`
+// is, and it failed on precisely this while measuring the stuffed turn. The
+// loop's dynamic import turned that into a visible `error` event rather than an
+// ungrounded answer (the honesty machinery working), but a module the
+// measurement harness cannot load is a module whose cost cannot be measured.
+// What keeps this server-side is that only the loop imports it, and only lazily.
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Transcript } from '@/lib/types'
 import type { CallForInjection } from './callInjection'

@@ -33,6 +33,16 @@ interface Msg {
   /** v2 only: the answer is real but not whole, with the reason as a CODE. */
   incomplete?: ClientIncompleteCode | null
   /**
+   * v2 only: the CALL this answer is grounded in did not fit in one turn, so the
+   * model read a prefix of it. A fact about the INPUT, not about the answer —
+   * see the same field on ChatView's `Msg` for why the two must not be merged.
+   *
+   * Not persisted here, and that is not the same judgement call ChatView's is:
+   * this panel stores no thread at all, so there is no reload for the fact to
+   * survive. If it ever persists, this needs ChatView's treatment.
+   */
+  callTruncated?: boolean
+  /**
    * The failure, held as the THROWN VALUE and kept out of `content`.
    *
    * This panel used to do `setLast({ content: (err as Error).message })`, which
@@ -186,12 +196,22 @@ export function TranscriptChatPanel({
     // TypeScript narrows a `let x: T | null = null` back to `null` when every
     // assignment lives in a closure, and the checks below would then read as
     // unintentional comparisons.
-    const outcome: { incomplete: ClientIncompleteCode | null; error: string | null } = {
+    const outcome: {
+      incomplete: ClientIncompleteCode | null
+      error: string | null
+      callTruncated: boolean
+      // `source` lives in here for the SAME reason the others do, which the
+      // comment above states and the first draft then ignored two lines later:
+      // it is written only inside the event closure, so as a `let … = null` it
+      // narrows back to `null` and the `setLast` below reads as a constant.
+      source: ChatSource | null
+    } = {
       incomplete: null,
       error: null,
+      callTruncated: false,
+      source: null,
     }
     try {
-      let source: ChatSource | null = null
       if (grounding) {
         // A GROUNDING V2 CANNOT CARRY IS REFUSED, NOT DROPPED. Nothing on the
         // company page can produce a marked passage or a snip — there is no
@@ -200,8 +220,15 @@ export function TranscriptChatPanel({
         // reaching the model the day a document pane is added to a v2-grounded
         // host: the thumbnail would still render in the user's own turn, above an
         // answer that never saw it. Refusing says so instead.
-        if (usedDoc || usedSnips.length > 0) {
-          throw new Error('this chat cannot read report pages or snips yet')
+        //
+        // `liveContext` IS IN THIS LIST, and leaving it out was a review finding.
+        // The prop's own docstring names it as one of the two groundings v2
+        // cannot carry — so the one input the comment predicted would be lost was
+        // the one the guard did not check. It is not reachable today either (no
+        // live host passes `grounding`), and that is precisely the argument that
+        // was already wrong once here.
+        if (usedDoc || usedSnips.length > 0 || liveContext !== undefined) {
+          throw new Error('this chat cannot read report pages, snips or live captions yet')
         }
         await streamChatV2({ message: outMessage, grounding, history }, (e) => {
           switch (e.type) {
@@ -211,7 +238,16 @@ export function TranscriptChatPanel({
               scrollToEnd()
               break
             case 'grounding':
-              source = e.source
+              outcome.source = e.source
+              // BOTH halves of the event, not just the chip. Recording `source`
+              // and dropping `state` renders a call read in part exactly like a
+              // call read whole — the degradation this event exists to carry,
+              // discarded at the one surface that receives it. Unreachable
+              // today (only the company page passes a grounding, and a company
+              // grounding never truncates), but the prop takes the whole
+              // `Grounding` union, so nothing except today's single call site
+              // keeps it that way.
+              outcome.callTruncated = e.state === 'truncated'
               break
             case 'incomplete':
               outcome.incomplete = e.code
@@ -246,9 +282,15 @@ export function TranscriptChatPanel({
             scrollToEnd()
           }
         )
-        source = res.source
+        outcome.source = res.source
       }
-      setLast({ content: full, source, incomplete: outcome.incomplete, streaming: false })
+      setLast({
+        content: full,
+        source: outcome.source,
+        incomplete: outcome.incomplete,
+        callTruncated: outcome.callTruncated,
+        streaming: false,
+      })
     } catch (err) {
       // NEVER `content: err.message`. Whatever streamed in is a real answer and
       // stays on screen; the failure is said BESIDE it (rules/app.md — a raw
@@ -365,6 +407,13 @@ export function TranscriptChatPanel({
                   Hebrew-first, and picking a sentence by string-matching English
                   prose is the classifier app.md forbids. Beside the answer, not
                   instead of it. */}
+              {/* The INPUT was partial — a different claim from "the answer was
+                  cut off", and both can be true at once. */}
+              {m.callTruncated && !m.streaming && (
+                <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                  {dict.chat.callTruncated}
+                </p>
+              )}
               {m.incomplete && !m.streaming && (
                 <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
                   {incompleteMessage(dict.chat.incomplete, m.incomplete)}
