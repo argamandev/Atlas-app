@@ -79,10 +79,17 @@ test('every test file in the tree is registered in the npm test script', () => {
  * This is the same guard one tier out: `npm test` fails, rather than a reviewer
  * happening to diff a 100-line list by eye.
  *
- * STATED LIMIT: this proves each registered path is MENTIONED in the index. It
- * does not prove the index is free of extra names, and deliberately so — the
- * file legitimately discusses `correction.test.ts` and others in prose around
- * the list, so an exact set comparison would fail on its own commentary.
+ * STATED LIMITS, both of them:
+ *
+ *   1. This proves each registered path is MENTIONED in the index, not that the
+ *      index is free of extra names — deliberately, because the file legitimately
+ *      discusses test files in prose around the list, so an exact set comparison
+ *      would fail on its own commentary.
+ *   2. `doc.includes(rel)` is a substring test, so a registered path that is a
+ *      SUFFIX of another registered path would be satisfied by the other's entry
+ *      and pass without an entry of its own. Verified at cold review: zero such
+ *      pairs exist among the current entries. Named here rather than left for
+ *      someone to discover, because it is the one way this can pass falsely.
  */
 test("ARCHITECTURE.md's test index names every registered test file", () => {
   const script: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts.test

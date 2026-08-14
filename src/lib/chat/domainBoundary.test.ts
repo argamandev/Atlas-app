@@ -29,18 +29,27 @@ import { join } from 'node:path'
  * Keep it empty. An entry is permitted only with a reason AND the work that
  * closes it, both written beside the name.
  *
- * STATED LIMIT, corrected at cold review. The first version matched only
- * `import … from '…'` while its own comment claimed a dynamic
- * `await import('@/lib/api/…')` would fail the test. It would not have: dynamic
- * imports AND re-exports (`export { X } from '@/lib/api/y'`) both passed
- * silently. That is a mechanism advertising coverage in the unsafe direction —
- * M1 exactly, and worse than no guard, because the next reader trusts it.
+ * STATED LIMIT — and the history of this paragraph IS the limit's justification.
+ * It has been wrong twice, both times in the same direction: claiming coverage
+ * the pattern did not have.
  *
- * The pattern now matches all three forms. What remains genuinely invisible: a
- * specifier assembled from a variable (`import(BASE + '/chat')`). No such
- * construction exists in this directory today, and it is named rather than
- * implied. Comments and strings are left intact, so a `lib/api` path written
- * inside an import-shaped comment would fail — the safe direction.
+ *   v1 matched `import … from` only, while claiming dynamic imports would fail.
+ *   v2 added `export … from` and `import(…)`, and claimed completeness — missing
+ *      the bare side-effect `import '@/lib/api/chat'`, caught at round-2 review.
+ *
+ * That is M1 twice inside one branch, so the prose is no longer where the claim
+ * lives: the four forms are asserted by name in `the pattern catches every static
+ * way to reach transport`, and this paragraph only records what is left.
+ *
+ * WHAT IS GENUINELY NOT COVERED, all three named rather than implied:
+ *   1. A specifier assembled from a variable (`import(BASE + '/chat')`). No such
+ *      construction exists in this directory.
+ *   2. This file itself — see `SELF`. A transport import added HERE is invisible.
+ *      The exclusion is deliberate (the file holds the fixtures) and the hole is
+ *      real; it is bounded by the fact that a test file never reaches production.
+ *   3. Comments and strings are NOT stripped, so an import-shaped line inside a
+ *      comment fails the test. That is the safe direction, and it is the reason
+ *      `SELF` has to exist at all.
  */
 
 const DIR = 'src/lib/chat'
@@ -54,12 +63,17 @@ const ALLOWED = new Set<string>([])
 const TRANSPORT_PATH = String.raw`(@\/lib\/api\/[^'"]+|\.\.\/api\/[^'"]+)`
 
 /**
- * All three ways a module can reach transport:
- *   import … from '…'   ·   export … from '…'   ·   import('…')
- * The first version matched only the first, while claiming to catch the third.
+ * All FOUR static ways a module can reach transport:
+ *   import … from '…'   ·   export … from '…'   ·   import('…')   ·   import '…'
+ *
+ * Version 1 matched only the first while claiming the third. Version 2 added the
+ * second and third and claimed completeness — and missed the fourth, the bare
+ * side-effect import, which cold review caught. Twice in a row the docstring
+ * outran the pattern, which is why the fixtures below now assert each form by
+ * name rather than the prose asserting it.
  */
 const TRANSPORT_IMPORT = new RegExp(
-  String.raw`(?:(?:^\s*(?:import|export)\s[^;]*?from\s*)|(?:\bimport\s*\(\s*))['"]${TRANSPORT_PATH}['"]`,
+  String.raw`(?:(?:^\s*(?:import|export)\s[^;]*?from\s*)|(?:^\s*import\s*)|(?:\bimport\s*\(\s*))['"]${TRANSPORT_PATH}['"]`,
   'gm'
 )
 
@@ -113,7 +127,7 @@ test('the two modules this rule was written for are actually covered', () => {
   }
 })
 
-test('the pattern catches all three ways to reach transport', () => {
+test('the pattern catches every static way to reach transport', () => {
   // GUARDS THE GUARD (cold review, 08a). The scan is only as good as this
   // regex, and its first version silently missed two of these three while the
   // docstring claimed otherwise. Asserted directly, because a file scan that
@@ -125,6 +139,9 @@ test('the pattern catches all three ways to reach transport', () => {
     `export { parseChatEvent } from '@/lib/api/chat2'`,
     `const m = await import('@/lib/api/chat')`,
     `import x from '../api/chat'`,
+    `import '@/lib/api/chat'`, // bare side-effect import — missed by versions 1 AND 2
+    `import '../api/chat'`,
+    `export * from '@/lib/api/chat2'`,
   ]
   for (const line of shouldMatch) {
     assert.match(line, new RegExp(TRANSPORT_IMPORT.source), `pattern missed: ${line}`)
