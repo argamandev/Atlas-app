@@ -35,15 +35,22 @@ shares this retrieval door. **Founder call:** an index-tuning attempt didn't lan
 a DEDICATED PARALLEL SESSION owns the real fix (grill + PRD) — pick it up if that's you, otherwise
 treat retrieval as "works, imperfectly."
 
-**Next: ticket 10 (C1, agent tables + create flow), in a DEDICATED session — founder call 2026-08-14.**
-Phase C was always parallel to Phase B (spec §6, "start after A4"), and 10's only `Blocked by:` is 04.
-Agents is the longest remaining chain (10 → 11 → 12 → 13) and the only surface still a stub, so it
-starts now. **Ticket 07 is unblocked and NOT cancelled — only deprioritised**; when Phase B resumes,
-07 → 08 → 09 keeps its order. Until then `/api/chat/v2` stays built-and-unwired behind the old route.
+**The order is 10 → 07 → 11 → 12 → 13** (founder call 2026-08-14). Not the map's Phase-B-first
+sequence, and not an open-ended Phase C run either:
 
-Two ticket-06 gaps ride along, declined rather than missed (`DECISIONS.md`): Railway's
-`ANTHROPIC_API_KEY` is unverified (a 401 is the first thing to check whenever 07 deploys) and no real
-answer has been priced against the $0.06 budget.
+- **Ticket 10 (C1, agent tables + create flow) is the next mission, in a DEDICATED session.** Phase C
+  was always parallel to Phase B (spec §6, "start after A4"); 10's only `Blocked by:` is 04, and it
+  touches no retrieval and no tool registry. Agents is the longest remaining chain and the only
+  surface still a stub, so it starts now.
+- **Then ticket 07, before ticket 11.** 07 is the cheapest place the shared tool registry (§2.2, "one
+  tool registry, two drivers") reaches a real user: it is what proves the tool loop against the real
+  corpus, prices an answer against the $0.06 budget, and exercises Railway's `ANTHROPIC_API_KEY` —
+  all three of which ticket 11, the most expensive slice in the map, otherwise inherits unproven.
+- **`10 → 11` with 07 unbuilt is the one ordering to refuse.** It is written into ticket 11's
+  `Blocked by:`.
+
+`/api/chat/v2` stays built-and-unwired behind the old route until 07 runs. 08 → 09 keep their order
+whenever Phase B resumes after that.
 
 Also open (map ticket 13): leftover cleanup, `profiles`/`access_requests` policy narrowing, PUT
 admin-gate. 102 of 1,374 filings unstorable under `unique (company_id, quarter, doc_type)` — A5's

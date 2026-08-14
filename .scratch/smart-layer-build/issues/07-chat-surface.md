@@ -1,7 +1,15 @@
 # B1b · Chat surface — @mentions + search mode
 
-Status: ready-for-agent — fully unblocked, DEPRIORITISED behind Phase C by founder call 2026-08-14.
+Status: ready-for-agent — **scheduled BETWEEN ticket 10 and ticket 11** (founder call 2026-08-14,
+refined the same day). Fully unblocked; it is sequenced, not deprioritised.
 Blocked by: 06 (landed 2026-08-14)
+
+**This slice now carries ticket 11's de-risking, and that is its real job.** It is the first and
+cheapest place the shared tool registry (§2.2, "one tool registry, two drivers") serves a real user
+in production. Three things it is expected to answer, all of which ticket 11 otherwise inherits
+blind: does the tool loop behave against the real 98K-chunk corpus, what does an answer actually
+cost against the $0.06 budget, and does Railway's `ANTHROPIC_API_KEY` work. Measure all three and
+file the numbers — they are not a side effect of this ticket, they are part of its output.
 
 **Read before starting — the two 2026-08-14 corrections.**
 
