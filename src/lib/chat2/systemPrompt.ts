@@ -18,9 +18,12 @@
 // this file and reported ~660 tokens of headroom, which was wrong in the direction
 // that matters. A breakpoint on the system block covers the TOOL DEFINITIONS too
 // (`toolDefs.ts`, 2,095 serialized chars ≈ 520 tokens), so the cacheable prefix is
-// ~880 against Sonnet's 1,024 minimum: about **150 tokens short, not 660**. Close
-// enough that one more tool or a few more prompt lines crosses it — so re-measure
-// rather than re-reading this comment. **Until it is crossed, the §5 cost budget
+// ~880 against Sonnet's 1,024 minimum: **on the order of 100–175 tokens short, not
+// 660**. The range rather than a point is deliberate — the two blocks measure
+// 3.60 and 4.03 chars/token, so any single ratio gives a different answer, and
+// round 3 rightly called the first "about 150" an estimate wearing a
+// measurement's clothes. Close enough that one more tool crosses it, so RE-MEASURE
+// with a token counter rather than trusting this comment. **Until it is crossed, the §5 cost budget
 // must not be justified by prompt caching.** Filed in `docs/open-findings.md`.
 // ─────────────────────────────────────────────────────────────────────────────
 

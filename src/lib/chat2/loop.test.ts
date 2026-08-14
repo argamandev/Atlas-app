@@ -433,3 +433,90 @@ test('a failing tool-registry import ends in an error event, never in silence', 
   assert.equal(terminals.length, 1)
   assert.equal(terminals[0]?.type, 'error')
 })
+
+test('an invented quote in a PRE-TOOL preamble is caught, even when the final answer is clean', async () => {
+  // Round 3's blocker, measured: only the FINAL message was quote-checked, so a
+  // model could stream an invented quote before calling a tool, then answer
+  // innocuously, and the turn ended in `done` with the fabrication already on the
+  // user's screen. The facts are now taken at the point deltas are EMITTED.
+  const client = fakeClient([
+    {
+      content: [
+        { type: 'text', text: 'לפי הדוח, "הרווח שולש פי שלוש" ברבעון.' },
+        { type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'רווח' } },
+      ],
+      stop_reason: 'tool_use',
+    },
+    { content: [{ type: 'text', text: 'סיכום ללא ציטוט.' }], stop_reason: 'end_turn' },
+  ])
+  const handlers = {
+    async search_corpus() {
+      return { content: 'ההכנסות גדלו ברבעון השני, ללא אזכור לרווח' }
+    },
+  }
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה קרה?',
+      todayIsrael: '2026-08-14',
+      handlers,
+    })
+  )
+  // the preamble reached the user — that is real and is not hidden
+  assert.ok(events.some((e) => e.type === 'delta' && e.text.includes('הרווח שולש')))
+  // ...and the turn must NOT claim to have finished cleanly
+  assert.equal(events.at(-1)?.type, 'incomplete')
+  assert.equal((events.at(-1) as { code: string }).code, 'unverified_quote')
+  assert.equal(
+    events.some((e) => e.type === 'done'),
+    false
+  )
+})
+
+test('a turn whose whole answer arrived as pre-tool deltas is not called empty', async () => {
+  // The paired round-3 warning: `anyTextEmitted` came from the final message
+  // alone, so a turn that said everything before its tool call ended in
+  // "the model returned no answer text" with that text already on screen.
+  const client = fakeClient([
+    {
+      content: [
+        { type: 'text', text: 'התשובה המלאה נמצאת כאן.' },
+        { type: 'tool_use', id: 't1', name: 'noop', input: {} },
+      ],
+      stop_reason: 'tool_use',
+    },
+    { content: [{ type: 'text', text: '' }], stop_reason: 'end_turn' },
+  ])
+  const handlers = { async noop() { return { content: 'ok' } } }
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'שאלה',
+      todayIsrael: '2026-08-14',
+      handlers,
+    })
+  )
+  const last = events.at(-1)
+  if (last?.type === 'incomplete') {
+    assert.notEqual(last.code, 'no_answer_text', 'the turn emitted text; calling it empty is a false cause')
+  }
+})
+
+test('every incomplete carries a machine-readable code, so a Hebrew surface need not parse English', async () => {
+  // The degradation law wants the failure visible in BOTH locales. Ticket 07
+  // renders from `code`; `reason` is developer prose and must never be the
+  // contract a surface string-matches on.
+  const client = fakeClient([
+    { content: [{ type: 'text', text: 'חלקי' }], stop_reason: 'max_tokens' },
+  ])
+  const events = await collect(
+    runChatLoop({ client, scope: { userId: 'u1' }, history: [], message: 'hi', todayIsrael: '2026-08-14' })
+  )
+  const last = events.at(-1)
+  assert.equal(last?.type, 'incomplete')
+  assert.equal((last as { code: string }).code, 'stopped_early')
+})

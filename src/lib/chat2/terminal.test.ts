@@ -7,8 +7,9 @@ import { decideTerminal, CLEAN_STOPS, type TerminalFacts } from './terminal'
 // than trusted. That is the point: round 1 and round 2 between them found five
 // separate holes in the inline `if` chain this replaced, every one of them a case
 // nobody had thought to write down. An exhaustive sweep cannot be surprised the
-// same way — a new branch either satisfies the invariant for all 96 combinations
-// or it does not.
+// same way — a new branch either satisfies the invariant for every combination or
+// it does not. (The case count is ASSERTED below rather than written here, because
+// a number in a comment is the hand-carried count app.md files as a repeat defect.)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STOPS = ['end_turn', 'stop_sequence', 'max_tokens', 'refusal', 'pause_turn', 'weird', null]
@@ -134,4 +135,28 @@ test('each non-clean stop reason names itself rather than sharing one vague mess
 
 test('stop_sequence counts as a clean finish alongside end_turn', () => {
   assert.deepEqual(decideTerminal({ ...clean, stopReason: 'stop_sequence' }), { type: 'done' })
+})
+
+test('EXHAUSTIVE: every incomplete carries a known CODE — the locale-safe contract', () => {
+  // `reason` is English developer prose. The surface renders from `code`, so a
+  // Hebrew screen never has to string-match English to show a degradation — the
+  // degradation law wants it visible in BOTH locales, and ticket 07 is Hebrew-first.
+  const known = new Set([
+    'round_trip_cap',
+    'all_sources_failed',
+    'unverified_quote',
+    'stopped_early',
+    'no_answer_text',
+  ])
+  const used = new Set<string>()
+  for (const facts of everyCombination()) {
+    const verdict = decideTerminal(facts)
+    if (verdict.type === 'incomplete') {
+      assert.ok(known.has(verdict.code), `unknown code ${verdict.code}`)
+      used.add(verdict.code)
+    }
+  }
+  // Every declared code must be REACHABLE, or ticket 07 carries a branch for a
+  // state that cannot happen while some real state goes unhandled.
+  assert.deepEqual([...used].sort(), [...known].sort())
 })

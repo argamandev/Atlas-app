@@ -30,8 +30,21 @@
 // those two cases must not share a branch.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * WHY an `incomplete` ended the turn, as a CODE and not only English prose.
+ *
+ * The degradation law requires the failure to be visible on screen **in both
+ * locales**, and ticket 07's surface is Hebrew-first. A free-text English `reason`
+ * forces that surface to string-match English to decide what to render — which is
+ * a classifier over prose, the thing `app.md` says to buy visible failure instead
+ * of. The code is the contract; `reason` stays as the developer-facing fallback
+ * and for logs.
+ */
+export type IncompleteCode =
+  'round_trip_cap' | 'all_sources_failed' | 'unverified_quote' | 'stopped_early' | 'no_answer_text'
+
 /** The terminal events. Exactly one ends every turn, and it is always last. */
-export type TerminalEvent = { type: 'done' } | { type: 'incomplete'; reason: string }
+export type TerminalEvent = { type: 'done' } | { type: 'incomplete'; code: IncompleteCode; reason: string }
 
 /** `stop_reason`s meaning the model finished saying what it meant to. */
 export const CLEAN_STOPS = new Set(['end_turn', 'stop_sequence'])
@@ -67,6 +80,7 @@ export function decideTerminal(facts: TerminalFacts): TerminalEvent {
   if (facts.roundTripCapHit) {
     return {
       type: 'incomplete',
+      code: 'round_trip_cap',
       reason: 'reached the tool round-trip limit before finishing — try a narrower question',
     }
   }
@@ -76,19 +90,32 @@ export function decideTerminal(facts: TerminalFacts): TerminalEvent {
   if (facts.anyToolRan && !facts.anySourceSurvived) {
     return {
       type: 'incomplete',
+      code: 'all_sources_failed',
       reason: 'every source lookup failed this turn, so nothing here could be grounded or verified',
     }
   }
   if (facts.unverifiedQuotes > 0) {
-    return { type: 'incomplete', reason: 'a quoted claim could not be verified against its source' }
+    return {
+      type: 'incomplete',
+      code: 'unverified_quote',
+      reason: 'a quoted claim could not be verified against its source',
+    }
   }
   if (!CLEAN_STOPS.has(facts.stopReason ?? '')) {
-    return { type: 'incomplete', reason: stopReasonExplanation(facts.stopReason) }
+    return {
+      type: 'incomplete',
+      code: 'stopped_early',
+      reason: stopReasonExplanation(facts.stopReason),
+    }
   }
   // A clean stop that said nothing is still nothing. Reporting it as a finished
   // answer is the "success with nothing" the degradation law forbids.
   if (!facts.anyTextEmitted) {
-    return { type: 'incomplete', reason: 'the model returned no answer text' }
+    return {
+      type: 'incomplete',
+      code: 'no_answer_text',
+      reason: 'the model returned no answer text',
+    }
   }
   return { type: 'done' }
 }

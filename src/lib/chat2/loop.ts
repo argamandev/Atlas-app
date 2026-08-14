@@ -20,22 +20,30 @@
 //
 // So there are exactly THREE terminal events and no way to conflate them:
 //   `done`       — the model finished cleanly. The only one that means complete.
-//   `incomplete` — the turn ended early, with a `reason`. The answer text so far
-//                  is still delivered, because hiding it would be its own lie.
+//   `incomplete` — the turn ended early, with a `code` and a `reason`. The text
+//                  already emitted is still delivered; hiding it would be its own lie.
 //   `error`      — nothing usable came back.
-// `done` carries no fields to misread and `incomplete` cannot be mistaken for
-// it, so "success with nothing" is unrepresentable rather than merely checked.
 //
-// EVERY early ending routes to `incomplete`: the round-trip cap (§5 budget:
-// ≤ ~4 per answer), a `max_tokens`/`refusal`/`pause_turn` stop from the model,
-// and a citation that could not be verified after its one retry.
+// TWO SEPARATE CLAIMS, and keeping them apart is the law here (round 2 rejected
+// merging them): it is IMPOSSIBLE that one terminal event means both, because the
+// types are distinct; it is TESTED that the right one is chosen, because
+// `terminal.ts` decides it as a pure function swept exhaustively. The type does
+// not and cannot make the CHOICE correct.
+//
+// AND THE FACTS ARE TAKEN AT THE EMIT POINT (round 3). The facts fed to that pure
+// function used to come from the last API response, so a quote streamed in a
+// pre-tool preamble was never checked — the function then decided confidently and
+// wrongly on a proxy (M3.2). `emittedText` accumulates at the single
+// `yield {type:'delta'}`, so the facts describe what the USER SAW. Three rounds,
+// three different layers, the same lesson: put the invariant where everything
+// passes through, and give it the fact rather than something shaped like it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type Anthropic from '@anthropic-ai/sdk'
 import { TOOL_DEFS, type ChatScope, type ToolResult } from './toolDefs'
 import { buildSystemPrompt } from './systemPrompt'
 import { verifyCitation } from './citations'
-import { decideTerminal } from './terminal'
+import { decideTerminal, type IncompleteCode } from './terminal'
 import { defang } from './fence'
 
 export const MODEL = 'claude-sonnet-5'
@@ -91,8 +99,13 @@ export type ChatEvent =
   | { type: 'tool'; name: string; status: 'start' | 'end'; isError?: boolean }
   /** TERMINAL. The model finished cleanly. The ONLY event that means complete. */
   | { type: 'done' }
-  /** TERMINAL. Ended early — the deltas so far are real but the turn is not finished. */
-  | { type: 'incomplete'; reason: string }
+  /**
+   * TERMINAL. Ended early — the deltas so far are real but the turn is not
+   * finished. RENDER FROM `code`, never from `reason`: `reason` is English
+   * developer prose, and the degradation law wants this on screen in both
+   * locales (ticket 07's surface is Hebrew-first).
+   */
+  | { type: 'incomplete'; code: IncompleteCode; reason: string }
   /** TERMINAL. Nothing usable came back. */
   | { type: 'error'; message: string }
 
@@ -151,6 +164,10 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // the second is an ordinary ungrounded answer, which is the prompt's problem.
   let anyToolRan = false
   let anySourceSurvived = false
+  // EVERY delta this turn sends, accumulated at the one point they are yielded.
+  // The terminal facts are derived from THIS, not from the last API response, so
+  // no text can reach the user without having been quote-checked.
+  let emittedText = ''
 
   for (let roundTrip = 0; roundTrip < MAX_ROUND_TRIPS; roundTrip++) {
     let response: Anthropic.Message
@@ -172,6 +189,9 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
     const isFinalAnswer = response.stop_reason !== 'tool_use' || toolUses.length === 0
 
     if (isFinalAnswer) {
+      // The RETRY still looks only at the final message, because that is the only
+      // text the model can still be asked to fix — a preamble delta is already on
+      // the user's screen and cannot be unsent.
       const answerText = textBlocks.map((b) => b.text).join('')
       const bad = sourcePool ? unverifiedQuotes(answerText, sourcePool) : []
       // Is there actually a round-trip left to retry INTO? Round 1's review caught
@@ -205,19 +225,25 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       }
       // The deltas go out either way — withholding the text the model did produce
       // would be its own invisible degradation. What changes is the TERMINAL event,
-      // and that is decided in ONE place from the facts (`terminal.ts`), never by
-      // an `if` chain here. Round 2 measured three holes in the chain this replaced.
-      let anyTextEmitted = false
+      // decided in ONE place from the facts (`terminal.ts`).
       for (const block of textBlocks) {
         if (block.text) {
-          anyTextEmitted = true
+          emittedText += '\n' + block.text
           yield { type: 'delta', text: block.text }
         }
       }
+      // BOTH facts are taken from EVERYTHING that reached the user (round 3): the
+      // previous version derived them from the final message alone, so a model
+      // could stream an invented quote in a pre-tool preamble, answer cleanly, and
+      // end in `done` — the quote never checked because it was never in the final
+      // message. `emittedText` is accumulated at the single `yield delta` point, so
+      // the facts now describe what the USER actually saw rather than what the last
+      // API response happened to contain. A fact taken anywhere but the choke point
+      // is a proxy (M3.2), and this is the third time that distinction has bitten.
       yield decideTerminal({
         stopReason: response.stop_reason,
-        anyTextEmitted,
-        unverifiedQuotes: bad.length,
+        anyTextEmitted: emittedText.trim().length > 0,
+        unverifiedQuotes: sourcePool ? unverifiedQuotes(emittedText, sourcePool).length : 0,
         anySourceSurvived,
         anyToolRan,
         roundTripCapHit: false,
@@ -226,7 +252,10 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
     }
 
     for (const block of textBlocks) {
-      if (block.text) yield { type: 'delta', text: block.text }
+      if (block.text) {
+        emittedText += '\n' + block.text
+        yield { type: 'delta', text: block.text }
+      }
     }
 
     messages.push({ role: 'assistant', content: response.content })
@@ -288,8 +317,8 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // event means and no path can grow its own answer to that question.
   yield decideTerminal({
     stopReason: null,
-    anyTextEmitted: false,
-    unverifiedQuotes: 0,
+    anyTextEmitted: emittedText.trim().length > 0,
+    unverifiedQuotes: sourcePool ? unverifiedQuotes(emittedText, sourcePool).length : 0,
     anySourceSurvived,
     anyToolRan,
     roundTripCapHit: true,
