@@ -23,7 +23,7 @@ import {
 } from '@/lib/api/chat'
 import { streamChatV2, type ClientIncompleteCode } from '@/lib/api/chat2'
 import { incompleteMessage } from '@/lib/chat/incompleteCopy'
-import type { ChatMode } from '@/lib/chat2/mode'
+import { chatMode, type ChatMode } from '@/lib/chat2/mode'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
@@ -460,12 +460,30 @@ export function ChatView({
 
   const empty = messages.length === 0
 
+  /**
+   * The mode SHOWN, which is not always the last mode the server REPORTED.
+   *
+   * Found by looking (verify-app, both locales): after tapping "pin to a
+   * company" the chip went on claiming SEARCH MODE while the `@company` chip sat
+   * directly beside it — two controls on one row contradicting each other, which
+   * is worse than either alone and is exactly the untrue-UI class this surface is
+   * supposed to close. `mode` is a fact about the last turn, and the user has
+   * just changed the scope of the NEXT one.
+   *
+   * This is not the client-side guess the design forbids: `chatMode` is the same
+   * pure function the server decides with, over the same single fact, so both
+   * ends compute one answer from one vocabulary. Before the user has pinned
+   * anything the server's report still governs — only it can know what
+   * `resolve_company` did mid-turn.
+   */
+  const shownMode: ChatMode | null = companyId ? chatMode({ companyId }) : mode
+
   // Composer block — shared between the empty (centered) and active (pinned-bottom) states.
   const composer = (
     <div className="relative mx-auto w-full max-w-2xl">
       {/* context tags (company / transcript). The quoted excerpt now lives inside the
           composer as its warm reference header (unified two-toned box). */}
-      {(companyName || transcript || (useV2 && mode)) && (
+      {(companyName || transcript || (useV2 && shownMode)) && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {companyName && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
@@ -496,7 +514,7 @@ export function ChatView({
               Only in search mode: in pinpoint the company chip above already
               says what the answer is grounded in, and a second chip repeating it
               would be noise. */}
-          {useV2 && mode === 'search' && (
+          {useV2 && shownMode === 'search' && (
             <span
               role="status"
               className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted"
@@ -521,7 +539,7 @@ export function ChatView({
           {/* The mirror tap: leave a company and search the whole market. Shown
               only when a company is actually pinned, so it never offers to undo
               something that is not there. */}
-          {useV2 && mode === 'pinpoint' && companyName && (
+          {useV2 && shownMode === 'pinpoint' && companyName && (
             <button
               type="button"
               onClick={() => {
