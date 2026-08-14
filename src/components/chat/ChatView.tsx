@@ -21,9 +21,13 @@ import {
   type ChatSource,
   type ProjectContextStatus,
 } from '@/lib/api/chat'
+import { streamChatV2, type ClientIncompleteCode } from '@/lib/api/chat2'
+import { incompleteMessage } from '@/lib/chat/incompleteCopy'
+import { chatMode, type ChatMode } from '@/lib/chat2/mode'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { createConversation, saveConversation, fetchConversation } from '@/lib/api/conversations'
 import { companyDisplayName, type Company } from '@/lib/api/types'
+import { fetchCompany } from '@/lib/api/companies'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -67,6 +71,20 @@ interface Msg {
    * instead of presenting half an answer as the whole one.
    */
   truncated?: boolean | null
+  /**
+   * The v2 backend's answer to "why is this not whole", as a CODE (ticket 07).
+   *
+   * Deliberately NOT folded into `errorKind`. The two describe different things
+   * and merging them would lose the distinction the backend spent three review
+   * rounds building: `errorKind` is a failure of the REQUEST — the stream broke,
+   * the save failed, nothing arrived. `incomplete` is a successful request whose
+   * ANSWER is partial, and it carries which of nine reasons applies so a
+   * Hebrew-first surface can say the true one (`lib/chat/incompleteCopy.ts`).
+   *
+   * An answer can hold both: an `incomplete` turn that then fails to save shows
+   * "this answer is partial" AND "it was not stored", because both are true.
+   */
+  incomplete?: ClientIncompleteCode | null
 }
 
 export function ChatView({
@@ -79,7 +97,13 @@ export function ChatView({
 }: {
   initialCompany: { id: string; name: string; logoUrl: string | null } | null
   initialQuote?: string | null
-  initialTranscript?: { id: string; label: string } | null
+  /**
+   * The call this chat is scoped to. `company` and `quarter` stay SEPARATE
+   * because the chip renders them as a Hebrew run beside a Latin one
+   * ("תיגבור · Q3 2025"), and the bidi law wants a `<bdi>` per run — impossible
+   * once they have been concatenated upstream into one opaque label.
+   */
+  initialTranscript?: { id: string; company: string; quarter: string } | null
   /**
    * Renders in place of the chat transcript, keeping the secondary panel intact.
    * Used by the Projects routes (/app/chat/projects…), which the design draws
@@ -128,6 +152,42 @@ export function ChatView({
   const [historyKey, setHistoryKey] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // ─── WHICH BACKEND THIS VIEW TALKS TO (ticket 07 / B1b) ───────────────────
+  //
+  // `/api/chat/v2` is the unified backend (spec §3): typed events, tool loop,
+  // corpus grounding, visible degradation. It does NOT accept `projectId`, and a
+  // project chat's whole point is that the project's instructions, memory and
+  // notes are injected server-side — sending those turns to v2 would silently
+  // answer without them, which is the invisible degradation this migration
+  // exists to end, committed by the migration itself.
+  //
+  // So project chats stay on the old route until B2 retires it, which is the
+  // documented migration order (spec §6, ticket 06: "Old /api/chat keeps serving
+  // clients until B2"). This is a temporary fork with a named owner, not a
+  // permanent branch. B2 removes it along with `streamChat`.
+  //
+  // TRANSCRIPT CHATS ARE THE SECOND HALF OF THE SAME RULE, and the cold review
+  // found this one the hard way. `/app/chat?transcript=…` ("open in chat" from a
+  // call) renders a chip naming that call, and the old route genuinely grounds on
+  // it (`getChatContext(companyId, transcriptId)`). v2 has no tool that reads a
+  // transcript id — whole-call injection is ticket 08 — so sending those turns to
+  // v2 answered from the general corpus while the chip on screen still promised
+  // the call. Success UI for content the server dropped, which is the exact law
+  // this ticket's degradation work exists to serve.
+  //
+  // ONE RULE, stated once: a surface goes to v2 only when v2 can honour every
+  // grounding that surface displays. Ticket 08 removes both arms of this fork.
+  const useV2 = !projectId && !transcript
+
+  /**
+   * The grounding mode of the CURRENT turn, as the server reported it.
+   *
+   * `null` before the first answer — deliberately not defaulted to 'search',
+   * because a default is a guess and the whole point of the mode being a server
+   * event is that the surface never guesses it (spec §2.3).
+   */
+  const [reportedMode, setReportedMode] = useState<ChatMode | null>(null)
+
   const scrollToEnd = () => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
@@ -152,11 +212,55 @@ export function ChatView({
     inputRef.current?.focus()
   }
 
+  /**
+   * The v2 backend resolved a company mid-turn (`resolve_company`, spec §2.2).
+   *
+   * Adopt it as this conversation's scope — the answer on screen was grounded in
+   * that company, and the next turn must be too, or the chip and the answer
+   * disagree. Then go and get its NAME: a chip saying "pinned" without saying to
+   * WHAT is a notice the user cannot act on, and acting on it (switching back to
+   * search, or correcting the company) is the entire point of showing the mode.
+   *
+   * A failed lookup clears the name rather than leaving a STALE one — showing the
+   * previously-pinned company's name beside a different company's id is worse
+   * than showing no name at all.
+   */
+  async function adoptResolvedCompany(id: string) {
+    setCompanyId(id)
+    try {
+      const { company } = await fetchCompany(id)
+      setCompanyName(companyDisplayName(company, locale))
+    } catch {
+      setCompanyName(null)
+    }
+  }
+
   async function send(explicit?: string) {
     const text = (explicit ?? input).trim()
     if (!text || sending) return
     const priorMessages = messages
-    const history = messages.map((m) => ({ role: m.role, content: m.content }))
+    // A PARTIAL PRIOR TURN IS LABELLED PARTIAL TO THE MODEL TOO.
+    //
+    // The surface knows an earlier answer was cut off — it renders a notice
+    // saying so. Replaying it as a plain `{role:'assistant', content}` told the
+    // model the opposite: that a sentence ending mid-clause was a finished reply,
+    // which it will then happily build on. The same fact the user is shown is now
+    // the fact the model gets, from the same two fields the persistence path
+    // reads (`incomplete` this session, `truncated` after a reload).
+    // THROUGH THE CHOKE POINT, not a second opinion beside it (M3.1). The first
+    // version of this read `incomplete || truncated` — its own two-field guess at
+    // a question `truncatedForPersist` already answers from THREE fields. It
+    // missed `errorKind: 'truncated'`, a stream that broke this session, which is
+    // reachable on exactly the route `useV2` keeps alive for project and
+    // transcript chats. One function decides "is this answer partial", and both
+    // the storage path and the model now ask it.
+    const history = messages.map((m) => ({
+      role: m.role,
+      content:
+        m.role === 'assistant' && truncatedForPersist(m)
+          ? `${m.content}\n\n[This answer was cut off before it finished — it is not complete.]`
+          : m.content,
+    }))
     // A quote carried in from "Chat about this quote" rides along on the API message as
     // grounding context, but only the user's typed text shows in the bubble. One turn only.
     const apiMessage = quote ? `Regarding this quote from the investor call: "${quote}"\n\n${text}` : text
@@ -180,6 +284,15 @@ export function ChatView({
       })
 
     let full = ''
+    // The v2 outcome, held in an OBJECT rather than two `let`s. Both are written
+    // only inside the event callback, and TypeScript narrows a `let x: T | null =
+    // null` back to `null` when every assignment lives in a closure — so the
+    // checks below would be flagged as unintentional comparisons and, worse,
+    // could be "simplified" away by someone trusting the narrowing.
+    const outcome: { incomplete: ClientIncompleteCode | null; error: string | null } = {
+      incomplete: null,
+      error: null,
+    }
     // Did the model's stream finish? Distinguishes a mid-stream break from a
     // failure that happened AFTER a complete answer arrived. `full.length > 0`
     // cannot tell those apart — a stream that broke halfway also has content —
@@ -188,22 +301,80 @@ export function ChatView({
     // exists to remove rather than relocate.
     let streamFinished = false
     try {
-      const { source, projectContext } = await streamChat(
-        {
-          message: apiMessage,
-          companyId: companyId ?? undefined,
-          transcriptId: transcript?.id,
-          projectId,
-          history,
-        },
-        (delta) => {
-          full += delta
-          setLastAssistant({ content: full })
-          scrollToEnd()
-        }
-      )
+      let source: ChatSource | null = null
+      let projectContext: ProjectContextStatus | null = null
+
+      if (useV2) {
+        await streamChatV2(
+          {
+            message: apiMessage,
+            companyId: companyId ?? undefined,
+            // No `transcriptId`: v2 does not accept one, because nothing in it
+            // reads one (see `useV2` above and `chat2/requestScope.ts`). A
+            // transcript-scoped chat never reaches this branch.
+            history,
+          },
+          (e) => {
+            switch (e.type) {
+              case 'delta':
+                full += e.text
+                setLastAssistant({ content: full })
+                scrollToEnd()
+                break
+              case 'mode':
+                setReportedMode(e.mode)
+                // The server resolved a company we did not know about — the
+                // `@mention`-free path into pinpoint mode. Adopt it, so the chip
+                // on screen and the scope of the NEXT turn agree with what
+                // actually grounded this answer.
+                if (e.companyId && e.companyId !== companyId) void adoptResolvedCompany(e.companyId)
+                break
+              case 'incomplete':
+                // The text already on screen is REAL — it just is not all of it.
+                // Recorded, not rendered here: the notice goes out with the
+                // settled message below so it cannot flash mid-stream.
+                outcome.incomplete = e.code
+                break
+              case 'error':
+                outcome.error = e.message
+                break
+              case 'tool':
+              case 'done':
+                break
+            }
+          }
+        )
+        // `error` is the backend saying nothing usable came back — a FAILURE, not
+        // a partial answer. It goes down the existing error path, and
+        // `streamFinished` stays false so it cannot be mislabelled "this answer
+        // arrived but was not saved".
+        if (outcome.error) throw new Error(outcome.error)
+      } else {
+        const res = await streamChat(
+          {
+            message: apiMessage,
+            companyId: companyId ?? undefined,
+            transcriptId: transcript?.id,
+            projectId,
+            history,
+          },
+          (delta) => {
+            full += delta
+            setLastAssistant({ content: full })
+            scrollToEnd()
+          }
+        )
+        source = res.source
+        projectContext = res.projectContext
+      }
       streamFinished = true
-      setLastAssistant({ content: full, source, projectContext, streaming: false })
+      setLastAssistant({
+        content: full,
+        source,
+        projectContext,
+        incomplete: outcome.incomplete,
+        streaming: false,
+      })
 
       // Persist the full thread — create the conversation lazily on the first exchange.
       // `projectContext` rides along so the notice SURVIVES a reload. It used to
@@ -232,14 +403,23 @@ export function ChatView({
             truncated: truncatedForPersist(m),
           })),
         { role: 'user' as const, content: text },
-        // This turn reached here only because the stream RESOLVED, so it is not
-        // truncated — stated rather than omitted, so the field is never absent
-        // by accident on a message that has one.
+        // The stream RESOLVED — which under v2 is no longer the same question as
+        // "the answer is whole". A turn that ended `incomplete` finishes its
+        // stream perfectly normally and resolves this promise, so hard-coding
+        // `truncated: false` here (correct for the old route, where only a broken
+        // stream meant partial) would persist a cut-off answer as a complete one:
+        // the round-three BLOCKER, re-entering through the honesty machinery
+        // built to prevent it. Taken from the terminal event instead.
         {
           role: 'assistant' as const,
           content: full,
           projectContext: projectContext ?? null,
-          truncated: false,
+          // THROUGH THE CHOKE POINT, like every other answer to this question.
+          // `outcome.incomplete != null` inline was correct today and was still
+          // the wrong shape: it is a second opinion sitting one screen below the
+          // history mapper, where the identical inline guess had just been
+          // removed for missing a field. One function decides "is this partial".
+          truncated: truncatedForPersist({ incomplete: outcome.incomplete }),
         },
       ]
       let cid = conversationId
@@ -291,6 +471,11 @@ export function ChatView({
     }
     if (seq !== openSeq.current) return
     setConversationId(conv.id)
+    // The mode is not persisted, so a reopened thread's mode is UNKNOWN. Leaving
+    // the previous conversation's mode on screen would describe the wrong thread;
+    // defaulting to 'search' would state a fact nothing measured. Both are the
+    // same error, so it goes back to null and the next turn reports the truth.
+    setReportedMode(null)
     // Sanitised, not trusted: `messages` is a jsonb blob that predates this
     // field, so rows written by older code have none and anything unrecognised
     // must land on null rather than on a rendered warning.
@@ -313,27 +498,147 @@ export function ChatView({
     setMessages([])
     setInput('')
     setQuote(null)
+    // Back to unknown, NOT to 'search'. The mode is a fact the server reports
+    // about an actual turn; asserting one before any turn has run is the guess
+    // this whole design exists to avoid.
+    setReportedMode(null)
   }
 
   const empty = messages.length === 0
+
+  /**
+   * The mode SHOWN, which is not always the last mode the server REPORTED.
+   *
+   * Found by looking (verify-app, both locales): after tapping "pin to a
+   * company" the chip went on claiming SEARCH MODE while the `@company` chip sat
+   * directly beside it — two controls on one row contradicting each other, which
+   * is worse than either alone and is exactly the untrue-UI class this surface is
+   * supposed to close. `mode` is a fact about the last turn, and the user has
+   * just changed the scope of the NEXT one.
+   *
+   * This is not the client-side guess the design forbids: `chatMode` is the same
+   * pure function the server decides with, over the same single fact, so both
+   * ends compute one answer from one vocabulary. Before the user has pinned
+   * anything the server's report still governs — only it can know what
+   * `resolve_company` did mid-turn.
+   *
+   * AND THE RAW STATE IS NAMED `reportedMode` FOR A REASON. The first fix here
+   * changed the two chips and MISSED the hint line one JSX block below, which
+   * went on saying "no company was identified" directly under the `@company`
+   * chip — the same contradiction, in the same commit that fixed it, because
+   * `mode` was still sitting there looking like the right variable to reach for.
+   * Renaming it makes the wrong choice announce itself at the call site (M3.3):
+   * nothing in the render should want a mode that is only "what the server last
+   * reported". Every JSX branch reads `shownMode`.
+   */
+  const shownMode: ChatMode | null = companyId ? chatMode({ companyId }) : reportedMode
 
   // Composer block — shared between the empty (centered) and active (pinned-bottom) states.
   const composer = (
     <div className="relative mx-auto w-full max-w-2xl">
       {/* context tags (company / transcript). The quoted excerpt now lives inside the
           composer as its warm reference header (unified two-toned box). */}
-      {(companyName || transcript) && (
+      {/* `companyId` LEADS THIS CONDITION (round-3 review). The inner branches
+          were fixed to gate on the scope rather than the name, but this enclosing
+          one still asked for `companyName` — so on the OLD route (project chat,
+          where `useV2` is false and `shownMode` cannot rescue it) a real company
+          scope with a missing name rendered no row at all, and the fix one level
+          down never got the chance to run. Fixing the inner guard while the outer
+          one still decides on a proxy is the same defect wearing a smaller hat
+          (M3.1/M3.2). */}
+      {/* NOTE there is no `companyName` here. It would be redundant — every path
+          that sets a name sets the id with it — and it is the only way this row
+          could render EMPTY: a name without an id passes the condition while
+          every inner branch (all keyed on the id) declines. An empty chip row is
+          a fabricated state, so the condition asks the same fact the branches do. */}
+      {(companyId || transcript || (useV2 && shownMode)) && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          {companyName && (
+          {/* GATED ON `companyId`, NOT ON THE NAME (round-2 review). When the
+              server resolved a company mid-turn and `adoptResolvedCompany`'s name
+              lookup then failed, the name was null while the SCOPE was real — so
+              this chip, the unpin button and the search chip all rendered
+              nothing, and the chat sat silently pinned to a company the user
+              could neither see nor undo. A scope that exists must be visible; an
+              unnamed one says "a company" rather than disappearing. */}
+          {companyId && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
-              {initialCompany?.logoUrl && <Logo src={initialCompany.logoUrl} name={companyName} size={16} />}
-              <span className="font-medium text-ink">@{companyName}</span>
+              {initialCompany?.logoUrl && companyName && (
+                <Logo src={initialCompany.logoUrl} name={companyName} size={16} />
+              )}
+              {/* A company name can be Hebrew, Latin or both ("אלביט Systems").
+                  Its own <bdi> so each run resolves independently and one Latin
+                  word cannot flip the chip; `dir` stays on the container (<html>),
+                  never on this mixed line — rules/app.md's bidi law. The "@" is a
+                  bare sign and belongs outside the <bdi>. */}
+              <span className="font-medium text-ink">
+                @<bdi>{companyName ?? dict.chat.pinnedUnknownCompany}</bdi>
+              </span>
             </span>
           )}
           {transcript && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
-              <span className="font-medium text-ink">{transcript.label}</span>
+              {/* A `<bdi>` PER RUN, `dir` on the container (<html>) — never on
+                  this line. "תיגבור · Q3 2025" is Hebrew beside Latin, so
+                  `dir="auto"` would resolve the whole chip from the first strong
+                  character and flip the quarter to the wrong side. The separator
+                  is neutral and stays outside both isolates. */}
+              <span className="font-medium text-ink">
+                <bdi>{transcript.company}</bdi>
+                {transcript.company && transcript.quarter ? ' · ' : ''}
+                <bdi>{transcript.quarter}</bdi>
+              </span>
             </span>
+          )}
+          {/* SEARCH MODE IS SHOWN, AND IS ONE TAP FROM PINPOINT (spec §2.3).
+              The mode is decided from scope alone and never inferred from the
+              question — so when it is the wrong mode for what the user meant, the
+              only thing that can notice is the user. This chip is how they
+              notice, and the button beside it is how they fix it. That pair IS
+              the "visible failure" app.md's classifier law asks to be bought
+              instead of a longer word list.
+
+              Only in search mode: in pinpoint the company chip above already
+              says what the answer is grounded in, and a second chip repeating it
+              would be noise. */}
+          {useV2 && shownMode === 'search' && (
+            <span
+              role="status"
+              className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted"
+            >
+              <span className="font-medium text-ink">{dict.chat.searchMode}</span>
+              <span className="text-ink-faint">·</span>
+              <button
+                type="button"
+                onClick={() => {
+                  // Straight into the @-mention flow — the same door the user
+                  // would have used, rather than a second way to pick a company.
+                  setInput((v) => (v.endsWith('@') || v === '' ? v + '@' : v + ' @'))
+                  setMentionQuery('')
+                  inputRef.current?.focus()
+                }}
+                className="underline underline-offset-2 hover:text-ink"
+              >
+                {dict.chat.pinCompany}
+              </button>
+            </span>
+          )}
+          {/* The mirror tap: leave a company and search the whole market. Shown
+              only when a company is actually pinned, so it never offers to undo
+              something that is not there. */}
+          {/* Also gated on the SCOPE, not the name — the escape hatch has to
+              exist for exactly the case where the name is missing. */}
+          {useV2 && shownMode === 'pinpoint' && companyId && (
+            <button
+              type="button"
+              onClick={() => {
+                setCompanyId(null)
+                setCompanyName(null)
+                setReportedMode('search')
+              }}
+              className="rounded-full px-2.5 py-1 text-xs text-ink-muted underline underline-offset-2 hover:text-ink"
+            >
+              {dict.chat.unpinCompany}
+            </button>
           )}
         </div>
       )}
@@ -361,6 +666,15 @@ export function ChatView({
       {/* The hint teaches / and @ on the opening screen. Once the thread is
           running the pill drops it, per the founder's 2026-08-01 design. */}
       {empty && <p className="mt-2 px-1 text-center text-2xs text-ink-faint">{dict.chat.slashHint}</p>}
+      {/* WHY the answers above look like leads rather than one narrative. Without
+          this, per-company diversified results read as Atlas rambling across
+          companies instead of as the deliberate market-wide shape they are — the
+          mode would be technically visible (the chip) and still not understood.
+          Only once a thread is running: on the blank screen there is no answer
+          for it to explain. */}
+      {useV2 && !empty && shownMode === 'search' && (
+        <p className="mt-2 px-1 text-center text-2xs text-ink-faint">{dict.chat.searchModeHint}</p>
+      )}
     </div>
   )
 
@@ -455,12 +769,30 @@ export function ChatView({
                     arrived and simply was not stored — saying "Atlas could not
                     answer" there would be false, and overwriting it (which this
                     used to do) threw away work the user had already been given. */}
+                {/* THE ANSWER IS REAL BUT NOT WHOLE (ticket 07). Rendered from
+                    the CODE, never from the server's English `reason` — that is
+                    the entire purpose of the backend sending a code, and a
+                    Hebrew surface parsing English prose to pick a sentence would
+                    be the classifier app.md forbids.
+
+                    Beside the answer, not instead of it: the text above streamed
+                    in and is genuine, and hiding it would be its own invisible
+                    degradation. This sits ABOVE the {error} line because a turn
+                    can honestly carry both — a partial answer that then failed to
+                    save is two true statements, not a choice between them. */}
+                {m.incomplete && !m.streaming && (
+                  <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                    {incompleteMessage(dict.chat.incomplete, m.incomplete)}
+                  </p>
+                )}
                 {/* A reopened thread. `errorKind` died with the session, so
                     without this the partial text below would read as a complete
                     answer. No {error} here — the failure that caused it is not
                     known any more, and inventing one would be worse than saying
                     only what is true: this answer is not all of it. */}
-                {m.truncated === true && m.error == null && !m.streaming && (
+                {/* `!m.incomplete` so a live v2 turn shows the SPECIFIC reason
+                    above, not that one plus this generic restatement of it. */}
+                {m.truncated === true && !m.incomplete && m.error == null && !m.streaming && (
                   <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
                     {dict.chat.answerWasTruncated}
                   </p>

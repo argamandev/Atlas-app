@@ -62,3 +62,23 @@ test('nothing truthy-but-wrong reaches the render', () => {
     )
   }
 })
+
+// ─── The v2 door (ticket 07) ─────────────────────────────────────────────────
+// The new backend reports a partial answer as an `incomplete` EVENT on a stream
+// that then finishes normally — a successful HTTP response with no `errorKind`.
+// Every signal the two original fields read therefore says "complete", so
+// without this third source the round-three BLOCKER returns through the very
+// machinery built to prevent it.
+
+test('a v2 answer that ended incomplete is stored as truncated', () => {
+  assert.equal(truncatedForPersist({ incomplete: 'length_limit' }), true)
+  assert.equal(truncatedForPersist({ incomplete: 'round_trip_cap' }), true)
+  assert.equal(truncatedForPersist({ incomplete: 'stream_ended' }), true)
+})
+
+test('a v2 answer that ended cleanly is not truncated', () => {
+  // The mirror failure again: `done` turns carry no code, and marking them
+  // partial would put a false "this was cut off" on a good answer.
+  assert.equal(truncatedForPersist({ incomplete: null }), false)
+  assert.equal(truncatedForPersist({ incomplete: undefined }), false)
+})

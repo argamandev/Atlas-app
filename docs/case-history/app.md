@@ -174,12 +174,26 @@ evidence behind it. 24 entries, verbatim.
 ## bidi-bdi
 
 **The count and where it comes from** (moved out of `rules/app.md` 2026-08-14 — history is
-on-demand, never always-on; `CONTEXT.md` → *History*): **7 recorded occurrences.** Source: the
+on-demand, never always-on; `CONTEXT.md` → *History*): **8 recorded occurrences** (7 in the archive + the 2026-08-14 one recorded below). Source: the
 FINDING entries on `feat/documents-catalog` in
 `docs/archive/ready-queue-2026-07-03--2026-08-10.md`. The frozen entry below predates the last two
 and still says "5th" — it is left as written, because the archive is never rewritten. Regenerate
 the count from that source; never restate it from prose (the always-on file has been wrong that
 way three times).
+
+- **8th occurrence, 2026-08-14 (ticket 07, found at cold review) — and it is a NEW SHAPE the
+  remedy above cannot reach: the mixed line was PRE-JOINED upstream.** `app/app/chat/page.tsx`
+  built a transcript chip label as `` `${fd.company} · ${fd.quarter}` `` and handed `ChatView` one
+  opaque string. "קבוצת תיגבור · Q4 2025" is a Hebrew run beside a Latin one, so it needed a
+  `<bdi>` per run — but the component that renders it had no runs left to wrap, only a finished
+  string. **The fix was at the CONSTRUCT: the page now passes `company` and `quarter` separately.**
+  ⇒ THE ADDENDUM THIS ONE EARNS: *a mixed-language label must not be concatenated before it reaches
+  the thing that renders it.* Joining two fields into a display string is where a bidi defect stops
+  being fixable at the render site, and it is invisible to `git grep dir="ltr"` — the command the
+  5th occurrence left behind — because there is no `dir` attribute involved at all. The construct to
+  grep for this shape is the template join itself; four more RENDERED instances found that way are
+  filed in `docs/open-findings.md` (not fixed there, deliberately: each is a different surface).
+  Measured after the fix: the Hebrew run resolves `rtl` at x=905, the Latin run `ltr` at x=980.
 
 - **A line that mixes Hebrew and Latin needs `<bdi>`, not `dir` — 5th occurrence as of 2026-08-09,
   and the last two landed INSIDE the branch that quotes this rule.** `dir="auto"` resolves from the

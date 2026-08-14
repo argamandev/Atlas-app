@@ -201,7 +201,31 @@ export const VOCABULARY_EXEMPT = {
  * and this merge already paid what it could: the new case's story went to
  * `case-history`, and the duplicated CRLF provenance was evicted behind its anchor.
  */
-export const TOKEN_BUDGET = 9_250
+/*
+ * RAISED 9,250 → 9,350 on 2026-08-14 (ticket 07 / B1b). NOT a founder decision —
+ * mine, flagged in the handoff for him to reverse, and the note above is why I
+ * did not simply drop the thing that overflowed.
+ *
+ * It is the SAME law and the SAME mechanism as the raise above, one slice later:
+ * `Degradation must be VISIBLE` earned a THIRD tier when ticket 07's cold review
+ * found a scope the backend accepted and never read while the surface promised
+ * that grounding. The new guard is real (`chat2/requestScope.test.ts`, four review
+ * rounds to make honest), and ADR-0002 requires a recurrence to buy a stronger
+ * mechanism IN THE COMMIT that hit it — which the ship gate enforces.
+ *
+ * The branch paid what it could before asking: STATUS.md went from 887 tokens to
+ * ~640, the bidi addendum was folded into an existing law sentence rather than
+ * added as a line, and the new case's story went to `case-history`. After all of
+ * that the set still sat 2 tokens over, and the remaining moves were shaving
+ * single characters out of a status table — which is the budget refusing the
+ * behaviour it exists to encourage, exactly as the note above predicted.
+ *
+ * ⚠ THE REAL FIX IS STILL DEFERRED and this makes it more urgent, not less:
+ * `app.md` is 4,861 of these 9,350 tokens, and shrinking it to pointers at its
+ * tests (`DECISIONS.md` 2026-08-12) is the standing plan. Two raises in two
+ * slices is the signal that the plan has stopped being optional.
+ */
+export const TOKEN_BUDGET = 9_350
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

@@ -1,4 +1,5 @@
 import 'server-only'
+import { matchRank } from '@/lib/company/matchRank'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Company, CompanyLite } from '@/lib/api/types'
 
@@ -173,11 +174,79 @@ export async function searchCompanies(q: string): Promise<Company[]> {
     .trim()
   if (!term) return listCompanies()
   const like = `%${term}%`
-  const { data, error } = await supabaseAdmin
-    .from('companies')
-    .select(COLS)
-    .or(`name.ilike.${like},display_name.ilike.${like},name_en.ilike.${like},tase_security_id.ilike.${like}`)
-    .limit(20)
-  if (error) throw new Error(error.message)
-  return (data ?? []).map(mapCompany)
+
+  // THE ALIAS TABLE IS PART OF THE SEARCH (ticket 07, spec §2.3 "@company
+  // autocomplete from the alias table").
+  //
+  // Before this, the model and the user disagreed about what a company is called.
+  // `resolve_company` reads `company_aliases`, so typing בז"א into a QUESTION
+  // resolved off the alias table and scoped retrieval correctly — the MUST-PASS
+  // eval case. Typing the same three characters into the @-mention dropdown
+  // matched `companies.name` only, found nothing, and offered the user no way to
+  // pin the company they had just named. The autocomplete was strictly less able
+  // to recognise a company than the answer engine behind it, which reads to the
+  // user as Atlas not knowing a company it demonstrably knows.
+  //
+  // ORDERING IS BY MATCH QUALITY, NOT BY WHICH QUERY FOUND IT (cold review).
+  //
+  // The first version put every alias hit in front and then `.slice(0, 20)`. A
+  // broad Hebrew stem — "בנק" is the realistic one — matches twenty aliases and
+  // evicted the company whose NAME the user had typed exactly. Ranking by the
+  // source of the match is a proxy for relevance (M3.2); the fact that decides
+  // relevance is how well the typed term matches, so that is what is measured.
+  const [aliasHits, nameHits] = await Promise.all([
+    supabaseAdmin.from('company_aliases').select('company_id, alias').ilike('alias', like).limit(20),
+    supabaseAdmin
+      .from('companies')
+      .select(COLS)
+      .or(
+        `name.ilike.${like},display_name.ilike.${like},name_en.ilike.${like},tase_security_id.ilike.${like}`
+      )
+      .limit(20),
+  ])
+  if (nameHits.error) throw new Error(nameHits.error.message)
+
+  const byName = (nameHits.data ?? []).map(mapCompany)
+  // An alias lookup that FAILED must not silently narrow the dropdown to the name
+  // matches while looking like a complete result (app.md — degradation must be
+  // visible). There is no per-row channel to say "partial" on an autocomplete, so
+  // the honest move is to fail the request the caller can already render an error
+  // for, rather than quietly answering a different question.
+  if (aliasHits.error) throw new Error(aliasHits.error.message)
+
+  // Which aliases each company matched on — needed to score an alias-only hit,
+  // since its `Company` row carries no text the term appears in.
+  const aliasesByCompany = new Map<string, string[]>()
+  for (const row of aliasHits.data ?? []) {
+    const id = String(row.company_id)
+    const list = aliasesByCompany.get(id)
+    if (list) list.push(String(row.alias))
+    else aliasesByCompany.set(id, [String(row.alias)])
+  }
+
+  const missing = Array.from(aliasesByCompany.keys()).filter((id) => !byName.some((c) => c.id === id))
+  let candidates = byName
+  if (missing.length > 0) {
+    const extra = await supabaseAdmin.from('companies').select(COLS).in('id', missing).limit(20)
+    if (extra.error) throw new Error(extra.error.message)
+    candidates = [...byName, ...(extra.data ?? []).map(mapCompany)]
+  }
+
+  return candidates
+    .map((c, i) => ({
+      c,
+      // Stable-sort tiebreak: `Array.prototype.sort` is stable in modern V8, but
+      // saying so in the comparator costs one field and removes the doubt.
+      i,
+      rank: matchRank(term, [
+        c.displayName,
+        c.name,
+        c.nameEn,
+        c.ticker,
+        ...(aliasesByCompany.get(c.id) ?? []),
+      ]),
+    }))
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+    .slice(0, 20)
+    .map((r) => r.c)
 }

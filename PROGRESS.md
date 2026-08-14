@@ -5,6 +5,36 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-14 — Chat reaches the new brain (`feat/smart-layer-b1b-chat-surface`, ticket 07 / B1b)
+
+- **Chat's UI is on `/api/chat/v2`, so B1a's honesty machinery finally reaches a person.** Visible
+  search mode decided from SCOPE alone (`chat2/mode.ts` takes no question text, so guessing the mode
+  from the words is a type error rather than a discouraged practice), one tap between market-wide and
+  pinned, nine degradation states rendered from a code in both locales, per-company diversified
+  results so a market-wide question cannot be answered about one issuer, and alias-aware `@mention` —
+  the dropdown was strictly less able to recognise a company than the answer engine behind it.
+- **Two acceptance rows are RED and filed with their numbers, not re-scored (M2).** Market-wide
+  search does not complete — an unscoped scan over 98,042 chunks hits a statement timeout — while
+  scoped search, the channel both MUST-PASS eval cases close through, works end to end. And the
+  $0.06/answer budget does not hold: three real answers priced $0.086 / $0.025 / $0.097, with prompt
+  caching measured OFF (`cache_read = 0` on all three). Both levers are eval-gated retrieval
+  parameters owned by the dedicated retrieval session, so retuning them here would have been
+  re-scoring the gate to make it green.
+- **The unscoped failure proved the degradation design against a real, unplanned fault:** visible
+  tool errors, terminal `incomplete{all_sources_failed}`, and the model saying so in Hebrew. No
+  `done`, no fabricated answer, no silence.
+- **Three cold-review rounds, and the same lesson each time: the instance got fixed and the class got
+  claimed.** A scope the backend accepted and ignored while the UI promised it; a contradiction fixed
+  in two chips and missed in the hint one block below; and the guard written to prevent the first
+  defect, defeated TWICE — a substring cannot tell a declaration from a use. It now requires a
+  value-position read and is proved against both prior defeats. Two evidence-file claims were false
+  and are marked corrected in place rather than deleted.
+- **Verified in a browser, both locales, every reachable state** — including driving the
+  "resolved company whose name lookup failed" state end to end, and measuring the bidi fix in the DOM
+  (`dir=rtl` at x=905 beside `dir=ltr` at x=980) rather than trusting it. 986/986 battery, `tsc`
+  clean, zero console errors. **Railway's `ANTHROPIC_API_KEY` remains unproven — it needs a deploy,
+  and a 401 there is the first thing to check.**
+
 ## 2026-08-14 — The corpus becomes real (`feat/smart-layer-a5-maya-backfill`, slice A5)
 
 - **26 documents → 1,296, across 233 TASE issuers.** `selectLatestOfEach` implements the depth the

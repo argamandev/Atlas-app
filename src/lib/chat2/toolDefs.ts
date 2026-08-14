@@ -12,7 +12,9 @@ export interface ChatScope {
   userId: string
   /** Set once resolve_company (or the caller's own grounding) has picked a company. */
   companyId?: string | null
-  transcriptId?: string | null
+  // NO `transcriptId` — ticket 07's cold review found it declared, gated and read
+  // by nothing, while the surface showed a transcript chip claiming the answer was
+  // grounded in it. Ticket 08 adds it back with the tool that consumes it.
   workspaceId?: string | null
   /**
    * The CALLER'S OWN supabase client (RLS-bearing), required only for

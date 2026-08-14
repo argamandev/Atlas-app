@@ -130,7 +130,7 @@ it to an enum would land green and break only in production.
 ## Bidi & localization
 
 **LAW · A line mixing Hebrew and Latin gets a `<bdi>` per run, with `dir` on the CONTAINER — never
-`dir` on the mixed line.** `dir="auto"` resolves from the line's first strong character, so one
+`dir` on the mixed line, and never pre-joined upstream into one string.** `dir="auto"` resolves from the line's first strong character, so one
 Hebrew word flips the whole line; `dir="ltr"` does the mirror damage to Hebrew. `dir="ltr"` is
 correct for a **bare** numeral or ticker only.
 **ENFORCED** partially — `src/lib/workspace/data.test.ts` encodes the rule for one surface. There is
@@ -139,7 +139,7 @@ no repo-wide check, so treat this as `ENFORCED: none` for any new surface.
 `git grep -n 'dir="ltr"' -- src`. Fixing one instance is exactly what hid the others. **(2)** Prove
 it renders differently (M4): put the old `dir` back on the live element and re-measure the runs'
 x-positions. A `<bdi>` that changes nothing looks identical to one that fixes everything.
-**The repo's most-repeated defect — 7 occurrences**, every one green through typecheck, tests and
+**The repo's most-repeated defect — 8 occurrences**, every one green through typecheck, tests and
 an EN-only screenshot. Count and its source: → `#bidi-bdi`.
 
 **LAW · Design parity is judged against the RENDERED design, never bundle CSS** — bundle CSS can be
@@ -184,6 +184,8 @@ terminal event means both — `done`/`incomplete` are distinct types, so no call
 **test** that the right one is CHOSEN — `chat2/terminal.ts` decides it as a pure function of the
 facts, swept exhaustively. Claiming `impossible` for both was rejected at review: the choice was
 still inline guards, and every hole found so far lived exactly there.
+**Third tier (ticket 07):** a scope the backend ACCEPTS but never reads is the same lie one layer
+up. `chat2/requestScope.test.ts` fails for any accepted id no handler reads; limit in its header.
 Seven surfaces fail a thin answer sold as whole: `retrieve`, `indexHealth`, `reindex`,
 `syncFilings`, `chat2/loop`, `chat2/tools`, `chat2/terminal`. A new surface still gets `none`.
 → `#stubs-on-designed-slots`

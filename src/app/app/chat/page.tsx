@@ -22,7 +22,13 @@ export default async function ChatPage({
   const initialQuote = searchParams.quote ?? null
 
   // Transcript-scoped context (✦ "open in chat" from a specific call).
-  let initialTranscript: { id: string; label: string } | null = null
+  // The two parts stay SEPARATE rather than being pre-joined into one label.
+  // "תיגבור · Q3 2025" is a Hebrew run beside a Latin one, and the bidi law wants
+  // a `<bdi>` per run — which the renderer cannot do once the two have been
+  // concatenated into a single opaque string here. Fixing the CONSTRUCT is the
+  // law's first VERIFY step; pre-joining is what made the chip unfixable at the
+  // only place that knows how to render it.
+  let initialTranscript: { id: string; company: string; quarter: string } | null = null
   if (searchParams.transcript) {
     const { data } = await supabaseAdmin
       .from('transcripts')
@@ -33,7 +39,8 @@ export default async function ChatPage({
     if (fd)
       initialTranscript = {
         id: data!.id as string,
-        label: `${fd.company ?? ''} · ${fd.quarter ?? ''}`.trim(),
+        company: fd.company ?? '',
+        quarter: fd.quarter ?? '',
       }
   }
 

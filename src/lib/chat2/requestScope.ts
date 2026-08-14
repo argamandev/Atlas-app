@@ -21,18 +21,33 @@ export function asUuid(v: unknown): string | undefined {
   return typeof v === 'string' && UUID_RE.test(v) ? v : undefined
 }
 
+/**
+ * AN ACCEPTED SCOPE MUST BE A CONSUMED SCOPE (ticket 07, cold review, BLOCKER).
+ *
+ * `transcriptId` used to be here. It was uuid-gated, placed on `ChatScope`, and
+ * read by NOTHING — no tool handler, no system prompt. The client could send it,
+ * the backend took it, and the answer was not grounded in that transcript. That
+ * is worse than refusing it: the "open in chat" entry point from a call renders a
+ * transcript chip on screen, so the surface promised a grounding the backend had
+ * silently dropped — success UI for content the server never used.
+ *
+ * So it is GONE rather than merely unused. A field the type cannot express is a
+ * field no route can quietly accept and ignore (M3.3), and the guard is now
+ * mechanical: `requestScope.test.ts` asserts every key this function returns is
+ * consumed somewhere in `src/lib/chat2`. Ticket 08 (B2, whole-call injection)
+ * adds `transcriptId` back TOGETHER WITH the code that reads it — which is the
+ * only order in which it is honest.
+ */
 export interface ClientScopeIds {
   companyId?: string
-  transcriptId?: string
   workspaceId?: string
 }
 
-/** Pull the three client-supplied ids out of an untrusted body, uuid-gated. */
+/** Pull the client-supplied ids out of an untrusted body, uuid-gated. */
 export function clientScopeIds(body: unknown): ClientScopeIds {
   const b = (body ?? {}) as Record<string, unknown>
   return {
     companyId: asUuid(b.companyId),
-    transcriptId: asUuid(b.transcriptId),
     workspaceId: asUuid(b.workspaceId),
   }
 }
