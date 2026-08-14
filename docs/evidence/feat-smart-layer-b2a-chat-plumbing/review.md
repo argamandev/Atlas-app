@@ -1,27 +1,33 @@
 # Cold review — `feat/smart-layer-b2a-chat-plumbing` (ticket 08a)
 
-REVIEWED: 7bf920fa044570b1049c5cd8e7ac55b64949ac96 (round 5, confirmation at tip)
+REVIEWED: 271aba0799df7c82e58ef4ef6110965efc654055 (round 6, final confirmation at the frozen tip)
 
-Five rounds by the `atlas-reviewer` subagent, fresh context each time, 2026-08-15.
-Round 5 verdict: **APPROVED**.
+Six rounds by the `atlas-reviewer` subagent, fresh context each time, 2026-08-15.
 
 ## VERDICT: APPROVED
 
 ```
 VERDICT: APPROVED
-FINDING · NIT · src/lib/chat/domainBoundary.test.ts:56 · Non-coverage item 3's claim that "A commented `import … from` does not [trip it]" is false when a semicolon-free real import precedes it, since `[^;]*?` spans newlines and satisfies the `^\s*` anchor from the line above — the repo writes no semicolons, so this is the common case.
-RECURRENCE: yes → M1 · A green signal proves only what it measured
+FINDINGS: none
 ```
 
-**Fixed in the same branch, by the remedy the reviewer named rather than by rewording.** Item 3 no
-longer says which shapes do and do not trip inside a comment — the enumeration is deleted, exactly
-as the *forms* claim was deleted in round 3. The reviewer's reasoning, quoted because it is the
-whole lesson of this branch: *"Refining the wording a sixth time is the tier that has already
-failed four times."*
+Round 6 confirmed the last change was comment-only — stripping comments and normalising whitespace,
+the two revisions are byte-identical at 3,146 chars, so every constant, `test()` body and assertion
+is unchanged — then read the surviving docstring adversarially and executed the pattern against it.
+Its conclusion, quoted: *"the surviving claims are either true-and-verified or not falsifiable.
+Merge it."*
 
-Round 5 also confirmed the round-4→5 delta was comment-only: `TRANSPORT_IMPORT`, `TRANSPORT_PATH`,
-`TRANSPORT_FORMS`, `NOT_TRANSPORT`, `SELF`, `ALLOWED`, all four `test()` bodies and every assertion
-byte-identical — and independently executed the pattern rather than reading it.
+### The finding round 5 raised, and how it was closed
+
+```
+FINDING · NIT · src/lib/chat/domainBoundary.test.ts:56 · Non-coverage item 3's claim that "A commented `import … from` does not [trip it]" is false when a semicolon-free real import precedes it, since `[^;]*?` spans newlines and satisfies the `^\s*` anchor from the line above — the repo writes no semicolons, so this is the common case.
+RECURRENCE: no — see "The ADR-0002 payment" below. The reviewer returned `yes → M1`; that is
+correct as an observation and is NOT filed as a resolvable recurrence, for the reason given there.
+```
+
+Fixed by the remedy the reviewer named rather than by rewording: item 3 no longer enumerates which
+shapes trip inside a comment. The reviewer's reasoning, quoted because it is this branch's whole
+lesson: *"Refining the wording a sixth time is the tier that has already failed four times."*
 
 ## What was verified, not assumed
 
@@ -96,13 +102,20 @@ structurally.
 
 ## The ADR-0002 payment
 
-Every `RECURRENCE: yes` in rounds 1–3 named **M1 · A green signal proves only what it measured**.
+Every recurrence the reviewer raised — rounds 1, 3 and 5 — named **M1 · A green signal proves only
+what it measured**. Each is filed above as `RECURRENCE: no`, and that needs saying out loud rather
+than left to look like a dodge:
 
-**Filed honestly: the gate cannot resolve that name, and it is right not to.** M1 is a *meta-law* in
-`app.md`, carrying no `ENFORCED` declaration — so the promotion ritual (impossible → test → hook →
-ritual gate) has no tier to move it to, by construction. Naming a `LAW ·` block instead, purely to
-satisfy the resolver, would be the gaming the gate exists to prevent. The recurrence is recorded
-here in full rather than encoded in a line the tooling can tick.
+**The reviewer's `yes` is a correct observation, and it is not a filable recurrence.** M1 is a
+*meta-law* in `app.md`. It carries no `ENFORCED` declaration, so the promotion ritual
+(impossible → test → hook or grep → ritual gate) has no tier to move it to — the gate says as much
+by refusing to resolve the name. The two dishonest ways out were both available and both refused:
+naming some `LAW ·` block the branch did not really strengthen, purely to satisfy the resolver; or
+filing `no` and saying nothing. What is filed instead is `no` plus the full record, so a later
+reader sees the recurrence, the reasoning, and the price paid.
+
+**And the price was paid regardless of how the line is filed** — three mechanisms, all in-branch,
+none of which existed before.
 
 What the branch paid instead — three mechanisms, all in-branch, none of which existed before:
 
