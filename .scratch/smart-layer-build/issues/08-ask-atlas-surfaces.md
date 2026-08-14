@@ -20,9 +20,10 @@ phase where skipping a locale is tempting.
 **The ticket is NOT closed by 08a.** Its acceptance line is the surfaces verified in both
 locales; only 08b can close it. A merged 08a must not be read as a finished 08.
 
-- **08a — plumbing.** Changes NO user-visible behaviour: the old route keeps serving every
-  surface and `ChatView` behaves exactly as before. Verified by typecheck + the battery;
-  `/verify-app` is deliberately not owed, because nothing a user can see moved.
+- **08a — plumbing. DONE** (slices 1–2; slice 3 moved to 08b, see below). Changes NO
+  user-visible behaviour: the old route keeps serving every surface and `ChatView` behaves
+  exactly as before. Verified by typecheck + the battery; `/verify-app` is deliberately not
+  owed, because nothing a user can see moved.
 - **08b — surfaces.** Everything above: both callers onto v2, whole-call injection, delete
   the old route and the `useV2` fork, restore citation chips (v2 carries none), then
   `/verify-app` both locales, the three measurements, `/ship`.
@@ -43,11 +44,33 @@ These are SEQUENTIAL, not parallel worktrees — they touch the same files. 08a 
    module both sides import; `incompleteCopy` keys off an exhaustive `Record`, so a new code
    fails typecheck instead of rendering as `stopped_unknown`. Empties the one allowlist entry
    in `chat/domainBoundary.test.ts`.
-3. **The `Grounding` union** — spec §2.3 names exactly four recipes (blank · company · call ·
-   shelf); today they are eight optional fields across two request shapes, with the client
-   holding a boolean for *which backend can honour which grounding*. Define the union and
-   teach `/api/chat/v2` to accept it. **Do not move any surface onto it in 08a** — that is
-   08b, and it is what keeps 08a behaviour-preserving.
+3. **The `Grounding` union — MOVED TO 08b.** Planned as 08a's third slice; the law forbids
+   it there, and the reason is worth more than the slice was.
+
+   Spec §2.3 names exactly four recipes (blank · company · call · shelf); today they are
+   eight optional fields across two request shapes, with the client holding a boolean for
+   *which backend can honour which grounding*. The plan was to define the union and teach
+   `/api/chat/v2` to accept it in 08a, leaving the surfaces for 08b.
+
+   **`chat2/requestScope.test.ts` refuses that**, mechanically: *"every scope id the backend
+   ACCEPTS is consumed by the backend"*, with `transcriptId` pinned by name as ticket 07's
+   cold-review BLOCKER — it was uuid-gated onto the scope and read by nothing while the
+   surface showed a chip promising that grounding. A `Grounding` union whose `call` variant
+   the route accepts but no handler honours reproduces that defect exactly, one layer up.
+
+   So the union lands **with the handler that reads it** — whole-call injection — which is
+   08b's own work. 08b should define it FIRST and build the injection against it, rather
+   than migrating the surfaces field-by-field and fitting a union afterwards.
+
+   Shape to start from (not yet built, no code written for it):
+
+   ```ts
+   type Grounding =
+     | { kind: 'none' }                        // Chat, blank → search mode
+     | { kind: 'company'; companyId: string }  // @mention, or the company page
+     | { kind: 'call'; transcriptId: string }  // live call / transcript → inject whole
+     | { kind: 'shelf'; workspaceId: string }  // workspace chat
+   ```
 
 Provenance: the three slices come from an architecture review of the chat stack
 (2026-08-15). Two further candidates from that review — a partial-result union for

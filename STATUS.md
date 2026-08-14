@@ -3,7 +3,7 @@
 **Rewritten, never appended. Intent and next move only.** Dated entries go in `PROGRESS.md`; what
 has landed is removed, not struck through.
 
-_Last rewritten: 2026-08-14_
+_Last rewritten: 2026-08-15_
 
 ## Where the product is
 
@@ -22,10 +22,13 @@ Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`. Lowest unblocked
 one, branch per slice. **STRICT ORDER: 08 → 09 → 10 → 11 → 12 → 13 → 14** (founder, final).
 
-**Phase A done; B1a (06) and B1b (07) merged.** Chat's UI is on the unified backend: visible search
-mode (from scope, never from the question), nine degradation states in both locales, alias-aware
-`@mention`. Project and transcript chats stay on the OLD `/api/chat` until B2 — v2 honours neither
-grounding.
+**Phase A done; 06, 07, 08a merged.** Chat's UI is on the unified backend. Project and transcript
+chats stay on the OLD `/api/chat` until 08b — v2 honours neither grounding.
+
+**Ticket 08 is SPLIT; 08a landed and does NOT close it** — 08's acceptance is the surfaces verified
+in both locales, which only 08b can do. 08a was plumbing only: domain types out of the dying
+transport module, the wire vocabulary into one `chat2/protocol.ts`. 08b now touches
+`lib/api/chat.ts` + its two callers, not twelve.
 
 **Two reds, filed with numbers, not re-scored** (M2) — evidence in that branch's
 `docs/evidence/` dir:
@@ -40,8 +43,10 @@ Both are eval-gated retrieval parameters; **a DEDICATED PARALLEL SESSION owns th
 `scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** (local is verified)
 — **a 401 on the first deploy of `/api/chat/v2` is the first thing to check**; absent returns 503.
 
-**Next: ticket 08 (B2, Ask Atlas surfaces).** `TranscriptChatPanel` + company-page chat onto v2,
+**Next: ticket 08b (B2, Ask Atlas surfaces).** `TranscriptChatPanel` + company-page chat onto v2,
 whole-call injection, retiring the old wire format — which also removes 07's `useV2` fork and
-restores citation chips (v2 carries none).
+restores citation chips (v2 carries none). **Start with the `Grounding` union** (shape in the
+ticket): `requestScope.test.ts` refuses any scope id the backend accepts but never reads, so it
+lands WITH whole-call injection, never before it.
 
 Also open: **ticket 13** holds the cleanup list; poller/sweep deferred past V1.
