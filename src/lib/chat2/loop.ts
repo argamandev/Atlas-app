@@ -44,6 +44,7 @@ import { TOOL_DEFS, type ChatScope, type ToolResult } from './toolDefs'
 import { buildSystemPrompt } from './systemPrompt'
 import { verifyCitation } from './citations'
 import { decideTerminal, type IncompleteCode } from './terminal'
+import { chatMode, modeChanged, type ChatMode } from './mode'
 import { defang } from './fence'
 
 export const MODEL = 'claude-sonnet-5'
@@ -126,6 +127,16 @@ export const TERMINAL_EVENTS = ['done', 'incomplete', 'error'] as const
 export type ChatEvent =
   | { type: 'delta'; text: string }
   | { type: 'tool'; name: string; status: 'start' | 'end'; isError?: boolean }
+  /**
+   * NON-TERMINAL. Which grounding mode this turn is in, and the company it is
+   * pinned to when there is one. Emitted for the OPENING mode and again on every
+   * change — never only on change, or a surface would render its own default
+   * (a guess) until the first `resolve_company` landed.
+   *
+   * This is what makes search mode VISIBLE (spec §2.3). It is a fact about the
+   * scope, not an inference from the question — see `mode.ts`.
+   */
+  | { type: 'mode'; mode: ChatMode; companyId: string | null }
   /** TERMINAL. The model finished cleanly. The ONLY event that means complete. */
   | { type: 'done' }
   /**
@@ -201,6 +212,22 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // the terminal event, not the text. Round 4 caught the earlier wording here
   // claiming the stronger thing.
   let emittedText = ''
+
+  // THE MODE, ANNOUNCED FROM ONE PLACE. `scope.companyId` is mutated in-place by
+  // the `resolve_company` handler, so the mode can change mid-turn — and the only
+  // honest way to render that is to say so when it happens. Both the opening
+  // announcement and every later one go through this generator rather than
+  // through an `if` at each site, so there is no path that changes the scope
+  // without telling the surface (M3.1).
+  let announcedMode: ChatMode | null = null
+  function* announceMode(): Generator<ChatEvent> {
+    const next = chatMode(scope)
+    if (!modeChanged(announcedMode, next)) return
+    announcedMode = next
+    yield { type: 'mode', mode: next, companyId: scope.companyId ?? null }
+  }
+
+  yield* announceMode()
 
   for (let roundTrip = 0; roundTrip < MAX_ROUND_TRIPS; roundTrip++) {
     let response: Anthropic.Message
@@ -342,6 +369,11 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
         })
       }
     }
+    // After the tools have run, because `resolve_company` sets `scope.companyId`
+    // as a side effect — this is the point where a turn that began market-wide
+    // becomes pinned to a company, and the surface has to be told.
+    yield* announceMode()
+
     messages.push({ role: 'user', content: toolResults })
   }
 

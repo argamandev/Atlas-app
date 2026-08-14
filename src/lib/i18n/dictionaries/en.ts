@@ -512,6 +512,31 @@ export const en = {
     answerWasTruncated: 'This answer was cut off before it finished.',
     notSaved: 'This answer arrived but was not saved — {error}',
     pageShort: 'p.',
+    // ─── Ticket 07: the new backend's grounding mode, said out loud ──────────
+    // Search mode is VISIBLE by design (spec §2.3). It is decided from the scope
+    // alone — a company resolved or not — never guessed from the question, so
+    // when it is wrong the user can see that and fix it in one tap. That is the
+    // "buy visible failure" the classifier law asks for.
+    searchMode: 'Search mode',
+    searchModeHint: 'No company was identified, so Atlas is answering with leads from across the market.',
+    pinCompany: 'Pin to a company',
+    unpinCompany: 'Search the whole market instead',
+    // ─── The nine reasons an answer is not whole ────────────────────────────
+    // One per `ClientIncompleteCode`. The server sends a CODE precisely so this
+    // surface never has to string-match its English `reason` prose to decide
+    // what to render in Hebrew.
+    incomplete: {
+      roundTripCap: 'Atlas reached its search-step limit before finishing — try a narrower question.',
+      allSourcesFailed:
+        'Every source lookup failed on this answer, so nothing in it is grounded — do not rely on it.',
+      unverifiedQuote: 'A quoted claim in this answer could not be verified against its source.',
+      lengthLimit: 'This answer hit its length limit before it finished.',
+      modelRefused: 'The model declined to continue this answer.',
+      modelPaused: 'The model paused before finishing this answer.',
+      stoppedUnknown: 'This answer stopped unexpectedly before it finished.',
+      noAnswerText: 'No answer text came back.',
+      streamEnded: 'The connection ended before the answer finished.',
+    },
     suggestions: [
       'Summarize the latest investor call in 3 bullets',
       'List the forward-looking guidance management gave',

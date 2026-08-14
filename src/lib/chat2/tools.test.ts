@@ -262,3 +262,61 @@ test('an empty workspace is labelled empty rather than rendered as a blank sourc
   const result = await handlers.read_workspace({})
   assert.match(result.content, /\(empty\)/)
 })
+
+// ─── SEARCH MODE DIVERSIFIES, PINPOINT MODE DOES NOT (ticket 07, spec §2.5.6) ──
+// The measured defect (eval case 04): unscoped, similarity clusters and one
+// issuer takes the whole head of the ranking, so a market-wide question is
+// answered about a single company while looking entirely confident. The
+// diversifier is unit-tested next door (`corpus/diversify.test.ts`); what these
+// two prove is that `search_corpus` applies it on exactly the right branch —
+// which is where a correct function still produces a wrong answer.
+
+/** Five windows from one company, then one each from two others — the monopoly shape. */
+const MONOPOLY_CHUNKS = [
+  ...Array.from({ length: 5 }, (_, i) => ({
+    id: `mono${i}`,
+    sourceType: 'filing' as const,
+    pageNo: i + 1,
+    companyId: 'C-LOUD',
+    content: `רעש ${i}`,
+  })),
+  { id: 'b1', sourceType: 'filing' as const, pageNo: 1, companyId: 'C-QUIET', content: 'לקח שני' },
+  { id: 'c1', sourceType: 'filing' as const, pageNo: 1, companyId: 'C-THIRD', content: 'לקח שלישי' },
+]
+
+test('UNSCOPED search diversifies — one company cannot monopolise the leads', async () => {
+  const handlers = await makeHandlers(
+    { userId: 'u1' },
+    { retrieve: fakeRetrieve(MONOPOLY_CHUNKS) as never }
+  )
+  const result = await handlers.search_corpus({ query: 'מי דיבר על ריבית?' })
+  // The two quiet companies reach the answer instead of being buried.
+  assert.ok(result.content.includes('לקח שני'), 'the second company must reach the answer')
+  assert.ok(result.content.includes('לקח שלישי'), 'the third company must reach the answer')
+  // And the loud one is capped at SEARCH_MODE_PER_COMPANY (3), not all five.
+  const loudWindows = MONOPOLY_CHUNKS.filter(
+    (c) => c.companyId === 'C-LOUD' && result.content.includes(`chunkId=${c.id} `)
+  )
+  assert.equal(loudWindows.length, 3)
+})
+
+test('SCOPED search does NOT diversify — every row is the company that was asked about', async () => {
+  // Diversifying in pinpoint mode would silently drop windows from the one
+  // company the user named, which is the same "confidently narrow" failure in
+  // the opposite direction.
+  const scopedChunks = Array.from({ length: 5 }, (_, i) => ({
+    id: `s${i}`,
+    sourceType: 'filing' as const,
+    pageNo: i + 1,
+    companyId: 'C-ONLY',
+    content: `קטע ${i}`,
+  }))
+  const handlers = await makeHandlers(
+    { userId: 'u1', companyId: 'C-ONLY' },
+    { retrieve: fakeRetrieve(scopedChunks) as never }
+  )
+  const result = await handlers.search_corpus({ query: 'מה אמרו?' })
+  for (const c of scopedChunks) {
+    assert.ok(result.content.includes(`chunkId=${c.id} `), `${c.id} must survive scoped search`)
+  }
+})

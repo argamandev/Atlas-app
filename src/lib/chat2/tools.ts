@@ -27,6 +27,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { resolveCompany, type CompanyAliasRow } from '@/lib/company/resolve'
 import { retrieveChunks, type RetrievalResult } from '@/lib/corpus/retrieve'
+import { diversifyByCompany } from '@/lib/corpus/diversify'
 import { type CorpusDb } from '@/lib/corpus/reindex'
 import { listDisclosures } from '@/lib/maya/disclosures'
 import { describeFailure } from '@/lib/maya/types'
@@ -43,6 +44,17 @@ export type { ChatScope, ToolResult, ToolHandler } from './toolDefs'
 export { TOOL_DEFS } from './toolDefs'
 
 const asFenced = (sources: SourceToFence[]) => fenceSources(sources)
+
+/**
+ * Search mode's shape (spec §2.5.5–6): top-20 market-wide, and no more than
+ * three windows from any one company so the answer reads as LEADS across the
+ * market rather than a profile of whichever issuer ranked best. Three is enough
+ * for a company to earn a real paragraph and few enough that seven companies fit
+ * the same budget. Changing either number is a retrieval change and re-runs the
+ * class-G discovery cases of the eval gate.
+ */
+export const SEARCH_MODE_LIMIT = 20
+export const SEARCH_MODE_PER_COMPANY = 3
 
 /**
  * The outside world these handlers reach, injectable so the registry can be
@@ -103,7 +115,16 @@ export function buildToolHandlers(
       if (result.chunks.length === 0) {
         return { content: 'no matching corpus content was found for this scope — say so, do not guess' }
       }
-      const sources: SourceToFence[] = result.chunks.map((c) => ({
+      // SEARCH MODE DIVERSIFIES; PINPOINT MODE MUST NOT (spec §2.5.6). Unscoped,
+      // similarity clusters and one issuer takes the whole head of the list, so a
+      // market-wide question gets answered about a single company — measured on
+      // eval case 04. Scoped, every row IS the company the user asked about and
+      // interleaving would be actively wrong. The branch is on the same fact the
+      // mode is (`companyId`), so the two can never disagree.
+      const chunks = companyId
+        ? result.chunks
+        : diversifyByCompany(result.chunks, { limit: SEARCH_MODE_LIMIT, perCompany: SEARCH_MODE_PER_COMPANY })
+      const sources: SourceToFence[] = chunks.map((c) => ({
         kind: c.sourceType === 'transcript' ? 'transcript' : 'filing',
         label: `chunkId=${c.id} ${
           c.sourceType === 'transcript' ? `lines ${c.firstLineId}-${c.lastLineId}` : `page ${c.pageNo}`

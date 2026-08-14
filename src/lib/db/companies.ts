@@ -173,11 +173,47 @@ export async function searchCompanies(q: string): Promise<Company[]> {
     .trim()
   if (!term) return listCompanies()
   const like = `%${term}%`
-  const { data, error } = await supabaseAdmin
-    .from('companies')
-    .select(COLS)
-    .or(`name.ilike.${like},display_name.ilike.${like},name_en.ilike.${like},tase_security_id.ilike.${like}`)
-    .limit(20)
-  if (error) throw new Error(error.message)
-  return (data ?? []).map(mapCompany)
+
+  // THE ALIAS TABLE IS PART OF THE SEARCH (ticket 07, spec §2.3 "@company
+  // autocomplete from the alias table").
+  //
+  // Before this, the model and the user disagreed about what a company is called.
+  // `resolve_company` reads `company_aliases`, so typing בז"א into a QUESTION
+  // resolved off the alias table and scoped retrieval correctly — the MUST-PASS
+  // eval case. Typing the same three characters into the @-mention dropdown
+  // matched `companies.name` only, found nothing, and offered the user no way to
+  // pin the company they had just named. The autocomplete was strictly less able
+  // to recognise a company than the answer engine behind it, which reads to the
+  // user as Atlas not knowing a company it demonstrably knows.
+  //
+  // Aliases FIRST in the result order: an alias match means the user typed a name
+  // this company is actually known by, which is a stronger signal than an
+  // infix hit somewhere inside a longer registered name.
+  const [aliasHits, nameHits] = await Promise.all([
+    supabaseAdmin.from('company_aliases').select('company_id').ilike('alias', like).limit(20),
+    supabaseAdmin
+      .from('companies')
+      .select(COLS)
+      .or(
+        `name.ilike.${like},display_name.ilike.${like},name_en.ilike.${like},tase_security_id.ilike.${like}`
+      )
+      .limit(20),
+  ])
+  if (nameHits.error) throw new Error(nameHits.error.message)
+
+  const byName = (nameHits.data ?? []).map(mapCompany)
+  // An alias lookup that FAILED must not silently narrow the dropdown to the name
+  // matches while looking like a complete result (app.md — degradation must be
+  // visible). There is no per-row channel to say "partial" on an autocomplete, so
+  // the honest move is to fail the request the caller can already render an error
+  // for, rather than quietly answering a different question.
+  if (aliasHits.error) throw new Error(aliasHits.error.message)
+
+  const aliasIds = Array.from(new Set((aliasHits.data ?? []).map((r) => String(r.company_id))))
+  const missing = aliasIds.filter((id) => !byName.some((c) => c.id === id))
+  if (missing.length === 0) return byName
+
+  const extra = await supabaseAdmin.from('companies').select(COLS).in('id', missing).limit(20)
+  if (extra.error) throw new Error(extra.error.message)
+  return [...(extra.data ?? []).map(mapCompany), ...byName].slice(0, 20)
 }

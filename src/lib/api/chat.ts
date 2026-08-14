@@ -79,8 +79,24 @@ export function sanitizeTruncated(raw: unknown): boolean {
  * and its sibling `sanitizeContextStatus` had a dedicated test file while this
  * had none. A later refactor writing `!!m.truncated` would have failed nothing.
  */
-export function truncatedForPersist(m: { truncated?: boolean | null; errorKind?: string }): boolean {
-  return m.truncated === true || m.errorKind === 'truncated'
+export function truncatedForPersist(m: {
+  truncated?: boolean | null
+  errorKind?: string
+  /**
+   * THE V2 SOURCE (ticket 07). The new backend does not break a stream to say an
+   * answer is partial — it ENDS it in an `incomplete` event with a code, which is
+   * an ordinary, successful HTTP response. So a v2 turn that hit its length limit
+   * has no `errorKind` at all: the stream finished, the promise resolved, and
+   * every signal the two fields above read says "complete".
+   *
+   * Missing this third source would have reintroduced the exact BLOCKER this
+   * function exists for, by the one door its tests did not watch — a partial
+   * answer persisting as a whole one, now arriving through the honesty machinery
+   * built to prevent it rather than around it.
+   */
+  incomplete?: string | null
+}): boolean {
+  return m.truncated === true || m.errorKind === 'truncated' || m.incomplete != null
 }
 
 // Streamed chat (Feature 5): POST to /api/chat, read the plain-text token stream and call

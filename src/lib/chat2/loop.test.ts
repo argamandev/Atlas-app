@@ -25,7 +25,13 @@ test('a clean answer yields deltas then done, no tool calls', async () => {
   const events = await collect(
     runChatLoop({ client, scope: { userId: 'u1' }, history: [], message: 'hi', todayIsrael: '2026-08-14' })
   )
-  assert.deepEqual(events, [{ type: 'delta', text: 'שלום' }, { type: 'done' }])
+  // The opening `mode` event leads every turn — see the mode tests at the foot of
+  // this file for why it is announced rather than left to a client-side default.
+  assert.deepEqual(events, [
+    { type: 'mode', mode: 'search', companyId: null },
+    { type: 'delta', text: 'שלום' },
+    { type: 'done' },
+  ])
 })
 
 test('a mid-stream provider failure ends in an error event, never a delta', async () => {
@@ -39,12 +45,17 @@ test('a mid-stream provider failure ends in an error event, never a delta', asyn
   const events = await collect(
     runChatLoop({ client, scope: { userId: 'u1' }, history: [], message: 'hi', todayIsrael: '2026-08-14' })
   )
-  assert.equal(events.length, 1)
-  assert.equal(events[0].type, 'error')
+  // The property is about what the user can be SHOWN, not the event count: no
+  // delta may exist, and the turn must end in `error`. Asserting `length === 1`
+  // instead made this test fail the moment a non-terminal event was added that
+  // says nothing to the user about the answer — which is a change to the stream,
+  // not to the property this test is named for.
   assert.equal(
     events.some((e) => e.type === 'delta'),
     false
   )
+  assert.equal(events[events.length - 1].type, 'error')
+  assert.equal(events.filter((e) => (TERMINAL_EVENTS as readonly string[]).includes(e.type)).length, 1)
 })
 
 test('a tool result is passed through untouched — the fence is not stripped or reinterpreted', async () => {
@@ -479,4 +490,93 @@ test('a turn whose every tool failed still ends incomplete, with or without quot
   )
   assert.equal(events.at(-1)?.type, 'incomplete')
   assert.equal((events.at(-1) as { code: string }).code, 'all_sources_failed')
+})
+
+// ─── SEARCH MODE IS VISIBLE (ticket 07, spec §2.3) ───────────────────────────
+// The mode is a fact about scope, never an inference from the question
+// (`mode.ts`). What these prove is that the fact REACHES the surface — a mode
+// decided correctly and never announced is invisible, which is the same
+// degradation-in-silence class the rest of this file exists to close.
+
+test('an unscoped turn opens in search mode, announced before any text', async () => {
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מי מהחברות דיברה על ריבית?',
+      todayIsrael: '2026-08-14',
+    })
+  )
+  assert.deepEqual(events[0], { type: 'mode', mode: 'search', companyId: null })
+})
+
+test('a turn the caller already scoped opens in pinpoint mode, carrying the company', async () => {
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const companyId = 'aaaaaaaa-0000-4000-8000-000000000001'
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', companyId },
+      history: [],
+      message: 'מה אמרו על המרווח?',
+      todayIsrael: '2026-08-14',
+    })
+  )
+  assert.deepEqual(events[0], { type: 'mode', mode: 'pinpoint', companyId })
+})
+
+test('resolve_company mid-turn flips the announced mode from search to pinpoint', async () => {
+  const companyId = 'bbbbbbbb-0000-4000-8000-000000000002'
+  const client = fakeClient([
+    {
+      content: [{ type: 'tool_use', id: 't1', name: 'resolve_company', input: { query: 'בז"א' } }],
+      stop_reason: 'tool_use',
+    },
+    { content: [{ type: 'text', text: 'תשובה' }], stop_reason: 'end_turn' },
+  ])
+  // The real handler's contract: it MUTATES scope.companyId. That side effect is
+  // precisely what the announcement has to notice.
+  const scope = { userId: 'u1' } as { userId: string; companyId?: string | null }
+  const handlers = {
+    async resolve_company() {
+      scope.companyId = companyId
+      return { content: `resolved companyId=${companyId}` }
+    },
+  }
+  const events = await collect(
+    runChatLoop({ client, scope, history: [], message: 'בז"א', todayIsrael: '2026-08-14', handlers })
+  )
+  const modes = events.filter((e) => e.type === 'mode')
+  assert.deepEqual(modes, [
+    { type: 'mode', mode: 'search', companyId: null },
+    { type: 'mode', mode: 'pinpoint', companyId },
+  ])
+})
+
+test('the mode is announced on CHANGE only — an unchanged mode does not repeat', async () => {
+  const client = fakeClient([
+    {
+      content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'ריבית' } }],
+      stop_reason: 'tool_use',
+    },
+    { content: [{ type: 'text', text: 'תשובה' }], stop_reason: 'end_turn' },
+  ])
+  const handlers = {
+    async search_corpus() {
+      return { content: 'some fenced result' }
+    },
+  }
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'ריבית',
+      todayIsrael: '2026-08-14',
+      handlers,
+    })
+  )
+  assert.equal(events.filter((e) => e.type === 'mode').length, 1)
 })
