@@ -29,6 +29,9 @@ import type { ChatScope } from '@/lib/chat2/toolDefs'
 // the unit the route only wraps: `loop.test.ts`.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Every client-supplied id in this route names a `uuid` column, or names nothing. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 function ndjsonLine(e: ChatEvent): string {
   return JSON.stringify(e) + '\n'
 }
@@ -63,11 +66,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'chat is not configured (missing ANTHROPIC_API_KEY)' }, { status: 503 })
   }
 
+  // Every id the CLIENT supplies is uuid-shaped or it is not an id (all three
+  // columns are `uuid`). Round 1's cold review found `companyId` reaching the
+  // SYSTEM prompt raw via `scopeSummary`, in the one route whose ticket is
+  // injection discipline — a client could put arbitrary instruction text there.
+  //
+  // The guard goes HERE, where scope is built, not down at the interpolation
+  // (M3.1): the string is refused at the single point every downstream use flows
+  // through — the prompt, the tool handlers and the queries alike — so closing
+  // the prompt path cannot leave the others open.
+  const asUuid = (v: unknown): string | undefined =>
+    typeof v === 'string' && UUID_RE.test(v) ? v : undefined
+
   const scope: ChatScope = {
     userId,
-    companyId: typeof body?.companyId === 'string' ? body.companyId : undefined,
-    transcriptId: typeof body?.transcriptId === 'string' ? body.transcriptId : undefined,
-    workspaceId: typeof body?.workspaceId === 'string' ? body.workspaceId : undefined,
+    companyId: asUuid(body?.companyId),
+    transcriptId: asUuid(body?.transcriptId),
+    workspaceId: asUuid(body?.workspaceId),
     userDb: createServerSupabase(cookies()),
   }
 

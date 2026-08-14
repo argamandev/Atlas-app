@@ -1,11 +1,21 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // THE TOOL REGISTRY — one door, two properties the spec (§2.2) makes law:
 //
-// 1. IDENTITY IS NEVER MODEL-SUPPLIED. `buildToolHandlers` closes over
-//    `{userId, scope}` from the request; no tool schema below ever exposes a
-//    userId/companyId parameter the model could set itself. `resolve_company`
-//    is callable every turn precisely so a mid-conversation correction reaches
-//    it WITHOUT the model needing to carry or restate identity.
+// 1. IDENTITY IS NEVER MODEL-SUPPLIED — and note exactly how far that reaches,
+//    because round 1's cold review caught this comment overstating it. What no
+//    schema exposes is `userId` and `workspaceId`: those come only from the
+//    request, via the closure, and `read_workspace` reads them through the
+//    caller's own RLS-bearing client (`scope.userDb`), never `supabaseAdmin`.
+//    `companyId` IS model-settable on `search_corpus`, `lookup_facts` and
+//    `list_disclosures`, and each prefers the model's value over the resolved
+//    scope. That is deliberate and safe HERE for one reason and only one: those
+//    three read the SHARED corpus, which every authenticated member may read in
+//    full (`docs/DATA-MODEL.md`), so choosing a company selects a subset of what
+//    the caller could already see — it is a scoping choice, not an access one.
+//    The moment a tool reaches a PERSONAL table, that argument evaporates and
+//    identity must come from the closure. `resolve_company` stays callable every
+//    turn so a mid-conversation correction reaches it without the model carrying
+//    identity in prose.
 // 2. EVERY RESULT QUOTING A DOCUMENT IS FENCED, titles and labels defanged
 //    (`fence.ts`) — corpus content, filing titles and web pages alike.
 //
@@ -17,9 +27,15 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { resolveCompany, type CompanyAliasRow } from '@/lib/company/resolve'
 import { retrieveChunks, type RetrievalResult } from '@/lib/corpus/retrieve'
+import { type CorpusDb } from '@/lib/corpus/reindex'
 import { listDisclosures } from '@/lib/maya/disclosures'
 import { describeFailure } from '@/lib/maya/types'
-import { getWorkspaceFull } from '@/lib/db/workspaces'
+// `db/workspaces` imports `server-only`, which resolves only inside Next's build —
+// a STATIC import here makes this whole registry unloadable from a test process.
+// Imported at call time instead, exactly as `loop.ts` lazily imports this file.
+type GetWorkspaceFull = typeof import('@/lib/db/workspaces').getWorkspaceFull
+const getWorkspaceFull: GetWorkspaceFull = async (...args) =>
+  (await import('@/lib/db/workspaces')).getWorkspaceFull(...args)
 import { fenceSources, type SourceToFence } from './fence'
 import { type ChatScope, type ToolHandler } from './toolDefs'
 
@@ -28,12 +44,37 @@ export { TOOL_DEFS } from './toolDefs'
 
 const asFenced = (sources: SourceToFence[]) => fenceSources(sources)
 
-export function buildToolHandlers(scope: ChatScope): Record<string, ToolHandler> {
+/**
+ * The outside world these handlers reach, injectable so the registry can be
+ * driven without a network or a live Supabase client.
+ *
+ * This seam exists because round 1's cold review found the file had NO test at
+ * all: `fence.ts` was proven in isolation, but the path corpus text actually
+ * takes into the prompt — handler → `asFenced` → tool result — was never once
+ * exercised, which is precisely where a fencing regression would land. Proving
+ * the fence on a synthetic string while the real call site is untested is the
+ * shape of green-signal M1 warns about.
+ */
+export interface ToolDeps {
+  db: typeof supabaseAdmin
+  retrieve: typeof retrieveChunks
+  listDisclosures: typeof listDisclosures
+  getWorkspaceFull: typeof getWorkspaceFull
+}
+
+export function buildToolHandlers(
+  scope: ChatScope,
+  deps: Partial<ToolDeps> = {}
+): Record<string, ToolHandler> {
+  const db = deps.db ?? supabaseAdmin
+  const retrieve = deps.retrieve ?? retrieveChunks
+  const disclosures = deps.listDisclosures ?? listDisclosures
+  const workspaceFull = deps.getWorkspaceFull ?? getWorkspaceFull
   return {
     async resolve_company(input) {
       const query = String(input.query ?? '')
       if (!query.trim()) return { content: 'a company name is required', isError: true }
-      const { data, error } = await supabaseAdmin.from('company_aliases').select('company_id, alias, kind')
+      const { data, error } = await db.from('company_aliases').select('company_id, alias, kind')
       if (error) return { content: `alias lookup failed: ${error.message}`, isError: true }
       const rows: CompanyAliasRow[] = (data ?? []).map((r) => ({
         companyId: r.company_id as string,
@@ -52,7 +93,10 @@ export function buildToolHandlers(scope: ChatScope): Record<string, ToolHandler>
       const companyId = (input.companyId as string | undefined) ?? scope.companyId ?? undefined
       let result: RetrievalResult
       try {
-        result = await retrieveChunks(supabaseAdmin as never, { query, companyId })
+        // `as unknown as` rather than `as never`: the repo's idiom for this same
+        // coercion (db/transcripts.ts, api/transcripts/route.ts) still checks the
+        // TARGET shape, so a change to what retrieveChunks wants fails here.
+        result = await retrieve(db as unknown as CorpusDb, { query, companyId })
       } catch (err) {
         return { content: `search failed: ${(err as Error).message}`, isError: true }
       }
@@ -76,7 +120,7 @@ export function buildToolHandlers(scope: ChatScope): Record<string, ToolHandler>
       const companyId = String(input.companyId ?? scope.companyId ?? '')
       if (!companyId)
         return { content: 'a companyId is required — call resolve_company first', isError: true }
-      let q = supabaseAdmin
+      let q = db
         .from('filing_facts')
         .select('concept, value, currency, period_start, period_end, metadata')
         .eq('company_id', companyId)
@@ -103,7 +147,7 @@ export function buildToolHandlers(scope: ChatScope): Record<string, ToolHandler>
     async read_source(input) {
       const chunkId = String(input.chunkId ?? '')
       if (!chunkId) return { content: 'a chunkId is required', isError: true }
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await db
         .from('document_chunks')
         .select('id, content, source_type, first_line_id, last_line_id, page_no')
         .eq('id', chunkId)
@@ -131,7 +175,7 @@ export function buildToolHandlers(scope: ChatScope): Record<string, ToolHandler>
         return { content: 'a companyId is required — call resolve_company first', isError: true }
       const fromYear = Number(input.fromYear)
       const toYear = Number(input.toYear)
-      const { data: company, error: companyErr } = await supabaseAdmin
+      const { data: company, error: companyErr } = await db
         .from('companies')
         .select('tase_issuer_id')
         .eq('id', companyId)
@@ -139,7 +183,7 @@ export function buildToolHandlers(scope: ChatScope): Record<string, ToolHandler>
       if (companyErr || !company?.tase_issuer_id) {
         return { content: 'this company has no MAYA issuer id on file', isError: true }
       }
-      const result = await listDisclosures({ issuerId: Number(company.tase_issuer_id), fromYear, toYear })
+      const result = await disclosures({ issuerId: Number(company.tase_issuer_id), fromYear, toYear })
       if (!result.ok)
         return { content: `MAYA disclosure feed failed: ${describeFailure(result.failure)}`, isError: true }
       if (result.data.length === 0) return { content: 'no disclosures found in this window' }
@@ -154,7 +198,7 @@ export function buildToolHandlers(scope: ChatScope): Record<string, ToolHandler>
     async read_workspace() {
       if (!scope.workspaceId) return { content: 'this chat is not scoped to a workspace', isError: true }
       if (!scope.userDb) return { content: 'workspace access is unavailable in this context', isError: true }
-      const found = await getWorkspaceFull(scope.userDb, scope.workspaceId).catch(() => null)
+      const found = await workspaceFull(scope.userDb, scope.workspaceId).catch(() => null)
       if (!found) return { content: 'workspace not found', isError: true }
       const lines = found.items.map((i) => i.name)
       return {

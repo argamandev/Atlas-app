@@ -34,6 +34,15 @@ export type CitationVerdict = { ok: true } | { ok: false; reason: string }
  * The ONE choke point every citation passes through, corpus and web alike
  * (M3.1). Returns why it failed, in words fit to hand back to the model as a
  * tool-error so it can retry against the real text rather than invent one.
+ *
+ * SCOPE, precisely — the header above says "the source it claims", and round 1's
+ * review was right that this overstates what the CALLER hands in. This function
+ * proves only that `quote` occurs in the `sourceContent` it is given. `loop.ts`
+ * gives it every tool result of the turn joined together, so at that call site it
+ * proves "quoted from something shown this turn", not "quoted from the document
+ * named beside it". Anyone passing a single source's content DOES get the
+ * stronger property; the weaker one is a property of the caller, not of this
+ * check.
  */
 export function verifyCitation(claim: CitationClaim): CitationVerdict {
   const quote = claim.quote?.trim()

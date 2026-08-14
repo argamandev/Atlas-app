@@ -248,6 +248,29 @@ way three times).
   silently stripped server-side and the model answers without the image (FINDING 2026-07-23).
   Recurring class: degradation must be VISIBLE — never render success UI for content the server
   dropped.
+- **2026-08-14 — SECOND OCCURRENCE, at a stream instead of a pane, which is why the law was
+  promoted to the `impossible` tier for it.** Slice B1a's chat loop (`lib/chat2/loop.ts`) claimed
+  in its own header that it "always ends in exactly one terminal event — `done` (finished cleanly)
+  or `error` (ended early)". It did not. Two paths ended a turn that had NOT finished cleanly with
+  the very same `done`:
+  - `isFinalAnswer` treated every `stop_reason` other than `tool_use` as a clean finish, so an
+    answer severed at the 4,096-token `max_tokens` cap was streamed out and then terminated with
+    `done`. `max_tokens` arrives looking exactly like success — same text blocks, no tool_use —
+    which is why nothing caught it by eye.
+  - The round-trip cap emitted a NON-terminal `degraded` and then `done`. The obvious caller,
+    `if (e.type === 'done') persist()`, is correct code against that contract and persists a
+    truncated answer as a finished one.
+  **The mechanism was aimed at the defect and approved it** (M2): `loop.test.ts` asserted
+  `events.at(-2) === 'degraded'` and `events.at(-1) === 'done'` — pinning the broken shape as the
+  specification. A green battery therefore certified exactly the property that was false.
+  **The fix was the type, not a guard** (M3.3): `done` and `incomplete` became distinct terminal
+  events, so "complete but truncated" cannot be expressed rather than merely being checked for.
+  Two facts about the fix are worth carrying: the compiler immediately located every remaining
+  site the moment `degraded` left the union — the errors WERE the audit — and the two new
+  stop-reason tests were proven to go red against the old behaviour before being trusted, because
+  a test that would have passed either way proves nothing about a defect it never saw.
+  Found by cold review, not by the author, not by the battery, and not by `tsc`.
+
 
 
 ## classifier-visible-failure

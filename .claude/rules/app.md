@@ -177,8 +177,14 @@ reassuring green; only slash-free names survive. **Verify the zone, never the co
 **LAW · Degradation must be VISIBLE. Never render success UI for content the server dropped, and
 never add a stub to fill a designed slot.** A failed fetch says so, on screen, in both locales. A
 pane ends in exactly one of: loading · error · empty — never a fabricated fourth state.
-**ENFORCED** partially — four tests fail a thin answer sold as whole: `retrieve`, `indexHealth`,
-`reindex`, `syncFilings`; a new surface gets `none`. → `#stubs-on-designed-slots`
+**A STREAM obeys this through its TERMINAL event:** if one event means "finished", no early ending
+may emit it — truncation gets its OWN terminal type, never an advisory followed by the success one.
+**ENFORCED** at two tiers (promoted 2026-08-14, second occurrence):
+**impossible** for `lib/chat2/loop.ts` — `done`/`incomplete` are distinct types, so "complete but
+truncated" is unrepresentable, and `loop.test.ts` pins exactly-one-terminal-event, last, per path;
+**test** — six fail a thin answer sold as whole: `retrieve`, `indexHealth`, `reindex`,
+`syncFilings`, `chat2/loop`, `chat2/tools`. A new surface still gets `none`.
+→ `#stubs-on-designed-slots`
 
 **LAW · When a decision rests on a natural-language classifier over an open vocabulary, buy VISIBLE
 FAILURE, not a longer word list.** Hebrew and English both have unbounded ways to say the same
@@ -258,14 +264,12 @@ fresh. Nothing refreshes a local checkout, which is where the 403s are actually 
 
 ## Verification traps — this repo's concrete false-success modes (M1)
 
-**TRAP · A scripted edit can silently match nothing.** No `.gitattributes` while
-`core.autocrlf=true` means the working tree can be CRLF while every blob is LF, so a pattern
-written with `\n` matches zero times and reports success. A bare `\r` is also a legal TypeScript
-line terminator, so a CRLF-committed file typechecks and runs while welding two keys onto one
-physical line.
-**VERIFY** After **any** scripted edit, both: compare `git diff --stat` against `git diff -w --stat`
-— wild disagreement means you rewrote line endings, not content — and **grep for the RESULT you
-intended**, because a no-op edit and a perfect edit produce the same silence. → `#crlf`
+**TRAP · A scripted edit can silently match nothing** — no `.gitattributes` while
+`core.autocrlf=true`, so a `\n` pattern matches zero times against a CRLF working tree and reports
+success. (A bare `\r` also typechecks and runs, welding two keys onto one line — story at `#crlf`.)
+**VERIFY** After **any** scripted edit, both: `git diff --stat` against `git diff -w --stat` — wild
+disagreement means you rewrote line endings, not content — and **grep for the RESULT you intended**,
+because a no-op edit and a perfect edit produce the same silence. → `#crlf`
 
 **TRAP · A grep hits prose.** `git grep -n "DEMO_USER_ID" -- src` reads as 14 live sites and no
 fallback survives (11 comments, 3 the guard's own detector and its messages). Strip comments AND

@@ -1,10 +1,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CACHE-FIRST SYSTEM PROMPT (spec §2.1, §5). Anthropic's prompt cache matches
-// on a byte-stable PREFIX, so the static instruction block — including the W1
-// answer-layer guard and the fencing/citation rules — comes FIRST and never
-// varies by request. Whatever is volatile (today's date, the resolved scope)
-// is appended LAST, after the point the cache breakpoint sits, so a different
-// scope on the next turn still hits the cached prefix.
+// CACHE-READY SYSTEM PROMPT (spec §2.1, §5) — and read the second paragraph
+// before citing this file in a cost estimate.
+//
+// The ORDERING is correct and is the part that is real: Anthropic's prompt cache
+// matches on a byte-stable PREFIX, so the static instruction block (the W1
+// answer-layer guard, the fencing and citation rules) comes FIRST and never
+// varies by request, while everything volatile — today's date, the resolved
+// scope — is appended LAST. A different scope next turn cannot disturb the
+// prefix.
+//
+// NO CACHING ACTUALLY HAPPENS TODAY. Round 1's cold review caught the original
+// header describing a breakpoint the code never set, and the fix is NOT to set
+// one: the static block measures ~361 tokens (1,301 chars) against Sonnet's
+// 1,024-token minimum cacheable prefix, so a `cache_control` marker here would
+// be a mechanism that cannot engage — enforcement in appearance only, which is
+// the failure `CONTEXT.md` ranks below honest absence. **The §5 cost budget must
+// not be justified by prompt caching until this block is over the minimum**, at
+// which point the breakpoint goes on the LAST static block and this note comes
+// out. Filed in `docs/open-findings.md`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STATIC_SYSTEM_PROMPT = `You are Atlas, a research assistant for the Israeli public market (TASE-listed companies).
