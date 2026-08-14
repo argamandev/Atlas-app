@@ -30,26 +30,33 @@ import { join } from 'node:path'
  * closes it, both written beside the name.
  *
  * STATED LIMIT — and the history of this paragraph IS the limit's justification.
- * It has been wrong twice, both times in the same direction: claiming coverage
- * the pattern did not have.
+ * It was wrong three times, always the same way: claiming coverage the pattern
+ * did not have.
  *
  *   v1 matched `import … from` only, while claiming dynamic imports would fail.
- *   v2 added `export … from` and `import(…)`, and claimed completeness — missing
- *      the bare side-effect `import '@/lib/api/chat'`, caught at round-2 review.
+ *   v2 added `export … from` + `import(…)`, claimed "all three" — missed bare
+ *      `import '@/lib/api/chat'`.
+ *   v3 added the bare form, claimed "all FOUR static ways" — missed the backtick
+ *      specifier, `require`, and TS import-equals.
  *
- * That is M1 twice inside one branch, so the prose is no longer where the claim
- * lives: the four forms are asserted by name in `the pattern catches every static
- * way to reach transport`, and this paragraph only records what is left.
+ * Each round the pattern got better and the sentence stayed a liability, because
+ * PROSE THAT ENUMERATES SYNTAX IS A CLAIM NO TEST CAN HOLD: a test cannot assert
+ * about syntax nobody told it exists. So the enumeration was deleted, not
+ * extended again. `TRANSPORT_FORMS` is now both the claim and the fixture list,
+ * and it cannot disagree with itself.
  *
- * WHAT IS GENUINELY NOT COVERED, all three named rather than implied:
- *   1. A specifier assembled from a variable (`import(BASE + '/chat')`). No such
+ * WHAT IS NOT COVERED, named rather than implied:
+ *   1. A specifier assembled at runtime (`import(BASE + '/chat')`). No such
  *      construction exists in this directory.
  *   2. This file itself — see `SELF`. A transport import added HERE is invisible.
- *      The exclusion is deliberate (the file holds the fixtures) and the hole is
- *      real; it is bounded by the fact that a test file never reaches production.
+ *      Deliberate (the file holds the fixtures) and a real hole, bounded by the
+ *      fact that a test file never reaches production.
  *   3. Comments and strings are NOT stripped, so an import-shaped line inside a
- *      comment fails the test. That is the safe direction, and it is the reason
- *      `SELF` has to exist at all.
+ *      comment fails the test. The safe direction, and the reason `SELF` exists.
+ *   4. Anything outside `TRANSPORT_FORMS`. This is a text scan: it defends
+ *      against the coupling being re-added in ordinary code, not against someone
+ *      determined to hide it. Stated plainly because three rounds were spent
+ *      pretending otherwise.
  */
 
 const DIR = 'src/lib/chat'
@@ -60,22 +67,64 @@ const DIR = 'src/lib/chat'
  */
 const ALLOWED = new Set<string>([])
 
-const TRANSPORT_PATH = String.raw`(@\/lib\/api\/[^'"]+|\.\.\/api\/[^'"]+)`
+// The specifier. Excludes all three delimiters, so a backtick cannot be run past
+// when the delimiter class below accepts one.
+const TRANSPORT_PATH = String.raw`(@\/lib\/api\/[^'"\`]+|\.\.\/api\/[^'"\`]+)`
 
 /**
- * All FOUR static ways a module can reach transport:
- *   import … from '…'   ·   export … from '…'   ·   import('…')   ·   import '…'
+ * NO COMPLETENESS CLAIM IS MADE HERE, and that is the fix rather than a hedge.
  *
- * Version 1 matched only the first while claiming the third. Version 2 added the
- * second and third and claimed completeness — and missed the fourth, the bare
- * side-effect import, which cold review caught. Twice in a row the docstring
- * outran the pattern, which is why the fixtures below now assert each form by
- * name rather than the prose asserting it.
+ * Three consecutive review rounds died on this docstring, each time the same way:
+ *   v1 matched `import … from`, claimed dynamic imports too.
+ *   v2 added `export … from` + `import(…)`, claimed "all three".
+ *   v3 added bare `import '…'`, claimed "all FOUR static ways" — and missed the
+ *      backtick form ``import(`@/lib/api/chat`)``, plus `require` and TS
+ *      import-equals.
+ *
+ * The pattern was never the problem; the sentence was. Prose that enumerates
+ * syntax is a claim no test can hold, because a test cannot assert about syntax
+ * nobody told it exists — so the enumeration is gone. What this guard catches is
+ * exactly `TRANSPORT_FORMS` below, which is both the fixture list and the
+ * documentation, and cannot disagree with itself.
+ *
+ * This is deliberately the honest weaker statement (`CONTEXT.md`: a law with no
+ * mechanism says so). The guard is a text scan; it defends against the coupling
+ * being re-added in ordinary code, not against someone determined to hide it.
  */
 const TRANSPORT_IMPORT = new RegExp(
-  String.raw`(?:(?:^\s*(?:import|export)\s[^;]*?from\s*)|(?:^\s*import\s*)|(?:\bimport\s*\(\s*))['"]${TRANSPORT_PATH}['"]`,
+  String.raw`(?:(?:^\s*(?:import|export)\s[^;]*?from\s*)|(?:^\s*import\s*)|(?:\b(?:import|require)\s*\(\s*))['"\`]${TRANSPORT_PATH}['"\`]`,
   'gm'
 )
+
+/**
+ * THE CLAIM, as data. Every form here is asserted below; nothing outside it is
+ * claimed. Three review rounds were spent on a prose enumeration that kept
+ * outrunning the pattern, so the enumeration now lives where it is checked.
+ */
+const TRANSPORT_FORMS = [
+  `import type { ChatSnip } from '@/lib/api/chat'`,
+  `import { streamChat } from '@/lib/api/chat2'`,
+  `import def, { named } from '@/lib/api/chat'`,
+  `export type { ClientChatEvent } from '@/lib/api/chat2'`,
+  `export { parseChatEvent as p } from '@/lib/api/chat2'`,
+  `export * from '@/lib/api/chat2'`,
+  `import x from '../api/chat'`,
+  `import '@/lib/api/chat'`, // bare side-effect — missed by v1 and v2
+  `import '../api/chat'`,
+  `const m = await import('@/lib/api/chat')`,
+  'const m = await import(`@/lib/api/chat`)', // backtick — missed by v3
+  `const m = require('@/lib/api/chat')`,
+  `import chat = require('@/lib/api/chat')`,
+]
+
+/** Near misses that must NOT trip it. */
+const NOT_TRANSPORT = [
+  `import type { ChatMode } from '@/lib/chat2/mode'`,
+  `import { detectDir } from '@/lib/utils'`,
+  `import { apiOf } from '@/lib/apiary/thing'`, // 'api' as a path substring
+  `const path = '@/lib/api/chat'`, // a bare string is not an import
+  `importantThing('@/lib/api/chat')`,
+]
 
 /**
  * This file is the GUARD, not a subject. It necessarily contains transport
@@ -127,34 +176,23 @@ test('the two modules this rule was written for are actually covered', () => {
   }
 })
 
-test('the pattern catches every static way to reach transport', () => {
-  // GUARDS THE GUARD (cold review, 08a). The scan is only as good as this
-  // regex, and its first version silently missed two of these three while the
-  // docstring claimed otherwise. Asserted directly, because a file scan that
-  // finds nothing looks identical whether the rule holds or the pattern is wrong.
-  const shouldMatch = [
-    `import type { ChatSnip } from '@/lib/api/chat'`,
-    `import { streamChat } from '@/lib/api/chat2'`,
-    `export type { ClientChatEvent } from '@/lib/api/chat2'`,
-    `export { parseChatEvent } from '@/lib/api/chat2'`,
-    `const m = await import('@/lib/api/chat')`,
-    `import x from '../api/chat'`,
-    `import '@/lib/api/chat'`, // bare side-effect import — missed by versions 1 AND 2
-    `import '../api/chat'`,
-    `export * from '@/lib/api/chat2'`,
-  ]
-  for (const line of shouldMatch) {
+test('the pattern catches every form this guard claims', () => {
+  // GUARDS THE GUARD. A file scan that finds nothing looks identical whether the
+  // rule holds or the pattern is broken, so every claimed form is asserted. The
+  // list above IS the claim — there is no prose enumeration to fall out of sync.
+  for (const line of TRANSPORT_FORMS) {
     assert.match(line, new RegExp(TRANSPORT_IMPORT.source), `pattern missed: ${line}`)
   }
-
-  const shouldNotMatch = [
-    `import type { ChatMode } from '@/lib/chat2/mode'`,
-    `import { detectDir } from '@/lib/utils'`,
-    `import { apiOf } from '@/lib/apiary/thing'`, // 'api' as a path substring, not lib/api
-  ]
-  for (const line of shouldNotMatch) {
+  for (const line of NOT_TRANSPORT) {
     assert.doesNotMatch(line, new RegExp(TRANSPORT_IMPORT.source), `pattern over-matched: ${line}`)
   }
+  // Multi-line imports are ordinary in this repo. `[^;]*?` is a negated class, so
+  // it spans newlines without the `s` flag — asserted rather than reasoned about.
+  assert.match(
+    `import {\n  streamChat,\n} from '@/lib/api/chat'`,
+    new RegExp(TRANSPORT_IMPORT.source),
+    'a multi-line import escaped the scan'
+  )
 })
 
 test('every allowlisted file exists', () => {
