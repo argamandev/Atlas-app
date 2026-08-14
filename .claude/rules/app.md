@@ -184,6 +184,8 @@ terminal event means both — `done`/`incomplete` are distinct types, so no call
 **test** that the right one is CHOSEN — `chat2/terminal.ts` decides it as a pure function of the
 facts, swept exhaustively. Claiming `impossible` for both was rejected at review: the choice was
 still inline guards, and every hole found so far lived exactly there.
+**Third tier (ticket 07):** a scope the backend ACCEPTS but never reads is the same lie one layer
+up. `chat2/requestScope.test.ts` fails for any accepted id no handler reads; limit in its header.
 Seven surfaces fail a thin answer sold as whole: `retrieve`, `indexHealth`, `reindex`,
 `syncFilings`, `chat2/loop`, `chat2/tools`, `chat2/terminal`. A new surface still gets `none`.
 → `#stubs-on-designed-slots`
