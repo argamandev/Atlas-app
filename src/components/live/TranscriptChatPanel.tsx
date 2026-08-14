@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { streamChat, type ChatSource, type ChatSnip } from '@/lib/api/chat'
+import { streamChat } from '@/lib/api/chat'
+import type { ChatSource, ChatSnip } from '@/lib/chat/grounding'
 import { sanitizeHistory } from '@/lib/chat/history'
 import { appendSnip } from '@/lib/documents/snip'
 import { armSnip, getSnipTarget, subscribeSnipTarget } from '@/lib/live/snipBridge'

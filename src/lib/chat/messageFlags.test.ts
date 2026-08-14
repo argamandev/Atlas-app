@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sanitizeTruncated, truncatedForPersist } from './chat'
+import { sanitizeTruncated, truncatedForPersist } from './messageState'
 
 /**
  * The two halves of the round-three BLOCKER fix.

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sanitizeContextStatus } from './chat'
+import { sanitizeContextStatus } from './messageState'
 
 // Why this is load-bearing rather than defensive decoration:
 //

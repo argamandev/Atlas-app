@@ -13,14 +13,14 @@ import { ThinkingDots } from './ThinkingDots'
 import { Markdown } from './Markdown'
 import { Logo } from '@/components/ds/Logo'
 import { PencilIcon, ProjectsIcon, WorkspacesIcon, AgentsIcon } from '@/components/ds/icons'
+import { streamChat } from '@/lib/api/chat'
+import type { ChatSource } from '@/lib/chat/grounding'
 import {
-  streamChat,
   sanitizeContextStatus,
   sanitizeTruncated,
   truncatedForPersist,
-  type ChatSource,
   type ProjectContextStatus,
-} from '@/lib/api/chat'
+} from '@/lib/chat/messageState'
 import { streamChatV2, type ClientIncompleteCode } from '@/lib/api/chat2'
 import { incompleteMessage } from '@/lib/chat/incompleteCopy'
 import { chatMode, type ChatMode } from '@/lib/chat2/mode'

@@ -5,7 +5,7 @@ import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { ChevronLeftIcon, ChevronRightIcon, ScissorsIcon } from '@/components/ds/icons'
 import { setSnipTarget } from '@/lib/live/snipBridge'
 import { PdfViewer } from './PdfViewer'
-import type { ChatSnip } from '@/lib/api/chat'
+import type { ChatSnip } from '@/lib/chat/grounding'
 
 // Slides/Report facet panes (design lines 480-523) — shared by the finished call view
 // (Single + Multi) and the LIVE broadcast view, so both toggle the same content cards.

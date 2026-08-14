@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { dragToPageRect, scaleRect, snipRenderScale } from '@/lib/documents/snip'
 import { attachmentOversized } from '@/lib/chat/attachments'
-import type { ChatSnip } from '@/lib/api/chat'
+import type { ChatSnip } from '@/lib/chat/grounding'
 
 // Real-PDF viewer for the Report facet pane (multiview M1). pdf.js canvas per page +
 // TextLayer (transparent selectable text — pdf.js's own bidi positioning). Pages render
