@@ -1,11 +1,9 @@
 # C1 · Agent tables + create flow
 
-Status: **ACTIVE — this is the next mission** (founder call 2026-08-14, its own dedicated session).
-Blocked by: 04 (landed)
-
-**Why this and not ticket 07.** Spec §6 puts Phase C in parallel with Phase B from A4 onward, so
-nothing here ever waited on chat. Agents is the longest remaining chain (10 → 11 → 12 → 13) and the
-only surface still a stub, and the founder's goal is the fastest route to a complete V1.
+Status: ready-for-agent — fourth in the V1 order, after Phase B completes (07 → 08 → 09).
+Blocked by: 04 (landed) — **and by the founder's strict-order call 2026-08-14**, which runs Phase B
+to completion first rather than taking Phase C's parallel edge. Nothing technical stops this ticket;
+the sequence is a decision, and it is recorded in `DECISIONS.md`, not inferred.
 
 **Two facts you inherit, neither of them a blocker here.** (1) Dense retrieval regressed at the real
 corpus size — `docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`. C1 does not touch retrieval

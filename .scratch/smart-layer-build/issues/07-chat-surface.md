@@ -1,7 +1,7 @@
 # B1b · Chat surface — @mentions + search mode
 
-Status: ready-for-agent — **scheduled BETWEEN ticket 10 and ticket 11** (founder call 2026-08-14,
-refined the same day). Fully unblocked; it is sequenced, not deprioritised.
+Status: **ACTIVE — this is the next mission** (founder call 2026-08-14, final: strict map order
+07 → 08 → 09 → 10 → 11 → 12 → 13 → 14). Fully unblocked.
 Blocked by: 06 (landed 2026-08-14)
 
 **This slice now carries ticket 11's de-risking, and that is its real job.** It is the first and
