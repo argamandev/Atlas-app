@@ -13,7 +13,9 @@
 // over the real Supabase corpus, so what is measured is the thing that ships.
 //
 // USAGE: node --import tsx scripts/measure-chat-answer.mjs "your question here"
-//        (add --company <uuid> to measure the pinpoint path)
+//        --company <uuid>         the pinpoint path
+//        --call <transcriptId>    the STUFFED turn (ticket 08b), judged against
+//                                 §5's $0.13 rather than the $0.06 answer budget
 //
 // It prints token counts, a price, and the event trace. It never prints a key.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,6 +36,7 @@ if (fs.existsSync(envPath)) {
 
 const { runChatLoop } = await import('../src/lib/chat2/loop.ts')
 const { israelDayKey } = await import('../src/lib/i18n/format.ts')
+const { CALL_SCOPE_SUMMARY } = await import('../src/lib/chat2/callInjection.ts')
 
 // Sonnet 5 list price, USD per million tokens. Stated here rather than imported
 // so a pricing change is a visible edit to the thing that computes the number.
@@ -77,6 +80,12 @@ if (!question) {
   )
   process.exit(2)
 }
+if ((companyFlag !== -1 && !companyId) || (callFlag !== -1 && !transcriptId)) {
+  // A flag with no value used to fall through to an UNSCOPED run, priced against
+  // the answer budget — a number for a question nobody asked, printed as a pass.
+  console.error('--company and --call each need a value.')
+  process.exit(2)
+}
 if (companyId && transcriptId) {
   // One grounding per turn — the union `requestScope.ts` enforces on the wire.
   // Accepting both here would measure a request the route cannot receive.
@@ -115,13 +124,14 @@ for await (const e of runChatLoop({
   history: [],
   message: question,
   todayIsrael: israelDayKey(new Date()),
-  // Mirrors the route's own switch. Kept literally in step with
-  // `src/app/api/chat/v2/route.ts` — a measurement run against a different
-  // system prompt is a measurement of something that does not ship.
+  // Mirrors the route's own switch, and the call sentence is now the SAME
+  // exported constant the route uses rather than a copy kept in step by comment
+  // — a measurement run against a different system prompt prices something that
+  // does not ship, and a duplicated string is how that happens silently.
   scopeSummary: companyId
     ? `company: ${companyId} (resolved)`
     : transcriptId
-      ? 'The user is looking at ONE investor call, attached whole in the fenced block on this turn. Answer from it first; use tools only for anything beyond that call.'
+      ? CALL_SCOPE_SUMMARY
       : undefined,
 })) {
   events.push(e)

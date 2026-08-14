@@ -42,6 +42,23 @@ import type { ChatSource } from '@/lib/chat/grounding'
  */
 export const CALL_BUDGET_CHARS = 60_000
 
+/**
+ * What the SYSTEM PROMPT is told about a call-grounded turn.
+ *
+ * Exported because it has two callers — the route and
+ * `scripts/measure-chat-answer.mjs` — and the second exists to price the first.
+ * It was duplicated verbatim with a comment saying the two must be kept in step,
+ * which is the shape `protocol.ts` exists to have deleted from this stack: a
+ * measurement run against a different system prompt prices something that does
+ * not ship, and nothing would have said so.
+ *
+ * A CONSTANT, never interpolated. `transcriptId` is not in it — that is what
+ * lets `asTranscriptId` be a shape gate rather than an injection gate.
+ */
+export const CALL_SCOPE_SUMMARY =
+  'The user is looking at ONE investor call, attached whole in the fenced block on this turn. ' +
+  'Answer from it first; use tools only for anything beyond that call.'
+
 /** The parts of a stored transcript this needs. Structural subset of `Transcript`. */
 export interface CallForInjection {
   id: string

@@ -148,3 +148,21 @@ scope to change.
 (The first pass of this file said 1020 — the count before the review round's three new tests. A
 count hand-carried between documents has been wrong every time in this repo; this one is re-read
 from the run above, not remembered.)
+
+## Cold review, round 2
+
+One WARNING and three NITs, all closed:
+
+- **The BLOCKER fix was held by prose and one manual reload.** `sanitizeCallTruncated` shipped
+  with no test while its identical sibling `sanitizeTruncated` had five cases in
+  `messageFlags.test.ts`. Four cases added there, including one asserting the two flags stay
+  INDEPENDENT — `truncatedForPersist` must not consult the call flag, or a complete answer would
+  render "this answer was cut off before it finished". Prose tier → test tier.
+- `--call` with no value fell through to an unscoped run judged against the wrong budget. Refused.
+- The call scope-summary sentence was duplicated between the route and the measurement script,
+  kept in step by a comment. Now one exported `CALL_SCOPE_SUMMARY`.
+- `source` in `ChatView` was still a closure-assigned `let` — the shape the same commit had just
+  moved into `outcome` in the panel. Made consistent, and re-driven afterwards (the citation chip
+  is on that path): chip still renders, answer still grounded.
+
+Battery after round 2: **1027/1027**, tsc clean.

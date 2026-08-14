@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sanitizeTruncated, truncatedForPersist } from './messageState'
+import { sanitizeCallTruncated, sanitizeTruncated, truncatedForPersist } from './messageState'
 
 /**
  * The two halves of the round-three BLOCKER fix.
@@ -81,4 +81,54 @@ test('a v2 answer that ended cleanly is not truncated', () => {
   // partial would put a false "this was cut off" on a good answer.
   assert.equal(truncatedForPersist({ incomplete: null }), false)
   assert.equal(truncatedForPersist({ incomplete: undefined }), false)
+})
+
+// ─── THE INPUT-PARTIAL FLAG (ticket 08b) ─────────────────────────────────────
+//
+// `callTruncated` says the CALL this answer was grounded in was read only in
+// part — a fact about the INPUT, where every flag above is about the ANSWER.
+//
+// It shipped its first draft session-only, so one refresh turned an answer
+// written from two thirds of a call into one that looked whole: the same law as
+// the block above, arriving one field over. Cold review called that a BLOCKER;
+// round 2 then pointed out the fix was held by prose and a single manual reload
+// while its identical sibling had five cases here. Same reasoning as the comment
+// at the top of this file, one ticket later.
+
+test('only a literal true survives the read, for the call flag too', () => {
+  assert.equal(sanitizeCallTruncated(true), true)
+})
+
+test('a message written before the call flag existed is not call-truncated', () => {
+  // Every message stored before 08b — the overwhelming majority of the table.
+  // Absent must mean "the call was whole", never "unknown, so warn": a notice
+  // painted onto every historic answer is its own false claim.
+  assert.equal(sanitizeCallTruncated(undefined), false)
+  assert.equal(sanitizeCallTruncated(null), false)
+})
+
+test('nothing truthy-but-wrong paints a call-truncation notice', () => {
+  for (const junk of ['true', 'truncated', 1, -1, {}, [], [true], 'yes', 0.5]) {
+    assert.equal(
+      sanitizeCallTruncated(junk),
+      false,
+      `${JSON.stringify(junk)} must not render a call-truncation notice`
+    )
+  }
+})
+
+test('the two flags stay INDEPENDENT — one must never imply the other', () => {
+  // The reason they are two fields and two readers. An answer can be complete,
+  // whole and saved AND have been written from part of its call; a stream can
+  // break on a call that was read whole. Collapsing either into the other tells
+  // the user something untrue about the half it borrowed.
+  //
+  // `truncatedForPersist` must not consult the call flag: a partly-read call is
+  // not a partial ANSWER, and storing it as one would make a complete answer
+  // render "this answer was cut off before it finished".
+  assert.equal(
+    truncatedForPersist({ callTruncated: true } as Parameters<typeof truncatedForPersist>[0]),
+    false
+  )
+  assert.equal(sanitizeCallTruncated(true), true)
 })

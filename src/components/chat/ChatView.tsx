@@ -317,10 +317,12 @@ export function ChatView({
       incomplete: ClientIncompleteCode | null
       error: string | null
       callTruncated: boolean
+      source: ChatSource | null
     } = {
       incomplete: null,
       error: null,
       callTruncated: false,
+      source: null,
     }
     // Did the model's stream finish? Distinguishes a mid-stream break from a
     // failure that happened AFTER a complete answer arrived. `full.length > 0`
@@ -330,7 +332,12 @@ export function ChatView({
     // exists to remove rather than relocate.
     let streamFinished = false
     try {
-      let source: ChatSource | null = null
+      // `source` lives on `outcome` for the reason stated at its declaration: it
+      // is now written inside the v2 event closure (the `grounding` case), so as
+      // a plain `let … = null` TypeScript narrows it back to `null` and the read
+      // below looks like a constant. `projectContext` is NOT — it is assigned
+      // synchronously from `streamChat`'s return on the old-route branch, where
+      // that narrowing does not apply.
       let projectContext: ProjectContextStatus | null = null
 
       if (useV2) {
@@ -374,7 +381,7 @@ export function ChatView({
                 // on part of it, and that must not look like an answer built on
                 // the call. Recorded, not rendered mid-stream, exactly like
                 // `incomplete` below.
-                source = e.source
+                outcome.source = e.source
                 outcome.callTruncated = e.state === 'truncated'
                 break
               case 'incomplete':
@@ -412,13 +419,13 @@ export function ChatView({
             scrollToEnd()
           }
         )
-        source = res.source
+        outcome.source = res.source
         projectContext = res.projectContext
       }
       streamFinished = true
       setLastAssistant({
         content: full,
-        source,
+        source: outcome.source,
         projectContext,
         incomplete: outcome.incomplete,
         callTruncated: outcome.callTruncated,

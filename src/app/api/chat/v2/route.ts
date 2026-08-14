@@ -7,6 +7,7 @@ import { israelDayKey } from '@/lib/i18n/format'
 import { runChatLoop, type ChatEvent, type ChatTurn } from '@/lib/chat2/loop'
 import type { ChatScope } from '@/lib/chat2/toolDefs'
 import { parseGrounding, scopeIdsFor } from '@/lib/chat2/requestScope'
+import { CALL_SCOPE_SUMMARY } from '@/lib/chat2/callInjection'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE UNIFIED CHAT BACKEND (spec §3, ticket 06/B1a). Replaces `/api/chat` for
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
             grounding.kind === 'company'
               ? `company: ${grounding.companyId} (resolved)`
               : grounding.kind === 'call'
-                ? 'The user is looking at ONE investor call, attached whole in the fenced block on this turn. Answer from it first; use tools only for anything beyond that call.'
+                ? CALL_SCOPE_SUMMARY
                 : undefined,
         })) {
           controller.enqueue(encoder.encode(ndjsonLine(event)))
