@@ -61,17 +61,30 @@ const LEXICAL_ONLY = process.argv.includes('--lexical')
 // channel) instead of the in-process simulation. Slice A4's acceptance gate.
 const REAL = process.argv.includes('--real')
 const REAL_DEPTH = Number((process.argv.find((a) => a.startsWith('--depth=')) ?? '--depth=300').split('=')[1])
-// The per-channel candidate pool RRF fuses over. Bigger than the corpus on
+// The per-channel candidate pool RRF fuses over. Bigger than the A4 corpus on
 // purpose: the in-process run ranked every chunk, and fusing over a subset would
 // measure the subset.
 //
-// ⚠ NO SAFETY NET FOR THE ef_search CEILING, contrary to what this comment used
-// to promise. `truncated` compares a channel's row count against THIS pool, so a
-// dense channel capped at pgvector's 1000-row `ef_search` ceiling while under
-// 5000 is reported as complete. It does not bite at 3,181 chunks — the planner
-// answers exactly by seq scan, returning all of them — but it will at A5 scale,
-// and a reader trusting a net that is not there is worse than knowing there is
-// none (M1).
+// ⚠ THAT PREMISE DOES NOT SURVIVE A5, and whoever reads the next real gate needs
+// to know it before reading the numbers. atlas_search_chunks_v2 clamps
+// hnsw.ef_search at 1000, so once the corpus is bigger than that an unscoped dense
+// channel asking for 5000 CANNOT be served 5000 — it will come back with about
+// 1000 and be reported CUT SHORT on every unscoped case, by construction and not
+// by regression. "Fuse over the whole corpus" was true at 3,181 chunks and is not
+// true at 60K. Do not read those truncations as a defect, and do not read the
+// unscoped MRRs as measuring the same thing A4 measured.
+//
+// ⚠ THE ef_search CEILING IS NOW CAUGHT — but read what the flag means before
+// trusting it. Through slice A4 `truncated` compared a channel's row count against
+// THIS pool alone, so a dense channel capped at pgvector's 1000-row `ef_search`
+// ceiling while under 5000 was reported complete. Harmless at 3,181 chunks (the
+// planner answered exactly by seq scan, returning all of them) and precisely the
+// hazard at A5 scale, where a 5000-row pool CANNOT be filled by an index scan.
+// Migration 031 closed it: the channel now also reports how much was in scope,
+// capped at pool + 1, and `truncated` means "returned less than both what was
+// asked for and what was there". A truncation printed below is therefore a real
+// one, and at this pool it most likely means the ANN index engaged — which is the
+// thing A5's re-run exists to find out about.
 const REAL_POOL = 5000
 const TOP_K = 20
 
@@ -524,10 +537,17 @@ async function buildRealDesigns() {
     return scopeCache.get(c.scope)
   }
 
-  // Every channel truncation this run hits, collected as it happens. A ranking
-  // measured over a candidate pool that filled up is a ranking over less than
-  // the corpus, and the report must say so rather than let the numbers imply
-  // otherwise (M1).
+  // Every channel this run found CUT SHORT, collected as it happens. Since
+  // migration 031 that means one thing: the channel came back with fewer rows
+  // than this harness asked for AND fewer than the scope holds, i.e. something
+  // stopped it — at this pool, almost certainly the ANN index engaging. A ranking
+  // measured over a cut-short channel is a ranking over less than the corpus it
+  // was allowed to search, and the report must say so rather than let the numbers
+  // imply otherwise (M1).
+  //
+  // NOTE what is NOT collected here: a channel that filled the 5,000-row pool
+  // exactly. That is this harness getting what it asked for, and through slice A4
+  // it was the only thing this list ever contained.
   const truncations = []
 
   const design = (channels, scoped) => async (q, id, c) => {
@@ -548,7 +568,8 @@ async function buildRealDesigns() {
     ]) {
       if (ch.truncated)
         truncations.push(
-          `case ${id} · ${channels}${scoped ? '-scoped' : ''} · ${name} channel filled its ${ch.saw}-row pool`
+          `case ${id} · ${channels}${scoped ? '-scoped' : ''} · ${name} channel was CUT SHORT: ` +
+            `${ch.saw} rows for a ${REAL_POOL}-row request, with ≥${ch.inScopeCapped} in scope`
         )
     }
     const chunks = res.chunks.map(toChunk)
@@ -883,12 +904,12 @@ async function mainReal() {
     '',
     ...(truncations.length
       ? [
-          '**Some rankings below were measured over a candidate pool that filled up** — they rank less than the corpus:',
+          '**Some rankings below were measured over a channel that was CUT SHORT** — they rank less than the corpus the query was allowed to search:',
           '',
           ...truncations.map((t) => `- ${t}`),
         ]
       : [
-          'None. Every channel saw fewer rows than its candidate pool, so every ranking below is over the whole corpus it was allowed to search.',
+          'None. No channel came back with less than both what it was asked for and what its scope holds, so every ranking below is over the whole corpus that query was allowed to search.',
         ]),
     '',
   ]

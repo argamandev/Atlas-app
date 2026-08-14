@@ -686,6 +686,32 @@ export const en = {
     notifications: 'Notifications',
     appearance: 'Appearance',
   },
+  // Admin · corpus index health (slice A5). The ingestion standard makes an
+  // indexing failure visible BY LAW; this is where it becomes visible to a person.
+  corpusAdmin: {
+    title: 'Corpus index',
+    subtitle: 'What the shared corpus is carrying, and what has not finished joining it.',
+    adminOnly: 'This page is for administrators.',
+    loadFailed: 'Could not read the corpus index status.',
+    transcripts: 'Transcripts',
+    documents: 'Filings',
+    chunks: 'Searchable chunks',
+    structuredFacts: 'Structured facts (XBRL)',
+    indexed: 'Indexed',
+    pending: 'Pending',
+    failed: 'Failed',
+    excluded: 'Excluded',
+    other: 'Unrecognised',
+    factsYes: 'Parsed',
+    factsNone: 'No structured facts',
+    factsFailed: 'Parse failed',
+    factsUnknown: 'Not yet examined',
+    settled: 'Every source has finished indexing.',
+    troubledTitle: 'Not finished indexing',
+    troubledEmpty: 'Nothing is waiting or failed.',
+    troubledCapped: 'Showing {shown} of {total}. The list is capped; the count above is the real one.',
+    excludedNote: 'Excluded rows are deliberate — demo content and known duplicates never enter the corpus.',
+  },
   // Projects — the chat sub-panel feature (design lines 1099-1262).
   projects: {
     title: 'Projects',

@@ -34,6 +34,12 @@ export interface CorpusDb {
   ): PromiseLike<{ data: unknown; error: { message: string } | null }>
 }
 
+/**
+ * The one reason a HELD document can fail to index: its row exists but its extracted
+ * text does not. Exported so a caller can recognise it and re-ingest — re-chunking
+ * cannot fix a document whose pages were never written.
+ */
+export const NO_PAGES = 'no extracted pages — the document row exists but its text does not'
 export type ReindexResult =
   | { status: 'indexed'; chunkCount: number; embedded: number; reused: number }
   | { status: 'failed'; chunkCount: number; error: string }
@@ -100,6 +106,10 @@ async function setIndexStatus(db: CorpusDb, table: string, id: string, status: s
  * Swap in the new chunk set atomically, embed what the swap says is missing,
  * and flip index_status. Shared spine of both source types.
  */
+/** Embedding writes in flight at once. Each targets a distinct chunk id, so they
+ *  cannot race; this only bounds how many sockets a backfill opens against a
+ *  database that is also serving live users. */
+const WRITE_CONCURRENCY = 12
 async function replaceAndEmbed(
   db: CorpusDb,
   source: { transcriptId: string | null; documentId: string | null },
@@ -125,12 +135,35 @@ async function replaceAndEmbed(
       need.map((r) => r.embedding_input),
       embed
     )
-    for (let i = 0; i < need.length; i++) {
-      const { error: upErr } = await db
-        .from('document_chunks')
-        .update({ embedding: toVectorLiteral(vectors[i]) })
-        .eq('id', need[i].id)
-      if (upErr) throw new Error(`embedding write failed: ${upErr.message}`)
+    // ONE ROUND TRIP PER CHUNK, BUT NOT ONE AT A TIME.
+    //
+    // Each write targets a distinct id, so nothing here is ordered and nothing
+    // races: the only reason this was sequential is that it was written for a
+    // 3,000-chunk corpus, where the difference did not show. At A5's ~84,000 it
+    // does — measured mid-backfill at ~100 chunks/minute, which is ~8 hours of
+    // round-trip latency for the ~50,000 chunks left to embed. The embedding API
+    // was never the bottleneck; it already batches 100 per request.
+    //
+    // Bounded rather than unbounded: `Promise.all` over 50,000 updates would open
+    // 50,000 sockets and be refused. WRITE_CONCURRENCY is small enough to be
+    // polite to a database that is also serving live users.
+    //
+    // A FAILURE STILL FAILS THE WHOLE SOURCE. Each slice is awaited before the
+    // next starts, and the first error throws out to the caller below, which sets
+    // index_status='failed'. Partial embedding is not a success state (M3.3).
+    for (let i = 0; i < need.length; i += WRITE_CONCURRENCY) {
+      const slice = need.slice(i, i + WRITE_CONCURRENCY)
+      const results = await Promise.all(
+        slice.map((row, j) =>
+          db
+            .from('document_chunks')
+            .update({ embedding: toVectorLiteral(vectors[i + j]) })
+            .eq('id', row.id)
+        )
+      )
+      for (const r of results as Array<{ error: { message: string } | null }>) {
+        if (r?.error) throw new Error(`embedding write failed: ${r.error.message}`)
+      }
     }
   } catch (e) {
     await setIndexStatus(db, statusTable, statusId, 'failed')
@@ -216,6 +249,23 @@ export async function reindexDocument(
     .eq('document_id', documentId)
     .order('page_no')
   if (pagesErr) throw new Error(`reindexDocument: pages load failed: ${pagesErr.message}`)
+
+  // A DOCUMENT WITH NO PAGES IS NOT AN INDEXABLE ONE, and must never come out of
+  // here 'indexed'. `ingestDocument` throws on a zero-page PDF, so zero rows in
+  // `document_pages` means the pages insert FAILED after the document row was
+  // upserted — which is exactly what a NUL in the extracted text did to two
+  // filings in the A5 backfill. Without this, a re-run would chunk nothing, embed
+  // nothing, and flip the row to 'indexed': a document that search can never
+  // return, recorded as fully searchable. Success-with-nothing is not a state this
+  // function may express (M3.3).
+  if (!pages || (pages as unknown[]).length === 0) {
+    await setIndexStatus(db, 'company_documents', documentId, 'failed')
+    return {
+      status: 'failed',
+      chunkCount: 0,
+      error: NO_PAGES,
+    }
+  }
 
   const companyName = await companyNameOf(db, doc.company_id as string)
   const chunks = ((pages as Array<{ page_no: number; text: string }>) ?? []).flatMap((p) =>

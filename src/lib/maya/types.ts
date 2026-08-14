@@ -31,6 +31,28 @@ export type MayaFiling = {
   attachedFiles: MayaAttachedFile[]
 }
 
+/**
+ * A row of the LIVE FILINGS FEED (`latest-companies-disclosures`, product 1.0.0).
+ *
+ * NEARLY `MayaFiling`, AND THE DIFFERENCES ARE THE ENTIRE REASON THIS TYPE EXISTS
+ * — measured against both endpoints on 2026-08-14, not assumed:
+ *   `attachedfiles`  lower-case f. `attachedFiles` appears on 0% of this feed's
+ *                    rows and 100% of `by-issuer`'s.
+ *   `associated`     v2 carries TASE's own misspelling, `assosiated`.
+ * Typing it as `MayaFiling` would compile, run, find no attachments on any row,
+ * and quietly ingest nothing forever.
+ */
+export type MayaLatestRow = Omit<MayaFiling, 'attachedFiles' | 'issuer'> & {
+  attachedfiles?: MayaAttachedFile[]
+  issuer: Array<{ issuerId: number; issuerName: string; associated?: boolean }>
+}
+
+/** `latest-companies-disclosures` does NOT use `MayaEnvelope` — same story as
+ *  `company-details`, a different wrapper per product version. */
+export type MayaLatestResponse = {
+  mayaReports?: { result?: MayaLatestRow[] | null } | null
+}
+
 /** A row of the financial-report schedule — consumers ③ (calendar) and ④ (live). */
 export type MayaScheduleRow = {
   scheduledDate: string

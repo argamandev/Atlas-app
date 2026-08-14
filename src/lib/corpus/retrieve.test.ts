@@ -17,7 +17,15 @@ import type { CorpusDb } from './reindex'
 // what it actually checks.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function fakeDb(opts: { rows?: unknown[]; error?: string } = {}) {
+function fakeDb(
+  opts: {
+    rows?: unknown[]
+    error?: string
+    /** Per-RPC canned data, for the calls that are not atlas_search_chunks_v2. */
+    rpcOverrides?: Record<string, unknown>
+    rpcErrors?: Record<string, string>
+  } = {}
+) {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = []
   const db = {
     from() {
@@ -25,6 +33,9 @@ function fakeDb(opts: { rows?: unknown[]; error?: string } = {}) {
     },
     rpc(fn: string, args: Record<string, unknown>) {
       calls.push({ fn, args })
+      if (opts.rpcErrors?.[fn]) return Promise.resolve({ data: null, error: { message: opts.rpcErrors[fn] } })
+      if (fn in (opts.rpcOverrides ?? {}))
+        return Promise.resolve({ data: opts.rpcOverrides![fn], error: null })
       return Promise.resolve({
         data: opts.rows ?? [],
         error: opts.error ? { message: opts.error } : null,
@@ -64,6 +75,10 @@ const row = (over: Record<string, unknown> = {}) => ({
   score: 0.0384,
   dense_candidates: 12,
   lexical_candidates: 7,
+  dense_in_scope_capped: 12,
+  lexical_in_scope_capped: 7,
+  dense_ran: true,
+  lexical_ran: true,
   ...over,
 })
 
@@ -75,7 +90,10 @@ const row = (over: Record<string, unknown> = {}) => ({
 test('the DEFAULT is semantic search — dense only, no query text sent', async () => {
   const { db, calls } = fakeDb()
   await retrieveChunks(db, { query: 'מה היו ההכנסות?', embed })
-  assert.equal(calls[0].fn, 'atlas_search_chunks')
+  // v2 — 029's function could not be widened in place (Postgres refuses to change
+  // a RETURNS TABLE, and DROP is hook-blocked on a production database), so the
+  // scope counts arrive through a new door. Migration 031 says the whole story.
+  assert.equal(calls[0].fn, 'atlas_search_chunks_v2')
   assert.equal(calls[0].args.p_query_embedding, '[0.6,0,0.8]')
   assert.equal(
     calls[0].args.p_query_text,
@@ -139,10 +157,19 @@ test('the ef_search ceiling is NOT a truncation — a channel under its pool saw
   // rows even though `hnsw.ef_search` clamps at 1000, because that GUC bounds
   // the index scan's effort, not the answer. Treating the ceiling as a row cap
   // reported five designs × nineteen cases as truncated when none was.
-  const { db } = fakeDb({ rows: [row({ dense_candidates: 3181, lexical_candidates: 2500 })] })
+  const { db } = fakeDb({
+    rows: [
+      row({
+        dense_candidates: 3181,
+        lexical_candidates: 2500,
+        dense_in_scope_capped: 3181,
+        lexical_in_scope_capped: 2500,
+      }),
+    ],
+  })
   const res = await retrieveChunks(db, { query: 'הכנסות', candidates: 5000, embed })
-  assert.equal(res.dense.truncated, false, '3181 of a 5000 pool — nothing was cut off')
-  assert.equal(res.lexical.truncated, false, '2500 of a 5000 pool — complete')
+  assert.equal(res.dense.truncated, false, 'saw all 3181 rows the scope holds — nothing was cut off')
+  assert.equal(res.lexical.truncated, false, 'saw all 2500 matching rows — complete')
 })
 
 test('rows come back with their anchors and per-channel ranks intact', async () => {
@@ -161,16 +188,89 @@ test('rows come back with their anchors and per-channel ranks intact', async () 
 
 // ── completeness: a thin answer must not look like a complete one ────────────
 
-test('a channel that filled its candidate pool is reported TRUNCATED', async () => {
-  const { db } = fakeDb({ rows: [row({ dense_candidates: 200, lexical_candidates: 7 })] })
+test('a channel that filled the pool it was ASKED for is complete, not truncated', async () => {
+  // THE ORDINARY PRODUCTION SEARCH, and the case a cold review had to put back.
+  // A top-20 answer over a 60K-chunk corpus examines 200 candidates by design; the
+  // caller picked 200. Calling that "truncated" would fire the degradation signal
+  // on every query the product ever serves — the loud failure mode this flag has
+  // now been got wrong in twice, and a green test asserting it would have made the
+  // battery certify it (M2).
+  //
+  // Note what the capped count reads here: 201, not 61,402. The SQL stops counting
+  // at pool + 1 because nothing past it changes this answer.
+  const { db } = fakeDb({
+    rows: [
+      row({
+        dense_candidates: 200,
+        lexical_candidates: 7,
+        dense_in_scope_capped: 201,
+        lexical_in_scope_capped: 7,
+      }),
+    ],
+  })
   const res = await retrieveChunks(db, { query: 'הכנסות', candidates: 200, embed })
-  assert.equal(res.dense.truncated, true, 'saw exactly the pool size — it may have been cut off')
+  assert.equal(res.dense.truncated, false, 'it returned exactly what this call asked for')
   assert.equal(res.dense.saw, 200)
-  assert.equal(res.lexical.truncated, false, 'saw fewer than the pool — that is everything there was')
+  assert.equal(res.dense.inScopeCapped, 201, 'saturated: "more than the pool", never a corpus total')
+  assert.equal(res.lexical.truncated, false, 'saw all 7 matching rows — that is everything there was')
+})
+
+// ── the A5 fix: a channel that stopped SHORT of what was asked for ───────────
+//
+// The blind spot ticket 05 owed. `saw < pool` alone was read as "saw everything",
+// which holds only while every scan is exhaustive — true at A4's 3,181 chunks,
+// where the planner seq-scans, and false the moment the corpus is big enough for
+// HNSW to engage. Both cases below came back with FEWER rows than the caller asked
+// for AND fewer than the scope holds, and both were reported complete by the old
+// rule. That pair of conditions is the whole test: either one alone is a rule this
+// file has already shipped and had to withdraw.
+test('an HNSW scan cut short by ef_search is TRUNCATED even though it never filled the pool', async () => {
+  // ef_search clamps at 1000, so a 5,000-row pool over a 61K-chunk corpus can only
+  // ever come back with ≤1000 — under what was asked for, with plenty left unseen.
+  const { db } = fakeDb({
+    rows: [row({ dense_candidates: 1000, lexical_candidates: 0, dense_in_scope_capped: 5001 })],
+  })
+  const res = await retrieveChunks(db, { query: 'הכנסות', candidates: 5000, embed })
+  assert.equal(res.dense.saw, 1000)
+  assert.equal(res.dense.truncated, true, 'asked for 5000, the index stopped it at 1000, more was there')
+})
+
+test('a scoped iterative scan stopped by max_scan_tuples is TRUNCATED', async () => {
+  // hnsw.max_scan_tuples (20,000 by default) ends a strict_order iterative scan
+  // under a company filter before the pool is anywhere near full.
+  const { db } = fakeDb({
+    rows: [row({ dense_candidates: 640, lexical_candidates: 0, dense_in_scope_capped: 2001 })],
+  })
+  const res = await retrieveChunks(db, { query: 'המרווח', companyId: 'co-bza', candidates: 2000, embed })
+  assert.equal(res.dense.truncated, true, '640 of the company’s chunks when 2000 were asked for')
+})
+
+test('a scope SMALLER than the pool is complete at whatever it holds', async () => {
+  // A company with 150 chunks, asked for 200. The count is exact here — under the
+  // cap — and the channel saw all of it. Reporting this as truncated would tell a
+  // user their company's own corpus was only partly searched.
+  const { db } = fakeDb({
+    rows: [row({ dense_candidates: 150, lexical_candidates: 0, dense_in_scope_capped: 150 })],
+  })
+  const res = await retrieveChunks(db, { query: 'המרווח', companyId: 'co-small', candidates: 200, embed })
+  assert.equal(res.dense.truncated, false)
+  assert.equal(res.dense.inScopeCapped, 150, 'exact, because it landed under the cap')
 })
 
 test('a switched-off channel reports ran:false, which is not the same as found-nothing', async () => {
-  const { db } = fakeDb({ rows: [row({ dense_candidates: 0, lexical_candidates: 9 })] })
+  const { db } = fakeDb({
+    rows: [
+      row({
+        dense_candidates: 0,
+        lexical_candidates: 9,
+        dense_in_scope_capped: 0,
+        lexical_in_scope_capped: 9,
+        // What the SQL really returns for a lexical-only call: `dense_ran` IS
+        // `p_query_embedding is not null`, and this call sends no embedding.
+        dense_ran: false,
+      }),
+    ],
+  })
   const res = await retrieveChunks(db, {
     query: 'כושר זיקוק',
     channels: 'lexical',
@@ -187,6 +287,7 @@ test('an empty result is returned as empty — the honest cannot-ground signal, 
   const res = await retrieveChunks(db, { query: 'הרווח של טבע', embed })
   assert.deepEqual(res.chunks, [])
   assert.equal(res.dense.saw, 0)
+  assert.equal(res.dense.inScopeCapped, 0, 'no rows came back, so no scope count came back either')
   assert.equal(res.dense.truncated, false, 'nothing found is complete information, not a truncation')
 })
 
@@ -201,4 +302,91 @@ test('a blank query throws before any embedding spend', async () => {
     () => retrieveChunks(db, { query: '   ', embed: { fetchImpl: noNetwork, apiKey: 'k' } }),
     /empty query/
   )
+})
+
+// ── which channels RAN is the SQL's answer, not this file's assumption ───────
+
+test('a lexical channel the SQL switched off reports ran:false, even though hybrid was asked for', async () => {
+  // `atlas_search_chunks_v2` downgrades the lexical channel when the query's
+  // tsquery comes out empty — punctuation only, or nothing but terms the
+  // tokenizer drops. Before migration 031 said so in its return, this call
+  // reported a dense-only search as a full hybrid one: the switched-off /
+  // ran-and-found-nothing distinction that ChannelReport exists to draw,
+  // collapsed in the direction that overstates the answer.
+  const { db } = fakeDb({
+    rows: [
+      row({
+        dense_candidates: 40,
+        dense_in_scope_capped: 40,
+        lexical_candidates: 0,
+        lexical_in_scope_capped: 0,
+        lexical_ran: false,
+      }),
+    ],
+  })
+  const res = await retrieveChunks(db, { query: 'מה קרה?!', channels: 'hybrid', embed })
+  assert.equal(res.dense.ran, true)
+  assert.equal(res.lexical.ran, false, 'the SQL says it never ran — not that it found nothing')
+  assert.equal(res.lexical.truncated, false)
+})
+
+// WITH NO ROWS, THE QUESTION GOES BACK TO THE DATABASE — it is not guessed.
+//
+// An earlier version of this test asserted that `ran` falls back to whatever the
+// call requested, and called that "the honest reading". It is not: an empty scope
+// (a company whose chunks are not embedded yet — this slice's own mid-backfill
+// state) plus a query the tokenizer empties is reachable, and that fallback
+// reported a dense-only search as a full hybrid one. The battery was pointing the
+// only mechanism that would catch it in the wrong direction (M2).
+
+test('an empty result with an emptied tsquery reports lexical ran:false, asked not assumed', async () => {
+  const { db, calls } = fakeDb({ rows: [], rpcOverrides: { atlas_dual_tsquery: '' } })
+  const res = await retrieveChunks(db, { query: '?!·', channels: 'hybrid', embed })
+  assert.equal(res.lexical.ran, false, 'the SQL emptied the tsquery — that channel never ran')
+  assert.equal(res.dense.ran, true)
+  assert.equal(calls[1].fn, 'atlas_dual_tsquery')
+})
+
+test('an empty result with real terms reports lexical ran:true — it ran and found nothing', async () => {
+  const { db } = fakeDb({ rows: [], rpcOverrides: { atlas_dual_tsquery: "'הרווח' | 'טבע'" } })
+  const res = await retrieveChunks(db, { query: 'הרווח של טבע', channels: 'hybrid', embed })
+  assert.equal(res.lexical.ran, true)
+  assert.equal(res.lexical.saw, 0, 'ran and found nothing — a different fact from never having run')
+})
+
+test('a dense-only call never asks: it switched lexical off itself', async () => {
+  const { db, calls } = fakeDb({ rows: [] })
+  const res = await retrieveChunks(db, { query: 'הרווח של טבע', embed })
+  assert.equal(res.lexical.ran, false)
+  assert.equal(calls.length, 1, 'no second round trip for a question this call already answered')
+})
+
+test('a failed lexical-channel resolution THROWS rather than guessing', async () => {
+  const { db } = fakeDb({ rows: [], rpcErrors: { atlas_dual_tsquery: 'permission denied' } })
+  await assert.rejects(
+    () => retrieveChunks(db, { query: 'הרווח', channels: 'hybrid', embed }),
+    /resolving the lexical channel/
+  )
+})
+
+test('a candidate pool below 1 is REFUSED, for the same reason a limit is', async () => {
+  const { db, calls } = fakeDb({ rows: [row()] })
+  await assert.rejects(
+    () => retrieveChunks(db, { query: 'הכנסות', candidates: 0, embed }),
+    /candidates must be a positive integer/
+  )
+  assert.deepEqual(calls, [])
+})
+
+test('a limit below 1 is REFUSED, because every completeness figure rides on a row', async () => {
+  // Zero rows would come back by construction, and the report would then state —
+  // in its own words — that the scope is empty: a fact fabricated out of the
+  // caller's own argument. Unrepresentable beats guarded (M3.3).
+  const { db, calls } = fakeDb({ rows: [row()] })
+  await assert.rejects(
+    () => retrieveChunks(db, { query: 'הכנסות', limit: 0, embed }),
+    /limit must be a positive integer/
+  )
+  await assert.rejects(() => retrieveChunks(db, { query: 'הכנסות', limit: -3, embed }), /positive/)
+  assert.deepEqual(calls, [], 'and it is refused before the RPC, not after')
 })

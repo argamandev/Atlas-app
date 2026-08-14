@@ -24,6 +24,36 @@ const JOINER = /^[-–—/.,:%()]+$/
 
 /** Rebuild one page's reading order: group items into lines by y (±2pt jitter),
  *  lines top-to-bottom, items right-to-left with LTR runs kept left-to-right. */
+/**
+ * STRIP WHAT POSTGRES CANNOT STORE, at the point the text is born.
+ *
+ * A `text` column cannot hold U+0000 — the driver rejects the whole statement with
+ * "unsupported Unicode escape sequence", so ONE stray NUL anywhere in a 300-page
+ * filing loses the entire document. Measured in the A5 backfill: 2 of the first
+ * 401 documents, ~0.5%, each visibly `failed` and each a real filing (a 20-F and
+ * an investor deck) that a user would have searched for and not found.
+ *
+ * Lone surrogates go too, for the same reason one level down: they survive a JSON
+ * round-trip and then break the UTF-8 encode.
+ *
+ * HERE RATHER THAN AT THE INSERT, deliberately (M3): the page text reaches
+ * `document_pages`, then the chunker, then `document_chunks`, then an embedding
+ * request. Cleaning it at one write leaves every other path holding bytes that
+ * cannot be stored; cleaning it where it is produced means no consumer ever sees
+ * them. A NUL in a PDF's text layer carries no meaning to lose.
+ */
+export function pgSafe(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\u0000/g, '').replace(/[\uD800-\uDFFF]/g, (c, i, s) => {
+    const hi = c.charCodeAt(0)
+    const next = s.charCodeAt(i + 1)
+    const prev = s.charCodeAt(i - 1)
+    const paired =
+      (hi <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) || (hi >= 0xdc00 && prev >= 0xd800 && prev <= 0xdbff)
+    return paired ? c : ''
+  })
+}
+
 export function reassemblePage(items: TextItem[]): string {
   const kept = items.filter((i) => i.str.trim().length > 0)
   if (kept.length === 0) return ''
@@ -89,7 +119,7 @@ export async function extractPdfPages(data: Uint8Array): Promise<{ pageCount: nu
     for (const it of tc.items) {
       if ('str' in it) items.push({ str: it.str, x: it.transform[4], y: it.transform[5] })
     }
-    pages.push(reassemblePage(items))
+    pages.push(pgSafe(reassemblePage(items)))
   }
   await doc.destroy()
   return { pageCount: pages.length, pages }

@@ -15,16 +15,17 @@
 // reproduced its measured numbers exactly. Full evidence and the four options he
 // chose between: docs/evidence/feat-smart-layer-a4-backfill/gate.md.
 //
-// The lexical channel is NOT deleted. `atlas_search_chunks` still accepts it, so
-// the revisit he asked for costs a flag rather than a rebuild — but it must not
+// The lexical channel is NOT deleted. `atlas_search_chunks_v2` still accepts it,
+// so the revisit he asked for costs a flag rather than a rebuild — but it must not
 // become the default again without a fresh harness run (§5 of the ingestion
 // standard is explicit that changing the retrieval shape re-runs the gate).
 //
 // ONE RETRIEVER, for the same reason there is one chunker (standard §5): the
 // harness scores THIS module, so what the gate certifies and what a user's
 // question runs through cannot drift apart. All ranking lives in
-// `atlas_search_chunks` (migration 029); this file adds the query embedding and
-// the row shape and nothing else.
+// `atlas_search_chunks_v2` (migration 031, which supersedes 029's
+// `atlas_search_chunks` — same ranking, plus the scope counts below); this file
+// adds the query embedding and the row shape and nothing else.
 //
 // FAILURE IS VISIBLE: an RPC error throws with its message. An empty result is
 // NOT an error — "the resolved scope has no corpus content" is the honest
@@ -83,14 +84,31 @@ export interface RetrievedChunk {
 }
 
 /**
- * What one channel actually saw. `saw === candidates` means the channel filled
- * its pool and MAY have been cut off; anything below it saw everything there was
- * to see. `ran: false` is a channel this call switched off — a different fact
- * from one that ran and found nothing.
+ * What one channel actually saw, against what there was to see.
+ *
+ * `truncated` means the channel was CUT SHORT: it returned less than both what
+ * this call asked for and what the scope holds. A top-20 search that examined 200
+ * of 61,402 chunks is not cut short — that is the search working as asked — and a
+ * flag that fired on it would be as useless as the one it replaced was blind.
+ *
+ * `ran: false` is a channel this call switched off — a different fact from one
+ * that ran and found nothing.
  */
 export interface ChannelReport {
   ran: boolean
+  /** Rows this channel produced before ranking. */
   saw: number
+  /**
+   * Rows in scope, COUNTED NO FURTHER THAN `candidates + 1` — exact at or below
+   * the pool, saturated above it. It is the only range that changes the answer,
+   * and counting past it would mean scanning a table whose rows carry a
+   * vector(1536) on every search.
+   *
+   * ⚠ NOT the size of the corpus or of the company's holdings. Never render it as
+   * one: at the default pool it reads 201 for a company with 12 chunks' worth of
+   * relevance and for one with forty thousand.
+   */
+  inScopeCapped: number
   truncated: boolean
 }
 
@@ -131,42 +149,68 @@ type ChunkRpcRow = {
   score: number
   dense_candidates: number
   lexical_candidates: number
+  dense_in_scope_capped: number
+  lexical_in_scope_capped: number
+  dense_ran: boolean
+  lexical_ran: boolean
 }
 
 const DEFAULT_LIMIT = 20
 const DEFAULT_CANDIDATES = 200
 
-// ⚠ WHAT `truncated` DOES AND DOES NOT MEAN — worth stating, because the first
-// version of this got it wrong in the loud direction. It means one thing: the
-// channel returned as many rows as the pool allowed, so there may have been
-// more. Nothing else. In particular `hnsw.ef_search` (capped at 1000 by
-// Postgres) bounds the index scan's EFFORT, not the row count — the planner is
-// free to answer exactly, and on this corpus it does, returning all 3,181 rows
-// for an unscoped query. Comparing the count against that ceiling reported five
-// designs × nineteen cases as truncated when not one of them was.
+// ⚠ WHAT `truncated` DOES AND DOES NOT MEAN — worth stating, because both
+// earlier versions of this got it wrong, once in each direction.
 //
-// ⚠ ITS ONE BLIND SPOT, in the quiet direction: `saw < pool` is read as "saw
-// everything", which holds only while every scan is exhaustive. It goes silently
-// false when the planner DOES use HNSW and `hnsw.ef_search` caps the channel
-// (≤1000) below the requested pool, or when a scoped iterative scan stops at
-// `hnsw.max_scan_tuples` (default 20,000). Unreachable at today's 3,181 chunks —
-// the planner answers exactly by seq scan — and reachable at A5's ~60K pages.
-// THE FIX, owed at A5 and recorded in ticket 05: return one more index-backed
-// count from the RPC (rows in scope carrying an embedding); completeness then
-// reads `saw = least(pool, in_scope)`, with no ceiling comparison anywhere.
+// It means one thing: the channel was CUT SHORT — it came back with less than
+// both what this call asked for and what the scope holds. `saw < least(pool,
+// inScopeCapped)`, two facts and the caller's own parameter.
 //
-// The other residual, which no counter can show: HNSW is APPROXIMATE. A dense
-// channel can miss a genuine neighbour without ever filling its pool. That is a
-// property of the index, not a truncation — and it is NOT yet measured by
-// anything, which is the honest version. The A4 gate ran with the index never
-// engaged: at 3,181 rows the planner answers exactly by seq scan. Measuring it
-// needs a corpus big enough to make the index engage, i.e. A5 (ticket 05).
+// The loud wrong version compared the count against `hnsw.ef_search` (capped at
+// 1000 by Postgres). That GUC bounds the index scan's EFFORT, not the row count;
+// the planner is free to answer exactly, and at 3,181 chunks it did, returning
+// all of them for an unscoped query. That rule reported five designs × nineteen
+// cases as truncated when not one of them was.
+//
+// The quiet wrong version — the one this file shipped through A4 — compared the
+// count against the requested POOL alone: `saw < pool` read as "saw everything".
+// That holds only while every scan is exhaustive, which is a property of a
+// 3,181-row corpus and not of the code. It goes silently false the moment the
+// planner DOES use HNSW and `ef_search` caps the channel below the pool, or a
+// scoped iterative scan stops at `hnsw.max_scan_tuples` (default 20,000). A5's
+// corpus is where the index engages, so A5 is where migration 031 closed it.
+//
+// And a third wrong version, caught in review before it was ever applied: dropping
+// the pool from the comparison entirely, `saw < inScope`. True, useless, and true
+// of EVERY query once the corpus outgrows the pool — the loud failure again, with
+// the numbers rearranged. The pool belongs in the comparison because the caller
+// chose it; the two Postgres ceilings do not, because nobody did.
+//
+// The residual no counter can show: HNSW is APPROXIMATE. A dense channel can miss
+// a genuine neighbour while reporting a complete, untruncated scope — that is a
+// property of the index, not a truncation, and `truncated: false` must not be read
+// as "these are the true nearest rows". Measuring it needs a corpus big enough to
+// engage the index, which is what A5's backfill makes possible; until that
+// harness re-run lands under docs/evidence/, it is UNMEASURED, not fine.
 
 export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promise<RetrievalResult> {
   const channels = opts.channels ?? DEFAULT_CHANNELS
   const query = opts.query ?? ''
   if (!query.trim()) throw new Error('retrieveChunks: an empty query retrieves nothing meaningful')
   const candidates = opts.candidates ?? DEFAULT_CANDIDATES
+  const limit = opts.limit ?? DEFAULT_LIMIT
+  // A LIMIT BELOW 1 IS REFUSED, not served. Every completeness figure this
+  // function returns rides on a returned row, so a call that asks for zero rows
+  // gets zero rows and would then be told, in the report's own words, that the
+  // scope is empty — a fabricated fact assembled out of the caller's own
+  // argument. Refusing makes that state unrepresentable rather than guarded
+  // (M3.3); a caller who genuinely wants nothing back should not be calling this.
+  if (!Number.isInteger(limit) || limit < 1)
+    throw new Error(`retrieveChunks: limit must be a positive integer, got ${opts.limit}`)
+  // The same guard, one parameter over. A zero candidate pool returns nothing and
+  // would then be reported as "ran, saw 0, nothing in scope, not truncated" — the
+  // same fabricated fact, assembled the same way, out of the caller's own argument.
+  if (!Number.isInteger(candidates) || candidates < 1)
+    throw new Error(`retrieveChunks: candidates must be a positive integer, got ${opts.candidates}`)
 
   // The dense channel needs the query embedded under RETRIEVAL_QUERY — the other
   // half of the asymmetric pair the corpus was embedded with. An embedding
@@ -174,20 +218,54 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
   // half-strength search that looks like a full one is the lie M3.3 forbids.
   const embedding = channels === 'lexical' ? null : toVectorLiteral(await embedQuery(query, opts.embed ?? {}))
 
-  const { data, error } = await db.rpc('atlas_search_chunks', {
+  const { data, error } = await db.rpc('atlas_search_chunks_v2', {
     p_query_embedding: embedding,
     p_query_text: channels === 'dense' ? null : query,
     p_company_id: opts.companyId ?? null,
-    p_limit: opts.limit ?? DEFAULT_LIMIT,
+    p_limit: limit,
     p_candidates: candidates,
   })
   if (error) throw new Error(`retrieveChunks: ${error.message}`)
 
   const rows = (data as ChunkRpcRow[] | null) ?? []
-  const report = (ran: boolean, saw: number, pool: number): ChannelReport => ({
+
+  // WHETHER A CHANNEL RAN IS THE SQL'S ANSWER, NOT THIS FILE'S GUESS. A query
+  // whose tsquery comes out empty — punctuation only, or nothing but terms the
+  // tokenizer drops — makes the function switch the lexical channel off, and a
+  // caller that assumed `channels: 'hybrid'` meant both ran would report a
+  // half-strength search as a full one.
+  //
+  // `dense_ran` is knowable here too: it IS `embedding !== null`, which this
+  // function decided. `lexical_ran` is not — it depends on what the tokenizer made
+  // of the query, and that lives in SQL.
+  const denseRan = channels !== 'lexical'
+
+  // ZERO ROWS CARRY NO BOOLEANS, and this is the one path where a guess would
+  // reinstate the exact bug the booleans were added to remove: an empty scope
+  // (a company whose chunks are not embedded yet — this slice's own mid-backfill
+  // state) plus an emptied tsquery reports a dense-only search as a full hybrid.
+  // So the question goes back to the database rather than being assumed. It costs
+  // one cheap immutable call, only when the result was empty and only when the
+  // caller asked for lexical at all.
+  let lexicalRan: boolean
+  if (channels === 'dense') lexicalRan = false
+  else if (rows.length) lexicalRan = rows[0].lexical_ran
+  else {
+    const { data: tsq, error: tsqError } = await db.rpc('atlas_dual_tsquery', { input: query })
+    // Consistent with the main RPC: a failed read is visible, never a guess
+    // dressed as an answer.
+    if (tsqError) throw new Error(`retrieveChunks: resolving the lexical channel — ${tsqError.message}`)
+    lexicalRan = typeof tsq === 'string' && tsq.trim() !== ''
+  }
+
+  const report = (ran: boolean, saw: number, inScopeCapped: number): ChannelReport => ({
     ran,
     saw: ran ? saw : 0,
-    truncated: ran && saw >= pool,
+    inScopeCapped: ran ? inScopeCapped : 0,
+    // Cut short = returned less than BOTH what was asked for and what is there.
+    // `least` is why a pool-limited search reads complete: at the pool, the
+    // channel delivered exactly what this call requested.
+    truncated: ran && saw < Math.min(candidates, inScopeCapped),
   })
 
   return {
@@ -209,9 +287,13 @@ export async function retrieveChunks(db: CorpusDb, opts: RetrieveOptions): Promi
       lexicalRank: r.lexical_rank,
       score: r.score,
     })),
-    // Zero rows carry no per-channel count, so both report the honest zero
-    // rather than an absent field the caller would have to guess about.
-    dense: report(channels !== 'lexical', rows[0]?.dense_candidates ?? 0, candidates),
-    lexical: report(channels !== 'dense', rows[0]?.lexical_candidates ?? 0, candidates),
+    // Zero rows carry no per-channel counts, so both report the honest zero rather
+    // than an absent field the caller would have to guess about. Zero seen out of
+    // zero in scope is complete information — the empty scope really is empty.
+    // That reading is only safe because a `limit` below 1 was refused above: a
+    // call that returns no rows BY CONSTRUCTION would otherwise land here and
+    // fabricate "the corpus has nothing" out of its own argument.
+    dense: report(denseRan, rows[0]?.dense_candidates ?? 0, rows[0]?.dense_in_scope_capped ?? 0),
+    lexical: report(lexicalRan, rows[0]?.lexical_candidates ?? 0, rows[0]?.lexical_in_scope_capped ?? 0),
   }
 }

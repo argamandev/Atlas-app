@@ -68,6 +68,30 @@ export const PATH_COMPANY_DETAILS = '/v1/maya-reports-online/company-details'
  */
 export const MAYA_LOGO_BASE = 'https://mayafiles.tase.co.il/logos/he-IL'
 
+/**
+ * THE LIVE FILINGS FEED — the market's most recent disclosures, all issuers, one
+ * request. Slice A5's ~10-minute poller: a filing published at 09:00 is searchable
+ * by about 09:15 for the cost of one call under the global limiter.
+ *
+ * ⚠ VERSION 1.0.0, LIKE `company-details` AND UNLIKE EVERYTHING ELSE HERE — note
+ * the `/v1/…` prefix with no `/api`, and see that constant's comment for why
+ * guessing the prefix reaches an F5 WAF that answers 403 in HTML.
+ *
+ * ⚠ AND IT DOES NOT SPEAK THE SAME DIALECT AS `by-issuer`. Measured 2026-08-14
+ * against both endpoints in one run: this one wraps rows in
+ * `{ mayaReports: { result: [...] } }` rather than `MayaEnvelope`, spells the
+ * attachments key `attachedfiles` (lower-case f — `attachedFiles` is absent from
+ * 100% of its rows, and present on 100% of `by-issuer`'s), and spells the issuer
+ * flag `associated` where v2 has TASE's own misspelling `assosiated`. Handing its
+ * rows straight to `toRemoteSources` therefore finds no PDF on any of them and
+ * drops every filing — a poller that runs forever, reports success and ingests
+ * nothing. `latestDisclosures()` normalises at the door for exactly that reason.
+ *
+ * It also returned 295 rows, not the 30 an older note in `docs/MAYA-API.md`
+ * recorded. Do not size anything off that number.
+ */
+export const PATH_LATEST_DISCLOSURES = '/v1/maya-reports-online/latest-companies-disclosures'
+
 /** The reporting schedule — consumers ③ (calendar) and ④ (live calls). */
 export const PATH_SCHEDULE_BY_YEAR = '/api/v2/market-announcements/financial-report-schedule/by-report-year'
 export const PATH_SCHEDULE_BY_DATE = '/api/v2/market-announcements/financial-report-schedule/by-schedule-date'

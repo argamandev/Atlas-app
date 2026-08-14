@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { reassemblePage } from './extract'
+import {reassemblePage, pgSafe } from './extract'
 
 // Spike case 1 (demo-report.pdf p1, y=152): stream order emitted "שהסתיימה ביום" before
 // "לשנה" although לשנה (x=476) reads FIRST in RTL. Descending-x must fix it.
@@ -60,4 +60,39 @@ test('near-y items group into one line (rounding jitter)', () => {
     { str: 'שנייה', x: 400, y: 151.8 },
   ]
   assert.equal(reassemblePage(items), 'מילה שנייה')
+})
+
+// ── pgSafe — what Postgres cannot store never leaves extraction ──────────────
+//
+// Measured in the A5 backfill: 2 of the first 401 documents failed with
+// "unsupported Unicode escape sequence" on the pages insert. One NUL anywhere in
+// a 300-page filing loses the WHOLE document — visibly `failed`, retryable, but
+// absent from search until someone notices.
+
+test('a NUL is stripped, and the rest of the page survives intact', () => {
+  const nul = String.fromCharCode(0)
+  assert.equal(pgSafe(`דוח${nul} תקופתי`), 'דוח תקופתי')
+  assert.equal(pgSafe(`${nul}${nul}2026`), '2026')
+})
+
+test('ordinary Hebrew, Latin, digits and punctuation are untouched', () => {
+  // The strip must not become a sanitiser: this text is quoted back to analysts
+  // verbatim as a citation, so anything it removes is a lie in a source_quote.
+  const real = 'ההכנסות ברבעון היו 358.7 מיליון ש"ח (Q1 2026) — עלייה של 12%'
+  assert.equal(pgSafe(real), real)
+})
+
+test('a real emoji or other astral character keeps BOTH halves of its pair', () => {
+  // Surrogate pairs are valid UTF-16 and encode fine; only LONE surrogates break.
+  // A rule that dropped every 0xD800-0xDFFF code unit would silently mangle any
+  // astral character in a filing.
+  const astral = 'נתונים 𝟚𝟘𝟚𝟞 ok'
+  assert.equal(pgSafe(astral), astral)
+})
+
+test('a LONE surrogate is dropped — it survives JSON and breaks the UTF-8 encode', () => {
+  const lone = 'abc' + String.fromCharCode(0xd800) + 'def'
+  assert.equal(pgSafe(lone), 'abcdef')
+  const loneLow = 'abc' + String.fromCharCode(0xdc00) + 'def'
+  assert.equal(pgSafe(loneLow), 'abcdef')
 })
