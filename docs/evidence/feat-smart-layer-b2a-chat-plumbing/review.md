@@ -21,9 +21,12 @@ Merge it."*
 
 ```
 FINDING · NIT · src/lib/chat/domainBoundary.test.ts:56 · Non-coverage item 3's claim that "A commented `import … from` does not [trip it]" is false when a semicolon-free real import precedes it, since `[^;]*?` spans newlines and satisfies the `^\s*` anchor from the line above — the repo writes no semicolons, so this is the common case.
-RECURRENCE: no — see "The ADR-0002 payment" below. The reviewer returned `yes → M1`; that is
-correct as an observation and is NOT filed as a resolvable recurrence, for the reason given there.
+RECURRENCE: no
 ```
+
+The reviewer returned `yes → M1` on this one. That is correct as an observation and is deliberately
+NOT filed as a resolvable recurrence — the reasoning is in "The ADR-0002 payment" below, and the
+mechanisms were bought either way.
 
 Fixed by the remedy the reviewer named rather than by rewording: item 3 no longer enumerates which
 shapes trip inside a comment. The reviewer's reasoning, quoted because it is this branch's whole
