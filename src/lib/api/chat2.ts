@@ -29,6 +29,12 @@ import type { ClientChatEvent } from '@/lib/chat2/protocol'
 // lines, and the fetch. Re-exported so surfaces keep one import for chat.
 export { parseChatEvent, isTerminal, STREAM_ENDED } from '@/lib/chat2/protocol'
 export type { ClientChatEvent, ClientIncompleteCode } from '@/lib/chat2/protocol'
+// The grounding union is the request's own vocabulary and is declared at the
+// server-side gate that validates it (`chat2/requestScope.ts`) — one declaration
+// for both ends, exactly like the event union. That module is pure: a regex, a
+// switch, no imports.
+import type { Grounding } from '@/lib/chat2/requestScope'
+export type { Grounding } from '@/lib/chat2/requestScope'
 
 /**
  * Line-framed NDJSON decoder that remembers a partial line between chunks, and
@@ -73,13 +79,13 @@ export class NdjsonEvents {
 
 export interface ChatV2Input {
   message: string
-  /** The @mentioned or page-scoped company. Uuid-gated server-side. */
-  companyId?: string | null
-  // NO `transcriptId`. The route no longer accepts one, because no tool reads one
-  // — ticket 07's cold review found it gated onto the scope and dropped, while the
-  // surface showed a chip promising that grounding. Ticket 08 adds it back with
-  // whole-call injection, which is the code that will actually consume it.
-  workspaceId?: string | null
+  /**
+   * ONE grounding, not a bag of optional ids (ticket 08b). The surface says what
+   * this turn is grounded in; the backend refuses with a 400 rather than
+   * downgrading a grounding it cannot honour, so a chip on screen and the answer
+   * beneath it cannot disagree. Absent = blank Chat.
+   */
+  grounding?: Grounding
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
 

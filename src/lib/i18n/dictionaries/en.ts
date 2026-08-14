@@ -511,6 +511,10 @@ export const en = {
     // survive the reload and naming one would be an invention.
     answerWasTruncated: 'This answer was cut off before it finished.',
     notSaved: 'This answer arrived but was not saved — {error}',
+    // Ticket 08b, whole-call injection. The call did not fit in one turn, so the
+    // model read a PREFIX of it. Said on the answer it applies to, because an
+    // answer built on part of a call must not look like one built on the call.
+    callTruncated: 'This call was too long to read in full — the answer is based on the first part of it.',
     pageShort: 'p.',
     // ─── Ticket 07: the new backend's grounding mode, said out loud ──────────
     // Search mode is VISIBLE by design (spec §2.3). It is decided from the scope

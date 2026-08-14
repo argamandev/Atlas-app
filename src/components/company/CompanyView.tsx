@@ -280,6 +280,14 @@ export function CompanyView({
           <TranscriptChatPanel
             companyId={company.id}
             transcriptId={undefined}
+            // ON THE NEW BACKEND (ticket 08b). The company page displays exactly
+            // one grounding — "connected to this company" — and v2 honours it in
+            // full: `companyId` scopes every corpus tool, which spec §2.5.4
+            // measured as the single biggest accuracy multiplier. The live and
+            // multiview panels stay on the old route because they display
+            // groundings (on-screen captions, marked report pages, snips) that v2
+            // still has no code for.
+            grounding={{ kind: 'company', companyId: company.id }}
             quote=""
             seedNonce={0}
             onClose={() => setChatOpen(false)}

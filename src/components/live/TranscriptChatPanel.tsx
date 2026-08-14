@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { streamChat } from '@/lib/api/chat'
+import { streamChatV2, type ClientIncompleteCode, type Grounding } from '@/lib/api/chat2'
+import { incompleteMessage } from '@/lib/chat/incompleteCopy'
+import { ErrorLine } from '@/components/projects/ErrorLine'
 import type { ChatSource, ChatSnip } from '@/lib/chat/grounding'
 import { sanitizeHistory } from '@/lib/chat/history'
 import { appendSnip } from '@/lib/documents/snip'
@@ -27,11 +30,24 @@ interface Msg {
   snips?: ChatSnip[]
   source?: ChatSource | null
   streaming?: boolean
+  /** v2 only: the answer is real but not whole, with the reason as a CODE. */
+  incomplete?: ClientIncompleteCode | null
+  /**
+   * The failure, held as the THROWN VALUE and kept out of `content`.
+   *
+   * This panel used to do `setLast({ content: (err as Error).message })`, which
+   * rendered a raw server string — "unauthorized", a Postgres relation message —
+   * in the place a Hebrew answer belongs, styled exactly as if Atlas had said it,
+   * and destroyed whatever had already streamed in. The main chat surface fixed
+   * that shape; this is the same fix, on the same law.
+   */
+  error?: unknown
 }
 
 export function TranscriptChatPanel({
   companyId,
   transcriptId,
+  grounding,
   liveContext,
   quote,
   seedNonce,
@@ -43,6 +59,21 @@ export function TranscriptChatPanel({
 }: {
   companyId: string | null
   transcriptId: string | undefined
+  /**
+   * WHICH BACKEND, AND WHY IT IS A GROUNDING RATHER THAN A FLAG (ticket 08b).
+   *
+   * Set → this panel talks to `/api/chat/v2` with exactly this grounding. Unset →
+   * the old `/api/chat`, which is still the only route that can honour the two
+   * groundings v2 has no code for: the live view's on-screen captions, and
+   * multiview's marked-PDF pages and snipped images.
+   *
+   * A boolean `useV2` would have said "which backend"; this says WHAT THE ANSWER
+   * IS GROUNDED IN, and the backend follows from it. That direction matters: the
+   * rule the fork exists to keep is "a surface goes to v2 only when v2 can honour
+   * every grounding that surface displays", and a caller that has to name its
+   * grounding cannot satisfy that rule by accident.
+   */
+  grounding?: Grounding
   /** LIVE view only: the on-screen captions, sent as grounding context instead of a DB lookup */
   liveContext?: string
   quote: string
@@ -151,26 +182,78 @@ export function TranscriptChatPanel({
       })
 
     let full = ''
+    // Written only inside the v2 event callback, so it is held in an object —
+    // TypeScript narrows a `let x: T | null = null` back to `null` when every
+    // assignment lives in a closure, and the checks below would then read as
+    // unintentional comparisons.
+    const outcome: { incomplete: ClientIncompleteCode | null; error: string | null } = {
+      incomplete: null,
+      error: null,
+    }
     try {
-      const { source } = await streamChat(
-        {
-          message: outMessage,
-          companyId: companyId ?? undefined,
-          transcriptId,
-          liveContext,
-          history,
-          documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
-          attachments: usedSnips.length ? usedSnips : undefined,
-        },
-        (delta) => {
-          full += delta
-          setLast({ content: full })
-          scrollToEnd()
+      let source: ChatSource | null = null
+      if (grounding) {
+        // A GROUNDING V2 CANNOT CARRY IS REFUSED, NOT DROPPED. Nothing on the
+        // company page can produce a marked passage or a snip — there is no
+        // document pane there — so this branch is unreachable today. It is here
+        // because "unreachable today" is how the attachment would silently stop
+        // reaching the model the day a document pane is added to a v2-grounded
+        // host: the thumbnail would still render in the user's own turn, above an
+        // answer that never saw it. Refusing says so instead.
+        if (usedDoc || usedSnips.length > 0) {
+          throw new Error('this chat cannot read report pages or snips yet')
         }
-      )
-      setLast({ content: full, source, streaming: false })
+        await streamChatV2({ message: outMessage, grounding, history }, (e) => {
+          switch (e.type) {
+            case 'delta':
+              full += e.text
+              setLast({ content: full })
+              scrollToEnd()
+              break
+            case 'grounding':
+              source = e.source
+              break
+            case 'incomplete':
+              outcome.incomplete = e.code
+              break
+            case 'error':
+              outcome.error = e.message
+              break
+            case 'mode':
+            case 'tool':
+            case 'done':
+              break
+          }
+        })
+        // `error` is the backend saying nothing usable came back — a failure, not
+        // a partial answer, so it goes down the error path rather than being
+        // rendered as a reason beside an answer that does not exist.
+        if (outcome.error) throw new Error(outcome.error)
+      } else {
+        const res = await streamChat(
+          {
+            message: outMessage,
+            companyId: companyId ?? undefined,
+            transcriptId,
+            liveContext,
+            history,
+            documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
+            attachments: usedSnips.length ? usedSnips : undefined,
+          },
+          (delta) => {
+            full += delta
+            setLast({ content: full })
+            scrollToEnd()
+          }
+        )
+        source = res.source
+      }
+      setLast({ content: full, source, incomplete: outcome.incomplete, streaming: false })
     } catch (err) {
-      setLast({ content: (err as Error).message, streaming: false })
+      // NEVER `content: err.message`. Whatever streamed in is a real answer and
+      // stays on screen; the failure is said BESIDE it (rules/app.md — a raw
+      // server string must never render where an answer belongs).
+      setLast({ streaming: false, error: err })
     } finally {
       setSending(false)
     }
@@ -277,6 +360,38 @@ export function TranscriptChatPanel({
                 <Markdown content={m.content} />
               )}
               {m.source && !m.streaming && <CitationChip source={m.source} />}
+              {/* The answer is REAL but not whole, rendered from the CODE and
+                  never from the server's English `reason` — this panel is
+                  Hebrew-first, and picking a sentence by string-matching English
+                  prose is the classifier app.md forbids. Beside the answer, not
+                  instead of it. */}
+              {m.incomplete && !m.streaming && (
+                <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                  {incompleteMessage(dict.chat.incomplete, m.incomplete)}
+                </p>
+              )}
+              {/* The failure, beside whatever did arrive. `ErrorLine` is what
+                  turns an expired session into "sign in" rather than into the
+                  word "unauthorized" sitting where an answer belongs. */}
+              {m.error != null && !m.streaming && (
+                <p role="alert" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                  <ErrorLine
+                    template={
+                      // Text on screen + a failure = the answer broke partway.
+                      // The main chat surface deliberately does NOT decide this
+                      // from the content length, because there a failure can also
+                      // arrive AFTER a complete answer (persistence) and calling
+                      // that "cut off" would be false. This panel persists
+                      // nothing, so there is no third case here for the length to
+                      // be blind to — if that changes, this needs the same
+                      // `streamFinished` split ChatView carries.
+                      m.content.trim().length > 0 ? dict.chat.answerTruncated : dict.chat.answerFailed
+                    }
+                    error={m.error}
+                    auth={{ expired: dict.common.sessionExpired, signIn: dict.common.signIn }}
+                  />
+                </p>
+              )}
             </div>
           )
         )}
