@@ -12,6 +12,21 @@
 // queries — flows through this one point, so closing the prompt path cannot leave
 // the others open. All three ids name `uuid` columns, so anything else is not an
 // id, and refusing it costs nothing a real client can feel.
+//
+// ...EXCEPT THAT `transcripts.id` IS NOT A UUID, and the sentence above said it
+// was for a whole ticket. Measured against the live database (2026-08-15, while
+// verifying 08b): `transcripts.id` is `text`, holding YouTube ids and slugs —
+// `PyuMxe88e8g`, `PyuMxe88e8g_live`, `live-finish-demo-tamis-2026-06-14`. Only
+// `company_id` and `user_id` are uuid columns there.
+//
+// It went unnoticed because ticket 07 uuid-gated `transcriptId` and then removed
+// it for being CONSUMED BY NOTHING — a field no code reads is a field whose
+// validator can be wrong forever. The moment 08b wired it to a real handler, the
+// gate would have refused 100% of real calls with a 400: every "open in chat"
+// from a call, dead, in a way no unit test written against a made-up uuid could
+// see. Found by looking up an actual id before driving the surface, which is why
+// `/verify-app` insists on real data (M1 — a green test answers the question you
+// typed).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -19,6 +34,33 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 /** A uuid, or nothing. Never a caller-shaped string that merely looks like an id. */
 export function asUuid(v: unknown): string | undefined {
   return typeof v === 'string' && UUID_RE.test(v) ? v : undefined
+}
+
+/**
+ * A TRANSCRIPT id — a `text` primary key, so this cannot be the uuid gate.
+ *
+ * WHAT THE GATE IS ACTUALLY FOR, since "it is a uuid" is no longer available as
+ * the argument. Two questions, and the answer differs:
+ *
+ *   * Does this string reach the SYSTEM PROMPT? No. A `call` grounding's scope
+ *     summary is a CONSTANT sentence — the id is not interpolated into it, unlike
+ *     `companyId`, which is (`/api/chat/v2/route.ts`). That is the path round 1
+ *     of ticket 06 found and closed, and this id does not travel it.
+ *   * Does it reach a QUERY? Yes — `.eq('id', …)`, parameterized by the Supabase
+ *     client, so it is data there rather than syntax.
+ *
+ * So this is a SHAPE gate, not an injection gate: the charset of an id, bounded.
+ * Everything an injection payload needs — whitespace, newlines, quotes, angle
+ * brackets, the fence delimiter — is outside it, and it still admits every id the
+ * live table actually holds. It is deliberately narrower than "any text" and
+ * deliberately wider than a uuid, and saying which of the two it is protecting
+ * against matters more than the pattern: a gate whose stated reason is wrong gets
+ * widened by the next person for a reason nobody can check.
+ */
+export const TRANSCRIPT_ID_RE = /^[A-Za-z0-9_-]{1,128}$/
+
+export function asTranscriptId(v: unknown): string | undefined {
+  return typeof v === 'string' && TRANSCRIPT_ID_RE.test(v) ? v : undefined
 }
 
 /**
@@ -110,7 +152,8 @@ export function parseGrounding(body: unknown): Grounding | null {
       return companyId ? { kind: 'company', companyId } : null
     }
     case 'call': {
-      const transcriptId = asUuid(r.transcriptId)
+      // NOT `asUuid` — `transcripts.id` is `text`. See `asTranscriptId`.
+      const transcriptId = asTranscriptId(r.transcriptId)
       return transcriptId ? { kind: 'call', transcriptId } : null
     }
     case 'shelf': {
