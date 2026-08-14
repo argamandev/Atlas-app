@@ -306,6 +306,12 @@ other direction too: a destructured read (`const { companyId } = scope`) has no 
 reported as an orphan. No consumer uses that form today; if one appears, the test fails loudly and
 asks the author to widen the pattern. A false alarm, never a false pass.
 
+> **CORRECTED AT ROUND 4 — "never a false pass" was false when written, and a false pass existed in
+> the tree at that moment.** `\.\s*<id>\b` matches ANY object's property of that name, and
+> `tools.ts` reads `input.companyId` — the model's tool argument, an unrelated object sharing the
+> property name. With every real `scope.companyId` read deleted the guard stayed green, so it was
+> vacuous for the one id the chat surface actually sends. See round 5 below.
+
 ## WARNING — the same instance/class mistake, in the chip row
 
 Round 2 changed the two *inner* branches to gate on `companyId` instead of `companyName`, but the
@@ -356,3 +362,53 @@ elements (`קבוצת תיגבור`, `Q4 2025`), not one joined string.
 compared against the inline `outcome.incomplete != null` across `undefined`, `null` and three real
 codes — identical on every one. "Looks the same" is not proof when the whole point of the change is
 that the two expressions must not drift.
+
+---
+
+# Round 5 — after the fourth cold review
+
+Round 4 returned **CHANGES**: 1 BLOCKER, 1 WARNING, 1 NIT. It cleared the chip-row condition, the
+`truncatedForPersist` equivalence, and the case-history/open-findings bookkeeping.
+
+## BLOCKER — the guard was vacuous for the one id that matters
+
+Round 3's fix required a dotted read. But `\.\s*<id>\b` matches **any** object's property of that
+name, and `tools.ts` reads `input.companyId` — the model's tool argument, an unrelated object that
+merely shares the property name. The reviewer deleted **every** real `scope.companyId` /
+`facts.companyId` read from all four consumers and the guard stayed **green**. It was working only
+for `workspaceId`, the id no caller sends.
+
+This is M3.2 in its plainest form: I gave the choke point something *shaped like* the fact. The
+question is not "does this name appear after a dot", it is **"is this id read off the scope"** — so
+the receiving object is matched too: `\b(scope|facts)\.<id>\b`.
+
+**Proved with the reviewer's own experiment:**
+
+| tree state | `input.companyId` present | guard |
+| --- | --- | --- |
+| untouched | yes | passes |
+| every `scope.`/`facts.` `companyId` read deleted | yes | **fails ✓** (was green) |
+| restored | yes | passes (9/9) |
+
+## WARNING — my own claim was false, again
+
+"A false alarm, never a false pass" was written while a false pass existed in the tree. Corrected in
+place above and in the test header. The limit is now stated at its real strength: the guard matches
+reads through a variable *named* `scope` or `facts`; a destructure or a differently-named parameter
+false-alarms (safe); a future unrelated object also called `scope` would still slip through. It
+proves the id is read off a scope-shaped object — **not** that the read changes an answer.
+
+## NIT — the wrong test was failing first
+
+The "missing or non-object body" case enumerated the accepted ids in a literal, so *it* — not the
+scope guard — fired first whenever a field was added, reporting a body-handling problem and
+obscuring which mechanism caught what. It now asserts the property ("nothing survives a junk body")
+without naming the ids.
+
+## Standing tally of this guard
+
+Wrong three times, each time by measuring something adjacent to the question: any substring (a type
+declaration passed), any dotted property (an unrelated object passed), and now matched to the
+receiving object. **Each version was accompanied by a confident claim in this file, and two of those
+claims were false.** That pattern is the finding, more than any individual regex — it is why the
+limit above is written as a limit rather than as a guarantee.

@@ -65,10 +65,16 @@ test('an id the backend does not consume is REFUSED, not silently accepted', () 
 
 test('a missing or non-object body is handled, not thrown on', () => {
   for (const body of [null, undefined, 'a string', 7]) {
-    assert.deepEqual(clientScopeIds(body), {
-      companyId: undefined,
-      workspaceId: undefined,
-    })
+    // The property is "nothing survives a junk body", stated WITHOUT enumerating
+    // the ids. A literal list here made this test — not the scope guard — the
+    // first thing to fail whenever a field was added, reporting it as a
+    // body-handling problem and muddying which mechanism actually caught what.
+    const out = clientScopeIds(body) as Record<string, unknown>
+    assert.deepEqual(
+      Object.entries(out).filter(([, v]) => v !== undefined),
+      [],
+      `a ${JSON.stringify(body)} body produced a scope id`
+    )
   }
 })
 
@@ -130,23 +136,31 @@ test('every scope id the backend ACCEPTS is consumed by the backend', () => {
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/\/\/[^\n]*/g, ' ')
 
-  // A VALUE-POSITION READ, not a substring. Round 3's BLOCKER: removing
-  // `toolDefs.ts` from the list fixed the INSTANCE and not the CLASS — declaring
-  // `callId` on `ModeFacts` in `mode.ts` (still a listed consumer) sailed through,
-  // because the identifier was present as a bare type annotation. Twice now this
-  // guard has certified an untrue premise (M2), both times because a substring
-  // cannot tell "declared" from "used".
+  // A READ THROUGH THE SCOPE OBJECT — the fact, not a proxy for it (M3.2).
   //
-  // The discriminator is the DOT. A read is always `scope.companyId` /
-  // `facts.companyId`; a declaration is always `companyId?: string` with nothing
-  // before it. Verified against every consumer in the tree above.
+  // This guard has now been wrong THREE times, each time by measuring something
+  // adjacent to the question:
+  //   1. any substring          → a type declaration in `toolDefs.ts` passed;
+  //   2. any dotted property    → `input.companyId` in `tools.ts` passed. `input`
+  //      is the MODEL'S tool argument, an unrelated object that merely shares the
+  //      property name, so the guard stayed green with every real `scope.companyId`
+  //      read deleted — vacuous for the one id the chat surface actually sends.
   //
-  // STATED LIMIT, and it fails SAFE: a destructured read (`const { companyId } =
-  // scope`) has no dot and would be reported as an orphan. No consumer uses that
-  // form today. If one ever does, this test fails loudly and tells the author to
-  // widen the pattern — a false alarm, never a false pass, which is the only
-  // direction a guard like this may be wrong in.
-  const orphans = accepted.filter((id) => !new RegExp(`\\.\\s*${id}\\b`).test(consumers))
+  // The question is not "does this name appear after a dot anywhere", it is "is
+  // this id read OFF THE SCOPE". So the receiving object is matched too. Every
+  // consumer reads through `scope.` or `facts.` (`mode.ts` names its parameter
+  // `facts`); verified against the tree above.
+  //
+  // STATED LIMIT, honestly, because the previous two versions of this note
+  // overclaimed and one of them said "a false alarm, never a false pass" while a
+  // false pass existed in the tree: this matches reads through a variable NAMED
+  // `scope` or `facts`. A consumer that destructures (`const { companyId } =
+  // scope`) or names its parameter something else would be reported as an orphan
+  // — a false alarm, which is the safe direction and is fixed by widening this
+  // pattern deliberately. What it still cannot see is a read on some OTHER object
+  // that a future author also calls `scope`. It proves the id is read off a
+  // scope-shaped object; it does not prove the read changes an answer.
+  const orphans = accepted.filter((id) => !new RegExp(`\\b(scope|facts)\\.\\s*${id}\\b`).test(consumers))
   assert.deepEqual(
     orphans,
     [],
