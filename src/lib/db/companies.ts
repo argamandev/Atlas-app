@@ -1,4 +1,5 @@
 import 'server-only'
+import { matchRank } from '@/lib/company/matchRank'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Company, CompanyLite } from '@/lib/api/types'
 
@@ -186,11 +187,15 @@ export async function searchCompanies(q: string): Promise<Company[]> {
   // to recognise a company than the answer engine behind it, which reads to the
   // user as Atlas not knowing a company it demonstrably knows.
   //
-  // Aliases FIRST in the result order: an alias match means the user typed a name
-  // this company is actually known by, which is a stronger signal than an
-  // infix hit somewhere inside a longer registered name.
+  // ORDERING IS BY MATCH QUALITY, NOT BY WHICH QUERY FOUND IT (cold review).
+  //
+  // The first version put every alias hit in front and then `.slice(0, 20)`. A
+  // broad Hebrew stem — "בנק" is the realistic one — matches twenty aliases and
+  // evicted the company whose NAME the user had typed exactly. Ranking by the
+  // source of the match is a proxy for relevance (M3.2); the fact that decides
+  // relevance is how well the typed term matches, so that is what is measured.
   const [aliasHits, nameHits] = await Promise.all([
-    supabaseAdmin.from('company_aliases').select('company_id').ilike('alias', like).limit(20),
+    supabaseAdmin.from('company_aliases').select('company_id, alias').ilike('alias', like).limit(20),
     supabaseAdmin
       .from('companies')
       .select(COLS)
@@ -209,11 +214,39 @@ export async function searchCompanies(q: string): Promise<Company[]> {
   // for, rather than quietly answering a different question.
   if (aliasHits.error) throw new Error(aliasHits.error.message)
 
-  const aliasIds = Array.from(new Set((aliasHits.data ?? []).map((r) => String(r.company_id))))
-  const missing = aliasIds.filter((id) => !byName.some((c) => c.id === id))
-  if (missing.length === 0) return byName
+  // Which aliases each company matched on — needed to score an alias-only hit,
+  // since its `Company` row carries no text the term appears in.
+  const aliasesByCompany = new Map<string, string[]>()
+  for (const row of aliasHits.data ?? []) {
+    const id = String(row.company_id)
+    const list = aliasesByCompany.get(id)
+    if (list) list.push(String(row.alias))
+    else aliasesByCompany.set(id, [String(row.alias)])
+  }
 
-  const extra = await supabaseAdmin.from('companies').select(COLS).in('id', missing).limit(20)
-  if (extra.error) throw new Error(extra.error.message)
-  return [...(extra.data ?? []).map(mapCompany), ...byName].slice(0, 20)
+  const missing = Array.from(aliasesByCompany.keys()).filter((id) => !byName.some((c) => c.id === id))
+  let candidates = byName
+  if (missing.length > 0) {
+    const extra = await supabaseAdmin.from('companies').select(COLS).in('id', missing).limit(20)
+    if (extra.error) throw new Error(extra.error.message)
+    candidates = [...byName, ...(extra.data ?? []).map(mapCompany)]
+  }
+
+  return candidates
+    .map((c, i) => ({
+      c,
+      // Stable-sort tiebreak: `Array.prototype.sort` is stable in modern V8, but
+      // saying so in the comparator costs one field and removes the doubt.
+      i,
+      rank: matchRank(term, [
+        c.displayName,
+        c.name,
+        c.nameEn,
+        c.ticker,
+        ...(aliasesByCompany.get(c.id) ?? []),
+      ]),
+    }))
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+    .slice(0, 20)
+    .map((r) => r.c)
 }

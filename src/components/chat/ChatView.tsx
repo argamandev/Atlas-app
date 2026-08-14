@@ -97,7 +97,13 @@ export function ChatView({
 }: {
   initialCompany: { id: string; name: string; logoUrl: string | null } | null
   initialQuote?: string | null
-  initialTranscript?: { id: string; label: string } | null
+  /**
+   * The call this chat is scoped to. `company` and `quarter` stay SEPARATE
+   * because the chip renders them as a Hebrew run beside a Latin one
+   * ("תיגבור · Q3 2025"), and the bidi law wants a `<bdi>` per run — impossible
+   * once they have been concatenated upstream into one opaque label.
+   */
+  initialTranscript?: { id: string; company: string; quarter: string } | null
   /**
    * Renders in place of the chat transcript, keeping the secondary panel intact.
    * Used by the Projects routes (/app/chat/projects…), which the design draws
@@ -159,7 +165,19 @@ export function ChatView({
   // documented migration order (spec §6, ticket 06: "Old /api/chat keeps serving
   // clients until B2"). This is a temporary fork with a named owner, not a
   // permanent branch. B2 removes it along with `streamChat`.
-  const useV2 = !projectId
+  //
+  // TRANSCRIPT CHATS ARE THE SECOND HALF OF THE SAME RULE, and the cold review
+  // found this one the hard way. `/app/chat?transcript=…` ("open in chat" from a
+  // call) renders a chip naming that call, and the old route genuinely grounds on
+  // it (`getChatContext(companyId, transcriptId)`). v2 has no tool that reads a
+  // transcript id — whole-call injection is ticket 08 — so sending those turns to
+  // v2 answered from the general corpus while the chip on screen still promised
+  // the call. Success UI for content the server dropped, which is the exact law
+  // this ticket's degradation work exists to serve.
+  //
+  // ONE RULE, stated once: a surface goes to v2 only when v2 can honour every
+  // grounding that surface displays. Ticket 08 removes both arms of this fork.
+  const useV2 = !projectId && !transcript
 
   /**
    * The grounding mode of the CURRENT turn, as the server reported it.
@@ -168,7 +186,7 @@ export function ChatView({
    * because a default is a guess and the whole point of the mode being a server
    * event is that the surface never guesses it (spec §2.3).
    */
-  const [mode, setMode] = useState<ChatMode | null>(null)
+  const [reportedMode, setReportedMode] = useState<ChatMode | null>(null)
 
   const scrollToEnd = () => {
     const el = scrollRef.current
@@ -221,7 +239,21 @@ export function ChatView({
     const text = (explicit ?? input).trim()
     if (!text || sending) return
     const priorMessages = messages
-    const history = messages.map((m) => ({ role: m.role, content: m.content }))
+    // A PARTIAL PRIOR TURN IS LABELLED PARTIAL TO THE MODEL TOO.
+    //
+    // The surface knows an earlier answer was cut off — it renders a notice
+    // saying so. Replaying it as a plain `{role:'assistant', content}` told the
+    // model the opposite: that a sentence ending mid-clause was a finished reply,
+    // which it will then happily build on. The same fact the user is shown is now
+    // the fact the model gets, from the same two fields the persistence path
+    // reads (`incomplete` this session, `truncated` after a reload).
+    const history = messages.map((m) => ({
+      role: m.role,
+      content:
+        m.role === 'assistant' && (m.incomplete != null || m.truncated === true)
+          ? `${m.content}\n\n[This answer was cut off before it finished — it is not complete.]`
+          : m.content,
+    }))
     // A quote carried in from "Chat about this quote" rides along on the API message as
     // grounding context, but only the user's typed text shows in the bubble. One turn only.
     const apiMessage = quote ? `Regarding this quote from the investor call: "${quote}"\n\n${text}` : text
@@ -270,7 +302,9 @@ export function ChatView({
           {
             message: apiMessage,
             companyId: companyId ?? undefined,
-            transcriptId: transcript?.id,
+            // No `transcriptId`: v2 does not accept one, because nothing in it
+            // reads one (see `useV2` above and `chat2/requestScope.ts`). A
+            // transcript-scoped chat never reaches this branch.
             history,
           },
           (e) => {
@@ -281,7 +315,7 @@ export function ChatView({
                 scrollToEnd()
                 break
               case 'mode':
-                setMode(e.mode)
+                setReportedMode(e.mode)
                 // The server resolved a company we did not know about — the
                 // `@mention`-free path into pinpoint mode. Adopt it, so the chip
                 // on screen and the scope of the NEXT turn agree with what
@@ -429,7 +463,7 @@ export function ChatView({
     // the previous conversation's mode on screen would describe the wrong thread;
     // defaulting to 'search' would state a fact nothing measured. Both are the
     // same error, so it goes back to null and the next turn reports the truth.
-    setMode(null)
+    setReportedMode(null)
     // Sanitised, not trusted: `messages` is a jsonb blob that predates this
     // field, so rows written by older code have none and anything unrecognised
     // must land on null rather than on a rendered warning.
@@ -455,7 +489,7 @@ export function ChatView({
     // Back to unknown, NOT to 'search'. The mode is a fact the server reports
     // about an actual turn; asserting one before any turn has run is the guess
     // this whole design exists to avoid.
-    setMode(null)
+    setReportedMode(null)
   }
 
   const empty = messages.length === 0
@@ -475,8 +509,17 @@ export function ChatView({
    * ends compute one answer from one vocabulary. Before the user has pinned
    * anything the server's report still governs — only it can know what
    * `resolve_company` did mid-turn.
+   *
+   * AND THE RAW STATE IS NAMED `reportedMode` FOR A REASON. The first fix here
+   * changed the two chips and MISSED the hint line one JSX block below, which
+   * went on saying "no company was identified" directly under the `@company`
+   * chip — the same contradiction, in the same commit that fixed it, because
+   * `mode` was still sitting there looking like the right variable to reach for.
+   * Renaming it makes the wrong choice announce itself at the call site (M3.3):
+   * nothing in the render should want a mode that is only "what the server last
+   * reported". Every JSX branch reads `shownMode`.
    */
-  const shownMode: ChatMode | null = companyId ? chatMode({ companyId }) : mode
+  const shownMode: ChatMode | null = companyId ? chatMode({ companyId }) : reportedMode
 
   // Composer block — shared between the empty (centered) and active (pinned-bottom) states.
   const composer = (
@@ -500,7 +543,16 @@ export function ChatView({
           )}
           {transcript && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
-              <span className="font-medium text-ink">{transcript.label}</span>
+              {/* A `<bdi>` PER RUN, `dir` on the container (<html>) — never on
+                  this line. "תיגבור · Q3 2025" is Hebrew beside Latin, so
+                  `dir="auto"` would resolve the whole chip from the first strong
+                  character and flip the quarter to the wrong side. The separator
+                  is neutral and stays outside both isolates. */}
+              <span className="font-medium text-ink">
+                <bdi>{transcript.company}</bdi>
+                {transcript.company && transcript.quarter ? ' · ' : ''}
+                <bdi>{transcript.quarter}</bdi>
+              </span>
             </span>
           )}
           {/* SEARCH MODE IS SHOWN, AND IS ONE TAP FROM PINPOINT (spec §2.3).
@@ -545,7 +597,7 @@ export function ChatView({
               onClick={() => {
                 setCompanyId(null)
                 setCompanyName(null)
-                setMode('search')
+                setReportedMode('search')
               }}
               className="rounded-full px-2.5 py-1 text-xs text-ink-muted underline underline-offset-2 hover:text-ink"
             >
@@ -584,7 +636,7 @@ export function ChatView({
           mode would be technically visible (the chip) and still not understood.
           Only once a thread is running: on the blank screen there is no answer
           for it to explain. */}
-      {useV2 && !empty && mode === 'search' && (
+      {useV2 && !empty && shownMode === 'search' && (
         <p className="mt-2 px-1 text-center text-2xs text-ink-faint">{dict.chat.searchModeHint}</p>
       )}
     </div>

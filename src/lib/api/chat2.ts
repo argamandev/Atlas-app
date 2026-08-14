@@ -168,7 +168,10 @@ export interface ChatV2Input {
   message: string
   /** The @mentioned or page-scoped company. Uuid-gated server-side. */
   companyId?: string | null
-  transcriptId?: string | null
+  // NO `transcriptId`. The route no longer accepts one, because no tool reads one
+  // — ticket 07's cold review found it gated onto the scope and dropped, while the
+  // surface showed a chip promising that grounding. Ticket 08 adds it back with
+  // whole-call injection, which is the code that will actually consume it.
   workspaceId?: string | null
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
