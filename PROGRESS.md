@@ -1094,3 +1094,106 @@ the live hole fixed in the same session.
 - **Verified:** 810/810 across 86 files - `tsc` clean - `env:health` 8,995/9,000 (the
   slice's law changes paid for themselves by evicting provenance to case-history) -
   migrations 029 and 030 applied, `transcripts_company_required` now VALIDATED.
+
+## 2026-08-14 — Slice B1a: the smart layer gets its chat backend (`feat/a5-followup-embedding-gate`)
+
+- **`/api/chat/v2` + `src/lib/chat2/` (8 modules) — ticket 06.** A Sonnet 5 tool loop over the
+  corpus. The slice-1 blocker it kills: the old route re-emitted raw model text as the whole HTTP
+  body, so an upstream failure could only speak by writing prose INTO that same channel —
+  indistinguishable from a real answer once persisted. Here every event is TYPED; `error` and
+  `incomplete` are their own kinds and no code path puts error text into a `delta`.
+- **Citations are verified at write, at the one choke point.** Every quote in a final answer is
+  checked against the pool of text this turn's tools actually returned — the real content, not a
+  proxy for it (M3.2). A failed check buys ONE retry with the offending quotes named; a second
+  failure degrades visibly instead of shipping an invented quote. Round-trip cap 4, and hitting it
+  ends the turn as a visible degradation, never a silent cutoff.
+- **The founder's word was checked, not trusted.** Ticket 06 recorded `ANTHROPIC_API_KEY` as set
+  "on his word; nothing here has verified it, so a 401 from Anthropic is the thing to check first
+  rather than the last." One real call: HTTP 200 from `claude-sonnet-5`. Note what that evidence
+  actually measured (M1) — the LOCAL key, not the Railway one, which is a separate secret and is
+  still unverified.
+- **Riding the same branch: A5's four deferred review findings, all closed.** `ship-gate.mjs` now
+  refuses a red battery instead of silently certifying it (the exact gap round 4 exposed);
+  `documentCatalog.ts`'s comment no longer claims a 270 deck gets the bare year; the closed
+  `events.ts` UTC leak left `open-findings.md`; and `syncFilings.ts`'s NO_PAGES re-ingest shares
+  the same 23505 race recovery as the not-held path, via an extracted `resolveRaceOrFail`.
+- **Nothing in the UI calls the new route yet** — that is ticket 07, and the split is deliberate.
+  B1a's acceptance is route-level and does not depend on the corpus; B1 does not SHIP until A5's
+  two open gates close (the corpus was 618 of 1,296 documents indexed at merge with the repair
+  pass running at ~3 docs/min, and the retrieval gate has never been re-run at this size).
+- **Cold review held this branch at round 1 with two BLOCKERs, and they were the ticket's own
+  premise failing one level up.** `loop.ts` swore it "always ends in exactly one terminal event"
+  and did not: a `max_tokens` truncation and the round-trip cap both ended in `done`, the same
+  event a clean answer ends in — so `if (e.type === 'done') persist()` stored a severed answer as
+  finished. Worse, `loop.test.ts` ASSERTED that shape, so the mechanism meant to catch the
+  recurrence was aimed at the defect and approving it (M2). Fixed at the type, not with a guard:
+  `done` and `incomplete` are now distinct terminal events, so "complete but truncated" cannot be
+  expressed (M3.3). The compiler found every remaining site the moment the old event left the
+  union, and both new stop-reason tests were proven RED against the old behaviour before being
+  trusted.
+- **`Degradation must be VISIBLE` was promoted, as ADR-0002 requires of a `RECURRENCE: yes`** —
+  from `partially`/four-tests to **impossible** (for the chat stream) **+ test** (now six
+  surfaces). Story filed to `case-history`, not the rule.
+- **Six more findings closed, all of them a comment claiming more than the code did:** the quote
+  extractor was blind to the Hebrew gershayim its own comment named; `tools.ts` swore no schema
+  exposed a model-settable `companyId` while three did; `systemPrompt.ts` described a cache
+  breakpoint that was never set — and could not be, at ~361 tokens against a 1,024-token minimum,
+  so the honest fix was the comment rather than a mechanism that cannot engage. Also: a
+  client-supplied `companyId` reached the SYSTEM prompt unvalidated in the one route whose ticket
+  is injection discipline — now uuid-gated where scope is built, not at the interpolation.
+- **`buildToolHandlers` had no test at all**; ticket 06's "injection fence" acceptance was proven
+  only on `fence.ts` in isolation, never on the path corpus text actually takes. It now has a
+  `ToolDeps` seam and 11 tests, including hostile fence-delimiters in both a chunk body and its
+  label.
+- **Founder call:** the always-on token budget goes 9,000 → 9,250. Every ADR-0002 promotion grows
+  `app.md` by design, and 17 tokens of headroom made the correct behaviour fail the battery. The
+  merge still paid what it could — this case's story to `case-history`, duplicated CRLF provenance
+  evicted behind its anchor.
+- **Round 2 rejected the FIX's own law claim, and that is the finding worth keeping.** Round 1's
+  repair declared the degradation law `impossible` for this surface. Round 2 measured that the type
+  split closes only CALLER-side conflation — *which* terminal event gets emitted was still inline
+  guards, and incomplete guards were the whole of round 1. It then found three more holes in them:
+  an empty clean answer ended in `done` (success with nothing); a turn whose every tool failed left
+  the source pool empty, which silently switched citation verification OFF so an invented quote
+  ended in `done`; and a failing dynamic import threw out of the generator, ending the stream with
+  ZERO terminal events. **A law that looks more enforced than it is, is worse than one honestly
+  marked partial** — so the decision moved into `chat2/terminal.ts`, a pure function of six facts
+  swept exhaustively, and the law now declares the split it actually earns: `impossible` that one
+  event means both, `test` that the right one is chosen.
+- **Verified:** 935/935 tests across 95 files · `tsc` clean · `npm run build` green · one live
+  Anthropic call HTTP 200 (the LOCAL key; Railway's is untouched) · new tests proven red against
+  the defect before being trusted · `env:health` 9,227/9,250 · unenforced laws 14 on branch, 15 on
+  main.
+
+## 2026-08-14 — Ticket 05 closed: the corpus finishes, the gate re-runs, four findings cleared (`feat/a5-followup-embedding-gate`)
+
+- **The embedding backfill finished.** 738 of 1,296 documents were unembedded at handoff; three
+  idempotent passes (`backfill-maya-corpus.ts`, no re-download, no re-spend) plus a targeted repair
+  for 8 documents that had fallen out of the "latest of each" selection window while still `failed`
+  (`syncCompanyFilings` only revisits the currently-selected set, so a superseded-but-failed filing
+  is invisible to every later pass — repaired directly through `reindexDocument`, the same
+  production door) brought the corpus to 1,298 of 1,300 indexed. Two large annual reports (426 and
+  537 pages) still fail on `atlas_replace_chunks`'s bulk insert — a real scale-tail, named in
+  `gate.md`, not silently retried forever.
+- **A genuine infra incident, not a code defect:** the Supabase project's compute saturated (CPU
+  98%, disk IO 100%) under the backfill's write load partway through, cascading into
+  `statement_timeout`/PostgREST schema-cache errors on unrelated reads for ~40 minutes. Diagnosed
+  as infrastructure rather than a query bug before touching anything; the founder raised the
+  compute tier and the remaining passes completed cleanly.
+- **The retrieval gate re-ran and found a real regression.** `docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`:
+  dense MRR roughly halved unscoped (0.254→0.131) and down ~27% scoped (0.268→0.195) against A4's
+  baseline, because A4 never actually exercised the HNSW index — A5's 98K chunks are the first
+  measurement where the ANN approximation is real. The MUST-PASS alias case now fails unscoped,
+  holds only scoped. `run.mjs` gained `--dense-only` after the full 5-design `--real` run failed
+  outright: the first design tried (`L-real`, unscoped lexical) sorted every GIN-matched row by an
+  unindexed `ts_rank_cd` and blew PostgREST's 8s statement timeout — a channel production no longer
+  ships, not a corpus-size defect. An index-tuning attempt (`m=32, ef_construction=128`) did not
+  land cleanly; founder decision: defer to a dedicated parallel retrieval PRD/grill session rather
+  than guess at a fix overnight, and move on to tickets 06/07 in the meantime.
+- **The four review findings deferred from A5's merge are cleared:** `ship-gate.mjs` now refuses a
+  red battery instead of silently certifying it; a stale `periodFor` comment fixed; a closed UTC
+  leak removed from `open-findings.md`; and `syncFilings.ts`'s `NO_PAGES` re-ingest path now shares
+  the same 23505 race recovery as the not-held path (previously it could report a raw duplicate-key
+  message and re-download forever), with a new regression test.
+- **Verified:** all four cleared findings' tests pass; `syncFilings.test.ts` 17/17 including the new
+  race-recovery case; `tsc` clean on every file this branch touched.

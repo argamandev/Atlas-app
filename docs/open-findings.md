@@ -15,9 +15,10 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
 - **`.gitattributes` is absent while `core.autocrlf=true`** (both confirmed 2026-08-10).
   `* text=auto eol=lf` would close the CRLF trap structurally, but it is a repo-wide behavioural
   change and must not ride in on a feature merge. Founder decision. → `#crlf`
-- **Two UTC leaks, not user-visible:** `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`;
-  `{Y0}`/`{Y1}` server-local at 543–544) and `src/lib/maya/events.ts:106` (`getUTCFullYear`
-  labelling a fiscal year). → `#timezone-israel`
+- **One UTC leak, not user-visible:** `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`;
+  `{Y0}`/`{Y1}` server-local at 543–544). The second leak this entry used to list —
+  `src/lib/maya/events.ts`'s `getUTCFullYear` labelling a fiscal year — was closed by slice A5's
+  `periodFor` rewrite (Israel time via `israelDayKey`, 2026-08-14). → `#timezone-israel`
 - **`PUT /api/transcripts/[id]` is a standing route around the admin-only curation gates**
   (recorded 2026-08-13, reviewer finding on `fix/speaker-edit-admin-gate`). The PUT is
   owner-or-admin and replaces the whole `formatted_data` — speaker names included — so a
@@ -41,3 +42,20 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   founder-run statement in the Supabase SQL editor, and it is not urgent — an unreferenced
   invoker-rights function granted only to `authenticated`/`service_role` is inert.
   **Not a law, and not a reason to hold the slice.**
+- **A verified citation proves the WORDS were shown, not WHICH document they came from** (recorded
+  2026-08-14, round-1 cold review of slice B1a). `lib/chat2/loop.ts` checks every quote in a final
+  answer against `sourcePool` — the concatenation of every tool result of that turn — so a sentence
+  can lift a quote correctly from company A's filing and attribute it to company B, and the check
+  passes. The check itself is real and load-bearing against INVENTED quotes, which is what it was
+  built for; only its scope is narrower than the phrase "verified citation" suggests. Closing it
+  needs per-source attribution carried through the fence and matched against each citation's own
+  anchor, which is a design change, not a patch. **Do not describe B1's citations as
+  attribution-verified until this is closed.** → `#classifier-visible-failure`
+- **The chat system prompt is CACHE-READY but nothing is cached** (recorded 2026-08-14, same
+  review). `lib/chat2/systemPrompt.ts` orders the static block first and the volatile facts last,
+  which is the part that matters and is correct — but the static block measures ~361 tokens (1,301
+  chars) against Sonnet's 1,024-token minimum cacheable prefix, so setting a `cache_control`
+  breakpoint today would be a mechanism that cannot engage. It was deliberately NOT added for that
+  reason. **Spec §5's ≤ $0.06/answer budget must not be justified by prompt caching** until the
+  static block clears the minimum, at which point the breakpoint goes on the last static block.
+  The ticket's cost acceptance has never been measured against a real answer either.

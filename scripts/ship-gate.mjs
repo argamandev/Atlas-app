@@ -245,6 +245,11 @@ if (claims.length || (archClaim && archTouched)) {
     out = `${e.stdout ?? ''}\n${e.stderr ?? ''}`
   }
   run = parseBatterySummary(out)
+  if (run && run.pass !== run.total)
+    problems.push(
+      `the battery the gate just ran is RED: ${run.pass}/${run.total} passing. A merge is not the answer ` +
+        'to a red battery — fix the failing tests, then re-run the gate.'
+    )
   problems.push(...verifiedCountProblems(claims, run))
 }
 problems.push(...architectureCountProblems(archClaim, run, registeredFiles))

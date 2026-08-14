@@ -184,7 +184,24 @@ export const VOCABULARY_EXEMPT = {
  * `npm run env:health` prints today's number and the headroom; `git log -p` on this
  * file prints what it was.
  */
-export const TOKEN_BUDGET = 9_000
+/*
+ * RAISED 9,000 → 9,250 on 2026-08-14 (founder decision, slice B1a), and the reason
+ * is structural rather than "we needed room this once:
+ *
+ * ADR-0002's promotion ritual GROWS this file's siblings by design. Every time a
+ * law's mechanism gets stronger, `rules/app.md` gains the declaration of the new
+ * tier — that is the workflow working. `main` was sitting on 17 tokens of headroom,
+ * so promoting `Degradation must be VISIBLE` from four-tests to impossible+test
+ * failed the battery. A budget that refuses the behaviour it exists to encourage
+ * pressures the next session into the two bad ways out: skip the promotion, or
+ * weaken an unrelated law to make room. Both are worse than 250 tokens.
+ *
+ * This does NOT retire the standing plan to shrink `app.md` to pointers at its
+ * tests (deferred, `DECISIONS.md` 2026-08-12) — it is the reason that plan matters,
+ * and this merge already paid what it could: the new case's story went to
+ * `case-history`, and the duplicated CRLF provenance was evicted behind its anchor.
+ */
+export const TOKEN_BUDGET = 9_250
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

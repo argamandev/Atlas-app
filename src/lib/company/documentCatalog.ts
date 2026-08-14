@@ -83,10 +83,11 @@ function parsePeriod(period: string): { rank: number; year: string } | null {
  * the fourth quarter and the full year. `PERIOD_BY_EVENT` is built that way.
  *
  * A STANDALONE COMPANY DECK IS NOT A QUARTERLY ONE, and this is where that is
- * enforced. `periodFor` gives a filing tagged only `270 מצגת` the BARE YEAR as
- * its period — 115 of 295 measured decks, the "מצגת שוק ההון" filings published
- * outside a reporting cycle (דנאל filed four in 2023 alone). The founder placed
- * those in the same later bucket as announcements and webinars.
+ * enforced. `periodFor` gives a filing tagged only `270 מצגת` a PUBLICATION-DATE
+ * label (not a period code), so `parsePeriod` drops it here exactly as it dropped
+ * the bare year before it — the "מצגת שוק ההון" filings published outside a
+ * reporting cycle (דנאל filed four in 2023 alone). The founder placed those in the
+ * same later bucket as announcements and webinars.
  *
  * Dropping them here has a second effect worth stating, because it is what
  * keeps this slice free of schema: every deck that can now be STORED carries a

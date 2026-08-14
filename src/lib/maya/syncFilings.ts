@@ -139,6 +139,39 @@ function resolveCollisions(sources: RemoteSource[]): {
   return { keep, displaced }
 }
 
+/**
+ * THE RACE THE STANDARD NAMES, extracted so both ingest call sites answer it the
+ * same way. The read that finds a filing unheld and the write that ingests it are
+ * separate statements, so the poller and the sweep — or a sweep and a user's click
+ * — can both pass the read; `company_documents_maya_report_uniq` is the guarantee.
+ * Catches a `23505` and re-reads to confirm who won, never guesses. Returns `null`
+ * for any other error, which the caller reports as a plain failure.
+ */
+async function resolveRaceOrFail(
+  deps: SyncDeps,
+  source: RemoteSource,
+  message: string
+): Promise<FilingOutcome | null> {
+  if (!UNIQUE_VIOLATION.test(message)) return null
+  const { data: after, error: reReadError } = await deps.db
+    .from('company_documents')
+    .select('id, maya_report_id, company_id, index_status')
+    .in('maya_report_id', [source.mayaReportId])
+  const winner = ((after as HeldRow[] | null) ?? [])[0]
+  // THE RE-READ HAS TO CONFIRM IT, or this is not a resolved race — it is a guess
+  // wearing one's clothes. An earlier version took `data` and dropped `error`, so a
+  // failed re-read reported `held` with an empty documentId: a filing declared
+  // present in the corpus with nothing having looked (M3.3, and the list-read gap
+  // `supabaseReadDiscipline.test.ts` states it does not cover).
+  if (reReadError || !winner)
+    return {
+      status: 'failed',
+      source,
+      error: `lost a write race on maya:${source.mayaReportId} and could not confirm the winner — ${reReadError?.message ?? 'no row came back'}`,
+    }
+  return { status: 'held', source, documentId: winner.id }
+}
+
 export async function syncCompanyFilings(deps: SyncDeps, args: SyncArgs): Promise<FilingSyncReport> {
   const outcomes: FilingOutcome[] = []
   const report = (): FilingSyncReport => ({
@@ -216,8 +249,18 @@ export async function syncCompanyFilings(deps: SyncDeps, args: SyncArgs): Promis
         // only repair is to fetch and extract it again, so fall through to a full
         // re-ingest rather than reporting a failure a re-run would repeat forever.
         if (index.status === 'failed' && index.error === NO_PAGES) {
-          const r = await deps.ingest(source)
-          outcomes.push({ status: 'ingested', source, ...r })
+          try {
+            const r = await deps.ingest(source)
+            outcomes.push({ status: 'ingested', source, ...r })
+          } catch (e) {
+            // A re-ingest can land on the SAME race the not-held path answers: the
+            // filing's computed period changed (`periodFor` is a publication-date
+            // label for a deck), so the key it now upserts under collides with a row
+            // another run already won. Without this, that race reported the raw
+            // `23505` message and re-downloaded the PDF on every subsequent sweep.
+            const resolved = await resolveRaceOrFail(deps, source, (e as Error).message)
+            outcomes.push(resolved ?? { status: 'failed', source, error: (e as Error).message })
+          }
           continue
         }
         outcomes.push({ status: 'reindexed', source, documentId: row.id, index })
@@ -243,32 +286,10 @@ export async function syncCompanyFilings(deps: SyncDeps, args: SyncArgs): Promis
       // guarantee; catching it and re-reading is the from-maya route's established
       // pattern. Not a failure: the filing IS in the corpus, put there by whoever
       // won, and one run of 234 companies must not end on a race it survived.
-      if (UNIQUE_VIOLATION.test(message)) {
-        const { data: after, error: reReadError } = await deps.db
-          .from('company_documents')
-          .select('id, maya_report_id, company_id, index_status')
-          .in('maya_report_id', [source.mayaReportId])
-        const winner = ((after as HeldRow[] | null) ?? [])[0]
-        // THE RE-READ HAS TO CONFIRM IT, or this is not a resolved race — it is a
-        // guess wearing one's clothes. An earlier version took `data` and dropped
-        // `error`, so a failed re-read reported `held` with an empty documentId:
-        // a filing declared present in the corpus with nothing having looked
-        // (M3.3, and the list-read gap `supabaseReadDiscipline.test.ts` states it
-        // does not cover).
-        if (reReadError || !winner) {
-          outcomes.push({
-            status: 'failed',
-            source,
-            error: `lost a write race on maya:${source.mayaReportId} and could not confirm the winner — ${reReadError?.message ?? 'no row came back'}`,
-          })
-          continue
-        }
-        outcomes.push({ status: 'held', source, documentId: winner.id })
-        continue
-      }
+      const resolved = await resolveRaceOrFail(deps, source, message)
       // One bad PDF must not end a 234-company pass. The failure lands on the
       // filing it belongs to and the run's exit status counts it.
-      outcomes.push({ status: 'failed', source, error: message })
+      outcomes.push(resolved ?? { status: 'failed', source, error: message })
     }
   }
 
