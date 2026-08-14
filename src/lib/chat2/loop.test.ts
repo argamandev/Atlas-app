@@ -358,3 +358,78 @@ test('a citation failure on the LAST round-trip reports the citation, not the ca
   // and the answer text is not thrown away
   assert.ok(events.some((e) => e.type === 'delta' && e.text.includes('משפט מומצא')))
 })
+
+test('an empty clean answer is INCOMPLETE, not success with nothing', async () => {
+  // Round 2 measured the old chain returning exactly [{type:'done'}] here — zero
+  // deltas, terminated as complete. The file's own header calls that state
+  // unrepresentable; it was not.
+  const client = fakeClient([{ content: [{ type: 'text', text: '' }], stop_reason: 'end_turn' }])
+  const events = await collect(
+    runChatLoop({ client, scope: { userId: 'u1' }, history: [], message: 'hi', todayIsrael: '2026-08-14' })
+  )
+  assert.equal(
+    events.some((e) => e.type === 'delta'),
+    false
+  )
+  assert.equal(events.at(-1)?.type, 'incomplete')
+  assert.match((events.at(-1) as { reason: string }).reason, /no answer text/)
+})
+
+test('when EVERY tool fails, an invented quote can no longer slip through as done', async () => {
+  // The nastiest of round 2's findings: only non-error results were appended to the
+  // source pool, so a turn whose tools all failed had an empty pool — and the
+  // `pool ? verify : skip` guard then switched citation checking OFF entirely.
+  // Precisely when grounding is impossible, verification stopped happening.
+  const client = fakeClient([
+    {
+      content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: { query: 'x' } }],
+      stop_reason: 'tool_use',
+    },
+    { content: [{ type: 'text', text: 'לפי הדוח, "משפט שהומצא לגמרי" ברבעון.' }], stop_reason: 'end_turn' },
+  ])
+  const handlers = {
+    async search_corpus() {
+      return { content: 'search failed: connection reset', isError: true }
+    },
+  }
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה קרה?',
+      todayIsrael: '2026-08-14',
+      handlers,
+    })
+  )
+  assert.equal(events.at(-1)?.type, 'incomplete')
+  assert.match((events.at(-1) as { reason: string }).reason, /every source lookup failed/)
+  assert.equal(
+    events.some((e) => e.type === 'done'),
+    false
+  )
+})
+
+test('a failing tool-registry import ends in an error event, never in silence', async () => {
+  // Measured at round 2 as ZERO events — the generator threw straight out and the
+  // stream just stopped. A stream that simply ends is the least visible failure
+  // there is, and it contradicted the docstring promising exactly one terminal.
+  const client = fakeClient([
+    { content: [{ type: 'tool_use', id: 't1', name: 'anything', input: {} }], stop_reason: 'tool_use' },
+  ])
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-14',
+      // no `handlers` injected, so the loop takes the real dynamic import, which
+      // throws in a test process with no Supabase env.
+    })
+  )
+  assert.ok(events.length > 0, 'the stream ended with no events at all')
+  const terminals = events.filter((e) => TERMINAL_EVENTS.includes(e.type as never))
+  assert.equal(terminals.length, 1)
+  assert.equal(terminals[0]?.type, 'error')
+})

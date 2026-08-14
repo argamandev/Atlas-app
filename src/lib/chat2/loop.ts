@@ -35,6 +35,8 @@ import type Anthropic from '@anthropic-ai/sdk'
 import { TOOL_DEFS, type ChatScope, type ToolResult } from './toolDefs'
 import { buildSystemPrompt } from './systemPrompt'
 import { verifyCitation } from './citations'
+import { decideTerminal } from './terminal'
+import { defang } from './fence'
 
 export const MODEL = 'claude-sonnet-5'
 export const MAX_ROUND_TRIPS = 4
@@ -94,17 +96,6 @@ export type ChatEvent =
   /** TERMINAL. Nothing usable came back. */
   | { type: 'error'; message: string }
 
-/** `stop_reason`s that mean the model actually finished saying what it meant to. */
-const CLEAN_STOPS = new Set(['end_turn', 'stop_sequence'])
-
-/** Why a non-clean stop ended the turn, in words fit for a user-facing surface. */
-function stopReasonExplanation(stop: string | null): string {
-  if (stop === 'max_tokens') return 'the answer hit its length limit before finishing'
-  if (stop === 'refusal') return 'the model declined to continue this answer'
-  if (stop === 'pause_turn') return 'the model paused this turn before finishing'
-  return `the model stopped unexpectedly (${stop ?? 'no reason given'})`
-}
-
 export interface ChatTurn {
   role: 'user' | 'assistant'
   content: string
@@ -153,6 +144,13 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // grounded in round-1's search result is still verifiable after round-3's lookup.
   let sourcePool = ''
   let citationRetried = false
+  // Two facts the terminal decision needs, and they are NOT the same question as
+  // "is sourcePool empty" — round 2's hole. A turn whose every tool failed has an
+  // empty pool AND ran tools; a turn that never called a tool has an empty pool and
+  // did not. The first must end `incomplete` (nothing could be grounded OR verified);
+  // the second is an ordinary ungrounded answer, which is the prompt's problem.
+  let anyToolRan = false
+  let anySourceSurvived = false
 
   for (let roundTrip = 0; roundTrip < MAX_ROUND_TRIPS; roundTrip++) {
     let response: Anthropic.Message
@@ -192,34 +190,38 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
           content: [
             {
               type: 'text',
+              // DEFANGED: the offending quote may itself have been lifted from a
+              // hostile document, and this puts it back into the prompt. §2.2's law
+              // is that every document-derived string is defanged before it
+              // re-enters — a rule this retry was quietly exempting itself from.
               text:
                 'Citation check failed: the following quoted text was not found verbatim in any ' +
                 'source you were given this turn — quote the source exactly, or say you cannot ' +
-                `verify the claim: ${bad.map((q) => `"${q}"`).join(' | ')}`,
+                `verify the claim: ${bad.map((q) => `"${defang(q)}"`).join(' | ')}`,
             },
           ],
         })
         continue
       }
       // The deltas go out either way — withholding the text the model did produce
-      // would be its own invisible degradation. What changes is the TERMINAL event.
+      // would be its own invisible degradation. What changes is the TERMINAL event,
+      // and that is decided in ONE place from the facts (`terminal.ts`), never by
+      // an `if` chain here. Round 2 measured three holes in the chain this replaced.
+      let anyTextEmitted = false
       for (const block of textBlocks) {
-        if (block.text) yield { type: 'delta', text: block.text }
-      }
-      if (bad.length > 0) {
-        yield {
-          type: 'incomplete',
-          reason: 'a quoted claim could not be verified against its source',
+        if (block.text) {
+          anyTextEmitted = true
+          yield { type: 'delta', text: block.text }
         }
-        return
       }
-      if (!CLEAN_STOPS.has(response.stop_reason ?? '')) {
-        // The model stopped without finishing — `max_tokens` is the one that bites
-        // in practice, and it arrives looking exactly like a complete answer.
-        yield { type: 'incomplete', reason: stopReasonExplanation(response.stop_reason) }
-        return
-      }
-      yield { type: 'done' }
+      yield decideTerminal({
+        stopReason: response.stop_reason,
+        anyTextEmitted,
+        unverifiedQuotes: bad.length,
+        anySourceSurvived,
+        anyToolRan,
+        roundTripCapHit: false,
+      })
       return
     }
 
@@ -229,10 +231,21 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
 
     messages.push({ role: 'assistant', content: response.content })
 
-    const activeHandlers = await ensureHandlers()
+    // INSIDE a try: round 2 measured a failing dynamic import throwing straight out
+    // of the generator, ending the stream with ZERO terminal events — against the
+    // docstring one screen up promising it never throws and always ends in exactly
+    // one. A stream that simply stops is the least visible degradation there is.
+    let activeHandlers: Record<string, (i: Record<string, unknown>) => Promise<ToolResult>>
+    try {
+      activeHandlers = await ensureHandlers()
+    } catch (err) {
+      yield { type: 'error', message: `tools unavailable: ${(err as Error).message}` }
+      return
+    }
     const toolResults: Anthropic.ToolResultBlockParam[] = []
     for (const use of toolUses) {
       const handler = activeHandlers[use.name]
+      anyToolRan = true
       yield { type: 'tool', name: use.name, status: 'start' }
       if (!handler) {
         yield { type: 'tool', name: use.name, status: 'end', isError: true }
@@ -247,7 +260,10 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       try {
         const result = await handler((use.input as Record<string, unknown>) ?? {})
         yield { type: 'tool', name: use.name, status: 'end', isError: result.isError }
-        if (!result.isError) sourcePool += '\n' + result.content
+        if (!result.isError) {
+          anySourceSurvived = true
+          sourcePool += '\n' + result.content
+        }
         toolResults.push({
           type: 'tool_result',
           tool_use_id: use.id,
@@ -267,10 +283,15 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
     messages.push({ role: 'user', content: toolResults })
   }
 
-  // Round-trip cap hit with tools still in flight. This is NOT a clean finish, so
-  // it ends in `incomplete` and never in `done` — the whole point of the split.
-  yield {
-    type: 'incomplete',
-    reason: 'reached the tool round-trip limit before finishing — try a narrower question',
-  }
+  // Round-trip cap hit with tools still in flight. Through the SAME choke point as
+  // every other ending, so there is exactly one place that decides what a terminal
+  // event means and no path can grow its own answer to that question.
+  yield decideTerminal({
+    stopReason: null,
+    anyTextEmitted: false,
+    unverifiedQuotes: 0,
+    anySourceSurvived,
+    anyToolRan,
+    roundTripCapHit: true,
+  })
 }

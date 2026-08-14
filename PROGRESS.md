@@ -1097,12 +1097,11 @@ the live hole fixed in the same session.
 
 ## 2026-08-14 — Slice B1a: the smart layer gets its chat backend (`feat/a5-followup-embedding-gate`)
 
-- **`/api/chat/v2` + `src/lib/chat2/` (6 modules) — ticket 06.** A Sonnet 5 tool loop over the
+- **`/api/chat/v2` + `src/lib/chat2/` (8 modules) — ticket 06.** A Sonnet 5 tool loop over the
   corpus. The slice-1 blocker it kills: the old route re-emitted raw model text as the whole HTTP
   body, so an upstream failure could only speak by writing prose INTO that same channel —
   indistinguishable from a real answer once persisted. Here every event is TYPED; `error` and
-  `degraded` are their own kinds and no code path puts error text into a `delta`. The lie is
-  unrepresentable rather than guarded (app.md M3.3).
+  `incomplete` are their own kinds and no code path puts error text into a `delta`.
 - **Citations are verified at write, at the one choke point.** Every quote in a final answer is
   checked against the pool of text this turn's tools actually returned — the real content, not a
   proxy for it (M3.2). A failed check buys ONE retry with the offending quotes named; a second
@@ -1150,6 +1149,18 @@ the live hole fixed in the same session.
   `app.md` by design, and 17 tokens of headroom made the correct behaviour fail the battery. The
   merge still paid what it could — this case's story to `case-history`, duplicated CRLF provenance
   evicted behind its anchor.
-- **Verified:** 909/909 tests across 93 files · `tsc` clean · `npm run build` green · one live
-  Anthropic call HTTP 200 (the LOCAL key; Railway's is untouched) · two new tests proven red
-  against the defect before being trusted · unenforced-law count 15 on branch and on main.
+- **Round 2 rejected the FIX's own law claim, and that is the finding worth keeping.** Round 1's
+  repair declared the degradation law `impossible` for this surface. Round 2 measured that the type
+  split closes only CALLER-side conflation — *which* terminal event gets emitted was still inline
+  guards, and incomplete guards were the whole of round 1. It then found three more holes in them:
+  an empty clean answer ended in `done` (success with nothing); a turn whose every tool failed left
+  the source pool empty, which silently switched citation verification OFF so an invented quote
+  ended in `done`; and a failing dynamic import threw out of the generator, ending the stream with
+  ZERO terminal events. **A law that looks more enforced than it is, is worse than one honestly
+  marked partial** — so the decision moved into `chat2/terminal.ts`, a pure function of six facts
+  swept exhaustively, and the law now declares the split it actually earns: `impossible` that one
+  event means both, `test` that the right one is chosen.
+- **Verified:** 932/932 tests across 95 files · `tsc` clean · `npm run build` green · one live
+  Anthropic call HTTP 200 (the LOCAL key; Railway's is untouched) · new tests proven red against
+  the defect before being trusted · `env:health` 9,227/9,250 · unenforced laws 14 on branch, 15 on
+  main.

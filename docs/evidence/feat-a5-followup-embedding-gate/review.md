@@ -52,7 +52,74 @@ RECURRENCE: no
   answer reading as complete — not about error text entering the answer channel. The half of ticket
   06's premise that concerns error framing holds; the half that concerns completeness does not.
 
-## Author's answers — all twelve accepted, none disputed
+## Round 2 verdict — verbatim (REVIEWED: e0761ee)
+
+The reviewer ran the battery, `tsc`, `env:health` and `ship:gate`, and drove `runChatLoop` directly
+with a probe carrying two CONTROL cases whose answers were already known from `loop.test.ts` — both
+matched, proving the probe ran against this commit's signatures rather than a stale one.
+
+```
+REVIEWED: e0761ee
+VERDICT: CHANGES
+FINDING · BLOCKER · .claude/rules/app.md:183 · The `impossible` tier overclaims: the type split closes only CALLER-side conflation, while which terminal event gets emitted is still chosen by runtime guards (`CLEAN_STOPS.has`, `bad.length > 0`, `sourcePool ? …`) whose incompleteness was the whole of round 1's two blockers — the union alone would not have caught `max_tokens`, and the guards still have holes below.
+RECURRENCE: no
+FINDING · WARNING · src/lib/chat2/loop.ts:222 · A clean `end_turn` carrying no text yields exactly `[{"type":"done"}]` with zero deltas (measured), so an empty answer terminates as complete — the "success with nothing" state this file's own header at line 27 declares unrepresentable.
+RECURRENCE: yes → Degradation must be VISIBLE
+FINDING · WARNING · src/lib/chat2/loop.ts:178 · When every tool of a turn errors, `sourcePool` stays empty because only non-error results are appended, so the `sourcePool ? unverifiedQuotes(...) : []` guard silently switches citation verification OFF and an invented quote in an answer built on zero surviving sources ends in `done` (measured) — and the comment justifying that branch names a different case, "no tool ever ran".
+RECURRENCE: yes → Degradation must be VISIBLE
+FINDING · WARNING · src/lib/chat2/loop.ts:232 · `await ensureHandlers()` sits outside any try, so a failing dynamic import throws out of the generator and the stream ends with ZERO terminal events (measured: `supabaseUrl is required`, no events at all), against a docstring one line above that promises it never throws and always ends in exactly one.
+RECURRENCE: no
+FINDING · WARNING · ARCHITECTURE.md:304 · The `chat2/` row still lists `degraded` as a live event type and never mentions `incomplete`, contradicting both the `chat/v2` row corrected in this same ship and the union `44d50d0` actually shipped.
+RECURRENCE: no
+FINDING · WARNING · src/app/api/chat/v2/route.ts:78 · The uuid gate that closes round 1's prompt-injection finding has no test and is unexportable (`UUID_RE`/`asUuid` are inline), in the very commit whose `tools.test.ts` demonstrates the env stub that makes testing such a module possible.
+RECURRENCE: no
+FINDING · NIT · src/lib/chat2/systemPrompt.ts:15 · The ~361-token measurement counts only the system block, but a `cache_control` breakpoint there covers `TOOL_DEFS` too (2,095 serialized chars, ~520 tokens by the same ratio), so the real distance to the 1,024 minimum is ~150 tokens, not ~660 — the decision not to add a breakpoint is right, the margin recorded beside it is not.
+RECURRENCE: no
+FINDING · NIT · src/lib/chat2/loop.ts:198 · The citation-retry prompt interpolates the offending quote — text the model may have lifted from a hostile document — into a USER turn unfenced and undefanged, in the one subsystem whose §2.2 law fences every document-derived string before it re-enters the prompt.
+RECURRENCE: no
+FINDING · NIT · src/lib/chat2/tools.test.ts:32 · Two of the four `ToolDeps` (`listDisclosures`, `getWorkspaceFull`) are never injected by any test, so `list_disclosures` and `read_workspace`'s success path — two of the five real `asFenced` call sites — remain exactly as unexercised as round 1 found them.
+RECURRENCE: no
+FINDING · NIT · PROGRESS.md:1104 · The shipped-work entry, written after `degraded` was deleted from the union, still records it as one of the loop's event kinds.
+RECURRENCE: no
+```
+
+**What round 2 checked and did NOT fault:** the blocker fix IS real for every path it was aimed at
+— `max_tokens` (with and without tool_use blocks), `refusal`, `pause_turn`, unknown stop, `null`
+stop, `tool_use` with zero tool blocks, the round-trip cap, a retry that then hits the cap, and a
+citation failure on the last round-trip all end in exactly one `incomplete`, last. The uuid gate
+closes the prompt path completely and `scopeSummary` is a non-issue (`resolve_company` writes a
+column value, never model text). The `ToolDeps` seam does not change production behaviour. Counts
+re-measured, not restated. No migrations, no UI, no Wave-2 imports, no secrets.
+
+## Author's answers to round 2 — all ten accepted
+
+**The BLOCKER is upheld and was the right call.** Declaring `impossible` for both halves was
+overclaiming, and an over-declared law is worse than an honest `partially` — it is the precise
+failure ADR-0002 exists to prevent, committed while paying an ADR-0002 debt.
+
+The decision now lives in `src/lib/chat2/terminal.ts`: one pure function from six FACTS
+(`stopReason`, `anyTextEmitted`, `unverifiedQuotes`, `anySourceSurvived`, `anyToolRan`,
+`roundTripCapHit`) to the terminal event, ordered most-severe-first because several can be true at
+once and the user must be told the worst true thing. `terminal.test.ts` sweeps every combination
+and asserts `done` ⟺ genuinely-clean, plus guard-the-guard assertions so the sweep cannot pass
+vacuously. Both `RECURRENCE: yes` findings name the same law and are paid by that one mechanism.
+The law now reads: **impossible** that one terminal event means both · **test** that the right one
+is chosen — which is the declaration the reviewer said it would approve.
+
+| Round-2 finding | What was done |
+| --- | --- |
+| BLOCKER overclaimed `impossible` | Law re-declared as the honest two-part split; the choice moved out of inline guards into `terminal.ts`. |
+| `loop.ts:222` empty answer → `done` | `anyTextEmitted` is now a tracked fact; a clean stop with no text is `incomplete` ("the model returned no answer text"). Pinned at both unit and loop level. |
+| `loop.ts:178` all-tools-failed disables verification | `anyToolRan` and `anySourceSurvived` are separate facts, so "tools ran and all failed" no longer shares a branch with "no tool ever ran". The former is `incomplete`; the latter still completes. |
+| `loop.ts:232` zero terminal events | `ensureHandlers()` is inside a try; a failing import ends in `error`. Test asserts the stream is non-empty AND has exactly one terminal. |
+| `ARCHITECTURE.md:304` stale `degraded` | Row rewritten; also documents `terminal.ts`. |
+| `route.ts:78` uuid gate untested | Extracted to `chat2/requestScope.ts` with 7 tests, including five real injection payloads, the anchor check, and a non-global-regex assertion. |
+| `systemPrompt.ts:15` wrong margin | Corrected to ~150 tokens, counting `TOOL_DEFS` in the cacheable prefix. The decision not to add a breakpoint stands; only the margin was wrong, and it was wrong in the direction that matters. |
+| `loop.ts:198` undefanged quote in retry | Now `defang(q)` — the retry was exempting itself from §2.2. |
+| `tools.test.ts:32` two deps never injected | Four new tests covering `list_disclosures` (hostile MAYA title, and a MAYA failure ≠ empty list) and `read_workspace` (fencing, plus asserting the USER client is what reaches it). |
+| `PROGRESS.md:1104` stale `degraded` | Fixed, and the module count corrected 6 → 8. |
+
+## Author's answers to round 1 — all twelve accepted, none disputed
 
 Every finding was re-verified against the code before being acted on. All twelve were real,
 including two that were the author's own errors from earlier in this same ship (the "SSE" line and

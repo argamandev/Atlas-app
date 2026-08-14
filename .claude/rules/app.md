@@ -179,11 +179,13 @@ never add a stub to fill a designed slot.** A failed fetch says so, on screen, i
 pane ends in exactly one of: loading · error · empty — never a fabricated fourth state.
 **A STREAM obeys this through its TERMINAL event:** if one event means "finished", no early ending
 may emit it — truncation gets its OWN terminal type, never an advisory followed by the success one.
-**ENFORCED** at two tiers (promoted 2026-08-14, second occurrence):
-**impossible** for `lib/chat2/loop.ts` — `done`/`incomplete` are distinct types, so "complete but
-truncated" is unrepresentable, and `loop.test.ts` pins exactly-one-terminal-event, last, per path;
-**test** — six fail a thin answer sold as whole: `retrieve`, `indexHealth`, `reindex`,
-`syncFilings`, `chat2/loop`, `chat2/tools`. A new surface still gets `none`.
+**ENFORCED** at two tiers, and the SPLIT is the point (2026-08-14): **impossible** that one
+terminal event means both — `done`/`incomplete` are distinct types, so no caller can conflate them;
+**test** that the right one is CHOSEN — `chat2/terminal.ts` decides it as a pure function of the
+facts, swept exhaustively. Claiming `impossible` for both was rejected at review: the choice was
+still inline guards, and every hole found so far lived exactly there.
+Seven surfaces fail a thin answer sold as whole: `retrieve`, `indexHealth`, `reindex`,
+`syncFilings`, `chat2/loop`, `chat2/tools`, `chat2/terminal`. A new surface still gets `none`.
 → `#stubs-on-designed-slots`
 
 **LAW · When a decision rests on a natural-language classifier over an open vocabulary, buy VISIBLE

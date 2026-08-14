@@ -6,6 +6,7 @@ import { createServerSupabase } from '@/lib/supabase'
 import { israelDayKey } from '@/lib/i18n/format'
 import { runChatLoop, type ChatEvent, type ChatTurn } from '@/lib/chat2/loop'
 import type { ChatScope } from '@/lib/chat2/toolDefs'
+import { clientScopeIds } from '@/lib/chat2/requestScope'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE UNIFIED CHAT BACKEND (spec §3, ticket 06/B1a). Replaces `/api/chat` for
@@ -28,9 +29,6 @@ import type { ChatScope } from '@/lib/chat2/toolDefs'
 // intake-regression correction reaching `resolve_company` — is exercised at
 // the unit the route only wraps: `loop.test.ts`.
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** Every client-supplied id in this route names a `uuid` column, or names nothing. */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function ndjsonLine(e: ChatEvent): string {
   return JSON.stringify(e) + '\n'
@@ -66,23 +64,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'chat is not configured (missing ANTHROPIC_API_KEY)' }, { status: 503 })
   }
 
-  // Every id the CLIENT supplies is uuid-shaped or it is not an id (all three
-  // columns are `uuid`). Round 1's cold review found `companyId` reaching the
-  // SYSTEM prompt raw via `scopeSummary`, in the one route whose ticket is
-  // injection discipline — a client could put arbitrary instruction text there.
-  //
-  // The guard goes HERE, where scope is built, not down at the interpolation
-  // (M3.1): the string is refused at the single point every downstream use flows
-  // through — the prompt, the tool handlers and the queries alike — so closing
-  // the prompt path cannot leave the others open.
-  const asUuid = (v: unknown): string | undefined =>
-    typeof v === 'string' && UUID_RE.test(v) ? v : undefined
-
+  // The client-supplied ids are uuid-gated at ONE point, in `requestScope.ts`
+  // (which is where the reasoning and its tests live) — not inline here, so the
+  // guard between an untrusted body and the system prompt is testable.
   const scope: ChatScope = {
     userId,
-    companyId: asUuid(body?.companyId),
-    transcriptId: asUuid(body?.transcriptId),
-    workspaceId: asUuid(body?.workspaceId),
+    ...clientScopeIds(body),
     userDb: createServerSupabase(cookies()),
   }
 

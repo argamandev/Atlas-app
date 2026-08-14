@@ -11,13 +11,17 @@
 //
 // NO CACHING ACTUALLY HAPPENS TODAY. Round 1's cold review caught the original
 // header describing a breakpoint the code never set, and the fix is NOT to set
-// one: the static block measures ~361 tokens (1,301 chars) against Sonnet's
-// 1,024-token minimum cacheable prefix, so a `cache_control` marker here would
-// be a mechanism that cannot engage — enforcement in appearance only, which is
-// the failure `CONTEXT.md` ranks below honest absence. **The §5 cost budget must
-// not be justified by prompt caching until this block is over the minimum**, at
-// which point the breakpoint goes on the LAST static block and this note comes
-// out. Filed in `docs/open-findings.md`.
+// one: a `cache_control` marker that cannot engage is enforcement in appearance
+// only, which `CONTEXT.md` ranks below honest absence.
+//
+// THE MARGIN, corrected at round 2 — the first version of this note measured only
+// this file and reported ~660 tokens of headroom, which was wrong in the direction
+// that matters. A breakpoint on the system block covers the TOOL DEFINITIONS too
+// (`toolDefs.ts`, 2,095 serialized chars ≈ 520 tokens), so the cacheable prefix is
+// ~880 against Sonnet's 1,024 minimum: about **150 tokens short, not 660**. Close
+// enough that one more tool or a few more prompt lines crosses it — so re-measure
+// rather than re-reading this comment. **Until it is crossed, the §5 cost budget
+// must not be justified by prompt caching.** Filed in `docs/open-findings.md`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STATIC_SYSTEM_PROMPT = `You are Atlas, a research assistant for the Israeli public market (TASE-listed companies).
