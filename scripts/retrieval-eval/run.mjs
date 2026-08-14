@@ -1,7 +1,9 @@
 // Retrieval eval harness — smart-layer ticket 07, kept as the standing quality gate.
 //
-//   node --import tsx scripts/retrieval-eval/run.mjs            # full run (needs GEMINI_API_KEY + OPENAI_API_KEY)
-//   node --import tsx scripts/retrieval-eval/run.mjs --lexical  # lexical-only (no embedding APIs, free)
+//   node --import tsx scripts/retrieval-eval/run.mjs                    # full run (needs GEMINI_API_KEY + OPENAI_API_KEY)
+//   node --import tsx scripts/retrieval-eval/run.mjs --lexical          # lexical-only (no embedding APIs, free)
+//   node --import tsx scripts/retrieval-eval/run.mjs --real             # against the live pgvector pipeline
+//   node --import tsx scripts/retrieval-eval/run.mjs --real --dense-only  # --real, measuring only what production ships
 //
 // `--import tsx` because the chunker is the PRODUCTION module (src/lib/corpus/chunker.ts)
 // — one chunker, by law (ingestion standard §5): a harness measuring a copy certifies a
@@ -60,6 +62,17 @@ const LEXICAL_ONLY = process.argv.includes('--lexical')
 // --real: score the PRODUCTION pipeline (pgvector + the real Postgres lexical
 // channel) instead of the in-process simulation. Slice A4's acceptance gate.
 const REAL = process.argv.includes('--real')
+// --dense-only: measure only the two designs production actually ships (founder
+// decision 2026-08-14, DECISIONS.md — dense reproduced the eval exactly while the
+// lexical channel DRAGGED the score down, 0.207→0.075, with no IDF in Postgres).
+// The lexical/hybrid designs are not deleted — his own revisit trigger is "after
+// the remaining tickets and a real product test" — but at A5's corpus size the
+// unscoped lexical design (`L-real`, first in iteration order) sorts every
+// GIN-matched row by an unindexed ts_rank_cd for a common term, which is exactly
+// what blew the PostgREST 8s statement_timeout on 2026-08-14's gate re-run: a
+// harness measuring a channel production no longer ships is not measuring what
+// ships. This flag makes the gate match the deployed pipeline.
+const DENSE_ONLY = process.argv.includes('--dense-only')
 const REAL_DEPTH = Number((process.argv.find((a) => a.startsWith('--depth=')) ?? '--depth=300').split('=')[1])
 // The per-channel candidate pool RRF fuses over. Bigger than the A4 corpus on
 // purpose: the in-process run ranked every chunk, and fusing over a subset would
@@ -855,8 +868,22 @@ async function scoreAndReport({ designs, chunks, scoredCases, title, corpusLine,
 // ---------------------------------------------------------------- main (--real)
 
 async function mainReal() {
-  console.log('Scoring the REAL pipeline (pgvector + Postgres tsvector)…')
-  const { designs, scopeIdFor, companyName, truncations, stats } = await buildRealDesigns()
+  console.log(
+    `Scoring the REAL pipeline (pgvector + Postgres tsvector)${DENSE_ONLY ? ' — DENSE-ONLY, matching production' : ''}…`
+  )
+  const { designs: allDesigns, scopeIdFor, companyName, truncations, stats } = await buildRealDesigns()
+  // DENSE-ONLY keeps only the two designs production actually calls (`retrieveChunks`
+  // with `channels: 'dense'`, scoped and unscoped) — see the flag's own comment above
+  // for why. `L-real`/`C-gemini-real`/`C-gemini-scoped-real` stay defined in
+  // `buildRealDesigns`, just unmeasured here; that is the "not deleted, a flag away"
+  // shape DECISIONS.md's revisit trigger asks for.
+  const designs = DENSE_ONLY
+    ? Object.fromEntries(
+        Object.entries(allDesigns).filter(
+          ([name]) => name === 'B-gemini-real' || name === 'B-gemini-scoped-real'
+        )
+      )
+    : allDesigns
   const { cases } = JSON.parse(readFileSync(join(HERE, 'cases.json'), 'utf8'))
   const scoredCases = cases.filter((c) => c.mode !== 'skip')
 
