@@ -95,7 +95,11 @@ function deps(over: Partial<SyncDeps> = {}): SyncDeps & { ingested: number[]; re
     reindexed,
     ingest: async (s: RemoteSource) => {
       ingested.push(s.mayaReportId)
-      return { documentId: `doc-${s.mayaReportId}`, pageCount: 12, index: { status: 'indexed' as const, chunkCount: 12, embedded: 12, reused: 0 } }
+      return {
+        documentId: `doc-${s.mayaReportId}`,
+        pageCount: 12,
+        index: { status: 'indexed' as const, chunkCount: 12, embedded: 12, reused: 0 },
+      }
     },
     reindex: async (id: string) => {
       reindexed.push(id)
@@ -171,7 +175,11 @@ test('an ingest failure is recorded per filing and the rest of the company still
   const d = deps({
     ingest: async (s: RemoteSource) => {
       if (s.mayaReportId === 2) throw new Error('not a PDF (212 bytes)')
-      return { documentId: `doc-${s.mayaReportId}`, pageCount: 3, index: { status: 'indexed' as const, chunkCount: 3, embedded: 3, reused: 0 } }
+      return {
+        documentId: `doc-${s.mayaReportId}`,
+        pageCount: 3,
+        index: { status: 'indexed' as const, chunkCount: 3, embedded: 3, reused: 0 },
+      }
     },
   })
   const report = await syncCompanyFilings(
@@ -356,6 +364,29 @@ test('a held document whose TEXT is missing is re-ingested, not re-chunked forev
   )
   assert.deepEqual(d.ingested, [60], 'it went back to MAYA for the bytes')
   assert.equal(report.outcomes[0].status, 'ingested')
+})
+
+test('a re-ingest race (NO_PAGES path) resolves to the winner, not a raw duplicate-key message', async () => {
+  // The finding this closes: the NO_PAGES re-ingest sat inside the reindex try,
+  // outside the 23505 recovery — `periodFor` now labels a `270` deck by
+  // publication date rather than the bare year, so a held row's computed
+  // upsert key can change between runs and collide with a row another sweep
+  // already won. Without the shared recovery this reported the raw
+  // "duplicate key" message and re-downloaded the PDF on every subsequent run.
+  const { db } = fakeDb([{ id: 'doc-60', maya_report_id: 60, company_id: CO, index_status: 'failed' }])
+  const d = deps({
+    reindex: async () => ({ status: 'failed' as const, chunkCount: 0, error: NO_PAGES }),
+    ingest: async () => {
+      throw new Error('duplicate key value violates unique constraint "company_documents_maya_report_uniq"')
+    },
+  })
+  const report = await syncCompanyFilings(
+    { db, ...d },
+    { companyId: CO, sources: [src({ mayaReportId: 60 })] }
+  )
+  assert.equal(report.outcomes[0].status, 'held', 'confirmed by the re-read, not a raw failure')
+  assert.equal((report.outcomes[0] as { documentId: string }).documentId, 'doc-60')
+  assert.equal(report.failed, 0)
 })
 
 test('an ORDINARY reindex failure is not re-ingested — that would re-download for nothing', async () => {

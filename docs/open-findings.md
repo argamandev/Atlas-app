@@ -15,9 +15,10 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
 - **`.gitattributes` is absent while `core.autocrlf=true`** (both confirmed 2026-08-10).
   `* text=auto eol=lf` would close the CRLF trap structurally, but it is a repo-wide behavioural
   change and must not ride in on a feature merge. Founder decision. → `#crlf`
-- **Two UTC leaks, not user-visible:** `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`;
-  `{Y0}`/`{Y1}` server-local at 543–544) and `src/lib/maya/events.ts:106` (`getUTCFullYear`
-  labelling a fiscal year). → `#timezone-israel`
+- **One UTC leak, not user-visible:** `api/workspaces/[id]/intake/route.ts:542` (UTC `{TODAY}`;
+  `{Y0}`/`{Y1}` server-local at 543–544). The second leak this entry used to list —
+  `src/lib/maya/events.ts`'s `getUTCFullYear` labelling a fiscal year — was closed by slice A5's
+  `periodFor` rewrite (Israel time via `israelDayKey`, 2026-08-14). → `#timezone-israel`
 - **`PUT /api/transcripts/[id]` is a standing route around the admin-only curation gates**
   (recorded 2026-08-13, reviewer finding on `fix/speaker-edit-admin-gate`). The PUT is
   owner-or-admin and replaces the whole `formatted_data` — speaker names included — so a
