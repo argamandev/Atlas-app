@@ -35,7 +35,15 @@ shares this retrieval door. **Founder call:** an index-tuning attempt didn't lan
 a DEDICATED PARALLEL SESSION owns the real fix (grill + PRD) — pick it up if that's you, otherwise
 treat retrieval as "works, imperfectly."
 
-**Next: ticket 07 (B1b, chat surface).** Unblocked, corpus is no longer the blocker.
+**Next: ticket 10 (C1, agent tables + create flow), in a DEDICATED session — founder call 2026-08-14.**
+Phase C was always parallel to Phase B (spec §6, "start after A4"), and 10's only `Blocked by:` is 04.
+Agents is the longest remaining chain (10 → 11 → 12 → 13) and the only surface still a stub, so it
+starts now. **Ticket 07 is unblocked and NOT cancelled — only deprioritised**; when Phase B resumes,
+07 → 08 → 09 keeps its order. Until then `/api/chat/v2` stays built-and-unwired behind the old route.
+
+Two ticket-06 gaps ride along, declined rather than missed (`DECISIONS.md`): Railway's
+`ANTHROPIC_API_KEY` is unverified (a 401 is the first thing to check whenever 07 deploys) and no real
+answer has been priced against the $0.06 budget.
 
 Also open (map ticket 13): leftover cleanup, `profiles`/`access_requests` policy narrowing, PUT
 admin-gate. 102 of 1,374 filings unstorable under `unique (company_id, quarter, doc_type)` — A5's

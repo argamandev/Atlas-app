@@ -1,13 +1,26 @@
 # B1b · Chat surface — @mentions + search mode
 
-Status: ready-for-agent — UNBLOCKED to build, NOT to ship.
+Status: ready-for-agent — fully unblocked, DEPRIORITISED behind Phase C by founder call 2026-08-14.
 Blocked by: 06 (landed 2026-08-14)
 
-**Read before starting.** The backend is on `main` and nothing calls it. Building this is safe now.
-SHIPPING it waits on A5's two open gates, and this ticket's own acceptance runs straight through
-them: the eval cases are scored against the corpus, and at the time 06 merged only 618 of 1,296
-documents were embedded — the rest are invisible to dense retrieval. A red eval today cannot tell
-you whether the surface is wrong or the corpus is half-absent. Both gates are named in `STATUS.md`.
+**Read before starting — the two 2026-08-14 corrections.**
+
+1. **The corpus gate is CLOSED.** The "only 618 of 1,296 documents embedded" warning this ticket
+   carried is stale: A5 finished at 1,298 of 1,300 indexed. A red eval now means the surface, not an
+   absent corpus.
+2. **The acceptance line does not read cleanly against today's retrieval, and that is measured, not
+   suspected** (`docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`). Split it before you score
+   it:
+   - **MUST-PASS cases 13 + 14 are achievable end-to-end.** Case 14 fails *unscoped*, but production
+     never takes that path for a named company — `resolve_company` resolves `בז"א` off the alias
+     table and `search_corpus` is then scoped, where it still ranks 1. The eval set's own 2026-08-12
+     amendment says the same: the MUST-PASS closes via the resolver + alias table, and the old
+     unscoped rank-1 was "corpus luck, not a mechanism."
+   - **Class-G discovery is the exposed half.** Those cases are market-wide by definition, so there
+     is no scope to fall back on, and unscoped dense MRR roughly halved (0.254 → 0.131). The
+     **visible search mode** this ticket builds sits directly on that channel. Do not silently
+     re-score the gate to make it green (app.md M2) — either the index gets fixed first, or the red
+     is filed with the number beside it.
 
 Spec §2.3 + §6 B1b. `ChatView` onto the new backend; `@company` autocomplete from the
 alias table; visible search mode with per-company-diversified leads answers; degradation
