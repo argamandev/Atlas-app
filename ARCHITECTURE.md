@@ -301,7 +301,7 @@ the deploy, which comes after this chapter.
 | `workspace/chat/` | Workspace chat: `context`, `compose`, `prompt`, `plan`. |
 | `maya/` | **The MAYA platform layer (2026-08-06), 20 modules — knows nothing about workspaces** (four future consumers). `client` (typed `MayaResult`, never throws into a route; every request awaits the GLOBAL `limiter` — 10 req/2s is ONE budget for the whole key, standard §7), `disclosures`, `filings` (now carries `xbrlUrl` + `publishedISO` through), `issuers` (`resolveIssuer`), `dates`/`events`/`layering`, `files`, `xbrl` (ת930 parser + `downloadXbrl` XML-magic guard + `persistFilingFacts`), `ingestFiling` (facts + `publication_date` + visible `facts_status` at the filing birth door). **Slice A5 adds three:** `latestOfEach` (the founder-approved backfill depth as a pure function — latest quarterly + latest annual + 12 months of decks, `now` passed in so a dry run and the real run cannot disagree), `syncFilings` (the ONE door the backfill, the poller and the nightly sweep all reconcile through — what is held, what to spend, the 23505 race, and the (period, type) collision resolved BEFORE any download), and `disclosures.latestDisclosures` (the live market feed — MAYA product 1.0.0, which spells attachments `attachedfiles` where v2 spells them `attachedFiles`, so it is NORMALISED at the door or every row silently loses its PDF). |
 | `corpus/` | **The ingestion birth machinery (slice A3, `docs/INGESTION-STANDARD.md`).** `chunker.ts` — THE one chunker (the eval harness imports it; line-windows 700/1,100 on speaker seams, page-as-chunk >3,500 split ~2,200; verbatim `content` separate from prefixed `embeddingInput`). `align.ts` — per-line timestamp alignment (proportional map + exact-word refinement), run once at finalize and PERSISTED; untimed lines keep the visible `00:00:00` sentinel. `embed.ts` — gemini-embedding-001 @1536 MRL re-normalized, injectable fetch. `reindex.ts` — atomic chunk swap per source via `atlas_replace_chunks` (028) with embedding carry-forward, visible `index_status` transitions, demo rows `excluded`. All unit-tested. `retrieve.ts` — the one READ door, dense-only by default (founder 2026-08-14), calling `atlas_search_chunks_v2` (031); its `ChannelReport` reports `saw` against a scope count capped at pool+1, so `truncated` means CUT SHORT rather than "filled the pool". `indexHealth.ts` — the pure arithmetic behind `/app/admin/corpus`: an unrecognised `index_status` counts as `other` and un-settles the corpus rather than being folded into a familiar bucket. |
-| `chat/grounding.ts` | **What a chat answer is grounded in** — `ChatSnip`, `ChatSource`, `DocumentRef`. Domain vocabulary with no transport, imported by 11 modules (live views, PDF viewer, workspace shelf, citations). Moved out of `lib/api/chat.ts` in 08a so retiring that route's wire format does not drag them; `chat/domainBoundary.test.ts` fails if anything under `src/lib/chat` imports `lib/api`. |
+| `chat/grounding.ts` | **What a chat answer is grounded in** — `ChatSnip`, `ChatSource`, `DocumentRef`. Domain vocabulary with no transport, imported by 13 modules (`git grep -l "chat/grounding" -- src \| grep -v grounding.ts \| wc -l` — live views, PDF viewer, workspace shelf, citations, and `lib/api/chat.ts` itself). Moved out of `lib/api/chat.ts` in 08a so retiring that route's wire format does not drag them; `chat/domainBoundary.test.ts` fails if anything under `src/lib/chat` imports `lib/api`. |
 | `chat/messageState.ts` | Is a STORED message whole, and did its context reach the model — `sanitizeContextStatus`, `sanitizeTruncated`, `truncatedForPersist` (+ `ProjectContextStatus`). Honesty machinery that outlives any wire format: `truncatedForPersist` reads v2's `incomplete` as a third source, because a v2 turn that hit its length limit has no `errorKind` at all. Tested by `chat/contextStatus.test.ts` + `chat/messageFlags.test.ts`. |
 | `chat2/protocol.ts` | **THE `/api/chat/v2` wire vocabulary, declared once for both sides (08a).** The incomplete codes are a `const` array and `IncompleteCode` is DERIVED from it, so the two cannot drift — before this the type lived in `terminal.ts` and a hand-maintained runtime array in `api/chat2.ts` was what the parser actually consulted, so a ninth code would have been silently rewritten to `stopped_unknown` with everything green. Also owns both event unions (`ChatEvent` server-side, `ClientChatEvent` widened only by `stream_ended`), `TERMINAL_EVENTS`, `isTerminal`, `parseChatEvent` and `STREAM_ENDED`. Client-importable: its only import is the pure `mode.ts`. |
 | `chat2/` | **The smart-layer chat engine (slice B1a, spec §3), 10 modules** (`ls src/lib/chat2/*.ts \| grep -v test \| wc -l`; `protocol.ts` and `mode.ts` are the two with their own rows — the count read 8 until 08a, having missed `mode.ts` since ticket 07). `requestScope.ts` — the uuid gate on every client-supplied id, at the one point scope is built, because `companyId` reaches the system prompt. `loop.ts` — the Sonnet 5 tool loop; every event is TYPED (`delta`/`tool`/`done`/`incomplete`/`error`), so error text has no code path into a `delta`. `terminal.ts` — the pure function deciding WHICH terminal event ends a turn, from the facts (stop reason, whether any text was emitted, unverified quotes, whether any source survived, whether any tool ran, the round-trip cap); swept exhaustively, because between them two review rounds found five holes in the inline guards it replaced. `done` is the only event meaning complete. `citations.ts` + `fence.ts` — quotes verified at write against the pool of text the turn's tools actually returned (the one choke point, given the real content rather than a proxy), and untrusted document titles defanged before they enter the prompt. `toolDefs.ts`/`tools.ts` — the tool registry over the shared corpus (`company_aliases`, `document_chunks`, `filing_facts`, `companies` — no user rows, so `supabaseAdmin` is the legitimate category per `db.md`). `systemPrompt.ts` — cache-READY prompt assembly (static block first, volatile last) but **nothing is cached**: the static block is ~361 tokens against Sonnet's 1,024-token minimum, so no breakpoint is set and the cost budget must not lean on one. `tools.ts` is imported LAZILY by the loop, and itself lazily imports `db/workspaces`, because both construct/require server-only modules at load. |
@@ -336,7 +336,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **994 tests across 102 files** as of 2026-08-15; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
+### Tests (run via `npm test` — **996 tests across 102 files** as of 2026-08-15; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -345,38 +345,56 @@ invoked directly, and never ran in the battery: `api/errorShape.test.ts` (for an
 `live/search.test.ts` + `live/syncEngine.test.ts` (10 tests, far longer). A battery that does not
 run a file cannot tell you it is missing.
 
-`agents/data.test.ts` · `api/contextStatus.test.ts` · `api/errorShape.test.ts`
-· `api/messageFlags.test.ts` · `apiAuthBoundary.test.ts` · `auth/gate.test.ts`
-· `auth/verifyUser.test.ts` · `calendar/event-meta.test.ts`
-· `chat/attachments.test.ts` · `chat/documentContext.test.ts`
-· `chat/history.test.ts` · `chat/projectContext.test.ts`
+`agents/data.test.ts` · `api/chat2.test.ts` · `api/errorShape.test.ts`
+· `apiAuthBoundary.test.ts` · `apiFetchDiscipline.test.ts`
+· `auth/gate.test.ts` · `auth/verifyUser.test.ts`
+· `calendar/event-meta.test.ts` · `chat/attachments.test.ts`
+· `chat/contextStatus.test.ts` · `chat/documentContext.test.ts`
+· `chat/domainBoundary.test.ts` · `chat/history.test.ts`
+· `chat/incompleteCopy.test.ts` · `chat/messageFlags.test.ts`
+· `chat/projectContext.test.ts` · `chat2/citations.test.ts`
+· `chat2/fence.test.ts` · `chat2/loop.test.ts` · `chat2/mode.test.ts`
+· `chat2/protocol.test.ts` · `chat2/requestScope.test.ts`
+· `chat2/terminal.test.ts` · `chat2/tools.test.ts`
 · `company/aliasSeed.test.ts` · `company/documentCatalog.test.ts`
-· `company/logo.test.ts` · `company/resolve.test.ts`
-· `correction.test.ts` · `curationAuthz.test.ts` · `db/conversationScope.test.ts`
-· `demo/demoState.test.ts`
-· `design/anim.test.ts` · `documents/extract.test.ts`
-· `documents/openFiling.test.ts` · `documents/snip.test.ts`
-· `i18n/format.test.ts` · `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
+· `company/logo.test.ts` · `company/matchRank.test.ts`
+· `company/resolve.test.ts` · `corpus/align.test.ts`
+· `corpus/chunker.test.ts` · `corpus/diversify.test.ts`
+· `corpus/embed.test.ts` · `corpus/indexHealth.test.ts`
+· `corpus/reindex.test.ts` · `corpus/retrieve.test.ts`
+· `correction.test.ts` · `curationAuthz.test.ts`
+· `db/conversationScope.test.ts` · `db/transcripts.test.ts`
+· `demo/demoState.test.ts` · `design/anim.test.ts`
+· `documents/extract.test.ts` · `documents/openFiling.test.ts`
+· `documents/snip.test.ts` · `environment.test.ts` · `i18n/format.test.ts`
+· `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
 · `live/ivritStitcher.test.ts` · `live/liveTiming.test.ts`
-· `live/pcmChunker.test.ts` · `live/search.test.ts` · `live/snipBridge.test.ts`
-· `live/syncEngine.test.ts` · `live/syncMode.test.ts` · `live/wavEncode.test.ts`
+· `live/pcmChunker.test.ts` · `live/search.test.ts`
+· `live/snipBridge.test.ts` · `live/syncEngine.test.ts`
+· `live/syncMode.test.ts` · `live/wavEncode.test.ts`
 · `maya/catalogCache.test.ts` · `maya/client.test.ts`
 · `maya/companyProfile.test.ts` · `maya/dates.test.ts`
 · `maya/disclosures.test.ts` · `maya/events.test.ts` · `maya/files.test.ts`
-· `maya/filings.test.ts` · `maya/issuers.test.ts` · `maya/layering.test.ts`
-· `maya/schedule.test.ts` · `player/viewers.test.ts` · `projects/data.test.ts`
+· `maya/filings.test.ts` · `maya/issuers.test.ts`
+· `maya/latestOfEach.test.ts` · `maya/layering.test.ts`
+· `maya/limiter.test.ts` · `maya/schedule.test.ts`
+· `maya/syncFilings.test.ts` · `maya/xbrl.test.ts`
+· `player/viewers.test.ts` · `projects/data.test.ts`
 · `projects/derive.test.ts` · `projects/validate.test.ts`
-· `scripts/lib/measure-core.test.ts` · `testRegistry.test.ts`
-· `transcriptDate.test.ts` · `transcription.test.ts` · `workspace/blocks.test.ts`
-· `workspace/chat/compose.test.ts` · `workspace/chat/context.test.ts`
-· `workspace/chat/plan.test.ts` · `workspace/chat/prompt.test.ts`
-· `workspace/clip.test.ts` · `workspace/data.test.ts`
-· `workspace/intake/agreement.test.ts` · `workspace/intake/findSources.test.ts`
-· `workspace/intake/json.test.ts` · `workspace/intake/parseRequest.test.ts`
-· `workspace/intake/respond.test.ts` · `workspace/intake/selectSources.test.ts`
-· `workspace/panes.test.ts` · `workspace/present.test.ts`
-· `workspace/tabLabel.test.ts` · `workspace/thread.test.ts`
-· `workspace/validate.test.ts`.
+· `scripts/lib/measure-core.test.ts` · `shipGate.test.ts`
+· `supabaseReadDiscipline.test.ts` · `supabaseWriteDiscipline.test.ts`
+· `testRegistry.test.ts` · `transcriptBirthDoor.test.ts`
+· `transcriptDate.test.ts` · `transcription.test.ts`
+· `workspace/blocks.test.ts` · `workspace/chat/compose.test.ts`
+· `workspace/chat/context.test.ts` · `workspace/chat/plan.test.ts`
+· `workspace/chat/prompt.test.ts` · `workspace/clip.test.ts`
+· `workspace/data.test.ts` · `workspace/intake/agreement.test.ts`
+· `workspace/intake/findSources.test.ts` · `workspace/intake/json.test.ts`
+· `workspace/intake/parseRequest.test.ts`
+· `workspace/intake/respond.test.ts`
+· `workspace/intake/selectSources.test.ts` · `workspace/panes.test.ts`
+· `workspace/present.test.ts` · `workspace/tabLabel.test.ts`
+· `workspace/thread.test.ts` · `workspace/validate.test.ts`.
 
 > ⚠ **REGENERATED 2026-08-09 FROM `package.json`, and what it had drifted into is the argument for
 > never hand-editing it.** Measured by diffing the old list against the registered set:

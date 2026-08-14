@@ -40,10 +40,22 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   `transcriptId` by name as ticket 07's cold-review BLOCKER. A union whose `call` variant the route
   accepts before whole-call injection exists reproduces that defect one layer up, so the union must
   land WITH the handler that honours it. The shape to start from is written into the ticket.
-- **Verified:** `npx tsc --noEmit` clean · `npm test` 994/994 · `npm run build` green ·
-  `git diff --stat` agrees with `git diff -w --stat` on the first slice (34+/105−), so no line
+- **Cold review returned four findings, all fixed on the branch; three named M1.** The sharpest:
+  `domainBoundary.test.ts`'s docstring claimed a dynamic import would fail it, and the pattern
+  matched only `import … from` — so dynamic imports AND re-exports passed silently. A guard
+  advertising coverage it lacks is worse than none, because the next reader trusts it. Broadening it
+  immediately caught an `export … from` probe the original missed. Regenerating ARCHITECTURE's test
+  index then showed **24** registered files missing from it, not the 4 this branch touched — stale
+  since tickets A3–07. Record + the ADR-0002 payment:
+  `docs/evidence/feat-smart-layer-b2a-chat-plumbing/review.md`.
+- **Verified:** `npx tsc --noEmit` clean · `npm test` 996/996 · `npm run build` green ·
+  `git diff --shortstat a7435f2^ a7435f2` (301+/106−) agrees exactly with its `-w` form, so no line
   endings were rewritten (the `#crlf` trap). No `/verify-app`, and that is a claim not an omission:
   nothing a user can see moved, and the old route still serves every surface.
+  **Cold review corrected this bullet**: it first cited "34+/105−", which was a `git diff --stat` of
+  the WORKING TREE taken before the guard test and the moved files were staged — a real measurement
+  of a different question than the sentence asked, which is M1 in miniature, inside the bullet
+  claiming M1 compliance. The conclusion held; the quoted pair did not.
 
 ---
 

@@ -29,11 +29,18 @@ import { join } from 'node:path'
  * Keep it empty. An entry is permitted only with a reason AND the work that
  * closes it, both written beside the name.
  *
- * STATED LIMIT: this scans import statements textually, with comments and
- * strings left intact. A dynamic `await import('@/lib/api/…')` inside a function
- * body would read as an import here and fail the test, which is the safe
- * direction; an import assembled from a variable would be invisible, which is
- * not. No such construction exists in this directory today.
+ * STATED LIMIT, corrected at cold review. The first version matched only
+ * `import … from '…'` while its own comment claimed a dynamic
+ * `await import('@/lib/api/…')` would fail the test. It would not have: dynamic
+ * imports AND re-exports (`export { X } from '@/lib/api/y'`) both passed
+ * silently. That is a mechanism advertising coverage in the unsafe direction —
+ * M1 exactly, and worse than no guard, because the next reader trusts it.
+ *
+ * The pattern now matches all three forms. What remains genuinely invisible: a
+ * specifier assembled from a variable (`import(BASE + '/chat')`). No such
+ * construction exists in this directory today, and it is named rather than
+ * implied. Comments and strings are left intact, so a `lib/api` path written
+ * inside an import-shaped comment would fail — the safe direction.
  */
 
 const DIR = 'src/lib/chat'
@@ -44,16 +51,40 @@ const DIR = 'src/lib/chat'
  */
 const ALLOWED = new Set<string>([])
 
-const TRANSPORT_IMPORT = /^\s*import\s[^;]*?from\s+['"](@\/lib\/api\/[^'"]+|\.\.\/api\/[^'"]+)['"]/gm
+const TRANSPORT_PATH = String.raw`(@\/lib\/api\/[^'"]+|\.\.\/api\/[^'"]+)`
+
+/**
+ * All three ways a module can reach transport:
+ *   import … from '…'   ·   export … from '…'   ·   import('…')
+ * The first version matched only the first, while claiming to catch the third.
+ */
+const TRANSPORT_IMPORT = new RegExp(
+  String.raw`(?:(?:^\s*(?:import|export)\s[^;]*?from\s*)|(?:\bimport\s*\(\s*))['"]${TRANSPORT_PATH}['"]`,
+  'gm'
+)
+
+/**
+ * This file is the GUARD, not a subject. It necessarily contains transport
+ * import strings — the fixtures the pattern is asserted against below — and
+ * scanning itself makes it fail on its own evidence, which is noise rather than
+ * a finding. Excluded here and NOT via `ALLOWED`, because the two mean different
+ * things: `ALLOWED` is a debt with work that closes it, this is a category error.
+ */
+const SELF = 'domainBoundary.test.ts'
 
 function sourceFiles(): string[] {
   return readdirSync(DIR).filter((f) => /\.tsx?$/.test(f))
 }
 
+/** The files this rule actually governs. */
+function scannedFiles(): string[] {
+  return sourceFiles().filter((f) => f !== SELF)
+}
+
 test('the chat domain directory imports no transport', () => {
   const offenders: string[] = []
 
-  for (const file of sourceFiles()) {
+  for (const file of scannedFiles()) {
     if (ALLOWED.has(file)) continue
     const src = readFileSync(join(DIR, file), 'utf8')
     for (const m of src.matchAll(TRANSPORT_IMPORT)) {
@@ -79,6 +110,33 @@ test('the two modules this rule was written for are actually covered', () => {
   for (const required of ['grounding.ts', 'messageState.ts']) {
     assert.ok(sourceFiles().includes(required), `${required} is missing from ${DIR}`)
     assert.ok(!ALLOWED.has(required), `${required} must never be allowlisted`)
+  }
+})
+
+test('the pattern catches all three ways to reach transport', () => {
+  // GUARDS THE GUARD (cold review, 08a). The scan is only as good as this
+  // regex, and its first version silently missed two of these three while the
+  // docstring claimed otherwise. Asserted directly, because a file scan that
+  // finds nothing looks identical whether the rule holds or the pattern is wrong.
+  const shouldMatch = [
+    `import type { ChatSnip } from '@/lib/api/chat'`,
+    `import { streamChat } from '@/lib/api/chat2'`,
+    `export type { ClientChatEvent } from '@/lib/api/chat2'`,
+    `export { parseChatEvent } from '@/lib/api/chat2'`,
+    `const m = await import('@/lib/api/chat')`,
+    `import x from '../api/chat'`,
+  ]
+  for (const line of shouldMatch) {
+    assert.match(line, new RegExp(TRANSPORT_IMPORT.source), `pattern missed: ${line}`)
+  }
+
+  const shouldNotMatch = [
+    `import type { ChatMode } from '@/lib/chat2/mode'`,
+    `import { detectDir } from '@/lib/utils'`,
+    `import { apiOf } from '@/lib/apiary/thing'`, // 'api' as a path substring, not lib/api
+  ]
+  for (const line of shouldNotMatch) {
+    assert.doesNotMatch(line, new RegExp(TRANSPORT_IMPORT.source), `pattern over-matched: ${line}`)
   }
 })
 

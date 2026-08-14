@@ -64,3 +64,45 @@ test('every test file in the tree is registered in the npm test script', () => {
   const ghosts = [...registered].filter((p) => !onDiskSet.has(p)).sort()
   assert.deepEqual(ghosts, [], `These files are registered but do not exist:\n${ghosts.join('\n')}`)
 })
+
+/**
+ * ARCHITECTURE.md's test index must name every registered test file.
+ *
+ * ADDED 08a, paying an ADR-0002 recurrence. Cold review found that index still
+ * naming `api/contextStatus.test.ts` and `api/messageFlags.test.ts` after this
+ * branch moved both to `src/lib/chat/`, and missing both files the branch added
+ * — while the surrounding prose claimed "regenerated from commands, never edited
+ * by hand". That is M1's exact defect: a document asserting a property nothing
+ * measured. The ship gate already re-measures the two COUNTS in that header; the
+ * LIST beneath them was checked by nobody.
+ *
+ * This is the same guard one tier out: `npm test` fails, rather than a reviewer
+ * happening to diff a 100-line list by eye.
+ *
+ * STATED LIMIT: this proves each registered path is MENTIONED in the index. It
+ * does not prove the index is free of extra names, and deliberately so — the
+ * file legitimately discusses `correction.test.ts` and others in prose around
+ * the list, so an exact set comparison would fail on its own commentary.
+ */
+test("ARCHITECTURE.md's test index names every registered test file", () => {
+  const script: string = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts.test
+  const registered = (script.match(/[^\s]+\.test\.tsx?/g) ?? []).map((p) => p.replace(/\\/g, '/'))
+  const doc = readFileSync(join(ROOT, 'ARCHITECTURE.md'), 'utf8')
+
+  assert.ok(registered.length > 5, 'no registered tests parsed — this test would be vacuous')
+
+  // The index lists paths relative to `src/lib/`, which is how the doc reads.
+  const absent = registered
+    .filter((p) => p.startsWith('src/lib/'))
+    .map((p) => p.slice('src/lib/'.length))
+    .filter((rel) => !doc.includes(rel))
+    .sort()
+
+  assert.deepEqual(
+    absent,
+    [],
+    "ARCHITECTURE.md's test index does not name these registered test files:\n" +
+      absent.join('\n') +
+      "\nThe index is generated from `package.json`'s test script — regenerate it, do not patch by memory."
+  )
+})
