@@ -118,36 +118,14 @@ function unverifiedQuotes(answerText: string, sourcePool: string): string[] {
   return quotes.filter((q) => !verifyCitation({ quote: q, sourceContent: sourcePool }).ok)
 }
 
-/**
- * The three TERMINAL event types. Exported so a caller can exhaustively switch on
- * them and so the battery can assert the set has not quietly grown a fourth.
- */
-export const TERMINAL_EVENTS = ['done', 'incomplete', 'error'] as const
-
-export type ChatEvent =
-  | { type: 'delta'; text: string }
-  | { type: 'tool'; name: string; status: 'start' | 'end'; isError?: boolean }
-  /**
-   * NON-TERMINAL. Which grounding mode this turn is in, and the company it is
-   * pinned to when there is one. Emitted for the OPENING mode and again on every
-   * change — never only on change, or a surface would render its own default
-   * (a guess) until the first `resolve_company` landed.
-   *
-   * This is what makes search mode VISIBLE (spec §2.3). It is a fact about the
-   * scope, not an inference from the question — see `mode.ts`.
-   */
-  | { type: 'mode'; mode: ChatMode; companyId: string | null }
-  /** TERMINAL. The model finished cleanly. The ONLY event that means complete. */
-  | { type: 'done' }
-  /**
-   * TERMINAL. Ended early — the deltas so far are real but the turn is not
-   * finished. RENDER FROM `code`, never from `reason`: `reason` is English
-   * developer prose, and the degradation law wants this on screen in both
-   * locales (ticket 07's surface is Hebrew-first).
-   */
-  | { type: 'incomplete'; code: IncompleteCode; reason: string }
-  /** TERMINAL. Nothing usable came back. */
-  | { type: 'error'; message: string }
+// The event vocabulary IS the interface between this loop and every surface, so
+// it is declared once in `protocol.ts` and imported by both sides (08a.2). It
+// used to be declared here AND re-declared in `api/chat2.ts`, with the code list
+// existing a third time there as a runtime array marked "kept in sync". Both are
+// re-exported because a caller of the loop reasons in terms of them.
+export { TERMINAL_EVENTS } from './protocol'
+export type { ChatEvent } from './protocol'
+import type { ChatEvent } from './protocol'
 
 export interface ChatTurn {
   role: 'user' | 'assistant'

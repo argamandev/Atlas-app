@@ -10,7 +10,7 @@ import { CloseIcon, ArrowUpIcon, QuoteIcon, MicIcon, ScissorsIcon } from '@/comp
 import { workspaceChatReq, saveThreadReq } from '@/lib/workspace/client'
 import { deriveThreadTitle, type StoredMsg } from '@/lib/workspace/thread'
 import { detectDir } from '@/lib/utils'
-import type { ChatSnip } from '@/lib/api/chat'
+import type { ChatSnip } from '@/lib/chat/grounding'
 import type { ChatTurn } from '@/lib/workspace/chat/prompt'
 
 // Workspace chat — and Ask Atlas, which is the same conversation opened with a

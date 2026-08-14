@@ -12,7 +12,7 @@ import { activeWordIndex, flattenWords } from '@/lib/live/syncEngine'
 import type { WordTimedTranscript } from '@/lib/live/syncEngine'
 import { transcriptSync, playbackStarted } from '@/lib/live/syncMode'
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ScissorsIcon, PlayIcon } from '@/components/ds/icons'
-import type { ChatSnip } from '@/lib/api/chat'
+import type { ChatSnip } from '@/lib/chat/grounding'
 import type { ItemContent, UnavailableReason } from '@/lib/workspace/contentTypes'
 import type { WsFile } from '@/lib/workspace/data'
 

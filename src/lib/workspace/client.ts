@@ -4,7 +4,7 @@ import type { IntakeResponse, IntakeTurn } from './intake/types'
 import type { ItemContent } from './contentTypes'
 import type { ChatTurn } from './chat/prompt'
 import type { StoredMsg } from './thread'
-import type { ChatSnip } from '@/lib/api/chat'
+import type { ChatSnip } from '@/lib/chat/grounding'
 import { handleResponse } from '@/lib/api/client'
 
 // The browser's only door to the workspace API. Every call surfaces its failure

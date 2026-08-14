@@ -17,7 +17,11 @@
 // generic string on a miss would have quietly undone that decision.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { ClientIncompleteCode } from '@/lib/api/chat2'
+// From the protocol module, not from the fetch client (08a.2). This map is about
+// what a SCREEN says, so depending on transport to learn the code vocabulary was
+// the wrong direction — and it is the last thing that made `src/lib/chat` import
+// `lib/api` at all. `chat/domainBoundary.test.ts`'s allowlist is now empty.
+import type { ClientIncompleteCode } from '@/lib/chat2/protocol'
 
 /** The `dict.chat.incomplete` block, structurally — both locales satisfy this. */
 export interface IncompleteCopy {

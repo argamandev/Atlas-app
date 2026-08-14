@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 import { Surface } from '@/components/ds/Surface'
 import { ChevronRightIcon } from '@/components/ds/icons'
-import type { ChatSource } from '@/lib/api/chat'
+import type { ChatSource } from '@/lib/chat/grounding'
 
 // Source chip + floating citation card (brief §5.3 reference). Marks an answer as
 // grounded in a specific transcript and links to it.

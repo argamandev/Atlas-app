@@ -7,7 +7,7 @@ import { CloseIcon, ColumnsIcon, SinglePaneIcon, SparkleIcon } from '@/component
 import { SourceDocument } from './SourceDocument'
 import { tabLabel } from '@/lib/workspace/tabLabel'
 import { shownPanes } from '@/lib/workspace/panes'
-import type { ChatSnip } from '@/lib/api/chat'
+import type { ChatSnip } from '@/lib/chat/grounding'
 import type { Workspace } from '@/lib/workspace/data'
 
 // The workspace main card: tab bar (design 1726-1756), single or split documents

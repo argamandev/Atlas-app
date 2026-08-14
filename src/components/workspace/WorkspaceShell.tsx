@@ -42,7 +42,7 @@ import { WorkspaceChat, type AskContext } from './WorkspaceChat'
 import { deriveThreadTitle, type StoredMsg } from '@/lib/workspace/thread'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { appendSnip } from '@/lib/documents/snip'
-import type { ChatSnip } from '@/lib/api/chat'
+import type { ChatSnip } from '@/lib/chat/grounding'
 
 // The populated control layout (design lines 1433-2084): a floating workspace
 // panel beside a floating main card with a tab bar. The special tab __doc sits

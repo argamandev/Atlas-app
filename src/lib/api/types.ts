@@ -1,9 +1,10 @@
 // Shared domain types for the V1 product (companies, calls, quotes). Used by the
 // server data layer (lib/db), the route handlers, and the client fetchers (lib/api).
 
-// Type-only, and erased at build. `chat.ts` imports nothing from this file, so
-// there is no cycle — the status lives beside the header that produces it.
-import type { ProjectContextStatus } from './chat'
+// Type-only, and erased at build. Moved out of `./chat` with its sanitisers:
+// the status is a property of a STORED message, so it outlives the `/api/chat`
+// wire format that ticket 08 retires.
+import type { ProjectContextStatus } from '@/lib/chat/messageState'
 // Type-only as well. `lib/calendar/event-meta` imports nothing, so no cycle; the
 // calendar's kind vocabulary is defined once, beside its colours and filter chips.
 import type { EventKind } from '@/lib/calendar/event-meta'

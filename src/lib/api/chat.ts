@@ -1,22 +1,16 @@
+/**
+ * TRANSPORT ONLY — the client for the OLD `/api/chat` route.
+ *
+ * This whole file dies with that route in ticket 08 (B2). What it must NOT take
+ * with it is domain vocabulary, so the grounding types and the stored-message
+ * honesty helpers now live in `lib/chat/grounding.ts` and
+ * `lib/chat/messageState.ts` and are imported from there by everything else.
+ * Only `ChatInput` (this route's wire format) and `streamChat` (this route's
+ * reader) remain.
+ */
 import { ApiError } from './client'
-
-export interface ChatSource {
-  company: string
-  quarter: string
-  transcriptId: string
-}
-
-export interface DocumentRef {
-  documentId: string
-  pages: number[]
-}
-
-/** Pinge: one snipped region of the report PDF, captured client-side as a PNG data URL. */
-export interface ChatSnip {
-  dataUrl: string
-  page: number
-  documentId: string
-}
+import type { ChatSource, ChatSnip, DocumentRef } from '@/lib/chat/grounding'
+import { sanitizeContextStatus, type ProjectContextStatus } from '@/lib/chat/messageState'
 
 export interface ChatInput {
   message: string
@@ -30,73 +24,6 @@ export interface ChatInput {
   // injects nothing.
   projectId?: string
   history?: { role: 'user' | 'assistant'; content: string }[]
-}
-
-/**
- * How the project's context actually reached the model on THIS answer.
- * `null` means whole (or that there was no project). The other two are things
- * the user has to be told: `truncated` = the block was cut to fit the budget,
- * `failed` = it never loaded and the model answered without their instructions.
- */
-export type ProjectContextStatus = 'truncated' | 'failed'
-
-/**
- * Narrow an unknown value to a context status, or null.
- *
- * Used on BOTH ways in: the `x-project-context` response header below, and a
- * `projectContext` read back out of a stored message's jsonb. Anything not
- * explicitly named is treated as "the context was whole" rather than guessed at,
- * so a stale row or a hand-edited blob cannot paint a warning onto a good
- * answer — or, worse, a string of someone's choosing onto a rendered surface.
- */
-export function sanitizeContextStatus(raw: unknown): ProjectContextStatus | null {
-  return raw === 'truncated' || raw === 'failed' ? raw : null
-}
-
-/**
- * Was this stored message's answer cut off? Read side.
- *
- * Same reasoning as `sanitizeContextStatus`: the `messages` jsonb predates the
- * field, so most stored messages have none, and absent must mean "complete"
- * rather than "unknown, so warn". Only a literal `true` counts — `'true'`,
- * `1` and `{}` are all truthy in JS and none of them is this flag.
- */
-export function sanitizeTruncated(raw: unknown): boolean {
-  return raw === true
-}
-
-/**
- * Should this message be STORED as truncated? Write side.
- *
- * Two sources, and both are needed. `errorKind` is this session's live failure
- * and dies on reload; `truncated` is what a message reopened from storage
- * carries. A message that has already round-tripped has only the second, and a
- * message that just broke has only the first — taking either alone silently
- * drops one of the two cases on the next save.
- *
- * Extracted from an inline expression in ChatView because the defect it fixes
- * (a partial answer persisting as a complete one) was a BLOCKER found at review,
- * and its sibling `sanitizeContextStatus` had a dedicated test file while this
- * had none. A later refactor writing `!!m.truncated` would have failed nothing.
- */
-export function truncatedForPersist(m: {
-  truncated?: boolean | null
-  errorKind?: string
-  /**
-   * THE V2 SOURCE (ticket 07). The new backend does not break a stream to say an
-   * answer is partial — it ENDS it in an `incomplete` event with a code, which is
-   * an ordinary, successful HTTP response. So a v2 turn that hit its length limit
-   * has no `errorKind` at all: the stream finished, the promise resolved, and
-   * every signal the two fields above read says "complete".
-   *
-   * Missing this third source would have reintroduced the exact BLOCKER this
-   * function exists for, by the one door its tests did not watch — a partial
-   * answer persisting as a whole one, now arriving through the honesty machinery
-   * built to prevent it rather than around it.
-   */
-  incomplete?: string | null
-}): boolean {
-  return m.truncated === true || m.errorKind === 'truncated' || m.incomplete != null
 }
 
 // Streamed chat (Feature 5): POST to /api/chat, read the plain-text token stream and call

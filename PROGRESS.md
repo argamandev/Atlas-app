@@ -5,6 +5,60 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-15 — Chat plumbing, so ticket 08 is one change (`feat/smart-layer-b2a-chat-plumbing`, ticket 08a)
+
+- **Ticket 08 was split into 08a (plumbing) / 08b (surfaces), the way B1 was split into 06/07, and
+  for the same reason** — as one mission it is two surfaces + three refactors + `/verify-app` in
+  both locales + three measurements + ship, and the browser verification lands LAST, which is the
+  worst place to run out of room. 08a changes no user-visible behaviour: the old `/api/chat` still
+  serves every surface. **08a does NOT close ticket 08** — its acceptance is the surfaces verified
+  in both locales, which only 08b can do.
+- **Domain vocabulary left the transport module.** `ChatSnip`, `ChatSource` and `DocumentRef`
+  described what a user is looking at but were declared inside `lib/api/chat.ts`, the client for
+  the route ticket 08 deletes — and eleven modules imported them from there, most of which never
+  call chat (the PDF viewer, the workspace shelf, the live facet panes). The stored-message
+  honesty helpers were worse: they already read v2's `incomplete` code, so machinery that outlives
+  every wire format was filed under the transport scheduled for deletion. Now
+  `lib/chat/grounding.ts` + `lib/chat/messageState.ts`; **08b's blast radius drops from 12 files to
+  `lib/api/chat.ts` plus its two callers.**
+- **One protocol module for the v2 wire, closing a silent drift.** The event vocabulary was declared
+  twice and the incomplete-code list a third time — as a TYPE in `chat2/terminal.ts` and as a
+  hand-maintained RUNTIME array in `api/chat2.ts` marked "kept in sync", with only the array
+  consulted at parse time. A ninth code would therefore have been rewritten to `stopped_unknown` by
+  the parser with tsc, the battery and both locales' copy all green — undoing round 4's deliberate
+  split of the four non-clean stops. `chat2/protocol.ts` declares the codes once and DERIVES the
+  type from them, so there is no second declaration to disagree with.
+- **Two new mechanisms, both verified able to fail.** `chat/domainBoundary.test.ts` fails if
+  anything under `src/lib/chat` imports transport — it shipped as a ratchet with one named
+  exception and that exception was removed by the very next slice, so the allowlist is empty.
+  `chat2/protocol.test.ts` asserts the closed drift behaviourally: every server code round-trips the
+  parser unchanged, an unknown one still lands on the generic branch, the copy map covers the
+  vocabulary at RUNTIME, and the terminal set has not grown a fourth member. The boundary guard was
+  deliberately broken with a real violation to confirm it fails before being trusted.
+- **Slice 3 (the `Grounding` union) moved to 08b, blocked by a law rather than by effort.**
+  `chat2/requestScope.test.ts` refuses any scope id the backend accepts but does not read, pinning
+  `transcriptId` by name as ticket 07's cold-review BLOCKER. A union whose `call` variant the route
+  accepts before whole-call injection exists reproduces that defect one layer up, so the union must
+  land WITH the handler that honours it. The shape to start from is written into the ticket.
+- **Cold review returned four findings, all fixed on the branch; three named M1.** The sharpest:
+  `domainBoundary.test.ts`'s docstring claimed a dynamic import would fail it, and the pattern
+  matched only `import … from` — so dynamic imports AND re-exports passed silently. A guard
+  advertising coverage it lacks is worse than none, because the next reader trusts it. Broadening it
+  immediately caught an `export … from` probe the original missed. Regenerating ARCHITECTURE's test
+  index then showed **24** registered files missing from it, not the 4 this branch touched — stale
+  since tickets A3–07. Record + the ADR-0002 payment:
+  `docs/evidence/feat-smart-layer-b2a-chat-plumbing/review.md`.
+- **Verified:** `npx tsc --noEmit` clean · `npm test` 996/996 · `npm run build` green ·
+  `git diff --shortstat a7435f2^ a7435f2` (301+/106−) agrees exactly with its `-w` form, so no line
+  endings were rewritten (the `#crlf` trap). No `/verify-app`, and that is a claim not an omission:
+  nothing a user can see moved, and the old route still serves every surface.
+  **Cold review corrected this bullet**: it first cited "34+/105−", which was a `git diff --stat` of
+  the WORKING TREE taken before the guard test and the moved files were staged — a real measurement
+  of a different question than the sentence asked, which is M1 in miniature, inside the bullet
+  claiming M1 compliance. The conclusion held; the quoted pair did not.
+
+---
+
 ## 2026-08-14 — Chat reaches the new brain (`feat/smart-layer-b1b-chat-surface`, ticket 07 / B1b)
 
 - **Chat's UI is on `/api/chat/v2`, so B1a's honesty machinery finally reaches a person.** Visible
