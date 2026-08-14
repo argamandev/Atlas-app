@@ -121,6 +121,10 @@ open:
    `clientScopeIds` returns is consumed somewhere in `src/lib/chat2`. This moves the law from prose
    — the tier that had just failed — to `test`.
 
+**CORRECTED AT ROUND 2 — the first version of this claim was FALSE.** See the round-3 section
+below: the guard counted `toolDefs.ts` as a consumer, so an id declared on `ChatScope` and read by
+nothing passed. What follows was the proof I ran, and it was too weak to catch that.
+
 **Proved the guard is not vacuous:** re-introducing `transcriptId` into `clientScopeIds` fails 3
 tests including the new one; restoring passes 9. The guard also **blanks comments before searching**,
 because `toolDefs.ts` now carries a comment explaining the removal — a plain substring search finds
@@ -192,3 +196,61 @@ path reads.
 ## Battery after round 2
 
 **986/986 green**, `tsc` clean, zero console errors in both locales.
+
+---
+
+# Round 3 — after the second cold review
+
+Round 2 returned **CHANGES**: 1 BLOCKER, 3 WARNINGs. It confirmed as real and complete: the
+`reportedMode`/`shownMode` fix, the `useV2` gate (all three ChatView call sites covered), the bidi
+construct fix, and `matchRank`.
+
+## BLOCKER — my own mechanism was gameable, and my evidence said it was proven
+
+The round-1 guard listed `toolDefs.ts` among the "consumers". `toolDefs.ts` holds the `ChatScope`
+**interface** — the declaration is the subject under test, not evidence about it. So adding
+`callId` to *both* `clientScopeIds` and `ChatScope` — round 1's exact defect shape — left the guard
+**green**, because the identifier appears in the type.
+
+This is worse than the original defect. A guard that reads its own subject as proof **certifies an
+untrue premise** (M2), and the round-2 section above stated the shape was mechanically closed. That
+sentence has been marked corrected in place rather than deleted.
+
+Fixed: `toolDefs.ts` removed from the consumer list. Consumption now means the id is read where
+behaviour happens — `tools.ts`, `loop.ts`, `systemPrompt.ts`, `mode.ts`.
+
+**Re-proved with the reviewer's own injection** (the one that defeated the previous guard): with
+`callId` in `clientScopeIds` **and** `ChatScope`, the guard now FAILS; restoring, 9/9 pass. The
+earlier proof was too weak because it only injected into `clientScopeIds`, which is exactly the
+half the flawed consumer list could still see.
+
+## WARNING — the history label grew its own second opinion
+
+The label read `incomplete || truncated`; `truncatedForPersist` answers the same question from
+**three** fields. The missing one, `errorKind: 'truncated'` (a stream that broke this session), is
+reachable on precisely the route `useV2` keeps alive for project and transcript chats. Now routed
+through the choke point (M3.1): one function decides "is this answer partial", and both the storage
+path and the model ask it.
+
+## WARNING — a resolved company could be invisible and un-undoable
+
+If `adoptResolvedCompany`'s name lookup failed, `companyId` stayed set while `companyName` was
+null — so the company chip, the unpin button and the search chip all rendered nothing, and the chat
+sat silently scoped to a company the user could neither see nor escape. A fabricated fourth state,
+which the degradation law forbids.
+
+Both controls are now gated on the **scope** (`companyId`), not on the name. An unnamed scope
+renders `@a company` / `@חברה` (new copy, both locales) rather than disappearing. The escape hatch
+exists precisely when the name is missing.
+
+## NIT — other callers of `searchCompanies`
+
+Accepted and stated: `searchCompanies` also feeds `HomeSearch` and `CompanyOverview`, whose result
+sets now include alias hits and are rank-ordered. The browser verification above exercised only the
+@-mention dropdown. The change is additive (no company that matched before stops matching) and the
+ordering is by match quality, so an exact hit ranks at least as well as it did — but those two
+surfaces were **not** driven, and that is a limit of this evidence, not a claim about them.
+
+## Battery after round 3
+
+**986/986 green**, `tsc` clean.

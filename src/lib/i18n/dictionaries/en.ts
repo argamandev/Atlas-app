@@ -521,6 +521,11 @@ export const en = {
     searchModeHint: 'No company was identified, so Atlas is answering with leads from across the market.',
     pinCompany: 'Pin to a company',
     unpinCompany: 'Search the whole market instead',
+    // Shown when a company was resolved SERVER-side but its name could not be
+    // fetched. The scope is real and the user must be able to see and undo it —
+    // rendering nothing would leave the chat silently pinned to a company they
+    // cannot name or escape.
+    pinnedUnknownCompany: 'a company',
     // ─── The nine reasons an answer is not whole ────────────────────────────
     // One per `ClientIncompleteCode`. The server sends a CODE precisely so this
     // surface never has to string-match its English `reason` prose to decide

@@ -247,10 +247,17 @@ export function ChatView({
     // which it will then happily build on. The same fact the user is shown is now
     // the fact the model gets, from the same two fields the persistence path
     // reads (`incomplete` this session, `truncated` after a reload).
+    // THROUGH THE CHOKE POINT, not a second opinion beside it (M3.1). The first
+    // version of this read `incomplete || truncated` — its own two-field guess at
+    // a question `truncatedForPersist` already answers from THREE fields. It
+    // missed `errorKind: 'truncated'`, a stream that broke this session, which is
+    // reachable on exactly the route `useV2` keeps alive for project and
+    // transcript chats. One function decides "is this answer partial", and both
+    // the storage path and the model now ask it.
     const history = messages.map((m) => ({
       role: m.role,
       content:
-        m.role === 'assistant' && (m.incomplete != null || m.truncated === true)
+        m.role === 'assistant' && truncatedForPersist(m)
           ? `${m.content}\n\n[This answer was cut off before it finished — it is not complete.]`
           : m.content,
     }))
@@ -528,16 +535,25 @@ export function ChatView({
           composer as its warm reference header (unified two-toned box). */}
       {(companyName || transcript || (useV2 && shownMode)) && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          {companyName && (
+          {/* GATED ON `companyId`, NOT ON THE NAME (round-2 review). When the
+              server resolved a company mid-turn and `adoptResolvedCompany`'s name
+              lookup then failed, the name was null while the SCOPE was real — so
+              this chip, the unpin button and the search chip all rendered
+              nothing, and the chat sat silently pinned to a company the user
+              could neither see nor undo. A scope that exists must be visible; an
+              unnamed one says "a company" rather than disappearing. */}
+          {companyId && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
-              {initialCompany?.logoUrl && <Logo src={initialCompany.logoUrl} name={companyName} size={16} />}
+              {initialCompany?.logoUrl && companyName && (
+                <Logo src={initialCompany.logoUrl} name={companyName} size={16} />
+              )}
               {/* A company name can be Hebrew, Latin or both ("אלביט Systems").
                   Its own <bdi> so each run resolves independently and one Latin
                   word cannot flip the chip; `dir` stays on the container (<html>),
                   never on this mixed line — rules/app.md's bidi law. The "@" is a
                   bare sign and belongs outside the <bdi>. */}
               <span className="font-medium text-ink">
-                @<bdi>{companyName}</bdi>
+                @<bdi>{companyName ?? dict.chat.pinnedUnknownCompany}</bdi>
               </span>
             </span>
           )}
@@ -591,7 +607,9 @@ export function ChatView({
           {/* The mirror tap: leave a company and search the whole market. Shown
               only when a company is actually pinned, so it never offers to undo
               something that is not there. */}
-          {useV2 && shownMode === 'pinpoint' && companyName && (
+          {/* Also gated on the SCOPE, not the name — the escape hatch has to
+              exist for exactly the case where the name is missing. */}
+          {useV2 && shownMode === 'pinpoint' && companyId && (
             <button
               type="button"
               onClick={() => {

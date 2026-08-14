@@ -106,9 +106,17 @@ test('every scope id the backend ACCEPTS is consumed by the backend', () => {
   )
   assert.ok(accepted.length > 0, 'no accepted ids found — this test would be vacuous')
 
-  // The files that could legitimately consume a scope id: the tool handlers and
-  // the system prompt. NOT requestScope.ts itself (which only produces them) and
-  // not the tests.
+  // `toolDefs.ts` IS DELIBERATELY NOT IN THIS LIST, and leaving it in was the
+  // round-2 BLOCKER. It holds the `ChatScope` INTERFACE — the declaration is the
+  // thing under test, not evidence about it. With `toolDefs.ts` counted as a
+  // consumer, adding `callId?: string` to `ChatScope` and to `clientScopeIds`
+  // reproduced round 1's exact defect and this test stayed GREEN, because the
+  // type declaration contains the identifier. A guard that reads its own subject
+  // as proof certifies an untrue premise (M2) — worse than no guard, because the
+  // evidence file then claimed the shape was mechanically closed.
+  //
+  // Consumption means the id is READ where behaviour happens: a tool handler, the
+  // loop, the prompt, the mode decision.
   //
   // COMMENTS ARE BLANKED FIRST, and that is not defensive tidiness — it is the
   // difference between this test working and this test lying. `toolDefs.ts` now
@@ -116,7 +124,7 @@ test('every scope id the backend ACCEPTS is consumed by the backend', () => {
   // search finds that comment, concludes the id is consumed, and goes green on
   // precisely the defect it exists to catch. app.md files this exact trap ("a grep
   // hits prose") and the `DEMO_USER_ID` guard blanks comments for the same reason.
-  const consumers = ['tools.ts', 'toolDefs.ts', 'systemPrompt.ts', 'loop.ts', 'mode.ts']
+  const consumers = ['tools.ts', 'systemPrompt.ts', 'loop.ts', 'mode.ts']
     .map((f) => readFileSync(join(dir, f), 'utf8'))
     .join('\n')
     .replace(/\/\*[\s\S]*?\*\//g, ' ')

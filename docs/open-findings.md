@@ -59,3 +59,20 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   reason. **Spec §5's ≤ $0.06/answer budget must not be justified by prompt caching** until the
   static block clears the minimum, at which point the breakpoint goes on the last static block.
   The ticket's cost acceptance has never been measured against a real answer either.
+- **More pre-joined mixed-language labels exist, outside the chat surface** (recorded 2026-08-14,
+  ticket 07). The bidi law's remedy is a `<bdi>` per run, and its VERIFY step says to grep the
+  CONSTRUCT rather than fix the component — because fixing one instance is what hid the others.
+  Ticket 07 fixed the transcript chip by making `page.tsx` pass `company` and `quarter` separately
+  instead of pre-joining them, since a concatenated string cannot be isolated by whatever renders
+  it. Grepping that construct (`\`${…} · ${…}\``, `\`${…} — ${…}\``) finds more RENDERED instances
+  the same argument applies to:
+  `src/components/live/LiveTranscriptView.tsx:215` (`${name} — ${call.quarter}`),
+  `src/components/company/DocumentsTab.tsx:229` (`${dict.company.transcript} · ${p.period}`),
+  `src/components/company/AddInvestorCall.tsx:33` (`${dict.company.queued} · ${res.id}`),
+  `src/components/workspace/SourceDocument.tsx:493` (title · page label).
+  **Not fixed here, deliberately** — each is a different surface with its own verification, and
+  ticket 07 is the chat surface; fixing them blind is exactly the "fixed one instance" move the law
+  warns about. **Not a law and not a blocker.** The `lib/chat2/*`, `lib/chat/*`, `lib/corpus/*` and
+  `aria-label` hits from the same grep are NOT instances: they build model-prompt text or
+  screen-reader strings, neither of which is a bidi-rendered line.
+  Whoever touches one of those four surfaces should fix it there, at the construct. → `#bidi-bdi`
