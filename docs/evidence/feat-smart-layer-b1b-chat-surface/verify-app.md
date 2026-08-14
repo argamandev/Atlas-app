@@ -243,6 +243,19 @@ Both controls are now gated on the **scope** (`companyId`), not on the name. An 
 renders `@a company` / `@חברה` (new copy, both locales) rather than disappearing. The escape hatch
 exists precisely when the name is missing.
 
+**DRIVEN, not reasoned about.** The state was reproduced end to end: start unscoped, fail only
+`/api/companies/<uuid>` (the lookup `adoptResolvedCompany` uses), then ask a question naming a
+company so the SERVER resolves it via `resolve_company`. The chip row then reads:
+
+| locale | chip row |
+| --- | --- |
+| en | `@a company` · `Search the whole market instead` |
+| he | `@חברה` · `חיפוש בכל השוק במקום` |
+
+Before the fix that row was empty. Also re-checked that the ordinary company entry point
+(`?company=<id>`) still renders its chip WITH the logo and offers the unpin control — the gating
+change from `companyName` to `companyId` did not disturb it. Zero console errors.
+
 ## NIT — other callers of `searchCompanies`
 
 Accepted and stated: `searchCompanies` also feeds `HomeSearch` and `CompanyOverview`, whose result
