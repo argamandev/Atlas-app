@@ -414,7 +414,12 @@ export function ChatView({
           role: 'assistant' as const,
           content: full,
           projectContext: projectContext ?? null,
-          truncated: outcome.incomplete != null,
+          // THROUGH THE CHOKE POINT, like every other answer to this question.
+          // `outcome.incomplete != null` inline was correct today and was still
+          // the wrong shape: it is a second opinion sitting one screen below the
+          // history mapper, where the identical inline guess had just been
+          // removed for missing a field. One function decides "is this partial".
+          truncated: truncatedForPersist({ incomplete: outcome.incomplete }),
         },
       ]
       let cid = conversationId
@@ -533,7 +538,15 @@ export function ChatView({
     <div className="relative mx-auto w-full max-w-2xl">
       {/* context tags (company / transcript). The quoted excerpt now lives inside the
           composer as its warm reference header (unified two-toned box). */}
-      {(companyName || transcript || (useV2 && shownMode)) && (
+      {/* `companyId` LEADS THIS CONDITION (round-3 review). The inner branches
+          were fixed to gate on the scope rather than the name, but this enclosing
+          one still asked for `companyName` — so on the OLD route (project chat,
+          where `useV2` is false and `shownMode` cannot rescue it) a real company
+          scope with a missing name rendered no row at all, and the fix one level
+          down never got the chance to run. Fixing the inner guard while the outer
+          one still decides on a proxy is the same defect wearing a smaller hat
+          (M3.1/M3.2). */}
+      {(companyId || companyName || transcript || (useV2 && shownMode)) && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {/* GATED ON `companyId`, NOT ON THE NAME (round-2 review). When the
               server resolved a company mid-turn and `adoptResolvedCompany`'s name

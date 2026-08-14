@@ -130,7 +130,23 @@ test('every scope id the backend ACCEPTS is consumed by the backend', () => {
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/\/\/[^\n]*/g, ' ')
 
-  const orphans = accepted.filter((id) => !consumers.includes(id))
+  // A VALUE-POSITION READ, not a substring. Round 3's BLOCKER: removing
+  // `toolDefs.ts` from the list fixed the INSTANCE and not the CLASS — declaring
+  // `callId` on `ModeFacts` in `mode.ts` (still a listed consumer) sailed through,
+  // because the identifier was present as a bare type annotation. Twice now this
+  // guard has certified an untrue premise (M2), both times because a substring
+  // cannot tell "declared" from "used".
+  //
+  // The discriminator is the DOT. A read is always `scope.companyId` /
+  // `facts.companyId`; a declaration is always `companyId?: string` with nothing
+  // before it. Verified against every consumer in the tree above.
+  //
+  // STATED LIMIT, and it fails SAFE: a destructured read (`const { companyId } =
+  // scope`) has no dot and would be reported as an orphan. No consumer uses that
+  // form today. If one ever does, this test fails loudly and tells the author to
+  // widen the pattern — a false alarm, never a false pass, which is the only
+  // direction a guard like this may be wrong in.
+  const orphans = accepted.filter((id) => !new RegExp(`\\.\\s*${id}\\b`).test(consumers))
   assert.deepEqual(
     orphans,
     [],

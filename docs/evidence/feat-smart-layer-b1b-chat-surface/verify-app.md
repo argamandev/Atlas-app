@@ -216,8 +216,12 @@ This is worse than the original defect. A guard that reads its own subject as pr
 untrue premise** (M2), and the round-2 section above stated the shape was mechanically closed. That
 sentence has been marked corrected in place rather than deleted.
 
-Fixed: `toolDefs.ts` removed from the consumer list. Consumption now means the id is read where
-behaviour happens — `tools.ts`, `loop.ts`, `systemPrompt.ts`, `mode.ts`.
+**CORRECTED AGAIN AT ROUND 3 — this claim was ALSO false.** Removing `toolDefs.ts` fixed the
+INSTANCE, not the class: declaring `callId` on `ModeFacts` in `mode.ts` (still a listed consumer)
+sailed through, because a substring cannot tell "declared" from "used". See round 4 below for the
+version that holds and for what it actually proves.
+
+Fixed at round 2: `toolDefs.ts` removed from the consumer list.
 
 **Re-proved with the reviewer's own injection** (the one that defeated the previous guard): with
 `callId` in `clientScopeIds` **and** `ChatScope`, the guard now FAILS; restoring, 9/9 pass. The
@@ -265,5 +269,66 @@ ordering is by match quality, so an exact hit ranks at least as well as it did �
 surfaces were **not** driven, and that is a limit of this evidence, not a claim about them.
 
 ## Battery after round 3
+
+**986/986 green**, `tsc` clean.
+
+---
+
+# Round 4 — after the third cold review
+
+Round 3 returned **CHANGES**: 1 BLOCKER, 1 WARNING, 1 NIT. All three were the same mistake in three
+places — **I fixed the instance and claimed the class.** Recording that plainly, because it is the
+actual lesson of this branch and it cost three review rounds.
+
+## BLOCKER — the guard was defeated a second time, by a different door
+
+Round 2's fix removed `toolDefs.ts` from the consumer list. Round 3 declared `callId` on
+`ModeFacts` in `mode.ts` — still a listed consumer — and the guard stayed green. A substring search
+cannot tell a declaration from a use, so removing one file only moved the hole.
+
+**The version that holds** uses the discriminator the two shapes actually differ by: a read is
+always `scope.companyId` / `facts.companyId`; a declaration is always `companyId?: string` with
+nothing before it. The guard now requires a **value-position read** — `/\.\s*<id>\b/` — not a
+substring.
+
+**Proved against BOTH earlier defeats**, not just the newest one:
+
+| injection | previous guard | current guard |
+| --- | --- | --- |
+| `callId` declared on `ChatScope` in `toolDefs.ts` (round 2's defeat) | green ✗ | **fails ✓** |
+| `callId` declared on `ModeFacts` in `mode.ts` (round 3's defeat) | green ✗ | **fails ✓** |
+| nothing injected | green | green (9/9) |
+
+**What it proves, stated at its real strength** (the previous two statements of this were both too
+strong): the id is READ in a value position somewhere in the consuming files. It does not prove the
+read changes an answer — a read inside a dead branch would still pass. It fails **safe** in the
+other direction too: a destructured read (`const { companyId } = scope`) has no dot and would be
+reported as an orphan. No consumer uses that form today; if one appears, the test fails loudly and
+asks the author to widen the pattern. A false alarm, never a false pass.
+
+## WARNING — the same instance/class mistake, in the chip row
+
+Round 2 changed the two *inner* branches to gate on `companyId` instead of `companyName`, but the
+*enclosing* row condition still asked for `companyName`. On the old route — project chat, where
+`useV2` is false and `shownMode` cannot rescue it — a real company scope with a missing name still
+rendered nothing, and the inner fix never got to run. `companyId` now leads that condition.
+
+## NIT — a second opinion beside the choke point, again
+
+The freshly persisted turn wrote `truncated: outcome.incomplete != null` inline, one screen below
+the history mapper where the identical inline guess had just been removed for missing a field.
+Both now ask `truncatedForPersist`.
+
+## The honest summary of this branch's review history
+
+Three rounds, and the recurring failure was not any single defect — it was **claiming a class was
+closed when only an instance was**. It happened to the mode chip (fixed the chips, missed the
+hint), to the scope guard (twice), and to the chip row (fixed the inner branches, missed the
+outer). Two of those overclaims were written into this evidence file as proof, which is the part
+that matters: `docs/case-history` exists because a mechanism that looks stronger than it is, is
+worse than one honestly marked partial. Both false sentences above are marked corrected in place
+rather than deleted.
+
+## Battery after round 4
 
 **986/986 green**, `tsc` clean.
