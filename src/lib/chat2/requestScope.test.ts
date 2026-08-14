@@ -153,14 +153,26 @@ test('every scope id the backend ACCEPTS is consumed by the backend', () => {
   //
   // STATED LIMIT, honestly, because the previous two versions of this note
   // overclaimed and one of them said "a false alarm, never a false pass" while a
-  // false pass existed in the tree: this matches reads through a variable NAMED
+  // false pass existed in the tree: this matches NON-ASSIGNMENT reads through a variable NAMED
   // `scope` or `facts`. A consumer that destructures (`const { companyId } =
   // scope`) or names its parameter something else would be reported as an orphan
   // — a false alarm, which is the safe direction and is fixed by widening this
   // pattern deliberately. What it still cannot see is a read on some OTHER object
   // that a future author also calls `scope`. It proves the id is read off a
   // scope-shaped object; it does not prove the read changes an answer.
-  const orphans = accepted.filter((id) => !new RegExp(`\\b(scope|facts)\\.\\s*${id}\\b`).test(consumers))
+  // ...AND NOT A WRITE. `resolve_company` does `scope.companyId = companyId`
+  // (tools.ts:98) — an assignment, not a use. Round 5 deleted every real READ, left
+  // that one write, and the guard stayed GREEN: an id that is only ever stored and
+  // never consulted is precisely the defect this exists to catch. The lookahead
+  // excludes a following `=` while keeping `==`/`===` and every ordinary read
+  // (`scope.companyId ?? x`, `scope.companyId)`, `!scope.workspaceId`).
+  const orphans = accepted.filter(
+    // The whitespace lives INSIDE the lookahead deliberately. Written as
+    // `\\b\\s*(?!=[^=])` the `\\s*` backtracks to zero width and the lookahead
+    // then inspects the space rather than the `=`, so the write matched anyway —
+    // caught by running the mutation instead of trusting the pattern.
+    (id) => !new RegExp(`\\b(scope|facts)\\.\\s*${id}\\b(?!\\s*=[^=])`).test(consumers)
+  )
   assert.deepEqual(
     orphans,
     [],

@@ -4,17 +4,16 @@ Branch `feat/smart-layer-b1b-chat-surface`. Reviewer: `atlas-reviewer` subagent,
 dispatch per round. Full narrative and the browser evidence are in `verify-app.md`; this file is the
 tracked verdict list.
 
-REVIEWED: b904728 — the sha round 4 actually read (the reviewer confirmed it followed the tip
-there mid-review).
+REVIEWED: 15440e0 — the sha round 5 read.
 
-VERDICT: CHANGES — carried from round 4, and deliberately NOT upgraded by me. Every finding
-below is answered and the battery is green, but the round-4 answers themselves have not been read by
-a cold reviewer, and this branch's whole history is that my own confidence about a fix was wrong four
-times running. A round 5 against the current tip is what turns this into APPROVED; until it returns,
-the honest state of this file is the last verdict a reviewer actually gave.
+VERDICT: CHANGES — round 5's verdict, and deliberately NOT upgraded by me. Every code finding is
+answered and the battery is green, but two of the laws named in recurrence answers still declare a
+mechanism tier the ship gate refuses (see round 5's BLOCKER), and closing those is a founder
+decision rather than mine. This branch's whole history is that my own confidence about a fix was
+wrong five times running, so the honest state of this file is the last verdict a reviewer gave.
 
-**Rounds: 4.** Every round found something real. The
-recurring failure across all four was one thing, and it is worth naming at the top rather than
+**Rounds: 5.** Every round found something real. The
+recurring failure across all five was one thing, and it is worth naming at the top rather than
 burying: **I repeatedly fixed the INSTANCE and claimed the CLASS**, twice writing the overclaim into
 the evidence file as proof.
 
@@ -26,7 +25,7 @@ FINDING · BLOCKER · `src/components/chat/ChatView.tsx` · `transcriptId` was u
 `ChatScope` and read by no tool and no prompt, while `/app/chat?transcript=` rendered a chip naming
 that call — the surface promising a grounding the backend had dropped.
 RECURRENCE: yes → Degradation must be VISIBLE
-dropped." Answered by moving the law off prose for this shape: `transcriptId` removed from
+Answered by moving the law off prose for this shape: `transcriptId` removed from
 `clientScopeIds`/`ChatScope` so the state is unrepresentable, `useV2 = !projectId && !transcript`,
 and a new battery guard in `requestScope.test.ts` that every accepted id is consumed. That guard
 then failed twice more — see rounds 2 and 3.
@@ -35,7 +34,7 @@ FINDING · BLOCKER · `ChatView.tsx` · `searchModeHint` gated on `mode` rather 
 after pinning a company the screen kept saying "No company was identified" beneath the `@company`
 chip — the same contradiction fixed for the chips one JSX block above, in the same commit.
 RECURRENCE: yes → Anything that decides what a screen SAYS
-in a browser, in both locales, before it merges." Answered by renaming the raw state
+Answered by renaming the raw state
 `reportedMode`, so a render reaching for "what the server last reported" announces itself (M3.3),
 and by driving the pinned/unpinned states in both locales.
 
@@ -56,7 +55,7 @@ it is testable at all (8 tests, both directions).
 FINDING · NIT · `ChatView.tsx` · The transcript chip rendered `${company} · ${quarter}` as one
 un-isolated mixed Hebrew/Latin line.
 RECURRENCE: yes → A line mixing Hebrew and Latin
-PRE-JOINED upstream, so the renderer had no runs left to wrap and `git grep 'dir="ltr"'` — the
+8th recorded occurrence, and a NEW SHAPE: the line was PRE-JOINED upstream, so the renderer had no runs left to wrap and `git grep 'dir="ltr"'` — the
 command the 5th occurrence left behind — cannot see it. Answered by fixing the CONSTRUCT
 (`page.tsx` passes the parts separately), recording the occurrence and its addendum in
 `docs/case-history/app.md`, folding the new rule into the law's own sentence, correcting the
@@ -79,20 +78,20 @@ FINDING · BLOCKER · `src/lib/chat2/requestScope.test.ts` · The round-1 mechan
 `toolDefs.ts` — which holds the `ChatScope` interface — as a consumer, so an id declared there and
 read by nothing passed. The evidence file claimed the shape was mechanically closed.
 RECURRENCE: yes → Degradation must be VISIBLE
-`toolDefs.ts` from the list and re-proving with the reviewer's own injection. This answer was
-itself insufficient — see round 3.**
+Answered by removing `toolDefs.ts` from the list and re-proving with the reviewer's own injection.
+This answer was itself insufficient — see round 3.
 
 FINDING · WARNING · `ChatView.tsx` · The history label read `incomplete || truncated`, its own
 two-field guess at a question `truncatedForPersist` answers from three; it missed
 `errorKind: 'truncated'`, reachable on exactly the route `useV2` keeps alive.
 RECURRENCE: yes → Degradation must be VISIBLE
-`truncatedForPersist`.
+Answered by routing through `truncatedForPersist`, the shared choke point.
 
 FINDING · WARNING · `ChatView.tsx` · A server-resolved company whose name lookup failed left
 `companyId` set and `companyName` null, so no chip, no unpin and no search chip rendered — the chat
 silently scoped to a company the user could neither see nor undo.
 RECURRENCE: yes → Degradation must be VISIBLE
-gating both controls on the scope rather than the name, with `pinnedUnknownCompany` copy in both
+Answered by gating both controls on the scope rather than the name, with `pinnedUnknownCompany` copy in both
 locales, and by DRIVING the state end to end (fail `/api/companies/<uuid>`, let the server resolve).
 
 FINDING · NIT · `db/companies.ts` · `searchCompanies` also feeds `HomeSearch` and
@@ -111,24 +110,25 @@ consumption — declaring `callId` on `ModeFacts` in `mode.ts`, still a listed c
 green. Removing `toolDefs.ts` had fixed the instance, not the class, while the evidence claimed
 "consumption now means the id is read where behaviour happens".
 RECURRENCE: yes → Degradation must be VISIBLE
-reviewer suggested: the guard now requires a value-position read** (`/\.\s*<id>\b/`), since a read
+Answered one tier up: the guard now requires a value-position read (`/\.\s*<id>\b/`), since a read
 is always `scope.companyId` and a declaration is always `companyId?: string` with nothing before it.
 Proved against BOTH prior defeats, not just the newest. Its strength is now stated at its real
 level: it proves the id is read somewhere, NOT that the read changes an answer. **Round 4 then
-proved even this answer wrong — see below.
+proved even this answer wrong — see below.**
 
 FINDING · WARNING · `ChatView.tsx` · The enclosing chip-row condition still keyed on `companyName`,
 so on the old route a real scope with a missing name rendered no row and the round-2 inner fix never
 ran.
 RECURRENCE: yes → Degradation must be VISIBLE
-`companyId`, then dropping `companyName` from it entirely — it was redundant and was the only path
+`companyId`Answered by leading the condition with , then dropping `companyName` from it entirely — it was redundant and was the only path
 that could render an EMPTY row. Driven per state (blank → no row; transcript-only; company-scoped;
 unnamed scope).
 
 FINDING · NIT · `ChatView.tsx` · The persisted turn wrote `truncated: outcome.incomplete != null`
 inline, one screen below where the identical inline guess had just been removed.
 RECURRENCE: yes → Degradation must be VISIBLE
-checked numerically across `undefined`, `null` and three real codes rather than assumed.
+Answered by routing through `truncatedForPersist`, with equivalence checked numerically across
+`undefined`, `null` and three real codes rather than assumed.
 
 ---
 
@@ -158,6 +158,48 @@ accepted ids, so it fired before the scope guard whenever a field was added and 
 mechanism caught what.
 RECURRENCE: no
 Now asserts the property without naming the ids.
+
+---
+
+## Round 5 — VERDICT: CHANGES (1 BLOCKER, 2 WARNING, 1 NIT)
+
+Cleared: no DB/schema touch (both alias error paths raised, no silent narrowing), no Wave-2 gateway
+imports, no secrets in the two scripts, the bidi fix at the construct, `truncatedForPersist` as the
+single choke point for both the persisted turn and the model-facing history, `NdjsonEvents` framing
+and its `finally`-synthesised terminal, `incompleteMessage` exhaustive in both dictionaries, and
+every new test file registered.
+
+FINDING · WARNING · `src/lib/chat2/requestScope.test.ts:171` · The guard's regex was satisfied by a
+WRITE — `resolve_company` does `scope.companyId = companyId` — so deleting every real read while
+leaving that assignment kept it green, and the stated limit still claimed more than it measured.
+RECURRENCE: yes → Degradation must be VISIBLE
+Answered with a negative lookahead excluding assignment. The FIRST version of that lookahead
+backtracked to zero width and still matched the write; caught by running the mutation rather than
+trusting the pattern. Both mutations now fail the guard, and the limit reads "non-assignment reads".
+
+FINDING · NIT · `docs/evidence/feat-smart-layer-b1b-chat-surface/verify-app.md:390` · The proof
+table listed only the "all references deleted" mutation, reading as a stronger guarantee than the
+guard gave.
+RECURRENCE: no
+Both mutations are now listed, including the one that defeated it.
+
+FINDING · WARNING · `.claude/rules/app.md:186` · The always-on set sat at exactly 9250/9250, so the
+enforcement paragraph this branch owes could not land.
+RECURRENCE: no
+Answered in the reviewed tip's successor: the budget was raised to 9,350 with its reasoning in
+`scripts/lib/env-manifest.mjs`, after trimming STATUS.md from 887 to ~640 tokens first.
+
+FINDING · BLOCKER · `docs/evidence/feat-smart-layer-b1b-chat-surface/review.md:34` · Three findings
+answer RECURRENCE: yes against laws whose ENFORCED declaration is unchanged, so the ship gate
+refuses this merge.
+RECURRENCE: yes → Anything that decides what a screen SAYS
+PARTIALLY ANSWERED, and the remainder is deliberately left to the founder. `Degradation must be
+VISIBLE` gained a real third tier on this branch (`chat2/requestScope.test.ts`). The other two are
+not mine to close: the screen-states law is `ENFORCED none` whose natural tier is a review ritual
+gate that does not exist, and marking a law UNENFORCEABLE is a founder decision; the bidi law at
+`partially` needs a second surface test, which carries a real design choice. **The gate is correctly
+refusing this merge, and that refusal is the honest state of the branch — not a formatting problem
+to be worked around.**
 
 ---
 

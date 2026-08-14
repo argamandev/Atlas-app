@@ -390,11 +390,26 @@ the receiving object is matched too: `\b(scope|facts)\.<id>\b`.
 | every `scope.`/`facts.` `companyId` read deleted | yes | **fails ✓** (was green) |
 | restored | yes | passes (9/9) |
 
+> **CORRECTED AT ROUND 5 — this table was incomplete, and the missing row was a defeat.**
+> It listed only the "all references deleted" mutation, which reads as a stronger guarantee than the
+> guard gave. `resolve_company` WRITES `scope.companyId = companyId` (tools.ts:98), and deleting
+> every real READ while leaving that write kept the guard green: an id only ever stored and never
+> consulted is exactly the defect it exists to catch. Fixed with a negative lookahead — and the
+> first version of THAT backtracked to zero width so the write still matched, caught by running the
+> mutation rather than trusting the pattern. Both mutations now fail the guard.
+
+| mutation | guard |
+| --- | --- |
+| every `scope.`/`facts.` READ deleted, the write kept | **fails** |
+| every read deleted including the write | **fails** |
+| untouched | passes (9/9) |
+
 ## WARNING — my own claim was false, again
 
 "A false alarm, never a false pass" was written while a false pass existed in the tree. Corrected in
 place above and in the test header. The limit is now stated at its real strength: the guard matches
-reads through a variable *named* `scope` or `facts`; a destructure or a differently-named parameter
+non-assignment reads through a variable *named* `scope` or `facts` (round 5: the earlier wording
+said "reads" while a bare WRITE satisfied it); a destructure or a differently-named parameter
 false-alarms (safe); a future unrelated object also called `scope` would still slip through. It
 proves the id is read off a scope-shaped object — **not** that the read changes an answer.
 
