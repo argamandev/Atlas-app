@@ -1164,3 +1164,36 @@ the live hole fixed in the same session.
   Anthropic call HTTP 200 (the LOCAL key; Railway's is untouched) · new tests proven red against
   the defect before being trusted · `env:health` 9,227/9,250 · unenforced laws 14 on branch, 15 on
   main.
+
+## 2026-08-14 — Ticket 05 closed: the corpus finishes, the gate re-runs, four findings cleared (`feat/a5-followup-embedding-gate`)
+
+- **The embedding backfill finished.** 738 of 1,296 documents were unembedded at handoff; three
+  idempotent passes (`backfill-maya-corpus.ts`, no re-download, no re-spend) plus a targeted repair
+  for 8 documents that had fallen out of the "latest of each" selection window while still `failed`
+  (`syncCompanyFilings` only revisits the currently-selected set, so a superseded-but-failed filing
+  is invisible to every later pass — repaired directly through `reindexDocument`, the same
+  production door) brought the corpus to 1,298 of 1,300 indexed. Two large annual reports (426 and
+  537 pages) still fail on `atlas_replace_chunks`'s bulk insert — a real scale-tail, named in
+  `gate.md`, not silently retried forever.
+- **A genuine infra incident, not a code defect:** the Supabase project's compute saturated (CPU
+  98%, disk IO 100%) under the backfill's write load partway through, cascading into
+  `statement_timeout`/PostgREST schema-cache errors on unrelated reads for ~40 minutes. Diagnosed
+  as infrastructure rather than a query bug before touching anything; the founder raised the
+  compute tier and the remaining passes completed cleanly.
+- **The retrieval gate re-ran and found a real regression.** `docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`:
+  dense MRR roughly halved unscoped (0.254→0.131) and down ~27% scoped (0.268→0.195) against A4's
+  baseline, because A4 never actually exercised the HNSW index — A5's 98K chunks are the first
+  measurement where the ANN approximation is real. The MUST-PASS alias case now fails unscoped,
+  holds only scoped. `run.mjs` gained `--dense-only` after the full 5-design `--real` run failed
+  outright: the first design tried (`L-real`, unscoped lexical) sorted every GIN-matched row by an
+  unindexed `ts_rank_cd` and blew PostgREST's 8s statement timeout — a channel production no longer
+  ships, not a corpus-size defect. An index-tuning attempt (`m=32, ef_construction=128`) did not
+  land cleanly; founder decision: defer to a dedicated parallel retrieval PRD/grill session rather
+  than guess at a fix overnight, and move on to tickets 06/07 in the meantime.
+- **The four review findings deferred from A5's merge are cleared:** `ship-gate.mjs` now refuses a
+  red battery instead of silently certifying it; a stale `periodFor` comment fixed; a closed UTC
+  leak removed from `open-findings.md`; and `syncFilings.ts`'s `NO_PAGES` re-ingest path now shares
+  the same 23505 race recovery as the not-held path (previously it could report a raw duplicate-key
+  message and re-download forever), with a new regression test.
+- **Verified:** all four cleared findings' tests pass; `syncFilings.test.ts` 17/17 including the new
+  race-recovery case; `tsc` clean on every file this branch touched.

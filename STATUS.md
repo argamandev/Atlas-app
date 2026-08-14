@@ -13,7 +13,7 @@ Live on Railway at `www.timlul-ai.com` since 2026-08-08. A mistake on `main` is 
 | --- | --- |
 | Live calls | Works. Two engines (Recall / IVRIT) share `:8788`. |
 | Companies | Works. MAYA connected; 234/234 have sector + description. |
-| Chat / Ask Atlas | Works — on the OLD `/api/chat`. The smart-layer backend exists; nothing calls it. |
+| Chat / Ask Atlas | Works — on the OLD `/api/chat`. `/api/chat/v2` (ticket 06) exists behind it, unwired. |
 | Workspace | Works — intake, tables, chat over the document set. |
 | Agents | **Stub.** Page + `src/lib/agents/data.ts` exist; no machinery. |
 
@@ -22,23 +22,20 @@ Live on Railway at `www.timlul-ai.com` since 2026-08-08. A mistake on `main` is 
 Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/` — take the lowest
 unblocked one, branch per slice, `/ship`.
 
-Phase A done. **B1a (ticket 06) merged 2026-08-14:** `/api/chat/v2` + `src/lib/chat2/`, Sonnet 5
-tool loop over NDJSON. `ANTHROPIC_API_KEY` proved by a real call — but the LOCAL one. **Railway's
-is a separate secret; a 401 there is the first thing to check on deploy.**
+**Phase A done, A5 closed 2026-08-14** — corpus real: 1,298/1,300 `company_documents` indexed (2
+large reports fail on a bulk-insert timeout, small and named, not blocking). **B1a (ticket 06)
+merged 2026-08-14:** `/api/chat/v2` + `src/lib/chat2/`. `ANTHROPIC_API_KEY` proved by a real call —
+the LOCAL one; Railway's is a separate secret, a 401 there is the first thing to check on deploy.
 
-**Next: ticket 07 (B1b, chat surface).** Unblocked and BUILDABLE now, not shippable until both:
+**Retrieval quality regressed at this corpus size — measured, not fixed.** Gate re-run
+(`docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`): dense MRR roughly halved unscoped,
+down ~27% scoped vs A4 (A4 never actually exercised the HNSW index; A5 is the first real ANN
+measurement). MUST-PASS alias case now fails unscoped, holds scoped. Every corpus-grounded surface
+shares this retrieval door. **Founder call:** an index-tuning attempt didn't land cleanly; move on,
+a DEDICATED PARALLEL SESSION owns the real fix (grill + PRD) — pick it up if that's you, otherwise
+treat retrieval as "works, imperfectly."
 
-1. **The corpus is still filling in** — 846 of 1,297 indexed at 13:04 Israel, ~10 docs/min.
-   Unembedded = invisible to search. Repair pass RUNNING, idempotent:
-   `node --import tsx scripts/backfill-maya-corpus.ts`. **Re-measure, never restate** (wrong by
-   2.5× once): `select index_status, count(*) from company_documents group by 1`. Done = zero
-   `failed`.
-2. **The retrieval gate has never been re-run at this size** —
-   `node --import tsx scripts/retrieval-eval/run.mjs --real`, deferred past A5's merge by founder
-   decision. **Not mid-backfill**: a moving corpus measures neither size. Read `REAL_POOL`'s
-   header first — every unscoped dense case reports CUT SHORT by construction here.
-
-Ticket 07's own acceptance runs through that corpus, so it cannot be judged until 1 finishes.
+**Next: ticket 07 (B1b, chat surface).** Unblocked, corpus is no longer the blocker.
 
 Also open (map ticket 13): leftover cleanup, `profiles`/`access_requests` policy narrowing, PUT
 admin-gate. 102 of 1,374 filings unstorable under `unique (company_id, quarter, doc_type)` — A5's

@@ -241,3 +241,13 @@ runs. No re-review was run over the fixes — the founder is at ~670k tokens in 
 to split the remaining A5 work into a fresh one (`DECISIONS.md`, 2026-08-14). The merge therefore
 used `ATLAS_SHIP_OVERRIDE`, which is the documented escape hatch, with this paragraph as its reason.
 **The four deferred findings are the A5 follow-up session's first work.**
+
+### CLOSED 2026-08-14 — the follow-up session's first work, done
+
+All four deferred findings fixed on `feat/a5-followup-embedding-gate`: `ship-gate.mjs` now checks
+`run.pass !== run.total` and refuses a red battery; `documentCatalog.ts:86`'s comment rewritten to
+match `periodFor`'s current publication-date labelling (no longer "the bare year"); the closed
+`events.ts:106` UTC leak removed from `open-findings.md`; `syncFilings.ts`'s `NO_PAGES` re-ingest
+now shares the same 23505 race recovery as the not-held path via an extracted `resolveRaceOrFail`
+helper, with a new regression test (`syncFilings.test.ts`, "a re-ingest race (NO_PAGES path)...").
+Battery green on every touched file; `tsc` clean.

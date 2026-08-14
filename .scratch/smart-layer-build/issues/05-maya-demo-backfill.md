@@ -1,36 +1,27 @@
 # A5 · MAYA demo backfill + freshness
 
-Status: MERGED to main 2026-08-14, with TWO THINGS OPEN. Read those first.
+Status: DONE — closed 2026-08-14. Both owed items from the merge are finished and filed; read
+"What closed, and what stays open" below before picking up related work.
 Blocked by: 04 (landed)
 
-## OPEN · what a session picking this up does, in order
+## What closed, and what stays open
 
-**1 · Finish the embedding.** The Gemini prepaid credits ran out mid-backfill and were topped up
-(founder, 2026-08-14). A repair pass may still be running; if not, run it — it is idempotent and
-costs nothing for what is already indexed:
+**1 · Embedding finished.** The corpus is 1,298 of 1,300 `company_documents` indexed. Two documents
+(426 and 537 pages) remain `index_status = 'failed'` after several repair passes — `atlas_replace_chunks`
+hits `canceling statement due to statement timeout` on their bulk chunk insert every time. This is
+a structural scale-tail (a real design question for that function, batching the insert), not a
+retry problem, and is small enough (2 of 1,300) not to block the gate. Named, not rounded off.
 
-    node --import tsx scripts/backfill-maya-corpus.ts
-
-Check progress at `/app/admin/corpus`, or
-`select index_status, count(*) from company_documents group by 1`. Done = zero rows `failed`.
-Documents that are ingested but unembedded are INVISIBLE to search (dense retrieval filters on
-`embedding is not null`) — honest, but a thinner corpus than the document count suggests.
-
-**2 · Re-run the retrieval gate. THIS IS A5'S OWN ACCEPTANCE AND IT WAS DEFERRED PAST THE MERGE**
-by founder decision (`DECISIONS.md`, 2026-08-14) to unblock ticket 06. It gates B1 SHIPPING, not
-B1 starting.
-
-    node --import tsx scripts/retrieval-eval/run.mjs --real
-
-Compare against `docs/evidence/feat-smart-layer-a4-backfill/gate.md`, and file the result in
-`docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`.
-
-**Read `REAL_POOL`'s header in `run.mjs` BEFORE reading the numbers.** At this corpus size
-`hnsw.ef_search` is clamped at 1000, so every unscoped dense case will report CUT SHORT by
-construction. That is not a regression. What the run exists to answer is whether HNSW's
-approximation costs ranking quality now that the index really engages — A4 measured with the
-planner seq-scanning 3,181 rows, which is not the same thing. A drop is an index-tuning problem
-(`m`, `ef_construction`, `ef_search`), not a design one.
+**2 · The retrieval gate re-ran. Filed at `docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`.**
+Headline: dense retrieval quality DROPPED at this corpus size — MRR roughly halved unscoped (0.254
+→ 0.131), down ~27% scoped (0.268 → 0.195), and the MUST-PASS alias case (14, `בז"א`) now fails
+UNSCOPED, holding only in the scoped design. This is real: A4 never actually exercised the HNSW
+index (the planner seq-scanned 3,181 rows), so its numbers described exact cosine, not the
+approximate ANN search production now runs. **Founder decision, 2026-08-14 (`DECISIONS.md`):** try
+a cheap fix (index tuning), and if it doesn't resolve cleanly, move on to tickets 06/07 and open a
+dedicated PRD/grill session for retrieval quality rather than guess at a fix overnight. The index
+rebuild attempt (`m=32, ef_construction=128`) did not complete cleanly (see `gate.md`'s "What was
+tried" section) and is left for that dedicated session, not this ticket.
 
 **Open, not blocking:** 102 of 1,374 selected filings cannot be stored under
 `unique (company_id, quarter, doc_type)` — measured, named per filing at run time, three ways out
@@ -60,10 +51,10 @@ run every ten minutes forever, exited 0, and ingested nothing.
 
 ## Both things A4 owed here
 
-1. **The ANN re-run is still OWED and is blocked on the real backfill.** `run.mjs --real`
-   is meaningless until the corpus is big enough to engage the index — that is the whole
-   point of it. Run it after the backfill and compare against
-   `docs/evidence/feat-smart-layer-a4-backfill/gate.md`.
+1. **The ANN re-run is DONE** — `docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`, compared
+   against `docs/evidence/feat-smart-layer-a4-backfill/gate.md`. It found what it was built to find:
+   HNSW's approximation costs real rank quality once the index actually engages. Founder-deferred
+   to a dedicated retrieval PRD session rather than fixed here.
 2. **The `truncated` blind spot is CLOSED** — migration 031. Note that the fix ticket 05
    prescribed (`saw = least(pool, in_scope)`) was right and my first version was not: I
    dropped the pool, which makes every production query read as truncated. Caught in
