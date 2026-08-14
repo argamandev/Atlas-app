@@ -1094,3 +1094,33 @@ the live hole fixed in the same session.
 - **Verified:** 810/810 across 86 files - `tsc` clean - `env:health` 8,995/9,000 (the
   slice's law changes paid for themselves by evicting provenance to case-history) -
   migrations 029 and 030 applied, `transcripts_company_required` now VALIDATED.
+
+## 2026-08-14 — Slice B1a: the smart layer gets its chat backend (`feat/a5-followup-embedding-gate`)
+
+- **`/api/chat/v2` + `src/lib/chat2/` (6 modules) — ticket 06.** A Sonnet 5 tool loop over the
+  corpus. The slice-1 blocker it kills: the old route re-emitted raw model text as the whole HTTP
+  body, so an upstream failure could only speak by writing prose INTO that same channel —
+  indistinguishable from a real answer once persisted. Here every event is TYPED; `error` and
+  `degraded` are their own kinds and no code path puts error text into a `delta`. The lie is
+  unrepresentable rather than guarded (app.md M3.3).
+- **Citations are verified at write, at the one choke point.** Every quote in a final answer is
+  checked against the pool of text this turn's tools actually returned — the real content, not a
+  proxy for it (M3.2). A failed check buys ONE retry with the offending quotes named; a second
+  failure degrades visibly instead of shipping an invented quote. Round-trip cap 4, and hitting it
+  ends the turn as a visible degradation, never a silent cutoff.
+- **The founder's word was checked, not trusted.** Ticket 06 recorded `ANTHROPIC_API_KEY` as set
+  "on his word; nothing here has verified it, so a 401 from Anthropic is the thing to check first
+  rather than the last." One real call: HTTP 200 from `claude-sonnet-5`. Note what that evidence
+  actually measured (M1) — the LOCAL key, not the Railway one, which is a separate secret and is
+  still unverified.
+- **Riding the same branch: A5's four deferred review findings, all closed.** `ship-gate.mjs` now
+  refuses a red battery instead of silently certifying it (the exact gap round 4 exposed);
+  `documentCatalog.ts`'s comment no longer claims a 270 deck gets the bare year; the closed
+  `events.ts` UTC leak left `open-findings.md`; and `syncFilings.ts`'s NO_PAGES re-ingest shares
+  the same 23505 race recovery as the not-held path, via an extracted `resolveRaceOrFail`.
+- **Nothing in the UI calls the new route yet** — that is ticket 07, and the split is deliberate.
+  B1a's acceptance is route-level and does not depend on the corpus; B1 does not SHIP until A5's
+  two open gates close (the corpus was 618 of 1,296 documents indexed at merge with the repair
+  pass running at ~3 docs/min, and the retrieval gate has never been re-run at this size).
+- **Verified:** 893/893 tests across 92 files · `tsc` clean · `npm run build` green · one live
+  Anthropic call HTTP 200 · unenforced-law count unchanged at 15 on branch and on main.
