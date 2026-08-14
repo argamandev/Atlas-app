@@ -200,3 +200,22 @@ complete and undersell nothing — the retrieval regression, the shared-branch i
 budget raise are all stated with numbers, not smoothed. `docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`
 states the MRR regression plainly in its own verdict table and is referenced identically (same numbers)
 from `STATUS.md` and `DECISIONS.md` — no softening found anywhere it is cited.
+
+## Round 4 — confirmation review
+
+Scope: fast, scoped confirmation of commit eb39c3d, the single commit landed since round 3's
+blocker. Not a full re-review of chat2 subsystem (rounds 1-3's job).
+
+Verified directly:
+1. `npm test` measures 935 pass / 935 total across the run — matches the count now stated in docs.
+2. `ARCHITECTURE.md:336` and `PROGRESS.md:1163` both state 935/935 across 95 files, matching each
+   other and the measured battery.
+3. `git diff d6a86ff..eb39c3d --stat` touches only `ARCHITECTURE.md` (1 line), `PROGRESS.md`
+   (1 line), and the append to this review file — round 3's blocker was the only thing this
+   commit changed; nothing else rode along.
+4. `npx tsc --noEmit` — clean, no output.
+
+REVIEWED: eb39c3dec20e392982ed07f7d4ca5ea565a46224
+
+VERDICT: APPROVED
+FINDINGS: none
