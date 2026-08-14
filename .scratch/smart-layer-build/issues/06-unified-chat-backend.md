@@ -1,7 +1,17 @@
 # B1a · Unified chat backend (server)
 
-Status: MERGED to main 2026-08-14 (`feat/a5-followup-embedding-gate`). Nothing open.
+Status: merged to main 2026-08-14 (`feat/a5-followup-embedding-gate`) after a round-1 cold review
+held it for two BLOCKERs. **Two acceptance items are substituted or unmeasured — named below.**
 Blocked by: 04 (landed)
+
+**What this ticket's acceptance did NOT get, stated rather than quietly closed:**
+- **Cost (≤ $0.06/answer) was never measured.** No real answer has been priced. And it must not be
+  justified by prompt caching: the static system block is ~361 tokens against Sonnet's 1,024-token
+  minimum cacheable prefix, so no caching occurs today (`docs/open-findings.md`).
+- **"Route tests" were substituted**, deliberately. `@/lib/auth` and `@/lib/supabase` construct a
+  live client at module load, so no test in this repo imports a `route.ts` directly. The 401 path
+  is proven structurally by `apiAuthBoundary.test.ts`; the wire format is proven at the unit the
+  route wraps (`loop.test.ts`, `tools.test.ts`). Defensible, but it is a substitution.
 
 **The unverified claim below is now verified.** `ANTHROPIC_API_KEY` was recorded on the founder's
 word; one real call was made before the merge and it answered **HTTP 200 from `claude-sonnet-5`**.

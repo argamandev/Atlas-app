@@ -1122,5 +1122,34 @@ the live hole fixed in the same session.
   B1a's acceptance is route-level and does not depend on the corpus; B1 does not SHIP until A5's
   two open gates close (the corpus was 618 of 1,296 documents indexed at merge with the repair
   pass running at ~3 docs/min, and the retrieval gate has never been re-run at this size).
-- **Verified:** 893/893 tests across 92 files · `tsc` clean · `npm run build` green · one live
-  Anthropic call HTTP 200 · unenforced-law count unchanged at 15 on branch and on main.
+- **Cold review held this branch at round 1 with two BLOCKERs, and they were the ticket's own
+  premise failing one level up.** `loop.ts` swore it "always ends in exactly one terminal event"
+  and did not: a `max_tokens` truncation and the round-trip cap both ended in `done`, the same
+  event a clean answer ends in — so `if (e.type === 'done') persist()` stored a severed answer as
+  finished. Worse, `loop.test.ts` ASSERTED that shape, so the mechanism meant to catch the
+  recurrence was aimed at the defect and approving it (M2). Fixed at the type, not with a guard:
+  `done` and `incomplete` are now distinct terminal events, so "complete but truncated" cannot be
+  expressed (M3.3). The compiler found every remaining site the moment the old event left the
+  union, and both new stop-reason tests were proven RED against the old behaviour before being
+  trusted.
+- **`Degradation must be VISIBLE` was promoted, as ADR-0002 requires of a `RECURRENCE: yes`** —
+  from `partially`/four-tests to **impossible** (for the chat stream) **+ test** (now six
+  surfaces). Story filed to `case-history`, not the rule.
+- **Six more findings closed, all of them a comment claiming more than the code did:** the quote
+  extractor was blind to the Hebrew gershayim its own comment named; `tools.ts` swore no schema
+  exposed a model-settable `companyId` while three did; `systemPrompt.ts` described a cache
+  breakpoint that was never set — and could not be, at ~361 tokens against a 1,024-token minimum,
+  so the honest fix was the comment rather than a mechanism that cannot engage. Also: a
+  client-supplied `companyId` reached the SYSTEM prompt unvalidated in the one route whose ticket
+  is injection discipline — now uuid-gated where scope is built, not at the interpolation.
+- **`buildToolHandlers` had no test at all**; ticket 06's "injection fence" acceptance was proven
+  only on `fence.ts` in isolation, never on the path corpus text actually takes. It now has a
+  `ToolDeps` seam and 11 tests, including hostile fence-delimiters in both a chunk body and its
+  label.
+- **Founder call:** the always-on token budget goes 9,000 → 9,250. Every ADR-0002 promotion grows
+  `app.md` by design, and 17 tokens of headroom made the correct behaviour fail the battery. The
+  merge still paid what it could — this case's story to `case-history`, duplicated CRLF provenance
+  evicted behind its anchor.
+- **Verified:** 909/909 tests across 93 files · `tsc` clean · `npm run build` green · one live
+  Anthropic call HTTP 200 (the LOCAL key; Railway's is untouched) · two new tests proven red
+  against the defect before being trusted · unenforced-law count 15 on branch and on main.
