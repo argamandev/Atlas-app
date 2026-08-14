@@ -1160,7 +1160,7 @@ the live hole fixed in the same session.
   marked partial** — so the decision moved into `chat2/terminal.ts`, a pure function of six facts
   swept exhaustively, and the law now declares the split it actually earns: `impossible` that one
   event means both, `test` that the right one is chosen.
-- **Verified:** 932/932 tests across 95 files · `tsc` clean · `npm run build` green · one live
+- **Verified:** 935/935 tests across 95 files · `tsc` clean · `npm run build` green · one live
   Anthropic call HTTP 200 (the LOCAL key; Railway's is untouched) · new tests proven red against
   the defect before being trusted · `env:health` 9,227/9,250 · unenforced laws 14 on branch, 15 on
   main.

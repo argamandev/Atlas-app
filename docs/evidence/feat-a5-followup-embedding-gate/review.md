@@ -147,3 +147,56 @@ event types, so "complete but truncated" cannot be expressed rather than merely 
 | NIT `systemPrompt.ts` phantom cache | **Deliberately not "fixed" by adding a breakpoint.** Measured: the static block is ~361 tokens against Sonnet's 1,024-token minimum, so `cache_control` there could not engage — enforcement in appearance only. The comment now says so and the cost budget is explicitly forbidden from leaning on it. Filed in `open-findings.md`. |
 | NIT `tools.ts:55` `as never` | Now `as unknown as CorpusDb`, the repo's existing idiom, which still checks the target shape. |
 | NIT ticket 06 "Nothing open" | Replaced with the two acceptance items that were substituted or unmeasured: cost was never priced, and route tests were substituted by unit + structural tests. |
+
+---
+
+## Round 3 · cold review (Atlas reviewer, fresh context)
+
+VERDICT: CHANGES
+REVIEWED: d6a86ffe88556b1c374a8cc60770eeabe763303a
+
+Scope covered: everything after e0761ee (quote-verification-off commit, `--dense-only` flag,
+ticket-05 close-out docs), the full A5-followup diff on its own merits (`syncFilings.ts`'s
+`resolveRaceOrFail` extraction, `scripts/ship-gate.mjs`'s red-battery check, `documentCatalog.ts`
+comment fix, `open-findings.md` edit), and STATUS/PROGRESS/DECISIONS/gate.md consistency. Spot-checked
+`terminal.ts` and the round-2/round-3 accepted fixes against `loop.ts` — hold. `QUOTE_VERIFICATION_ENABLED
+= false` verified genuinely inert (`extractQuotes` short-circuits to `[]`; both call sites downstream
+of it, so `unverifiedQuotes` is always 0 and never invents a degradation). `npx tsc --noEmit` clean;
+`npm test` green at 935/935; no secrets found in the new eval result files or diff.
+
+FINDING · BLOCKER · the commit under review (`d6a86ff`) ships wrong counts in tracked docs:
+  `ARCHITECTURE.md` claims "936 tests across 95 files" and `PROGRESS.md`'s latest entry claims
+  "Verified: 932/932", while a real run of this exact tree is 935/935. `node scripts/ship-gate.mjs`
+  confirms this itself and currently refuses the merge on exactly these two lines. The working tree
+  has an UNCOMMITTED fix (`ARCHITECTURE.md`/`PROGRESS.md`, 936→935) sitting alongside HEAD — i.e. the
+  correction exists but was never folded into a commit, so the branch as it stands does not merge and
+  the count that would land if someone force-pushed past the gate is wrong. Commit the fix (re-derived
+  from a fresh run, not hand-typed) before shipping.
+RECURRENCE: yes → M1, "counts carry their command" / "a count restated from another document — wrong
+  every time it was hand-carried" — this is the third+ recorded instance of exactly this class in
+  `app.md`'s own history. The mechanism (`ship-gate.mjs`'s count check) IS catching it here and refusing
+  to merge, which is the tier working as designed; the finding is that the commit still needed to be made
+  wrong before the gate caught it, and the fix must not be left uncommitted at hand-off.
+
+FINDING · NIT · `docs/evidence/feat-a5-followup-embedding-gate/review.md` (this file) is itself one of
+  the files `ship-gate.mjs` lists as "changed after the reviewed commit" relative to round 2's
+  `REVIEWED:` sha — expected, since this round supersedes it, but note for whoever runs `/ship` next
+  that the gate will want this round's sha, not round 2's, and this file must be committed (not left
+  as an uncommitted append) for the gate to see it.
+RECURRENCE: no
+
+Everything else checked came back clean: `src/app/api/chat/v2/route.ts` resolves a user before any
+work (`getRequestUserId` + `unauthorized()`), sets `cache-control: no-store` on its streamed response,
+and the stream's own `catch` still emits a terminal `error` frame rather than closing silently.
+`terminal.ts`'s `decideTerminal` orders its checks most-severe-first as documented and the round-3
+`emittedText` accumulation genuinely moves the fact to the emit point (verified against `loop.ts`'s
+`for (const block of textBlocks) { emittedText += ...; yield ... }`). `syncFilings.ts`'s
+`resolveRaceOrFail` extraction is a faithful dedup of the two call sites with no behavior change beyond
+what round-4's deferred NIT asked for, and its new re-read still checks `error` before trusting `data`
+(the M3.3 defect it exists to close). `scripts/ship-gate.mjs`'s red-battery check does what it claims —
+confirmed live by running it. `docs/open-findings.md`'s edit correctly narrows the UTC-leaks entry to
+one, matching `documentCatalog.ts`/`events.ts` reality. `DECISIONS.md`'s entries for this branch are
+complete and undersell nothing — the retrieval regression, the shared-branch irregularity, and the
+budget raise are all stated with numbers, not smoothed. `docs/evidence/feat-smart-layer-a5-maya-backfill/gate.md`
+states the MRR regression plainly in its own verdict table and is referenced identically (same numbers)
+from `STATUS.md` and `DECISIONS.md` — no softening found anywhere it is cited.
