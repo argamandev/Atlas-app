@@ -1,23 +1,27 @@
 # Cold review — `feat/smart-layer-b2a-chat-plumbing` (ticket 08a)
 
-REVIEWED: 23b94b656f1fe67e35ffa05b27c21f0237468c97
+REVIEWED: 7bf920fa044570b1049c5cd8e7ac55b64949ac96 (round 5, confirmation at tip)
 
-Four rounds by the `atlas-reviewer` subagent, fresh context each time, 2026-08-15.
-Round 4 verdict: **APPROVED**.
+Five rounds by the `atlas-reviewer` subagent, fresh context each time, 2026-08-15.
+Round 5 verdict: **APPROVED**.
 
 ## VERDICT: APPROVED
 
 ```
 VERDICT: APPROVED
-FINDING · NIT · src/lib/chat/domainBoundary.test.ts:54 · Non-coverage item 3 says an import-shaped line inside a comment "fails the test", but a commented `import … from` no longer matches — that alternative is anchored to `^\s*`, so only the unanchored call form still trips inside a comment.
-RECURRENCE: no
+FINDING · NIT · src/lib/chat/domainBoundary.test.ts:56 · Non-coverage item 3's claim that "A commented `import … from` does not [trip it]" is false when a semicolon-free real import precedes it, since `[^;]*?` spans newlines and satisfies the `^\s*` anchor from the line above — the repo writes no semicolons, so this is the common case.
+RECURRENCE: yes → M1 · A green signal proves only what it measured
 ```
 
-Fixed in the same branch: item 3 now distinguishes the anchored form from the call form.
-The reviewer's own reasoning for the `no`, quoted because it is the gate's question: *"This
-sentence errs the other way — it overstates the guard's false-positive surface, so no one relying
-on it is misled into thinking a hole is closed… It is an inaccurate limitation, not an inflated
-claim, so it does not repeat the law."*
+**Fixed in the same branch, by the remedy the reviewer named rather than by rewording.** Item 3 no
+longer says which shapes do and do not trip inside a comment — the enumeration is deleted, exactly
+as the *forms* claim was deleted in round 3. The reviewer's reasoning, quoted because it is the
+whole lesson of this branch: *"Refining the wording a sixth time is the tier that has already
+failed four times."*
+
+Round 5 also confirmed the round-4→5 delta was comment-only: `TRANSPORT_IMPORT`, `TRANSPORT_PATH`,
+`TRANSPORT_FORMS`, `NOT_TRANSPORT`, `SELF`, `ALLOWED`, all four `test()` bodies and every assertion
+byte-identical — and independently executed the pattern rather than reading it.
 
 ## What was verified, not assumed
 
@@ -47,11 +51,12 @@ its own probes, rather than trusting the assertions.
 | 1 | CHANGES | The guard's docstring claimed dynamic imports would fail it; the pattern matched only `import … from`, so dynamic imports **and re-exports** passed silently. |
 | 2 | CHANGES | The corrected claim ("all three") missed the bare side-effect `import '@/lib/api/chat'`. |
 | 3 | CHANGES | The corrected claim ("all FOUR static ways") missed the backtick specifier, `require()`, and TS import-equals. |
-| 4 | APPROVED | One NIT, in the same paragraph — this time overstating the guard's false-POSITIVE surface, which misleads in the harmless direction. |
+| 4 | APPROVED (1 NIT) | Same paragraph again — this time overstating the guard's false-POSITIVE surface. Fixed by rewording, which was the wrong tier. |
+| 5 | APPROVED | The reworded sentence was wrong too: `[^;]*?` spans newlines and this repo writes no semicolons, so a real import on the line above satisfies the anchor for a comment below it. Fixed by DELETING the claim. |
 
-**The same sentence was wrong three times in a row, always in the same direction: prose claiming
-coverage the pattern did not have.** Each round the pattern got better and the sentence stayed a
-liability.
+**One paragraph, wrong in four of its five versions**, always the same shape: prose making a claim
+about the pattern that nothing checked. Each round the pattern itself got better and the sentence
+stayed the liability.
 
 Round 3's reviewer named the real fix, and it was taken: *"the honest stronger move is to stop
 letting prose carry the completeness claim at all."* The enumeration was **deleted**, not extended a
@@ -111,11 +116,22 @@ The existing law "Counts carry their command" was *applied*, not strengthened �
 prose-claim checker is not something a file scan can be, and that limit is stated rather than
 worked around.
 
-**Process note, recorded because it is the useful lesson.** Four rounds on one paragraph is close to
-the 5-strike rule. What broke the loop was not trying harder at the same tier — rounds 1–3 each
-added fixtures and each failed the same way — but changing what carried the claim. A defect that
-survives three fixes at the same tier is evidence about the tier, which is exactly what ADR-0002
-says and what this branch had to learn the slow way.
+**Process note — the useful lesson, and it cost five rounds to learn twice.**
+
+The loop broke exactly twice, both times the same way: by DELETING a prose claim rather than
+correcting it.
+
+- Rounds 1–3 refined the *forms* enumeration three times; round 3's fix deleted it, and
+  `TRANSPORT_FORMS` became both claim and fixture. That claim has been right ever since.
+- Rounds 4–5 then repeated the entire pattern in miniature on the *comment* sentence: reword,
+  wrong again, delete. Having just learned the lesson one paragraph above, the round-4 fix reworded
+  anyway.
+
+**A defect that survives repeated fixes at one tier is evidence about the tier, not about the
+effort** — ADR-0002 in one line. This branch hit the 5-strike threshold on a docstring, which is
+the cheapest possible place to learn it, and the reason the whole exchange is written down rather
+than summarised as "review found some nits". If a sixth round had been needed, the honest move was
+to stop and hand it to the founder, not to try a seventh wording.
 
 ## Verification at the reviewed commit
 

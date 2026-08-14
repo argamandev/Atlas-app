@@ -51,11 +51,13 @@ import { join } from 'node:path'
  *   2. This file itself — see `SELF`. A transport import added HERE is invisible.
  *      Deliberate (the file holds the fixtures) and a real hole, bounded by the
  *      fact that a test file never reaches production.
- *   3. Comments and strings are NOT stripped, so a commented-out CALL form
- *      (`import('@/lib/api/…')` / `require('…')`) still trips it — that
- *      alternative is unanchored. A commented `import … from` does not, because
- *      that alternative is anchored to `^\s*`. Erring toward a false positive is
- *      the safe direction, and it is why `SELF` has to exist.
+ *   3. Comments and strings are NOT stripped, so commented-out code can trip
+ *      this. Which shapes do and don't is deliberately NOT enumerated here: that
+ *      sentence was rewritten four times and was wrong four times, most recently
+ *      because `[^;]*?` spans newlines and this repo writes no semicolons, so a
+ *      real import on the line above satisfies the `^\s*` anchor for the comment
+ *      below it. The error direction is a false positive, which is the safe one,
+ *      and it is why `SELF` has to exist. That is the whole claim.
  *   4. Anything outside `TRANSPORT_FORMS`. This is a text scan: it defends
  *      against the coupling being re-added in ordinary code, not against someone
  *      determined to hide it. Stated plainly because three rounds were spent
