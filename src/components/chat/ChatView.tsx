@@ -546,7 +546,12 @@ export function ChatView({
           down never got the chance to run. Fixing the inner guard while the outer
           one still decides on a proxy is the same defect wearing a smaller hat
           (M3.1/M3.2). */}
-      {(companyId || companyName || transcript || (useV2 && shownMode)) && (
+      {/* NOTE there is no `companyName` here. It would be redundant — every path
+          that sets a name sets the id with it — and it is the only way this row
+          could render EMPTY: a name without an id passes the condition while
+          every inner branch (all keyed on the id) declines. An empty chip row is
+          a fabricated state, so the condition asks the same fact the branches do. */}
+      {(companyId || transcript || (useV2 && shownMode)) && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {/* GATED ON `companyId`, NOT ON THE NAME (round-2 review). When the
               server resolved a company mid-turn and `adoptResolvedCompany`'s name

@@ -332,3 +332,27 @@ rather than deleted.
 ## Battery after round 4
 
 **986/986 green**, `tsc` clean.
+
+## Round 4 follow-through — the chip row, driven per state
+
+`companyName` was also dropped from the enclosing condition. It was redundant (every path that
+sets a name sets the id) and it was the ONLY way that row could render **empty**: a name without an
+id passes the condition while every inner branch, all keyed on the id, declines. An empty chip row
+is a fabricated state, so the condition now asks the same fact the branches do.
+
+Driven rather than reasoned about:
+
+| state | row | contents |
+| --- | --- | --- |
+| blank, unscoped, no turn yet | **absent** (not empty) | — |
+| transcript-only, old route | present | `קבוצת תיגבור · Q4 2025`, two `<bdi>` runs, no mode chip, no unpin |
+| company-scoped (`?company=`) | present | `@בזק` + logo + unpin |
+| server-resolved, name lookup failed | present | `@a company` / `@חברה` + unpin |
+
+The transcript row also re-confirms the bidi fix in situ: the DOM holds two separate `<bdi>`
+elements (`קבוצת תיגבור`, `Q4 2025`), not one joined string.
+
+**The NIT's equivalence was checked, not eyeballed.** `truncatedForPersist({incomplete})` was
+compared against the inline `outcome.incomplete != null` across `undefined`, `null` and three real
+codes — identical on every one. "Looks the same" is not proof when the whole point of the change is
+that the two expressions must not drift.
