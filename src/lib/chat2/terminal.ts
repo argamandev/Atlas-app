@@ -30,30 +30,14 @@
 // those two cases must not share a branch.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * WHY an `incomplete` ended the turn, as a CODE and not only English prose.
- *
- * The degradation law requires the failure to be visible on screen **in both
- * locales**, and ticket 07's surface is Hebrew-first. A free-text English `reason`
- * forces that surface to string-match English to decide what to render — which is
- * a classifier over prose, the thing `app.md` says to buy visible failure instead
- * of. The code is the contract; `reason` stays as the developer-facing fallback
- * and for logs.
- */
-// The four non-clean stops are SEPARATE codes, not one `stopped_early`. Round 4:
-// collapsing them forces a Hebrew surface to show one message for four materially
-// different situations — "too long", "the model declined", "it paused", "unknown"
-// — or to string-match the English `reason` these codes exist to replace. And
-// splitting a code AFTER ticket 07 ships against it is a breaking change.
-export type IncompleteCode =
-  | 'round_trip_cap'
-  | 'all_sources_failed'
-  | 'unverified_quote'
-  | 'length_limit'
-  | 'model_refused'
-  | 'model_paused'
-  | 'stopped_unknown'
-  | 'no_answer_text'
+// `IncompleteCode` and the terminal event types now live in `protocol.ts` — the
+// one declaration both the server and the surface import (08a.2). They were split
+// across this file (the type) and `api/chat2.ts` (a hand-maintained runtime array
+// consulted by the parser), which let a newly added code parse as
+// `stopped_unknown` with the whole battery green. Re-exported here because this
+// module's own interface is stated in terms of them.
+export type { IncompleteCode } from './protocol'
+import type { IncompleteCode } from './protocol'
 
 /** The stop reason a non-clean stop maps to. One place, so code and prose agree. */
 export function stopReasonCode(stop: string | null): IncompleteCode {

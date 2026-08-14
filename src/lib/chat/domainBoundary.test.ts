@@ -19,13 +19,15 @@ import { join } from 'node:path'
  * weakest tier (ADR-0002), and prose is exactly what let the coupling grow the
  * first time — nothing failed when a domain type was declared in a fetch client.
  *
- * WHY A RATCHET AND NOT A CLEAN RULE. One file in this directory genuinely still
- * imports transport today, and it is named rather than quietly excluded:
- * `incompleteCopy.ts` takes `ClientIncompleteCode` from `lib/api/chat2`, because
- * the incomplete-code vocabulary is currently declared server-side, re-declared
- * client-side, and enumerated a third time there. Collapsing that into one
- * protocol module is ticket 08a's NEXT slice; when it lands, this allowlist
- * empties and the rule covers the whole directory with nothing excepted.
+ * THE ALLOWLIST IS EMPTY, and stayed empty on purpose. It shipped with one entry
+ * — `incompleteCopy.ts`, which took `ClientIncompleteCode` from `lib/api/chat2`
+ * because the code vocabulary was declared server-side and re-declared
+ * client-side. Slice 08a.2 collapsed that into `chat2/protocol.ts`, so the copy
+ * map now learns the vocabulary from the protocol rather than from a fetch
+ * client, and the exception was removed rather than left standing.
+ *
+ * Keep it empty. An entry is permitted only with a reason AND the work that
+ * closes it, both written beside the name.
  *
  * STATED LIMIT: this scans import statements textually, with comments and
  * strings left intact. A dynamic `await import('@/lib/api/…')` inside a function
@@ -40,12 +42,7 @@ const DIR = 'src/lib/chat'
  * Files still permitted to import transport, each with the reason and the work
  * that closes it. Adding a name here is allowed only with both.
  */
-const ALLOWED = new Set([
-  // Takes `ClientIncompleteCode` from `lib/api/chat2`. Closes when the event
-  // vocabulary collapses into one protocol module (08a, next slice).
-  'incompleteCopy.ts',
-  'incompleteCopy.test.ts',
-])
+const ALLOWED = new Set<string>([])
 
 const TRANSPORT_IMPORT = /^\s*import\s[^;]*?from\s+['"](@\/lib\/api\/[^'"]+|\.\.\/api\/[^'"]+)['"]/gm
 

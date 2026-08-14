@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { INCOMPLETE_COPY_KEY, incompleteMessage } from './incompleteCopy'
 import { en } from '@/lib/i18n/dictionaries/en'
 import { he } from '@/lib/i18n/dictionaries/he'
-import type { ClientIncompleteCode } from '@/lib/api/chat2'
+import type { ClientIncompleteCode } from '@/lib/chat2/protocol'
 
 const CODES = Object.keys(INCOMPLETE_COPY_KEY) as ClientIncompleteCode[]
 
