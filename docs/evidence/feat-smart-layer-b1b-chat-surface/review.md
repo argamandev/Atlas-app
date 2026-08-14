@@ -4,6 +4,15 @@ Branch `feat/smart-layer-b1b-chat-surface`. Reviewer: `atlas-reviewer` subagent,
 dispatch per round. Full narrative and the browser evidence are in `verify-app.md`; this file is the
 tracked verdict list.
 
+**REVIEWED: b904728** — the sha round 4 actually read (the reviewer confirmed it followed the tip
+there mid-review).
+
+**VERDICT: CHANGES** — carried from round 4, and deliberately NOT upgraded by me. Every finding
+below is answered and the battery is green, but the round-4 answers themselves have not been read by
+a cold reviewer, and this branch's whole history is that my own confidence about a fix was wrong four
+times running. A round 5 against the current tip is what turns this into APPROVED; until it returns,
+the honest state of this file is the last verdict a reviewer actually gave.
+
 **Rounds: 4.** Every round found something real. The
 recurring failure across all four was one thing, and it is worth naming at the top rather than
 burying: **I repeatedly fixed the INSTANCE and claimed the CLASS**, twice writing the overclaim into
@@ -125,22 +134,25 @@ Cleared this round: the chip-row condition (no chip renders where it should not,
 reachable), the truncatedForPersist equivalence at the persisted-turn site, and the
 case-history/open-findings bookkeeping for the 8th bidi occurrence.
 
-FINDING . BLOCKER . requestScope.test.ts . The value-position regex matched ANY object property of
-that name, so tools.ts reading input.companyId (the model tool argument, an unrelated object) kept
-the guard green with every real scope.companyId read deleted — vacuous for the one id the surface
-actually sends.
-RECURRENCE: yes -> M2, third time on this guard, and M3.2 (a proxy, not the fact). Answered by
-matching the RECEIVING OBJECT too, and proved with the reviewers own experiment: deleting every
-scope./facts. companyId read now fails the guard while input.companyId remains.
+FINDING · BLOCKER · `src/lib/chat2/requestScope.test.ts:149` · The value-position regex matched any
+object's property of that name, so `tools.ts` reading `input.companyId` (the model's tool argument,
+an unrelated object) kept the guard green with every real `scope.companyId` read deleted — vacuous
+for the one id the surface actually sends.
+**RECURRENCE: yes → M2, third time on this guard, and M3.2 · give the choke point the fact, not a
+proxy.** Answered by matching the RECEIVING OBJECT too (`\b(scope|facts)\.<id>\b`), and proved with
+the reviewer's own experiment: deleting every `scope.`/`facts.` `companyId` read now FAILS the guard
+while `input.companyId` remains; restoring is 9/9.
 
-FINDING . WARNING . verify-app.md . The claim "a false alarm, never a false pass" was false when
-written, and a false pass existed in the tree at that moment.
-RECURRENCE: yes -> M1. Corrected in place in both the evidence file and the test header; the limit
-is now stated as a limit rather than a guarantee.
+FINDING · WARNING · `docs/evidence/feat-smart-layer-b1b-chat-surface/verify-app.md:307` · The claim
+"a false alarm, never a false pass" was false when written, and a false pass existed in the tree at
+that moment.
+**RECURRENCE: yes → M1 · a green signal proves only what it measured.** Corrected in place in both
+the evidence file and the test header; the limit is now written as a limit rather than a guarantee.
 
-FINDING . NIT . requestScope.test.ts . The missing-body deepEqual enumerated the accepted ids, so it
-fired before the scope guard whenever a field was added and obscured which mechanism caught what.
-RECURRENCE: no. Now asserts the property without naming the ids.
+FINDING · NIT · `src/lib/chat2/requestScope.test.ts:66` · The missing-body `deepEqual` enumerated the
+accepted ids, so it fired before the scope guard whenever a field was added and obscured which
+mechanism caught what.
+**RECURRENCE: no.** Now asserts the property without naming the ids.
 
 ---
 
