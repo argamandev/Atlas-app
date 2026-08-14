@@ -27,7 +27,7 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   embedding writes were sequential, one round trip per chunk. The third is the one worth remembering
   — every ROW was honest and the SUMMARY was not, which is the same lie one layer up, in the place a
   person actually reads.
-- **Verified:** battery green (874 tests); migration applied and driven end-to-end through
+- **Verified:** battery green (875 tests, re-run AFTER the STATUS.md rewrite — the first claim here said 874 over a RED battery, caught in pre-merge review); migration applied and driven end-to-end through
   `retrieveChunks` against the live corpus; the admin screen in both locales with the bidi law's
   x-position probe; the poller and live feed run against real MAYA. **NOT verified: the retrieval
   gate at this corpus size** — deferred past the merge by founder decision to unblock B1, which is a

@@ -134,9 +134,20 @@ export function periodFor(eventIds: number[], title: string | null, publishedISO
   // Israel time, from the one file allowed to know what that means (app.md's Time
   // laws). This also closes a listed UTC leak: the previous `getUTCFullYear` put a
   // filing published in the first hours of 1 January into the wrong fiscal year.
-  const day = israelDayKey(israelInstant(publishedISO) ?? publishedISO)
+  // GUARDED, because this now runs on a RAW MAYA field on a live request path.
+  // israelDayKey throws RangeError on an unparseable string, and toRemoteSources feeds
+  // it whatever the feed sent — so one malformed publicationDate would 500
+  // GET /api/companies/[id]/filings, where the old getUTCFullYear merely produced a
+  // harmless NaN. A label is descriptive by contract; it is never worth an outage.
+  let day = ''
+  try {
+    day = israelDayKey(israelInstant(publishedISO) ?? publishedISO)
+  } catch {
+    day = ''
+  }
 
-  if (period) return `${period} ${title?.match(/\b(19|20)\d{2}\b/)?.[0] ?? day.slice(0, 4)}`
+  const titleYear = title?.match(/\b(19|20)\d{2}\b/)?.[0]
+  if (period) return `${period} ${titleYear ?? day.slice(0, 4)}`.trim()
 
   // ── NO PERIOD CODE: A DECK, AND ITS PUBLICATION DATE IS WHAT TELLS TWO APART ──
   //
@@ -156,5 +167,8 @@ export function periodFor(eventIds: number[], title: string | null, publishedISO
   // other would invent a date neither source gives. The publication instant is the
   // one structured fact every deck carries, and `period` is descriptive by
   // contract — identity is `mayaReportId`, never this string.
+  // An undatable deck falls back to the title year, then to the bare label — a weaker
+  // period than a date, and better than an exception.
+  if (!day) return titleYear ?? ''
   return `${day.slice(8, 10)}.${day.slice(5, 7)}.${day.slice(0, 4)}`
 }

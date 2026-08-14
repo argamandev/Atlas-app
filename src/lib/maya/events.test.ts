@@ -160,3 +160,18 @@ test('the fallback year is ISRAEL time, closing the listed UTC leak', () => {
   assert.equal(periodFor([106], null, '2026-01-01T00:30:00'), 'Q3 2026')
   assert.equal(periodFor([270], null, '2026-01-01T00:30:00'), '01.01.2026')
 })
+
+test('an unparseable publication date yields a weaker label, never an exception', () => {
+  // periodFor runs on a RAW MAYA field on a live request path. israelDayKey throws
+  // RangeError on an unparseable string, so one malformed feed row would have 500'd
+  // GET /api/companies/[id]/filings — where the old getUTCFullYear merely produced a
+  // harmless NaN. A descriptive label is never worth an outage.
+  for (const bad of ['', 'not-a-date', '0000-99-99T99:99:99']) {
+    assert.doesNotThrow(() => periodFor([270], 'מצגת משקיעים 2025', bad))
+    assert.doesNotThrow(() => periodFor([104], null, bad))
+  }
+  // and it degrades to the best thing it still knows
+  assert.equal(periodFor([270], 'מצגת משקיעים 2025', 'not-a-date'), '2025')
+  assert.equal(periodFor([104], 'דוח רבעון 1 לשנת 2026', 'not-a-date'), 'Q1 2026')
+  assert.equal(periodFor([270], null, 'not-a-date'), '')
+})

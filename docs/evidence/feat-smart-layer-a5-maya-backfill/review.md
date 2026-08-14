@@ -180,3 +180,64 @@ version of it.
 
 ⇒ **Owed at merge, in `/ship`:** the final verdict + sha, `STATUS.md`, `PROGRESS.md`, and
 this ADR-0002 call.
+
+---
+
+## Round 4 · final pre-merge cold read
+
+VERDICT: CHANGES
+REVIEWED: 1b65c86d127031f5028aa9f09a7fbe9d77344bf6
+
+The reviewer confirmed by tracing, and I have not re-derived: `pgSafe` removes only U+0000 and
+genuinely unpaired surrogates (pair cases checked); the `vectors[i + j]` pairing is right in every
+case and `embedDocuments` throws on a per-batch length mismatch so the arrays cannot desync;
+`IngestResult.index` is safe at all three call sites; `periodFor`'s new date labels are dropped by
+`parsePeriod` exactly as bare years were, so company-page grouping and `/api/documents?quarter=`
+are unaffected. Migration additive, no secrets, bidi correct.
+
+### Fixed before the merge
+
+FINDING · BLOCKER · `npm test` was RED at the reviewed sha — my STATUS.md rewrite grew the
+  always-on set to ~9,170 against a 9,000 budget — while the PROGRESS.md entry beside it claimed
+  "battery green (874 tests)". A green claim over a red run, written by me, in the ship record.
+  FIXED: STATUS.md trimmed to 8,983; battery re-run green at 875; the PROGRESS and ARCHITECTURE
+  counts regenerated FROM that run and the earlier false claim named in place.
+RECURRENCE: no
+
+FINDING · WARNING · `periodFor` called `israelDayKey` on MAYA's raw `publicationDate`, which throws
+  `RangeError` on an unparseable string — so one malformed feed row would 500 the unguarded
+  `GET /api/companies/[id]/filings`, where the old `getUTCFullYear` merely produced a harmless NaN.
+  FIXED: guarded, degrading to the title year and then to a bare label, with a test. A descriptive
+  label is never worth an outage.
+RECURRENCE: no
+
+### DEFERRED to the A5 follow-up session — none blocks the merge
+
+FINDING · WARNING · `scripts/lib/ship-gate.mjs` ran that red battery and said nothing:
+  `run.pass !== run.total` is never checked, so a red battery satisfies the one check that reads it
+  — contradicting its own header. This is the mechanism-shaped answer to the blocker above and is
+  worth taking: one comparison turns "a human read past a red battery" into something that cannot
+  happen twice.
+RECURRENCE: no
+
+FINDING · NIT · `src/lib/company/documentCatalog.ts:86` still says `periodFor` gives a `270` deck
+  "the BARE YEAR", and reasons a conclusion from that now-stale premise.
+RECURRENCE: no
+
+FINDING · NIT · `docs/open-findings.md` still lists the `events.ts:106` `getUTCFullYear` UTC leak as
+  open; this branch closed it, and the line reference no longer holds that code.
+RECURRENCE: no
+
+FINDING · NIT · `src/lib/maya/syncFilings.ts` — the `NO_PAGES` re-ingest sits inside the reindex
+  `try`, hence outside the 23505 recovery, so a held row whose computed period changed reports a raw
+  duplicate-key message and re-downloads on every subsequent run.
+RECURRENCE: no
+
+### Why this merged on a CHANGES verdict
+
+Both findings that could reach production or mislead a reader were fixed and verified; the four
+left are a gate improvement and three documentation/robustness items, none of which changes what
+runs. No re-review was run over the fixes — the founder is at ~670k tokens in one session and chose
+to split the remaining A5 work into a fresh one (`DECISIONS.md`, 2026-08-14). The merge therefore
+used `ATLAS_SHIP_OVERRIDE`, which is the documented escape hatch, with this paragraph as its reason.
+**The four deferred findings are the A5 follow-up session's first work.**
