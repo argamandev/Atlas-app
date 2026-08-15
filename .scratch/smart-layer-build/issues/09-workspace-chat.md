@@ -1,12 +1,18 @@
 # B3 · Workspace chat on the new retrieval
 
-Status: CLOSED 2026-08-15 — **the gate was run and the planner won. Workspace chat is left
-alone**, which this ticket names in advance as a completed outcome. Ticket 10 is not blocked.
-Measured: planner 8/14, the literal swap 6/14, retrieval's own shape 8/14, same verdict at two
-shelf sizes — `docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`, harness
-`scripts/retrieval-eval/workspace-gate.mjs`. The two ungated items DID ship: the fence-line
-defang (the slice-2 BLOCKER) and the D8 scorer seam in `planContext`. **The lead for a later
-ticket is UNION, not replacement** — the two scorers miss different cases and P ∪ R is 11/14.
+Status: CLOSED 2026-08-15 — **the gate was run, the swap did not clear the bar, and workspace chat
+is left alone**, which this ticket names in advance as a completed outcome. Ticket 10 is not
+blocked. Measured across shelf sizes 3/6/12: planner **12/8/8**, the swap **11/9/8** — they trade
+the lead by ONE case in each direction, which is not "measurably beats"; retrieval's own chunk
+shape loses at every size. **The swap is not worse, it is indistinguishable** — the first run said
+otherwise and was wrong, because it handicapped the swap by embedding raw window text without
+production's metadata prefix (cold review caught it; worth 3 cases). Evidence, including all four
+harness bugs: `docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`; harness
+`scripts/retrieval-eval/workspace-gate.mjs`. Ungated items DID ship: the prompt boundaries are
+closed (fence line, `"""` blocks, conversation turns, clip caption) with a discipline scan holding
+them, and the D8 scorer seam in `planContext`. **The lead for a later ticket is UNION, not
+replacement** — the two miss different cases at every shelf size, though P ∪ E is an oracle bound,
+not an achieved score.
 
 Original ticket below.
 

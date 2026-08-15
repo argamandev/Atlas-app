@@ -14,7 +14,7 @@
       "R": true,
       "F": true,
       "tokensP": 12988,
-      "tokensE": 13031,
+      "tokensE": 13002,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
@@ -23,7 +23,7 @@
           "windows": 12,
           "chunks": 21,
           "readP": 2,
-          "readE": 1,
+          "readE": 2,
           "readR": 14
         },
         {
@@ -43,8 +43,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 3,
-          "readE": 4,
-          "readR": 194
+          "readE": 14,
+          "readR": 172
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -53,7 +53,7 @@
           "windows": 175,
           "chunks": 175,
           "readP": 9,
-          "readE": 25,
+          "readE": 21,
           "readR": 661
         },
         {
@@ -92,7 +92,7 @@
       "R": false,
       "F": false,
       "tokensP": 12994,
-      "tokensE": 13042,
+      "tokensE": 13012,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
@@ -111,7 +111,7 @@
           "windows": 33,
           "chunks": 33,
           "readP": 1,
-          "readE": 2,
+          "readE": 1,
           "readR": 62
         },
         {
@@ -121,8 +121,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 2,
-          "readE": 1,
-          "readR": 50
+          "readE": 6,
+          "readR": 63
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -131,7 +131,7 @@
           "windows": 175,
           "chunks": 175,
           "readP": 7,
-          "readE": 15,
+          "readE": 14,
           "readR": 487
         },
         {
@@ -141,8 +141,8 @@
           "windows": 171,
           "chunks": 171,
           "readP": 3,
-          "readE": 5,
-          "readR": 234
+          "readE": 4,
+          "readR": 210
         },
         {
           "title": "דוח רבעון 1 לשנת 2025",
@@ -170,7 +170,7 @@
       "R": true,
       "F": true,
       "tokensP": 13001,
-      "tokensE": 13028,
+      "tokensE": 13017,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
@@ -189,7 +189,7 @@
           "windows": 33,
           "chunks": 33,
           "readP": 4,
-          "readE": 1,
+          "readE": 2,
           "readR": 48
         },
         {
@@ -199,8 +199,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 3,
-          "readE": 3,
-          "readR": 30
+          "readE": 2,
+          "readR": 31
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -209,8 +209,8 @@
           "windows": 175,
           "chunks": 175,
           "readP": 6,
-          "readE": 17,
-          "readR": 319
+          "readE": 13,
+          "readR": 318
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2024",
@@ -219,7 +219,7 @@
           "windows": 171,
           "chunks": 171,
           "readP": 6,
-          "readE": 4,
+          "readE": 7,
           "readR": 190
         },
         {
@@ -229,7 +229,7 @@
           "windows": 31,
           "chunks": 31,
           "readP": 2,
-          "readE": 2,
+          "readE": 1,
           "readR": 51
         }
       ]
@@ -248,7 +248,7 @@
       "R": false,
       "F": false,
       "tokensP": 12989,
-      "tokensE": 13016,
+      "tokensE": 13027,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
@@ -267,8 +267,8 @@
           "windows": 33,
           "chunks": 33,
           "readP": 3,
-          "readE": 7,
-          "readR": 422
+          "readE": 13,
+          "readR": 427
         },
         {
           "title": "מצגת משקיעים לרבעון שני 2025",
@@ -277,8 +277,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 2,
-          "readE": 3,
-          "readR": 76
+          "readE": 7,
+          "readR": 67
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -287,7 +287,7 @@
           "windows": 175,
           "chunks": 175,
           "readP": 1,
-          "readE": 10,
+          "readE": 4,
           "readR": 65
         },
         {
@@ -297,8 +297,8 @@
           "windows": 171,
           "chunks": 171,
           "readP": 1,
-          "readE": 5,
-          "readR": 83
+          "readE": 2,
+          "readR": 87
         },
         {
           "title": "דוח רבעון 1 לשנת 2025",
@@ -307,7 +307,7 @@
           "windows": 31,
           "chunks": 31,
           "readP": 3,
-          "readE": 7,
+          "readE": 12,
           "readR": 416
         }
       ]
@@ -326,7 +326,7 @@
       "R": true,
       "F": true,
       "tokensP": 12992,
-      "tokensE": 12986,
+      "tokensE": 12972,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
@@ -345,7 +345,7 @@
           "windows": 33,
           "chunks": 33,
           "readP": 2,
-          "readE": 1,
+          "readE": 4,
           "readR": 91
         },
         {
@@ -355,8 +355,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 3,
-          "readE": 4,
-          "readR": 30
+          "readE": 2,
+          "readR": 25
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -365,8 +365,8 @@
           "windows": 175,
           "chunks": 175,
           "readP": 5,
-          "readE": 13,
-          "readR": 173
+          "readE": 7,
+          "readR": 166
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2024",
@@ -375,7 +375,7 @@
           "windows": 171,
           "chunks": 171,
           "readP": 8,
-          "readE": 9,
+          "readE": 5,
           "readR": 236
         },
         {
@@ -385,8 +385,8 @@
           "windows": 31,
           "chunks": 31,
           "readP": 2,
-          "readE": 1,
-          "readR": 122
+          "readE": 3,
+          "readR": 127
         }
       ]
     },
@@ -404,7 +404,7 @@
       "R": true,
       "F": true,
       "tokensP": 12999,
-      "tokensE": 12992,
+      "tokensE": 12987,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
@@ -413,8 +413,8 @@
           "windows": 12,
           "chunks": 21,
           "readP": 3,
-          "readE": 3,
-          "readR": 8
+          "readE": 2,
+          "readR": 12
         },
         {
           "title": "דוח רבעון 1 לשנת 2024",
@@ -424,7 +424,7 @@
           "chunks": 33,
           "readP": 1,
           "readE": 1,
-          "readR": 32
+          "readR": 37
         },
         {
           "title": "מצגת משקיעים לרבעון שני 2025",
@@ -433,8 +433,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 4,
-          "readE": 5,
-          "readR": 49
+          "readE": 3,
+          "readR": 75
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -443,8 +443,8 @@
           "windows": 175,
           "chunks": 175,
           "readP": 10,
-          "readE": 19,
-          "readR": 235
+          "readE": 9,
+          "readR": 248
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2024",
@@ -453,8 +453,8 @@
           "windows": 171,
           "chunks": 171,
           "readP": 3,
-          "readE": 3,
-          "readR": 134
+          "readE": 4,
+          "readR": 143
         },
         {
           "title": "דוח רבעון 1 לשנת 2025",
@@ -463,8 +463,8 @@
           "windows": 31,
           "chunks": 31,
           "readP": 1,
-          "readE": 1,
-          "readR": 36
+          "readE": 2,
+          "readR": 8
         }
       ]
     },
@@ -478,11 +478,11 @@
         "דוח רבעון 1 לשנת 2026 · p.5"
       ],
       "P": true,
-      "E": false,
+      "E": true,
       "R": true,
       "F": true,
       "tokensP": 12964,
-      "tokensE": 13015,
+      "tokensE": 12992,
       "spread": [
         {
           "title": "דוח רבעון 1 לשנת 2026",
@@ -491,7 +491,7 @@
           "windows": 229,
           "chunks": 235,
           "readP": 7,
-          "readE": 6,
+          "readE": 10,
           "readR": 452
         },
         {
@@ -501,8 +501,8 @@
           "windows": 38,
           "chunks": 39,
           "readP": 1,
-          "readE": 9,
-          "readR": 105
+          "readE": 5,
+          "readR": 100
         },
         {
           "title": "מצגת משקיעים רבעון 2 לשנת 2025",
@@ -511,7 +511,7 @@
           "windows": 36,
           "chunks": 38,
           "readP": 3,
-          "readE": 10,
+          "readE": 8,
           "readR": 109
         },
         {
@@ -521,8 +521,8 @@
           "windows": 34,
           "chunks": 36,
           "readP": 1,
-          "readE": 8,
-          "readR": 90
+          "readE": 5,
+          "readR": 85
         },
         {
           "title": "מצגת משקיעים - מהלך אסטרטגי להגדלת החזקו",
@@ -531,7 +531,7 @@
           "windows": 16,
           "chunks": 17,
           "readP": 1,
-          "readE": 6,
+          "readE": 2,
           "readR": 33
         },
         {
@@ -541,8 +541,8 @@
           "windows": 31,
           "chunks": 33,
           "readP": 1,
-          "readE": 8,
-          "readR": 133
+          "readE": 5,
+          "readR": 128
         }
       ]
     },
@@ -556,11 +556,11 @@
         "מצגת משקיעים רבעון שני לשנת 2026 · p.8"
       ],
       "P": false,
-      "E": false,
-      "R": true,
-      "F": true,
+      "E": true,
+      "R": false,
+      "F": false,
       "tokensP": 12973,
-      "tokensE": 12979,
+      "tokensE": 13028,
       "spread": [
         {
           "title": "מצגת משקיעים רבעון שני לשנת 2026",
@@ -569,8 +569,8 @@
           "windows": 18,
           "chunks": 18,
           "readP": 3,
-          "readE": 3,
-          "readR": 92
+          "readE": 6,
+          "readR": 76
         },
         {
           "title": "מצגת לשוק ההון לשנת 2025",
@@ -589,8 +589,8 @@
           "windows": 169,
           "chunks": 172,
           "readP": 8,
-          "readE": 9,
-          "readR": 146
+          "readE": 4,
+          "readR": 149
         },
         {
           "title": "מצגת משקיעים רבעון ראשון לשנת 2026",
@@ -599,8 +599,8 @@
           "windows": 19,
           "chunks": 19,
           "readP": 3,
-          "readE": 3,
-          "readR": 76
+          "readE": 6,
+          "readR": 74
         },
         {
           "title": "דוח רבעון 2/חצי שנתי לשנת 2026",
@@ -609,7 +609,7 @@
           "windows": 47,
           "chunks": 47,
           "readP": 2,
-          "readE": 17,
+          "readE": 21,
           "readR": 526
         },
         {
@@ -619,8 +619,8 @@
           "windows": 18,
           "chunks": 18,
           "readP": 1,
-          "readE": 2,
-          "readR": 24
+          "readE": 3,
+          "readR": 27
         }
       ]
     },
@@ -638,7 +638,7 @@
       "R": false,
       "F": false,
       "tokensP": 12976,
-      "tokensE": 12976,
+      "tokensE": 12983,
       "spread": [
         {
           "title": "מצגת משקיעים לדוחות רבעון שלישי 2025",
@@ -647,7 +647,7 @@
           "windows": 25,
           "chunks": 25,
           "readP": 1,
-          "readE": 3,
+          "readE": 1,
           "readR": 50
         },
         {
@@ -657,7 +657,7 @@
           "windows": 28,
           "chunks": 28,
           "readP": 3,
-          "readE": 3,
+          "readE": 2,
           "readR": 85
         },
         {
@@ -668,7 +668,7 @@
           "chunks": 28,
           "readP": 2,
           "readE": 2,
-          "readR": 82
+          "readR": 50
         },
         {
           "title": "דוח רבעון 3 לשנת 2025",
@@ -687,8 +687,8 @@
           "windows": 308,
           "chunks": 311,
           "readP": 8,
-          "readE": 10,
-          "readR": 421
+          "readE": 15,
+          "readR": 432
         },
         {
           "title": "דוח רבעון 2/חצי שנתי לשנת 2026",
@@ -697,7 +697,7 @@
           "windows": 79,
           "chunks": 83,
           "readP": 3,
-          "readE": 1,
+          "readE": 2,
           "readR": 7
         }
       ]
@@ -717,7 +717,7 @@
       "R": false,
       "F": false,
       "tokensP": 12962,
-      "tokensE": 13027,
+      "tokensE": 12983,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
@@ -726,7 +726,7 @@
           "windows": 10,
           "chunks": 21,
           "readP": 2,
-          "readE": 1,
+          "readE": 2,
           "readR": 6
         },
         {
@@ -736,8 +736,8 @@
           "windows": 31,
           "chunks": 31,
           "readP": 4,
-          "readE": 11,
-          "readR": 552
+          "readE": 15,
+          "readR": 546
         },
         {
           "title": "דוח רבעון 1 לשנת 2024",
@@ -746,7 +746,7 @@
           "windows": 33,
           "chunks": 33,
           "readP": 3,
-          "readE": 3,
+          "readE": 4,
           "readR": 239
         },
         {
@@ -756,7 +756,7 @@
           "windows": 35,
           "chunks": 35,
           "readP": 3,
-          "readE": 1,
+          "readE": 4,
           "readR": 47
         },
         {
@@ -766,7 +766,7 @@
           "windows": 175,
           "chunks": 175,
           "readP": 2,
-          "readE": 13,
+          "readE": 2,
           "readR": 98
         },
         {
@@ -776,7 +776,7 @@
           "windows": 171,
           "chunks": 171,
           "readP": 2,
-          "readE": 4,
+          "readE": 3,
           "readR": 62
         }
       ]
@@ -791,11 +791,11 @@
         "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0066"
       ],
       "P": true,
-      "E": false,
+      "E": true,
       "R": false,
       "F": false,
       "tokensP": 13029,
-      "tokensE": 12994,
+      "tokensE": 12969,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
@@ -804,7 +804,7 @@
           "windows": 12,
           "chunks": 21,
           "readP": 9,
-          "readE": 2,
+          "readE": 1,
           "readR": 0
         },
         {
@@ -814,7 +814,7 @@
           "windows": 33,
           "chunks": 33,
           "readP": 2,
-          "readE": 1,
+          "readE": 2,
           "readR": 55
         },
         {
@@ -824,8 +824,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 2,
-          "readE": 3,
-          "readR": 44
+          "readE": 4,
+          "readR": 41
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -834,8 +834,8 @@
           "windows": 175,
           "chunks": 175,
           "readP": 3,
-          "readE": 9,
-          "readR": 143
+          "readE": 4,
+          "readR": 138
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2024",
@@ -845,7 +845,7 @@
           "chunks": 171,
           "readP": 2,
           "readE": 7,
-          "readR": 183
+          "readR": 187
         },
         {
           "title": "דוח רבעון 1 לשנת 2025",
@@ -854,8 +854,8 @@
           "windows": 31,
           "chunks": 31,
           "readP": 1,
-          "readE": 2,
-          "readR": 64
+          "readE": 3,
+          "readR": 67
         }
       ]
     },
@@ -873,7 +873,7 @@
       "R": true,
       "F": true,
       "tokensP": 13020,
-      "tokensE": 12990,
+      "tokensE": 12992,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
@@ -903,7 +903,7 @@
           "chunks": 35,
           "readP": 6,
           "readE": 5,
-          "readR": 54
+          "readR": 38
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -912,7 +912,7 @@
           "windows": 175,
           "chunks": 175,
           "readP": 6,
-          "readE": 9,
+          "readE": 7,
           "readR": 250
         },
         {
@@ -933,7 +933,7 @@
           "chunks": 31,
           "readP": 1,
           "readE": 1,
-          "readR": 58
+          "readR": 61
         }
       ]
     },
@@ -951,7 +951,7 @@
       "R": true,
       "F": true,
       "tokensP": 13034,
-      "tokensE": 13032,
+      "tokensE": 13026,
       "spread": [
         {
           "title": "דיון במכירת צים לידיים זרות - ועדת הכלכל",
@@ -961,7 +961,7 @@
           "chunks": 50,
           "readP": 9,
           "readE": 11,
-          "readR": 220
+          "readR": 222
         },
         {
           "title": "דוח רבעון 1 לשנת 2024",
@@ -980,8 +980,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 3,
-          "readE": 5,
-          "readR": 2
+          "readE": 1,
+          "readR": 4
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -990,7 +990,7 @@
           "windows": 175,
           "chunks": 175,
           "readP": 2,
-          "readE": 1,
+          "readE": 2,
           "readR": 2
         },
         {
@@ -1000,7 +1000,7 @@
           "windows": 171,
           "chunks": 171,
           "readP": 1,
-          "readE": 3,
+          "readE": 2,
           "readR": 0
         },
         {
@@ -1029,7 +1029,7 @@
       "R": false,
       "F": false,
       "tokensP": 12989,
-      "tokensE": 13016,
+      "tokensE": 13027,
       "spread": [
         {
           "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
@@ -1048,8 +1048,8 @@
           "windows": 33,
           "chunks": 33,
           "readP": 3,
-          "readE": 7,
-          "readR": 422
+          "readE": 13,
+          "readR": 427
         },
         {
           "title": "מצגת משקיעים לרבעון שני 2025",
@@ -1058,8 +1058,8 @@
           "windows": 35,
           "chunks": 35,
           "readP": 2,
-          "readE": 3,
-          "readR": 76
+          "readE": 7,
+          "readR": 67
         },
         {
           "title": "דוח תקופתי ושנתי לשנת 2025",
@@ -1068,7 +1068,7 @@
           "windows": 175,
           "chunks": 175,
           "readP": 1,
-          "readE": 10,
+          "readE": 4,
           "readR": 65
         },
         {
@@ -1078,8 +1078,8 @@
           "windows": 171,
           "chunks": 171,
           "readP": 1,
-          "readE": 5,
-          "readR": 83
+          "readE": 2,
+          "readR": 87
         },
         {
           "title": "דוח רבעון 1 לשנת 2025",
@@ -1088,7 +1088,7 @@
           "windows": 31,
           "chunks": 31,
           "readP": 3,
-          "readE": 7,
+          "readE": 12,
           "readR": 416
         }
       ]

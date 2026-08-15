@@ -41,8 +41,9 @@
 // ⚠ WHAT THIS DOES NOT MEASURE, stated because a gate that overstates itself is
 // worse than none (M1):
 //   · answer QUALITY. It measures whether the anchored passage reached the model.
-//   · arm E embeds RAW window text — no deterministic metadata prefix. run.mjs's
-//     own `B-gemini-nopfx` ablation is the reference for what that costs.
+//   · arm E's windows are NOT the chunker's chunks, so its metadata prefix is
+//     rebuilt from what a window has (company, title, the file's own label). The
+//     recipe matches production; the inputs are a window's, not a chunk's.
 //   · a page-anchored hit is credited when the `[p.N]` marker is in the sent
 //     text; a window trimmed by the budget can therefore be credited on its first
 //     page. That over-credit is identical in every arm.
@@ -55,8 +56,14 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
-import { chunkTranscriptSections, chunkFilingPage, speakersById } from '../../src/lib/corpus/chunker.ts'
-import { contentToText } from '../../src/lib/workspace/chat/context.ts'
+import {
+  chunkTranscriptSections,
+  chunkFilingPage,
+  speakersById,
+  transcriptPrefix,
+  filingPrefix,
+} from '../../src/lib/corpus/chunker.ts'
+import { contentToText, fencePart } from '../../src/lib/workspace/chat/context.ts'
 import { planContext, windowsOf, estimateTokens, splitBudget } from '../../src/lib/workspace/chat/plan.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -304,6 +311,25 @@ function anchorSources(anchors, byId) {
 }
 
 /**
+ * What arm E embeds for one window — the SAME deterministic metadata prefix
+ * production puts in front of a chunk.
+ *
+ * The first run embedded raw window text, and that is a handicap on precisely
+ * the arm the ticket defines as "the swap": production embeds
+ * `{company} · {title} · עמ' {N}:\n{body}`, the prefix is a measured part of the
+ * recipe, and `run.mjs` keeps a `B-gemini-nopfx` ablation for what dropping it
+ * costs. Comparing a prefixed planner-replacement against an unprefixed one is
+ * not the comparison the ticket asked for. A window is not a chunk, so the
+ * prefix is built from what a window HAS — the source's company and title, and
+ * the label the file gave the window.
+ */
+function windowEmbInput(source, w) {
+  return source.kind === 'transcript'
+    ? transcriptPrefix(source.company, w.label, []) + w.text
+    : filingPrefix(source.company, source.title, parseInt(w.label.replace(/\D/g, ''), 10) || 0, null) + w.text
+}
+
+/**
  * A realistic shelf: every anchored file, then the analyst's likely neighbours.
  *
  * Same-company files first because that is what an analyst actually pulls
@@ -333,13 +359,22 @@ function buildShelf(anchored, allSources) {
   return shelf
 }
 
-/** Split a planner's output back into what was sent FOR EACH item. */
-function sentPerItem(text) {
+/**
+ * Split a planner's output back into what was sent FOR EACH item.
+ *
+ * ATTRIBUTION IS BY MEMBERSHIP IN A KNOWN SET, never by parsing the header. An
+ * earlier version read the id back out with `/id: ([^)]+)\)/` — a regex over a
+ * line that also carries a title nobody controls, in a gate whose whole job is
+ * to be able to say the planner won. A silent misattribution there would move
+ * scores with nothing to show for it. The shelf's ids are known here, so the
+ * question "whose section is this" is answered by asking each of them.
+ */
+function sentPerItem(text, shelf) {
   const out = new Map()
-  const parts = text.split('<<<ATLAS-SOURCE')
-  for (const part of parts.slice(1)) {
-    const m = part.match(/id: ([^)]+)\)/)
-    if (m) out.set(m[1], (out.get(m[1]) ?? '') + part)
+  for (const part of text.split('<<<ATLAS-SOURCE').slice(1)) {
+    const header = part.slice(0, part.indexOf('\n') + 1)
+    const owner = shelf.find((s) => header.includes(`id: ${fencePart(s.itemId)})`))
+    if (owner) out.set(owner.itemId, (out.get(owner.itemId) ?? '') + part)
   }
   return out
 }
@@ -389,12 +424,17 @@ function planByChunks(shelf, queryVec, vecOf, budgetTokens, fair = false) {
 
   const per = new Map()
   for (const r of ranked) {
-    const cost = estimateTokens(r.chunk.content)
-    if (spent + cost > budgetTokens) continue
-    spent += cost
     const marker = r.chunk.anchor.page
       ? `[p.${r.chunk.anchor.page}]`
       : r.chunk.anchor.lines.map((l) => `[${l}]`).join(' ')
+    // THE MARKER IS CHARGED. Arms P and E pay for their `[label]` lines inside
+    // planContext, so leaving R's free handed the challenger a slightly bigger
+    // budget than the planner. It is a bias in the LOSER's favour and so never
+    // threatened the verdict — which is exactly why it had to be fixed rather
+    // than argued away.
+    const cost = estimateTokens(marker + '\n' + r.chunk.content)
+    if (spent + cost > budgetTokens) continue
+    spent += cost
     per.set(r.source.itemId, (per.get(r.source.itemId) ?? '') + marker + '\n' + r.chunk.content + '\n')
   }
   return per
@@ -455,7 +495,7 @@ async function main() {
   const chunkTexts = []
   for (const shelf of shelves) {
     for (const s of shelf) {
-      for (const w of windowsOf(s.text)) windowTexts.push(w.text)
+      for (const w of windowsOf(s.text)) windowTexts.push(windowEmbInput(s, w))
       for (const ch of s.chunks) chunkTexts.push(ch.embInput)
     }
   }
@@ -482,10 +522,10 @@ async function main() {
       question: c.query,
       sources: shelf,
       budgetTokens: budget.sources,
-      scoreWindow: (w) => cosine(qv, docVec(w.text)),
+      scoreWindow: (w, s) => cosine(qv, docVec(windowEmbInput(s, w))),
     })
-    const sentP = sentPerItem(planP.text)
-    const sentE = sentPerItem(planE.text)
+    const sentP = sentPerItem(planP.text, shelf)
+    const sentE = sentPerItem(planE.text, shelf)
     const sentR = planByChunks(shelf, qv, docVec, budget.sources)
     const sentF = planByChunks(shelf, qv, docVec, budget.sources, true)
 

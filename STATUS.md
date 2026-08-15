@@ -34,12 +34,12 @@ retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
 `scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on any v2 chat
 failing in production check for a 401 first; absent returns 503.
 
-**09 closed by MEASURING, not building.** Its gate reads **planner 8/14, the literal swap 6/14,
-retrieval's own chunks 8/14** on a workspace shelf, so **workspace chat is unchanged** — the outcome
-the ticket names in advance. `scripts/retrieval-eval/workspace-gate.mjs` is standing; re-run it
-before any workspace-retrieval change. The lead is UNION, not replacement, but P ∪ R = 11/14 is an
-ORACLE BOUND that breaks the shared budget: its own ticket, its own gate. Ungated work that shipped:
-the fence line is defanged. Evidence: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
+**09 closed by MEASURING, not building.** At shelf 3/6/12 the planner reads 12/8/8 and the swap
+11/9/8 — trading the lead by ONE case each way, so "measurably beats" is unmet and **workspace chat
+is unchanged** — the outcome the ticket names in advance. Retrieval's own chunks lose at every size.
+`scripts/retrieval-eval/workspace-gate.mjs` is standing: re-run before any such change. The lead is UNION (they miss different cases), but P ∪ E is an ORACLE BOUND
+that breaks the shared budget: its own ticket and gate. Also shipped: the prompt boundaries are
+closed, with a scan holding them.
 
 **Next: 10** — agent tables + create flow.
 
