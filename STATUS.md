@@ -22,7 +22,7 @@ Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`. Lowest unblocked
 one, branch per slice. **STRICT ORDER: 08 → 09 → 10 → 11 → 12 → 13 → 14** (founder, final).
 
-**Phase A done; 06, 07, 08a, 08b merged; 08c-1 built.** `ChatView` is ENTIRELY on v2 — chat,
+**Phase A done; 06, 07, 08a, 08b, 08c-1 merged.** `ChatView` is ENTIRELY on v2 — chat,
 `?transcript=`, the company page and project chats — and the `useV2` fork is deleted.
 
 **08c is sliced three ways** (founder — "Project grounding only"): 08c-1 done; **08c-2** live
