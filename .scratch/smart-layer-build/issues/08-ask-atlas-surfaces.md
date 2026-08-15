@@ -1,7 +1,9 @@
 # B2 · Ask Atlas surfaces
 
-Status: in-progress — 08a done · 08b done · 08c SPLIT AGAIN: 08c-1 done · 08c-2 verified and
-reviewed three rounds, MERGING · 08c-3 OPEN — and 08c-3 is what CLOSES this ticket
+Status: DONE (pending merge) — 08a · 08b · 08c-1 · 08c-2 merged; **08c-3 CLOSES this ticket**,
+verified in both locales and reviewed three rounds on `feat/smart-layer-b2c-doc-grounding`. The
+marked report passage and the snipped page images reach `/api/chat/v2` as a fenced page block and
+as IMAGE content blocks, and the old `/api/chat` is DELETED — its last caller left.
 Blocked by: 07
 
 Spec §2.3 + §6 B2. `TranscriptChatPanel` (live calls, transcripts, multiview) +

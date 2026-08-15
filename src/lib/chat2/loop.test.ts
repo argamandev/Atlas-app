@@ -1231,7 +1231,7 @@ function loadedDoc(
 test('a snipped image reaches the model AS AN IMAGE BLOCK — the whole point of 08c-3', async () => {
   // The capability that kept `/api/chat` alive for three slices. Before this the
   // loop could only send text, so a turn holding a snip had to fall back to the
-  // old route (`lib/chat/turnRoute.ts`).
+  // old route (`lib/chat/turnRoute.ts`, deleted with it).
   const s = docSender()
   await collect(
     runChatLoop({

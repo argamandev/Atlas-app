@@ -263,7 +263,7 @@ export function LiveBroadcastView({
   // 400'd every question on exactly the long calls the server's truncation exists
   // to serve. The cut keeps the END, the same direction the server cuts, and
   // stays above the injection budget so the server still sees more than it can
-  // carry and still says so on screen (`lib/chat/turnRoute.ts`).
+  // carry and still says so on screen (`lib/chat/captionPayload.ts`).
   const liveCaptionsText = useMemo(
     () =>
       words.length
@@ -819,7 +819,7 @@ export function LiveBroadcastView({
           //
           // A turn that also carries a snip or a marked report page STAYS HERE
           // (08c-3). It used to fall back to the old `/api/chat` per turn, via
-          // `lib/chat/turnRoute.ts`; the loop carries image content blocks now,
+          // `lib/chat/captionPayload.ts`; the loop carries image content blocks now,
           // that route and that module are deleted, and there is no second wire
           // left for this panel to fall back to.
           grounding={{ kind: 'live', captions: liveCaptionsText ?? '', label: liveCallLabel }}

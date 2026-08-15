@@ -541,3 +541,23 @@ The generalisation, and why it earned a tier: **a state that names one channel m
 measured against the union of every channel.** Multi-modal grounding makes this shape common —
 the same defect is waiting wherever audio, image and text carry one source — and it is invisible
 to a type checker, because both lists are `number[]`.
+
+**Round 3 — two more, in the branch nobody had touched.** A snip-only turn whose page-text load
+THREW fell into the unconditional `failed` branch — the sibling of the `if` every previous fix had
+edited — and announced that report text nobody had asked for was missing. And `built.truncated` was
+a bare boolean over ALL loaded pages, so a snipped page running long told the user their marked
+passage "was too long to read in full" about a passage that was short. A third finding, one layer
+away: `anySourceSurvived` was set from `documentBlockText !== ''`, but the no-text block is
+non-empty — it contains `NO_PAGE_TEXT` — so the presence of a block stood in for the survival of a
+source and suppressed `all_sources_failed`.
+
+**What finally stopped it.** Not a better condition — the fourth better condition. The decision
+moved OUT of the branches into `documentContextState()`, a pure function of four named facts, swept
+as a table where a new combination is a row rather than a new `if` in a branch nobody re-reads.
+`buildDocumentBlock` now reports WHICH pages it cut instead of that it cut. Both mutations of the
+new guard were driven and both go red.
+
+**The generalisation, and why it earned a tier:** a state that names one channel must never be
+measured against the union of every channel — and a decision that has been wrong once in a branch
+will be wrong again in its sibling. Multi-modal grounding makes both shapes common; the second is
+invisible to a type checker, because every list involved is `number[]`.

@@ -48,7 +48,7 @@ import { chatMode, modeChanged, type ChatMode } from './mode'
 import { defang } from './fence'
 import { buildCallBlock, type CallForInjection } from './callInjection'
 import { buildLiveBlock, type LiveCaptions } from './liveInjection'
-import { buildDocumentBlock, snipCaption } from './documentInjection'
+import { buildDocumentBlock, documentContextState, snipCaption } from './documentInjection'
 import type { LoadedDocument } from './documentSource'
 import { pagesToLoad, type TurnDocuments } from './requestScope'
 import { PNG_DATA_URL_PREFIX } from '@/lib/chat/attachments'
@@ -312,6 +312,8 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // anything on screen, so it is reported (`documentContext`) and answered
   // around, the `projectContext` shape rather than the `grounding` one.
   let documentBlockText = ''
+  /** How many pages of report TEXT actually reached the model. The fact, not the block. */
+  let documentPagesCarried = 0
   let documentState: DocumentContextState | null = null
   /** The report's own title, for the snip captions. `null` when the row is gone. */
   let documentMeta: LoadedDocument['meta'] = null
@@ -331,61 +333,29 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       console.error('[chat2/loop] report page load failed', (err as Error).message)
       loaded = null
     }
-    if (loaded) {
-      documentMeta = loaded.meta
-      const built = buildDocumentBlock(loaded.meta, loaded.pages)
-      documentBlockText = built.text
-      // `failed` MEANS "NO REPORT TEXT IS IN THIS ANSWER", not "the read threw",
-      // and the difference cost a state on the first real-data run of this
-      // ticket. A document whose pages hold no extracted text — a scanned PDF,
-      // or a documentId that no longer names a row — took the `ok` branch,
-      // because the read had succeeded. The model was correctly told the pages
-      // were unreadable (`NO_PAGE_TEXT`), and the SCREEN said nothing at all:
-      // success UI over content the server never had.
-      //
-      // AND IT IS A SET COMPARISON, NOT A `some()` — round 1's BLOCKER on the
-      // first version of this very fix. `some()` asks "did ANY page survive",
-      // which is the wrong question when a marked passage spans a text page and a
-      // scanned one: one page arrives, `some()` says yes, the state reads `ok`,
-      // and the answer is built on a strict SUBSET of the pages the reference
-      // block on screen names, with nothing saying so.
-      //
-      // MEASURED AGAINST THE MARKED PAGES, NOT THE LOADED ONES — round 2's
-      // BLOCKER, which the round-1 fix introduced. `pagesToLoad` adds every
-      // snipped page to the FETCH, and the first version compared against that
-      // union: a snip of a scanned page then has no text row, the difference is
-      // non-empty, and the surface said "the report text could not be loaded" on
-      // the exact turn the IMAGE grounding had worked perfectly. Two channels
-      // carry report content here — fenced text and image blocks — and a state
-      // describing only one of them must only ever be measured against what that
-      // one was asked to carry.
-      //
-      // So: what did the SCREEN promise as text? `args.documents.pages`, the
-      // marked passage. `built.pages` is what the model was given. Their
-      // difference is the fact, and no third state is needed — `truncated`
-      // already means "you did not get all of it".
-      //
-      // A SNIP-ONLY TURN PROMISES NO TEXT AT ALL, so it cannot lose any: there is
-      // no reference block, only thumbnails, and those always arrive. `ok` is the
-      // honest answer there rather than a failure about text nobody asked for.
-      const carried = new Set(built.pages)
-      const marked = args.documents.pages
-      const missing = marked.filter((p) => !carried.has(p))
-      documentState =
-        marked.length === 0
-          ? 'ok'
-          : missing.length === marked.length
-            ? 'failed'
-            : built.truncated || missing.length > 0
-              ? 'truncated'
-              : 'ok'
-    } else {
-      documentState = 'failed'
-    }
+    // ONE DECISION, ONE PLACE, and this shape is what three review rounds bought.
+    // The state used to be computed inline here, in TWO branches of this `if`, and
+    // it was wrong four times: once per round, and twice in the sibling branch the
+    // previous fix had not touched — a snip-only turn whose load threw fell
+    // straight to `failed` and announced that report text nobody had asked for was
+    // missing. A condition in a branch is only as good as the cases someone
+    // thought to write; a pure function is swept. `documentContextState` owns the
+    // question now and `documentInjection.test.ts` sweeps it exhaustively (M3.1).
+    const built = loaded ? buildDocumentBlock(loaded.meta, loaded.pages) : null
+    documentMeta = loaded?.meta ?? null
+    documentBlockText = built?.text ?? ''
+    documentPagesCarried = built?.pages.length ?? 0
+    const state = documentContextState({
+      markedPages: args.documents.pages,
+      carriedPages: built?.pages ?? [],
+      truncatedPages: built?.truncatedPages ?? [],
+      loadFailed: !loaded,
+    })
+    documentState = state
     // AFTER the load, never optimistically — the same rule as `grounding` and
     // `projectContext`. An event sent before the thing it describes is evidence
     // of nothing.
-    yield { type: 'documentContext', state: documentState }
+    yield { type: 'documentContext', state }
   }
 
   // The user turn, as CONTENT BLOCKS when images ride it and as a plain string
@@ -545,7 +515,15 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // An attached report page — or a snipped image — is a source that survived, on
   // the same terms as the injected call. A turn that carries only a snip and
   // whose every tool then failed has genuinely still been given something.
-  let anySourceSurvived = groundingBlock !== null || documentBlockText !== '' || snips.length > 0
+  //
+  // AND IT IS THE PAGE TEXT, NOT THE BLOCK — round 3's WARNING, and M3.2 exactly.
+  // `documentBlockText !== ''` reads as "a report reached the model", but
+  // `buildDocumentBlock` returns a NON-EMPTY fence in the no-text case too: it
+  // contains `NO_PAGE_TEXT`, the sentence saying nothing could be extracted. So a
+  // turn reporting `documentContext: failed` whose every tool then also failed
+  // suppressed `all_sources_failed` and ended `done` — the presence of a block
+  // standing in for the survival of a source.
+  let anySourceSurvived = groundingBlock !== null || documentPagesCarried > 0 || snips.length > 0
   // EVERY delta this turn sends, accumulated at the one point they are yielded, so
   // `anyTextEmitted` describes what the USER SAW rather than what the last API
   // response happened to contain. It does NOT mean every delta is quote-checked:

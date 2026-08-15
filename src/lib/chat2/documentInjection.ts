@@ -33,6 +33,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { defang, fenceSource } from './fence'
+// Wire vocabulary, declared once for both sides (`protocol.ts`). Imported rather
+// than re-declared so the state this decides and the state the parser admits
+// cannot drift — the defect that module exists to have deleted.
+import type { DocumentContextState } from './protocol'
 
 /**
  * The chars of extracted page text one turn may carry.
@@ -118,8 +122,19 @@ export interface DocumentPage {
 export interface DocumentBlock {
   /** The fenced block, ready to ride this turn's user message. */
   text: string
-  /** `true` means the model saw a CUT version of these pages, not all of them. */
+  /** `true` means SOME page in this block was cut. Which ones is `truncatedPages`. */
   truncated: boolean
+  /**
+   * WHICH pages were cut, in order — not merely that one was.
+   *
+   * The bare boolean above was a WARNING at round 3: a block holds the marked
+   * pages AND every snipped page, so `truncated` went true when a page loaded
+   * only because it was SNIPPED ran long, and the surface then told the user
+   * their marked passage "was too long to read in full" about a passage that was
+   * short. A state naming one channel cannot be decided by a flag that answers
+   * for both.
+   */
+  truncatedPages: number[]
   /**
    * The page numbers actually CARRIED, in order.
    *
@@ -155,6 +170,7 @@ export function buildDocumentBlock(
     return {
       text: fenceSource({ kind: 'filing', label, content: NO_PAGE_TEXT }),
       truncated: false,
+      truncatedPages: [],
       // EMPTY, not the requested list. `pages` means "what the model was actually
       // GIVEN" — that is the whole reason the loop can compare it against what the
       // user marked — and returning the requested pages made the field describe
@@ -163,15 +179,22 @@ export function buildDocumentBlock(
     }
   }
 
+  // THE BUDGET IS GENUINELY SHARED across every loaded page, snipped ones
+  // included, and that is not the leak round 3 named. A turn has one context
+  // window; a page loaded because it was snipped occupies it exactly as a marked
+  // page does. What must not be shared is the REPORTING — which page got cut is
+  // recorded per page below, so a state naming the marked passage is never
+  // decided by a snipped page's length.
   const perPage = Math.max(1, Math.floor(budgetChars / withText.length))
-  let truncated = false
+  const truncatedPages: number[] = []
   const body = withText
     .map((p) => {
       const text = p.text.trim()
-      if (text.length > perPage) truncated = true
+      if (text.length > perPage) truncatedPages.push(p.pageNo)
       return `[page ${p.pageNo}]\n${text.slice(0, perPage)}`
     })
     .join('\n\n')
+  const truncated = truncatedPages.length > 0
 
   // The notice goes FIRST, so it survives even the pathological case where the
   // block is read from the top and the cut pages follow.
@@ -180,8 +203,57 @@ export function buildDocumentBlock(
   return {
     text: fenceSource({ kind: 'filing', label, content }),
     truncated,
+    truncatedPages,
     pages: withText.map((p) => p.pageNo),
   }
+}
+
+/**
+ * WHICH STATE THE SURFACE IS TOLD — as a PURE FUNCTION of the facts, decided in
+ * ONE place (M3.1).
+ *
+ * IT IS A FUNCTION BECAUSE THREE REVIEW ROUNDS SAY IT HAD TO BE. This decision
+ * lived inline in `loop.ts` and was wrong four times, each time by measuring
+ * something ADJACENT to the question — "did the read succeed", "did any page
+ * survive", "was everything we FETCHED present", "was any loaded page cut" — and
+ * each fix introduced the next round's defect because a condition in a branch
+ * can only be checked by the cases someone thought to write. Two of the four
+ * lived in the sibling branch of the same `if`, which is exactly what a choke
+ * point removes. It is now swept exhaustively (`documentInjection.test.ts`).
+ *
+ * THE QUESTION IT ANSWERS, stated once so no future condition can drift from it:
+ * *did the report TEXT the screen promised reach the model whole?* Not "did
+ * anything reach the model" — the snipped IMAGES are a second channel with their
+ * own guarantee (they arrive with the request and cannot fail), and folding them
+ * in is what made a working turn report a failure.
+ */
+export function documentContextState(facts: {
+  /** The pages the user MARKED — what the reference block promises as text. */
+  markedPages: number[]
+  /** The pages whose text actually reached the model. */
+  carriedPages: number[]
+  /** The pages that were CUT to fit. */
+  truncatedPages: number[]
+  /** The load threw, or returned nothing at all. */
+  loadFailed: boolean
+}): DocumentContextState {
+  // NOTHING PROMISED, SO NOTHING LOST. A snip-only turn renders thumbnails and no
+  // reference block: the user asked about an image, the image arrived, and there
+  // is no report text for a notice to be about. This branch is FIRST, and it is
+  // first because round 3's BLOCKER was a snip-only turn falling into the load
+  // failure below and announcing that report text nobody asked for was missing.
+  if (facts.markedPages.length === 0) return 'ok'
+  if (facts.loadFailed) return 'failed'
+
+  const carried = new Set(facts.carriedPages)
+  const missing = facts.markedPages.filter((p) => !carried.has(p))
+  if (missing.length === facts.markedPages.length) return 'failed'
+
+  // Only a MARKED page being cut is this state's business. A snipped page loaded
+  // alongside can be cut without the marked passage having been — round 3's
+  // second finding, which told the user their short passage was too long.
+  const markedCut = facts.truncatedPages.some((p) => facts.markedPages.includes(p))
+  return missing.length > 0 || markedCut ? 'truncated' : 'ok'
 }
 
 /**

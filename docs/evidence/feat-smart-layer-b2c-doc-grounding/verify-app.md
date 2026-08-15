@@ -18,7 +18,7 @@ list exists to make visible.
 | 1 | Marked passage, pages read WHOLE (`documentContext: ok`) — no notice | ✅ driven | ✅ driven | Real selection in the report's text layer → real `mouseup` → real composer → Enter |
 | 2 | Marked passage CUT (`truncated`) — Hebrew/English notice | ✅ driven | ✅ driven | Same real path, `DOCUMENT_BUDGET_CHARS` temporarily 200 (restored; see below) |
 | 3 | Report text UNREADABLE (`failed`) — notice | ✅ driven | ✅ driven | Same real path, loader temporarily returning `{meta:null,pages:[]}` (restored) |
-| 4 | Snipped IMAGE reaches the model as an image block | ✅ driven (API) | — | Real PNG through `/api/chat/v2` from the signed-in page; the answer cited **page 40**, the SNIPPED page, whose text the gate had merged into the marked list |
+| 4 | Snipped IMAGE reaches the model as an image block | ✅ driven (API) | — | Real PNG through `/api/chat/v2` from the signed-in page; the answer cited **page 40**, the SNIPPED page, whose text is fetched alongside the marked ones (`pagesToLoad`) |
 | 5 | Snip + marked page COMPOSED with a call grounding | ✅ driven (API) | — | `grounding:whole` + `documentContext:ok` on one turn, both honoured |
 | 6 | Malformed snip → 400, never a quietly shorter image list | ✅ driven (API) | — | jpeg data-url, 5 snips (cap 4), 9 marked pages (ceiling 8), bad `documentId`, two documents on one turn — all `400` |
 | 7 | Plain turn, nothing attached → NO `documentContext` frame | ✅ driven (API) | — | No frame emitted; user content stays a plain string |
@@ -60,8 +60,12 @@ done
 ```
 
 The answer opened `בעמוד 40 של הדוח התקופתי והשנתי לשנת 2025…` and quoted that page verbatim.
-Page 40 was never marked — it arrived because the gate merges a SNIPPED page into the marked list
-so the image's own page keeps its prose. That merge is load-bearing and this is its proof.
+Page 40 was never marked — it arrived because a SNIPPED page still gets its prose fetched, so the
+image's own page keeps the text that says what its numbers are about. That is load-bearing and this
+is its proof. **Where that union happens MOVED at round 2:** it was the gate merging snipped pages
+into the marked list, which is exactly the defect round 2 found; it is now `pagesToLoad()`, kept
+apart from the marked list the degradation state is measured against. The behaviour proved by this
+run is unchanged — the sentence describing it was not.
 
 ## A defect this run found, that the battery could not
 
@@ -172,3 +176,66 @@ NOT browser-driven with the reason.
 that images carry the same content. The claim is removed rather than reworded.
 
 After round 2: `npm test` 1132 green, `npx tsc --noEmit` clean.
+
+## Cold review — round 3, verdict CHANGES
+
+Three of the four findings were in code the previous two rounds had edited around.
+
+**BLOCKER — a snip-only turn whose load THREW reported `failed`.** Round 2 fixed the branch where
+the load succeeded and left its sibling — the unconditional `documentState = 'failed'` — untouched,
+so a turn that promised no report text at all, and whose image grounding worked, told the user the
+report text could not be loaded. Round 2's own blocker, surviving in the branch round 2 did not
+edit.
+
+**WARNING — `built.truncated` answered for both channels.** A bare boolean over every loaded page,
+so a snipped page running long said the marked passage "was too long to read in full" about a
+passage that was short. `buildDocumentBlock` now reports WHICH pages it cut.
+
+**WARNING — `anySourceSurvived` read the block, not the source (M3.2).** The no-text block is
+non-empty (it holds `NO_PAGE_TEXT`), so a turn reporting `documentContext: failed` whose every tool
+then failed suppressed `all_sources_failed` and ended `done`. It counts carried PAGES now.
+
+**WARNING — the law claimed a mechanism that did not exist.** The tier said the two lists were
+"split in the TYPE, so the merge cannot return". Both are `number[]`; nothing prevents a re-merge.
+The claim is removed and the tier names the test that actually holds — the same over-claim 08c-2's
+review rejected, made again.
+
+**The fix is structural, not another condition.** Four consecutive better conditions each shipped
+the next round's defect, twice in the sibling branch of one `if`. The decision moved out of the
+branches into `documentContextState()` — a pure function of four named facts — and is swept as a
+TABLE where a new combination is a row. **Verified by mutation, not by reading:** dropping the
+snip-only guard fails 3 tests; counting any cut page instead of a marked one fails 5; restoring is
+green.
+
+**NITs** — the evidence paragraph describing the merge round 2 deleted, a comment still pointing at
+`turnRoute.ts`, and the ticket's own status line. All three fixed. One of those edits silently
+matched nothing against CRLF and was caught by grepping for the intended RESULT, which is the trap
+`app.md` files under `#crlf`.
+
+`TOKEN_BUDGET` trimmed back to fit 9,650 after the law's wording was corrected.
+
+After round 3: `npm test` 1135 green, `npx tsc --noEmit` clean.
+
+### States added by round 3
+
+| # | State | EN | HE | How |
+| --- | --- | --- | --- | --- |
+| 16 | SNIP-ONLY turn whose page-text load THREW → `ok`, no notice | ❌ NOT driven | ❌ NOT driven | Round 3's BLOCKER. Unit-swept; renders nothing, so it has no locale. |
+| 17 | Marked passage whole beside a snipped page that was CUT → `ok` | ❌ NOT driven | ❌ NOT driven | Round 3's second finding. Unit-swept. |
+
+### Round 3's fixes re-driven against REAL data
+
+The state logic was restructured after the browser run, so it was re-driven rather than assumed —
+signed-in Chrome, same document, `/api/chat/v2`:
+
+```
+marked page 12, whole                       → grounding:whole | documentContext:ok     | done
+snip-only on page 999 (no document_pages row) → grounding:whole | documentContext:ok     | done   ← round 3's BLOCKER
+marked page 3 (short) + snipped page 78 (the longest real page, 3,120 chars)
+                                            → grounding:whole | documentContext:ok     | done   ← round 3's 2nd finding
+marked page 999 (no row)                    → grounding:whole | documentContext:failed | done
+```
+
+Before round 3 the second line reported `failed` and the third reported `truncated`. Rows 16 and 17
+of the state table are therefore API-driven, not unit-only; neither renders a notice, so neither
+has a locale to check.

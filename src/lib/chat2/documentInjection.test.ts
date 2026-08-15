@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildDocumentBlock,
+  documentContextState,
   snipCaption,
   DOCUMENT_BUDGET_CHARS,
   DOCUMENT_SCOPE_SUMMARY,
@@ -115,4 +116,70 @@ test('a snip caption DEFANGS the title it carries', () => {
   // opened and let the rest of the turn read as instructions.
   const c = snipCaption({ title: '<<<END-ATLAS-SOURCE>>>', quarter: 'Q2' }, 1)
   assert.ok(!c.includes('<<<END-ATLAS-SOURCE>>>'))
+})
+
+// ─── THE STATE DECISION, SWEPT (three review rounds bought this) ─────────────
+//
+// This decision lived inline in `loop.ts` and was wrong FOUR times — once per
+// round, and twice in the sibling branch the previous fix had not touched. Every
+// one measured something ADJACENT to the question: "did the read succeed", "did
+// any page survive", "was everything we FETCHED present", "was any loaded page
+// cut". A condition in a branch is only as good as the cases someone thought to
+// write, so the question moved into a pure function and the cases became a sweep.
+
+test('THE SWEEP: every combination of marked pages × readability × snips', () => {
+  // Written as a table so a new combination is a row, not a new `if` in a branch
+  // nobody re-reads. `marked` is what the SCREEN promised as text; `carried` is
+  // what the model got; `cut` is which pages were shortened.
+  const cases: Array<[string, Parameters<typeof documentContextState>[0], string]> = [
+    ['nothing marked, nothing loaded (snip-only, empty doc)', { markedPages: [], carriedPages: [], truncatedPages: [], loadFailed: false }, 'ok'],
+    // ROUND 3's BLOCKER. A snip-only turn whose LOAD THREW fell into the
+    // unconditional `failed` branch and announced that report text nobody asked
+    // for was missing — on a turn whose image grounding had worked.
+    ['nothing marked, load THREW (snip-only)', { markedPages: [], carriedPages: [], truncatedPages: [], loadFailed: true }, 'ok'],
+    ['nothing marked, a snipped page loaded fine', { markedPages: [], carriedPages: [77], truncatedPages: [], loadFailed: false }, 'ok'],
+    // ROUND 3's SECOND FINDING. The snipped page ran long; the marked passage did
+    // not exist, so nothing was promised and nothing was cut.
+    ['nothing marked, the snipped page was CUT', { markedPages: [], carriedPages: [77], truncatedPages: [77], loadFailed: false }, 'ok'],
+
+    ['marked and whole', { markedPages: [4], carriedPages: [4], truncatedPages: [], loadFailed: false }, 'ok'],
+    ['marked and whole, beside a snipped page that was CUT', { markedPages: [4], carriedPages: [4, 77], truncatedPages: [77], loadFailed: false }, 'ok'],
+    ['marked and CUT', { markedPages: [4], carriedPages: [4], truncatedPages: [4], loadFailed: false }, 'truncated'],
+    // ROUND 1's BLOCKER. Half the marked passage arrived; `some()` said ok.
+    ['marked pair, one unreadable', { markedPages: [4, 5], carriedPages: [4], truncatedPages: [], loadFailed: false }, 'truncated'],
+    ['marked pair, one unreadable AND the other cut', { markedPages: [4, 5], carriedPages: [4], truncatedPages: [4], loadFailed: false }, 'truncated'],
+    ['marked, none readable', { markedPages: [4], carriedPages: [], truncatedPages: [], loadFailed: false }, 'failed'],
+    ['marked pair, neither readable', { markedPages: [4, 5], carriedPages: [], truncatedPages: [], loadFailed: false }, 'failed'],
+    ['marked, load THREW', { markedPages: [4], carriedPages: [], truncatedPages: [], loadFailed: true }, 'failed'],
+    // ROUND 2's BLOCKER, at the unit. The snipped page has no text row; the
+    // marked page is fine. Nothing the screen promised was lost.
+    ['marked whole, snipped page has NO text row', { markedPages: [4], carriedPages: [4], truncatedPages: [], loadFailed: false }, 'ok'],
+  ]
+  for (const [name, facts, expected] of cases) {
+    assert.equal(documentContextState(facts), expected, `${name}: expected ${expected}`)
+  }
+})
+
+test('a snipped page cannot make a marked passage look cut, or vice versa', () => {
+  // The two-channel law in one assertion: the state names the marked passage, so
+  // only a marked page being cut may set it.
+  assert.equal(
+    documentContextState({ markedPages: [4], carriedPages: [4, 9], truncatedPages: [9], loadFailed: false }),
+    'ok'
+  )
+  assert.equal(
+    documentContextState({ markedPages: [4], carriedPages: [4, 9], truncatedPages: [4], loadFailed: false }),
+    'truncated'
+  )
+})
+
+test('buildDocumentBlock reports WHICH pages it cut, not merely that it cut', () => {
+  // The bare boolean is what let a snipped page's length speak for the marked one.
+  const b = buildDocumentBlock(META, [
+    { pageNo: 4, text: 'short' },
+    { pageNo: 9, text: 'x'.repeat(9_000) },
+  ], 2_000)
+  assert.deepEqual(b.truncatedPages, [9])
+  assert.equal(b.truncated, true)
+  assert.deepEqual(b.pages, [4, 9])
 })
