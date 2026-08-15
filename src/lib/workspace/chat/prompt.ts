@@ -1,4 +1,5 @@
 import { modelObject } from '../intake/json'
+import { defang, fencePart } from './context'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE WORKSPACE CHAT — talking about the shelf, and asking for more of it.
@@ -58,13 +59,13 @@ export function buildChatPrompt(input: PromptInput): string {
   const shelf =
     input.shelf.length === 0
       ? '(nothing on the shelf yet)'
-      : input.shelf.map((f) => `- ${f.title} (${f.kind})`).join('\n')
+      : input.shelf.map((f) => `- ${fencePart(f.title)} (${fencePart(f.kind)})`).join('\n')
 
   const partial =
     input.truncated.length === 0
       ? ''
       : `\nYOU WERE GIVEN ONLY PART OF THESE, because they are long:
-${input.truncated.map((t) => `- ${t}`).join('\n')}
+${input.truncated.map((t) => `- ${fencePart(t)}`).join('\n')}
 If your answer depends on a part you cannot see, SAY SO plainly. Never imply you
 read the whole of one of these.
 `
@@ -72,9 +73,9 @@ read the whole of one of these.
   // The marked passage goes in as its own block rather than being glued onto the
   // user's question, so "what does this mean?" has an unambiguous "this".
   const marked = input.selection
-    ? `\nTHE ANALYST HAS MARKED THIS PASSAGE, from "${input.selection.title}":
+    ? `\nTHE ANALYST HAS MARKED THIS PASSAGE, from "${fencePart(input.selection.title)}":
 """
-${input.selection.text}
+${defang(input.selection.text)}
 """
 Their message is about this passage unless they clearly change the subject.
 `
@@ -96,7 +97,7 @@ Read the ${input.snipCount === 1 ? 'image' : 'images'} — ${input.snipCount ===
     .map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${t.content}`)
     .join('\n')
 
-  return `You are Atlas, working alongside an equity analyst inside their research workspace "${input.workspaceName}".
+  return `You are Atlas, working alongside an equity analyst inside their research workspace "${fencePart(input.workspaceName)}".
 
 FILES ON THE SHELF:
 ${shelf}

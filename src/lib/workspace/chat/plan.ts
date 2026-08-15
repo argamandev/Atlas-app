@@ -35,7 +35,7 @@
 // on two round trips instead of one.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { SourceText } from './context'
+import { defang, fenceLine, fencePart, type SourceText } from './context'
 
 /**
  * Characters per token, measured on this corpus rather than assumed.
@@ -224,8 +224,13 @@ export function planContext(opts: {
   const outline = cut
     .map(
       ({ source, windows }) =>
-        `- ${source.title} (${source.kind}, id: ${source.itemId}) — ${windows.length} sections: ${windows
-          .map((w) => w.label)
+        // The outline names every file whether or not its text is read, so it
+        // carries the same three untrusted strings the marker line does — plus
+        // the labels, which a transcript writes itself by printing `## …`.
+        `- ${fencePart(source.title)} (${fencePart(source.kind)}, id: ${fencePart(source.itemId)}) — ${
+          windows.length
+        } sections: ${windows
+          .map((w) => fencePart(w.label))
           .slice(0, 24)
           .join(' · ')}`
     )
@@ -324,11 +329,15 @@ export function planContext(opts: {
     const skipped = windows.length - picked.length
     // The header states the read/unread split IN THE PROMPT, so the model knows
     // the shape of its own ignorance rather than assuming it saw the file.
-    const head =
-      `\n${FENCE} ${source.title} (${source.kind}, id: ${source.itemId})` +
-      (skipped > 0 ? ` — ${picked.length} of ${windows.length} sections shown` : '') +
-      ' >>>\n'
-    parts.push(head + picked.map((w) => `[${w.label}]\n${defang(w.text)}`).join('\n\n'))
+    const head = fenceLine(
+      source.title,
+      source.kind,
+      source.itemId,
+      skipped > 0 ? `${picked.length} of ${windows.length} sections shown` : ''
+    )
+    // The label is the source's own words too — `windowsOf` read it off a `## …`
+    // line the file printed — so it is defanged like the marker, not like a body.
+    parts.push(head + picked.map((w) => `[${fencePart(w.label)}]\n${defang(w.text)}`).join('\n\n'))
   }
 
   const text =
@@ -337,8 +346,9 @@ export function planContext(opts: {
   return { text, sources, truncated, omitted, tokens: estimateTokens(text) }
 }
 
-const FENCE = '<<<ATLAS-SOURCE'
-const defang = (text: string) => text.split(FENCE).join('<<<source')
+// The fence, its defanger and the marker line all live in `context.ts` — ONE
+// door, because the two copies that used to exist here are how the header below
+// stayed unsanitised while the body was fenced.
 
 /**
  * One budget for the WHOLE prompt, split between its parts.

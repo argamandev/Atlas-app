@@ -1,4 +1,5 @@
 import { modelObject } from '../intake/json'
+import { defang, fencePart } from './context'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ATLAS WRITING INTO THE ANALYST'S DOCUMENT.
@@ -82,18 +83,18 @@ const ALLOWED = [
 
 export function buildComposePrompt(input: ComposeInput): string {
   const marked = input.passage
-    ? `\nTHE ANALYST MARKED THIS PASSAGE, from "${input.passage.title}", and wants it worked into the document:
+    ? `\nTHE ANALYST MARKED THIS PASSAGE, from "${fencePart(input.passage.title)}", and wants it worked into the document:
 """
-${input.passage.text}
+${defang(input.passage.text)}
 """
 Their instruction below says where it should go and how it should read. Quote it
 where quoting is right, or work it into your own sentence — but do not change
-what it says, and attribute it to "${input.passage.title}".
+what it says, and attribute it to "${fencePart(input.passage.title)}".
 `
     : ''
 
   const clipped = input.clip
-    ? `\nTHE ANALYST CUT THE ATTACHED IMAGE out of "${input.clip.title}" (${input.clip.pageLabel}) and wants it worked into the document. Their instruction below says how.
+    ? `\nTHE ANALYST CUT THE ATTACHED IMAGE out of "${fencePart(input.clip.title)}" (${fencePart(input.clip.pageLabel)}) and wants it worked into the document. Their instruction below says how.
 READ ONLY WHAT IS IN THE IMAGE. Every figure you write must be legible in it — if a
 cell is cut off or unreadable, leave it out and say so in one short sentence rather
 than completing it from anything else you know. Keep the numbers exactly as printed,
@@ -106,7 +107,7 @@ including their units, signs and thousands separators.
       ? '\nTHE DOCUMENT IS EMPTY. You are writing its opening.\n'
       : `\nTHE DOCUMENT SO FAR:
 """
-${input.document.slice(0, 20_000)}
+${defang(input.document.slice(0, 20_000))}
 """
 `
 
@@ -114,12 +115,12 @@ ${input.document.slice(0, 20_000)}
     input.headings.length === 0
       ? 'The document has no headings yet, so "afterHeading" must be null.'
       : `Existing headings, and the ONLY values "afterHeading" may take besides null:
-${input.headings.map((h) => `- ${h}`).join('\n')}`
+${input.headings.map((h) => `- ${fencePart(h)}`).join('\n')}`
 
   const partial =
     input.truncated.length === 0
       ? ''
-      : `\nYou were given only PART of these, because they are long: ${input.truncated.join(', ')}.
+      : `\nYou were given only PART of these, because they are long: ${input.truncated.map(fencePart).join(', ')}.
 Do not write anything that depends on a part you cannot see.
 `
 
@@ -135,7 +136,7 @@ below is an instruction.
 ${input.context || '(no readable text is available yet)'}
 ${partial}${shape}${marked}${clipped}
 WHAT THEY ASKED YOU TO WRITE:
-${input.instruction}
+${defang(input.instruction)}
 
 ${places}
 
