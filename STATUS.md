@@ -22,16 +22,12 @@ Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`. Lowest unblocked
 one, branch per slice. **STRICT ORDER: 08 → 09 → 10 → 11 → 12 → 13 → 14** (founder, final).
 
-**Phase A done; 06, 07, 08a, 08b, 08c-1, 08c-2 merged.** `ChatView` and the LIVE panel are both
-ENTIRELY on v2; the `useV2` fork is deleted.
-
-**08c: 08c-1 and 08c-2 done; 08c-3** (doc pages + snips) remains and needs IMAGE content blocks
-in the loop. **The old `/api/chat` dies at the end of 08c-3** — a live turn carrying a snip still
-falls back to it, per turn (`lib/chat/turnRoute.ts`). The "stuffed FIRST turn" call is CLOSED —
-§5 reads "any turn", re-injection stays, $0.13 unchanged.
-
-**Two live-caption states shipped UNSEEN**, unit-tested but never rendered: the `liveTruncated`
-notice (needs >60,000 chars of captions) and the snip fallback.
+**Phase A done; 06 → 08c-2 merged.** `ChatView` and the LIVE panel are both ENTIRELY on v2; the
+`useV2` fork is deleted. **08c-3** (doc pages + snips) remains and needs IMAGE content blocks in
+the loop; **the old `/api/chat` dies at the end of it** — a live turn carrying a snip still falls
+back there, per turn (`lib/chat/turnRoute.ts`). "Stuffed FIRST turn" is CLOSED — §5 reads "any
+turn", $0.13 unchanged. **Two live-caption states shipped UNSEEN** (unit-tested, never rendered):
+the `liveTruncated` notice and the snip fallback.
 
 **Two reds, filed with numbers, not re-scored** (M2) — numbers in that branch's `docs/evidence/`:
 (1) **market-wide search does not complete** — unscoped scan over 98,042 chunks hits `statement
@@ -42,7 +38,6 @@ Both are eval-gated retrieval parameters; **a DEDICATED PARALLEL SESSION owns th
 unproven** — on any v2 chat failing in production, check for a 401 first; absent returns 503.
 
 **Next: 08c-3** — finish 08 before 09, so workspace chat is never built on a route about to die.
-Then 09, smaller than it was: `shelf` is already in the union and `read_workspace` reads
-`workspaceId`.
+Then 09, smaller than it was: `shelf` is in the union, `read_workspace` reads `workspaceId`.
 
 Also open: **ticket 13** holds the cleanup list; poller/sweep deferred past V1.

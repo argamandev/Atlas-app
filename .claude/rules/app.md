@@ -193,6 +193,9 @@ and not the other fails. → `#settled-facts`
 up. `chat2/requestScope.test.ts` fails for any accepted id no handler reads; limit in its header.
 Seven surfaces fail a thin answer sold as whole: `retrieve`, `indexHealth`, `reindex`,
 `syncFilings`, `chat2/loop`, `chat2/tools`, `chat2/terminal`. A new surface still gets `none`.
+**Fourth tier (08c-2):** content served by TWO backends must be cut the same way by both, and each
+must SAY it cut — `chat2/liveInjection.ts` owns both decisions, tested down both paths. Three
+recurrences in one branch bought it; **mutate such a guard, never just read it.**
 → `#stubs-on-designed-slots`
 
 **LAW · When a decision rests on a natural-language classifier over an open vocabulary, buy VISIBLE
