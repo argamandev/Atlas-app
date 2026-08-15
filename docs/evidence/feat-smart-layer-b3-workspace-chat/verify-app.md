@@ -58,7 +58,14 @@ row above is stale on its account, and intake gets its own row:
 
 | row | mark | why |
 | --- | --- | --- |
-| 10 | ❌ **not driven** | `selectSources.ts`'s sanitising is covered by the scan and by `tsc`, not by a browser. Driving it means running the intake conversation to a file-fetch, which is a different surface from the honesty states this drive is about. It changes what the MODEL is sent, not what the screen says. |
+| 10 | ❌ **not driven** | Intake (`selectSources.ts`, `intake/route.ts`) — sanitising covered by the scan and `tsc`, not by a browser. Driving it means running the intake conversation to a file-fetch, a different surface from the honesty states this drive is about. |
+| 11 | ❌ **not driven** | Compose with a clip (`compose/route.ts`'s caption). Round 3 changed how that caption is built; the change is enforced by the type checker (`captions: FenceSafe[]`, mutation-verified) and alters what the MODEL is sent, not what the screen says. |
+
+**What rows 10 and 11 mean for a merge:** two surfaces of this feature have had prompt-construction
+changed on this branch without a browser drive. Neither changes rendered text, and both are held by
+`tsc` or the scan — but that is an argument, not a drive, and it is stated here rather than left as
+a silent gap. A founder clicking through an intake conversation and a clip-to-compose once would
+close both.
 
 **Re-check before merge if any further commit touches `src/lib/workspace/`,
 `src/lib/chat/attachments.ts` or `src/components/workspace/`.**
