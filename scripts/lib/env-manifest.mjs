@@ -246,7 +246,7 @@ export const VOCABULARY_EXEMPT = {
  * table — which is the budget refusing the behaviour it exists to encourage.
  */
 /*
- * RAISED 9,420 → 9,460 on 2026-08-15 (ticket 08c-2). Mine, not the founder's,
+ * RAISED 9,420 → 9,490 on 2026-08-15 (ticket 08c-2). Mine, not the founder's,
  * and flagged to him in the handoff.
  *
  * A FOURTH RAISE IN FOUR SLICES, on the SAME law, for the FOURTH time:
@@ -260,8 +260,16 @@ export const VOCABULARY_EXEMPT = {
  *
  * The branch paid 89 of the 123 tokens first: STATUS.md's phase and 08c blocks
  * were merged into one, the "next" line condensed, and the new tier cut from ten
- * lines to three with its story left in the review record. The remaining 34 is
- * this raise.
+ * lines to three with its story left in the review record. The rest is this raise.
+ *
+ * AND IT BUYS A PROMOTION, not just a tier. `Anything that decides what a screen
+ * SAYS gets every one of its states driven in a browser` declared `ENFORCED none`
+ * with the words "its natural tier is a ritual gate, which does not exist yet" —
+ * and this branch built exactly that gate (`/verify-app` step 8b), after its own
+ * evidence file silently omitted one of three new states. So the count
+ * `npm run env:health` exists to drive down goes DOWN by one here. That is the
+ * trade ADR-0002 is asking for, and it is the first of these four raises where
+ * the always-on set got more enforcement per token rather than more prose.
  *
  * ⚠ THE STANDING PLAN IS NOW FOUR SLICES OVERDUE. `app.md` is roughly half this
  * budget, and shrinking it to pointers at its tests (`DECISIONS.md` 2026-08-12)
@@ -271,7 +279,7 @@ export const VOCABULARY_EXEMPT = {
  * degradation, and each tier is worth having. That is an argument for doing the
  * shrink as its own mission, not for refusing the next tier.
  */
-export const TOKEN_BUDGET = 9_460
+export const TOKEN_BUDGET = 9_490
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'
