@@ -108,7 +108,11 @@ test('an UNKNOWN state is dropped, never defaulted to "whole"', () => {
   // answers: the surface would say the call reached the model whole because the
   // wire said something this build cannot read. No claim beats a false one.
   for (const state of ['partial', undefined, 7, null]) {
-    assert.equal(parseChatEvent(JSON.stringify({ type: 'grounding', state, source: null })), null, String(state))
+    assert.equal(
+      parseChatEvent(JSON.stringify({ type: 'grounding', state, source: null })),
+      null,
+      String(state)
+    )
   }
 })
 
@@ -125,4 +129,36 @@ test('a grounding frame without a usable source still parses, with source null',
 
 test('the grounding frame is NOT terminal — it cannot end a turn', () => {
   assert.equal(isTerminal({ type: 'grounding' }), false)
+})
+
+// ─── THE `projectContext` FRAME (ticket 08c) ─────────────────────────────────
+
+test('a projectContext frame parses all three states', () => {
+  for (const state of ['ok', 'truncated', 'failed']) {
+    assert.deepEqual(parseChatEvent(JSON.stringify({ type: 'projectContext', state })), {
+      type: 'projectContext',
+      state,
+    })
+  }
+})
+
+test('an unrecognised projectContext state is DROPPED, never defaulted to ok', () => {
+  // Same law as the grounding frame one section up. Defaulting would make an
+  // unparseable frame assert the flattering half of the only question this event
+  // exists to answer — the surface would render a clean answer where the server
+  // may have been saying the user's instructions never loaded. Dropped leaves the
+  // surface with no claim rather than a false one.
+  for (const state of ['whole', 'OK', '', null, undefined, 7, {}, true]) {
+    assert.equal(
+      parseChatEvent(JSON.stringify({ type: 'projectContext', state })),
+      null,
+      `should have dropped state: ${JSON.stringify(state)}`
+    )
+  }
+  // And a frame with no state at all.
+  assert.equal(parseChatEvent(JSON.stringify({ type: 'projectContext' })), null)
+})
+
+test('the projectContext frame is NOT terminal — it cannot end a turn', () => {
+  assert.equal(isTerminal({ type: 'projectContext' }), false)
 })

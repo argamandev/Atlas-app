@@ -47,6 +47,12 @@ import { decideTerminal, type IncompleteCode } from './terminal'
 import { chatMode, modeChanged, type ChatMode } from './mode'
 import { defang } from './fence'
 import { buildCallBlock, type CallForInjection } from './callInjection'
+import {
+  buildProjectBlock,
+  PROJECT_UNAVAILABLE_SUMMARY,
+  type ProjectContextState,
+  type ProjectForInjection,
+} from './projectInjection'
 
 export const MODEL = 'claude-sonnet-5'
 export const MAX_ROUND_TRIPS = 4
@@ -152,6 +158,16 @@ export interface RunChatLoopArgs {
    * not happen.
    */
   loadCall?: (transcriptId: string) => Promise<CallForInjection | null>
+  /**
+   * Loads the project named by `scope.projectId`. Injectable for the same reason
+   * `loadCall` is — the real one reaches Supabase through the caller's own client.
+   *
+   * `null` means the project is not there FOR THIS CALLER (deleted, or someone
+   * else's under RLS). Unlike `loadCall`, neither `null` nor a throw ends the
+   * turn: see `projectInjection.ts` for why a missing modifier is reported and
+   * answered around, while a missing SOURCE is not.
+   */
+  loadProject?: (projectId: string) => Promise<ProjectForInjection | null>
 }
 
 /**
@@ -221,7 +237,67 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
     },
   ]
 
-  const system = buildSystemPrompt({ todayIsrael, scopeSummary })
+  // ─── PROJECT-CONTEXT INJECTION (ticket 08c) ────────────────────────────────
+  //
+  // AFTER the call block is built and BEFORE the system prompt, because it feeds
+  // that prompt. A project's written layer is a MODIFIER on the turn, not its
+  // source, so unlike the call above it composes with every grounding — a chat
+  // inside a project can be pinned to a company by `@mention` and this still
+  // applies. That is the whole reason `projectId` is a field beside the
+  // `Grounding` union rather than a fifth variant of it (`requestScope.ts`).
+  //
+  // AND UNLIKE THE CALL, A FAILURE DOES NOT END THE TURN. The corpus, the tools
+  // and any company scope are all still there, so an answer is still worth
+  // having — written without the user's standing instructions, and SAYING SO on
+  // both sides: `projectContext: 'failed'` to the surface, which persists it on
+  // the message, and `PROJECT_UNAVAILABLE_SUMMARY` to the model, so the answer
+  // does not sound fully informed underneath that notice.
+  let projectBlockText = ''
+  let projectState: ProjectContextState | null = null
+  if (scope.projectId) {
+    let project: ProjectForInjection | null = null
+    try {
+      const load =
+        args.loadProject ??
+        (async (id: string) => {
+          if (!scope.userDb) return null
+          const { loadProjectForInjection } = await import('./projectSource')
+          return loadProjectForInjection(id, scope.userDb)
+        })
+      project = await load(scope.projectId)
+    } catch {
+      // Swallowed to `failed` ON PURPOSE, and this is the one place in this file
+      // that swallows anything. A load that ERRORED and a project that is GONE
+      // are the same fact to the user — "your project's context is not in this
+      // answer" — and the surface has exactly one notice for it. Inventing a
+      // second state the copy does not cover would be a distinction that only
+      // ever reached a log. The developer-facing detail is not lost: the query
+      // layer logs it, and the state is emitted either way.
+      project = null
+    }
+    if (project) {
+      const built = buildProjectBlock(project)
+      projectBlockText = built.text
+      projectState = built.state
+    } else {
+      projectState = 'failed'
+    }
+    // Emitted AFTER the load, never optimistically — same rule as the `grounding`
+    // event above. This event is the surface's evidence about what happened, so
+    // sending it before the thing it describes makes it evidence of nothing.
+    yield { type: 'projectContext', state: projectState }
+  }
+
+  const system = buildSystemPrompt({
+    todayIsrael,
+    scopeSummary,
+    // The project rides the VOLATILE tail (`systemPrompt.ts`), which is appended
+    // after the cache-stable static prefix — so a per-project string never
+    // disturbs the prefix the cache matches on. `failed` still contributes text:
+    // the model has to be told the context is missing, or it answers as though
+    // the project had none and contradicts the notice on screen.
+    projectContext: projectState === 'failed' ? PROJECT_UNAVAILABLE_SUMMARY : projectBlockText || undefined,
+  })
 
   // The pool every citation this turn is checked against — the raw content every
   // tool actually returned, not a summary of it. Grows across round-trips; a claim

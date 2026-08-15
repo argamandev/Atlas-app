@@ -131,6 +131,23 @@ export type ChatEvent =
    * because the surface is already showing a chip promising that call.
    */
   | { type: 'grounding'; state: 'whole' | 'truncated'; source: ChatSource | null }
+  /**
+   * NON-TERMINAL. How the PROJECT's written context reached the model, when this
+   * chat lives inside a project (ticket 08c).
+   *
+   * ITS OWN EVENT, not a widened `grounding` state, and the separation is the
+   * point. `grounding` answers "where did this answer come from" and carries the
+   * citation chip; a project answers "under whose standing instructions was it
+   * written". A project chat can be BOTH — grounded in a company via `@mention`
+   * while running under the project's instructions — so one event carrying both
+   * facts could not describe the ordinary case.
+   *
+   * Emitted only when the turn actually has a project. `ok` is a real value and
+   * is emitted: the surface's alternative to hearing "ok" is hearing nothing,
+   * which is also what it hears when a build is too old to send this event at
+   * all, and those two must not look alike.
+   */
+  | { type: 'projectContext'; state: 'ok' | 'truncated' | 'failed' }
   /** TERMINAL. The model finished cleanly. The ONLY event that means complete. */
   | { type: 'done' }
   /**
@@ -217,6 +234,14 @@ export function parseChatEvent(line: string): ClientChatEvent | null {
           : null
       return { type: 'grounding', state: e.state, source }
     }
+    case 'projectContext':
+      // Same reasoning as `grounding` above, one field over: an unrecognised
+      // state is DROPPED rather than defaulted to 'ok'. Defaulting would make an
+      // unparseable frame assert the flattering half of the only question this
+      // event exists to answer — the surface would show a clean answer where the
+      // server may have been saying the user's instructions never loaded.
+      if (e.state !== 'ok' && e.state !== 'truncated' && e.state !== 'failed') return null
+      return { type: 'projectContext', state: e.state }
     case 'done':
       return { type: 'done' }
     case 'incomplete':

@@ -671,11 +671,14 @@ test('a loaded call announces its grounding, with the source for the citation ch
       loadCall: async () => fakeCall(),
     })
   )
-  assert.deepEqual(events.find((e) => e.type === 'grounding'), {
-    type: 'grounding',
-    state: 'whole',
-    source: { company: 'תיגבור', quarter: 'Q3 2025', transcriptId: CALL_UUID },
-  })
+  assert.deepEqual(
+    events.find((e) => e.type === 'grounding'),
+    {
+      type: 'grounding',
+      state: 'whole',
+      source: { company: 'תיגבור', quarter: 'Q3 2025', transcriptId: CALL_UUID },
+    }
+  )
 })
 
 test('a MISSING call ends the turn in error, and never reaches the model', async () => {
@@ -757,4 +760,266 @@ test('an ungrounded turn emits NO grounding event — absence is a claim too', a
     events.some((e) => e.type === 'grounding'),
     false
   )
+})
+
+// ─── PROJECT-CONTEXT INJECTION (ticket 08c) ──────────────────────────────────
+//
+// The three states are the point, and only one of them is the happy path. The
+// contrast with whole-call injection is deliberate and is asserted here rather
+// than only described in prose: a call that will not load ENDS the turn, a
+// project that will not load does not. If someone ever "makes them consistent",
+// these cases are what says which way is which and why.
+
+const PROJECT_UUID = 'b2c3d4e5-2222-3333-4444-555566667777'
+
+function fakeProject(
+  over: {
+    name?: string
+    instructions?: string
+    memory?: string
+    sources?: { name: string; body: string }[]
+  } = {}
+) {
+  return {
+    name: over.name ?? 'Q3 review',
+    instructions: over.instructions ?? 'Always answer in Hebrew and quote the CFO by name.',
+    memory: over.memory ?? '',
+    sources: over.sources ?? [],
+  }
+}
+
+/** Captures the system prompt the model was actually sent. */
+function capturingClient(): { client: never; sent: () => { system: string } } {
+  let seen: { system: string } | null = null
+  const client = {
+    messages: {
+      async create(args: { system: string }) {
+        seen = args
+        return {
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+        }
+      },
+    },
+  } as never
+  return { client, sent: () => seen! }
+}
+
+test('a project written context reaches the SYSTEM prompt', async () => {
+  // System, not the user turn — the opposite of the call block one section up,
+  // and for a stated reason: these are standing instructions meant to be obeyed,
+  // and a directive demoted into a user message is obeyed less. It still cannot
+  // disturb the cache-stable prefix, which is what the next case checks.
+  const { client, sent } = capturingClient()
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', projectId: PROJECT_UUID },
+      history: [],
+      message: 'מה קרה ברבעון?',
+      todayIsrael: '2026-08-15',
+      loadProject: async () => fakeProject(),
+    })
+  )
+  assert.match(sent().system, /Always answer in Hebrew and quote the CFO by name\./)
+  assert.match(sent().system, /=== PROJECT CONTEXT ===/)
+  assert.deepEqual(
+    events.filter((e) => e.type === 'projectContext'),
+    [{ type: 'projectContext', state: 'ok' }]
+  )
+})
+
+test('the project block lands AFTER the cache-stable prefix, never in front of it', async () => {
+  // The property `systemPrompt.ts` ordering exists to preserve. A per-project
+  // string in front of the static block would vary per request and destroy the
+  // prefix the prompt cache matches on — silently, and visible only in a cost
+  // run nobody would connect back to this change.
+  const { client, sent } = capturingClient()
+  await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', projectId: PROJECT_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadProject: async () => fakeProject(),
+    })
+  )
+  const system = sent().system
+  assert.ok(
+    system.indexOf('You are Atlas') < system.indexOf('=== PROJECT CONTEXT ==='),
+    'the project block preceded the static prefix'
+  )
+  assert.ok(system.startsWith('You are Atlas'), 'something was prepended to the cacheable prefix')
+})
+
+test('A PROJECT COMPOSES WITH A COMPANY — both reach the turn', async () => {
+  // The regression the request-gate design exists to prevent, checked at the
+  // layer that would actually show it. A user inside a project who mentions a
+  // company must get both; a fifth `Grounding` variant would have silently
+  // dropped one of them while the surface still rendered a chip for it.
+  const { client, sent } = capturingClient()
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: {
+        userId: 'u1',
+        projectId: PROJECT_UUID,
+        companyId: 'a1b2c3d4-1111-2222-3333-444455556666',
+      },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      scopeSummary: 'company: a1b2c3d4-1111-2222-3333-444455556666 (resolved)',
+      loadProject: async () => fakeProject(),
+    })
+  )
+  assert.match(sent().system, /Always answer in Hebrew/, 'the project context was dropped')
+  assert.match(sent().system, /company: a1b2c3d4/, 'the company scope was dropped')
+  // And the mode still reports pinpoint — the company is genuinely scoping.
+  //
+  // Found BY TYPE, not at index 0. The grounding-shaped events precede the mode
+  // announcement — the `grounding` event already did, for call turns — so
+  // `events[0]` would assert an event ORDER this case has no opinion about, and
+  // fail for a reason unrelated to the property it exists to check.
+  assert.deepEqual(
+    events.find((e) => e.type === 'mode'),
+    { type: 'mode', mode: 'pinpoint', companyId: 'a1b2c3d4-1111-2222-3333-444455556666' }
+  )
+})
+
+test('an OVER-BUDGET project reports truncated, and the turn still answers', async () => {
+  const { client, sent } = capturingClient()
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', projectId: PROJECT_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadProject: async () => fakeProject({ instructions: 'x'.repeat(20_000) }),
+    })
+  )
+  assert.deepEqual(
+    events.filter((e) => e.type === 'projectContext'),
+    [{ type: 'projectContext', state: 'truncated' }]
+  )
+  // The part that DID fit is still injected — dropping it because it was partial
+  // would turn a reported degradation into a bigger unreported one.
+  assert.match(sent().system, /=== PROJECT CONTEXT ===/)
+  assert.equal(events[events.length - 1].type, 'done')
+})
+
+test('A MISSING PROJECT REPORTS failed AND STILL ANSWERS — unlike a missing call', async () => {
+  // THE DELIBERATE ASYMMETRY, asserted so it cannot be "tidied" into consistency.
+  // A call IS the answer source and the chip names it, so a call that will not
+  // load ends the turn in `error`. A project is a MODIFIER: the corpus, the tools
+  // and any company scope are all still there, so an answer written without the
+  // user standing instructions is still worth having — provided it says so.
+  const { client, sent } = capturingClient()
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', projectId: PROJECT_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadProject: async () => null,
+    })
+  )
+  assert.deepEqual(
+    events.filter((e) => e.type === 'projectContext'),
+    [{ type: 'projectContext', state: 'failed' }]
+  )
+  assert.equal(events[events.length - 1].type, 'done', 'a missing project must not end the turn')
+  assert.ok(!events.some((e) => e.type === 'error'))
+  // AND THE MODEL IS TOLD. Without this the answer sounds fully informed while
+  // the surface renders "answered without your project context" above it — the
+  // two halves of one screen contradicting each other.
+  assert.match(sent().system, /could not be loaded/)
+})
+
+test('a project load that THROWS is the same visible failure, not a crash', async () => {
+  // A throw and a null are the same fact to the user, and the surface has one
+  // notice for it. What must not happen is the throw escaping the generator: the
+  // stream would end with zero terminal events, which is the least visible
+  // degradation there is.
+  const { client } = capturingClient()
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', projectId: PROJECT_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadProject: async () => {
+        throw new Error('RLS said no')
+      },
+    })
+  )
+  assert.deepEqual(
+    events.filter((e) => e.type === 'projectContext'),
+    [{ type: 'projectContext', state: 'failed' }]
+  )
+  assert.equal(events[events.length - 1].type, 'done')
+})
+
+test('NO project means NO projectContext event — silence is not ok', async () => {
+  // A surface must be able to tell "this turn had no project" from "this turn had
+  // a project and it loaded fine". Emitting `ok` unconditionally would make every
+  // global chat claim a project context it does not have.
+  const { client } = capturingClient()
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+    })
+  )
+  assert.equal(events.filter((e) => e.type === 'projectContext').length, 0)
+})
+
+test('an EMPTY project still reports ok, and adds no PROJECT CONTEXT section', async () => {
+  // A project the user has not written into yet. `ok` because nothing degraded;
+  // no section because there is nothing to put in one — an empty header would
+  // tell the model a context exists where none does.
+  const { client, sent } = capturingClient()
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', projectId: PROJECT_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadProject: async () => fakeProject({ instructions: '', memory: '', sources: [] }),
+    })
+  )
+  assert.deepEqual(
+    events.filter((e) => e.type === 'projectContext'),
+    [{ type: 'projectContext', state: 'ok' }]
+  )
+  assert.ok(!sent().system.includes('=== PROJECT CONTEXT ==='))
+})
+
+test('the projectContext event is emitted BEFORE any delta', async () => {
+  // Same rule the `grounding` event follows: the surface has to know what this
+  // answer was written under before it starts rendering the answer, or the
+  // notice arrives after the user has already read the text.
+  const { client } = capturingClient()
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', projectId: PROJECT_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadProject: async () => fakeProject(),
+    })
+  )
+  const pc = events.findIndex((e) => e.type === 'projectContext')
+  const firstDelta = events.findIndex((e) => e.type === 'delta')
+  assert.ok(pc >= 0 && firstDelta >= 0)
+  assert.ok(pc < firstDelta, 'the notice arrived after the answer had started')
 })

@@ -355,7 +355,8 @@ run a file cannot tell you it is missing.
 · `chat/projectContext.test.ts` · `chat2/citations.test.ts`
 · `chat2/callInjection.test.ts` · `chat2/fence.test.ts`
 · `chat2/loop.test.ts` · `chat2/mode.test.ts`
-· `chat2/protocol.test.ts` · `chat2/requestScope.test.ts`
+· `chat2/projectInjection.test.ts` · `chat2/protocol.test.ts`
+· `chat2/requestScope.test.ts`
 · `chat2/terminal.test.ts` · `chat2/tools.test.ts`
 · `company/aliasSeed.test.ts` · `company/documentCatalog.test.ts`
 · `company/logo.test.ts` · `company/matchRank.test.ts`

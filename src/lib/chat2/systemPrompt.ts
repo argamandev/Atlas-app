@@ -52,11 +52,31 @@ export interface VolatileContext {
   todayIsrael: string
   /** Human-readable description of what's already grounded, e.g. "company: Tigbur (resolved)". */
   scopeSummary?: string
+  /**
+   * The user's OWN written project layer — instructions, memory, typed notes —
+   * already built and budgeted by `projectInjection.ts` (ticket 08c).
+   *
+   * VOLATILE, and it is in this interface rather than concatenated onto
+   * `scopeSummary` by the caller so that the ordering law above cannot be broken
+   * from outside: everything here lands AFTER the static prefix the prompt cache
+   * matches on, so a per-project block — which by definition varies per request —
+   * can never disturb it.
+   *
+   * Its own section rather than another sentence in `facts`, because it is
+   * multi-line prose containing the user's standing directives, and running it
+   * into a space-joined line of facts would blur where the model's instructions
+   * end and the user's begin.
+   */
+  projectContext?: string
 }
 
 export function buildSystemPrompt(volatile: VolatileContext): string {
   const facts = [`Today's date (Israel time): ${volatile.todayIsrael}.`, volatile.scopeSummary]
     .filter(Boolean)
     .join(' ')
-  return `${STATIC_SYSTEM_PROMPT}\n\n=== CURRENT CONTEXT ===\n${facts}`
+  const project = volatile.projectContext?.trim()
+  return (
+    `${STATIC_SYSTEM_PROMPT}\n\n=== CURRENT CONTEXT ===\n${facts}` +
+    (project ? `\n\n=== PROJECT CONTEXT ===\n${project}` : '')
+  )
 }

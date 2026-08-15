@@ -6,7 +6,7 @@ import { createServerSupabase } from '@/lib/supabase'
 import { israelDayKey } from '@/lib/i18n/format'
 import { runChatLoop, type ChatEvent, type ChatTurn } from '@/lib/chat2/loop'
 import type { ChatScope } from '@/lib/chat2/toolDefs'
-import { parseGrounding, scopeIdsFor } from '@/lib/chat2/requestScope'
+import { parseTurnScope, scopeIdsFor } from '@/lib/chat2/requestScope'
 import { CALL_SCOPE_SUMMARY } from '@/lib/chat2/callInjection'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,14 +75,21 @@ export async function POST(req: NextRequest) {
   // answer from the general corpus underneath it is the ticket-07 defect, and a
   // 400 is the only reading of a malformed grounding that the screen cannot
   // contradict.
-  const grounding = parseGrounding(body)
-  if (!grounding) {
+  //
+  // AND THE PROJECT ALONGSIDE IT (ticket 08c) — a second question, not a fifth
+  // recipe. `parseTurnScope` reads both and refuses a malformed either.
+  const turn = parseTurnScope(body)
+  if (!turn) {
     return NextResponse.json({ error: 'this grounding cannot be honoured' }, { status: 400 })
   }
+  const { grounding } = turn
 
   const scope: ChatScope = {
     userId,
-    ...scopeIdsFor(grounding),
+    ...scopeIdsFor(turn),
+    // REQUIRED for a project turn, not merely convenient: `loadProjectForInjection`
+    // goes through this client so RLS — not a filter in application code — decides
+    // whether the project is the caller's (db.md ownership law).
     userDb: createServerSupabase(cookies()),
   }
 

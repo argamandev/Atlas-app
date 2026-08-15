@@ -86,6 +86,16 @@ export interface ChatV2Input {
    * beneath it cannot disagree. Absent = blank Chat.
    */
   grounding?: Grounding
+  /**
+   * The project this chat lives inside (ticket 08c) — a SECOND question, beside
+   * the grounding rather than among its recipes.
+   *
+   * `grounding` says where the answer comes FROM; this says whose standing
+   * instructions it is written UNDER, and the two compose: a project chat pinned
+   * to a company by `@mention` sends both. Folding it into the union would have
+   * made that ordinary pair unrepresentable — see `requestScope.ts`.
+   */
+  projectId?: string
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
 
