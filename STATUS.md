@@ -41,8 +41,8 @@ retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
 unproven** (local is verified) — **a 401 on the first deploy of `/api/chat/v2` is the first thing
 to check**; absent returns 503.
 
-**Next: ticket 09 (workspace chat) — or 08c, founder's call.** Strict order says 09, and 08c is
-cleanup of a route that still works. 09 is smaller than it was: its `shelf` grounding variant is
-already in the union and `read_workspace` already reads `workspaceId`.
+**Next: 08c** (founder, 2026-08-15) — finish 08 before 09 starts, so workspace chat is never built
+on a route that is about to die. Then 09, which is smaller than it was: its `shelf` grounding
+variant is already in the union and `read_workspace` already reads `workspaceId`.
 
 Also open: **ticket 13** holds the cleanup list; poller/sweep deferred past V1.
