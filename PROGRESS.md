@@ -1316,7 +1316,7 @@ the live hole fixed in the same session.
   reverted) and confirmed to survive a reload; the old route's own panel re-driven for the shared
   error-rendering change. `npm test` 1027/1027, `tsc` clean, console and dev log clean. Cost:
   $0.0164 company-scoped, $0.0537 / $0.0805 stuffed against §5's $0.06 / $0.13.
-  Evidence + two-round review record in `docs/evidence/feat-smart-layer-b2b-ask-atlas-surfaces/`.
+  Evidence + four-round review record in `docs/evidence/feat-smart-layer-b2b-ask-atlas-surfaces/`.
 - **Founder decision owed:** §5 says "stuffed FIRST turn", but the call is re-injected on every turn
   — a turn-2 question would otherwise be answered without the call its chip still names. Every
   measured turn is inside the stuffed budget; what is not true is the implied "first".

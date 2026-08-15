@@ -1,6 +1,6 @@
 # B2 · Ask Atlas surfaces
 
-Status: in-progress — SPLIT INTO 08a / 08b
+Status: in-progress — SPLIT THREE WAYS: 08a done · 08b done · 08c OPEN
 Blocked by: 07
 
 Spec §2.3 + §6 B2. `TranscriptChatPanel` (live calls, transcripts, multiview) +
@@ -17,8 +17,9 @@ tokens. Split the same way B1 was split into 06/07, and for the same reason — 
 verification lands last, which is the worst place to run out of room**, because that is the
 phase where skipping a locale is tempting.
 
-**The ticket is NOT closed by 08a.** Its acceptance line is the surfaces verified in both
-locales; only 08b can close it. A merged 08a must not be read as a finished 08.
+**The ticket is NOT closed by 08a — and it is not closed by 08b either.** Its acceptance line is
+the surfaces verified in both locales, and 08b verified only the two v2 can honour. A merged 08a
+or 08b must not be read as a finished 08; **08c closes it.**
 
 - **08a — plumbing. DONE** (slices 1–2; slice 3 moved to 08b, see below). Changes NO
   user-visible behaviour: the old route keeps serving every surface and `ChatView` behaves

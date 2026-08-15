@@ -157,3 +157,42 @@ BLOCKER's fix, and the branch paid 89 of the 143 tokens before asking. What is u
 SHRINK, which is its own mission: folding app.md's rewrite into 08b would be exactly the
 separate-concern mixing this repo forbids elsewhere. Carried to the founder in the handoff and in
 `PROGRESS.md` so the fourth raise is not the first time anyone counts.
+
+## Round 4 — the re-review the ship gate demanded
+
+REVIEWED: 936148c
+VERDICT: APPROVED
+
+Three docs-only commits landed after round 3's approval (the review record itself, the collision
+entry, the two founder decisions), which correctly made the recorded approval stale at the gate —
+"a stale approval is an assumed answer wearing a recorded one's clothes". Round 4 re-ran at the
+ship tip, verified independently that the delta was `.md`-only (4 files, +36/-3, no source, config,
+migration or script), and re-checked STATUS against its 60-line cap and the always-on token budget
+(9,410 / 9,420 — ten tokens of headroom, which is a fact for the next slice, not a finding here).
+
+FINDING · WARNING · COLLISIONS.md:65 · the 08b entry names four changed files but omits two shared
+surfaces this branch also changed — `lib/chat2/protocol.ts` (the event union gains the non-terminal
+`grounding` event and its parser branch) and `lib/chat/messageState.ts` (`sanitizeCallTruncated`) —
+so a session holding edits to the module 08a's own entry declared as THE wire vocabulary is told it
+need not rebase.
+RECURRENCE: no
+FIX: a correction line appended to `COLLISIONS.md` naming both, and saying which entry it corrects.
+Appended rather than edited, because that log is append-only by construction.
+
+FINDING · NIT · .scratch/smart-layer-build/issues/08-ask-atlas-surfaces.md:3 · the `Status:` header
+still reads "SPLIT INTO 08a / 08b" while the body of the same file, STATUS.md and DECISIONS.md all
+describe a three-way split with 08c open.
+RECURRENCE: no
+FIX: header now reads "SPLIT THREE WAYS: 08a done · 08b done · 08c OPEN", and the paragraph claiming
+"only 08b can close it" — written before the split — now says 08c closes it.
+
+FINDING · NIT · PROGRESS.md:1319 · the shipped-work entry advertises a "two-round review record" in
+an evidence dir that carries more than two.
+RECURRENCE: no
+FIX: reads "four-round" — counted from this file, not from memory.
+
+Confirmed at this round and worth recording, because all three were things I asked to be checked
+rather than things I asserted: the DECISIONS entries quote the founder inside quotation marks with
+the surrounding reasoning attributed to the session, and neither claims more than its quote
+supports; the collision entries are genuine shared-type material and belong in that file; and
+round 3's record does not overclaim — its two `RECURRENCE: no` answers match what landed.
