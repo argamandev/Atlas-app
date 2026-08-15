@@ -47,7 +47,20 @@ import { join } from 'node:path'
  * names two of three builders is a scoped law overstating its own closure, which
  * is the failure app.md's header calls out by name.
  */
-const BUILDERS = ['prompt.ts', 'compose.ts', '../intake/selectSources.ts']
+const BUILDERS = [
+  'prompt.ts',
+  'compose.ts',
+  '../intake/selectSources.ts',
+  // THE ROUTES, because a prompt does not stop being a prompt for being built
+  // inline. Doors seven and eight both lived here: a caption assembled in
+  // `compose/route.ts` and a system prompt concatenated with the analyst's turn
+  // in `intake/route.ts`. Round 2 widened this list from two files to three and
+  // round 3 immediately found two more one directory over — the lesson being
+  // that the list is part of the invariant, not an implementation detail of it.
+  '../../../app/api/workspaces/[id]/chat/route.ts',
+  '../../../app/api/workspaces/[id]/compose/route.ts',
+  '../../../app/api/workspaces/[id]/intake/route.ts',
+]
 
 /** The sanitisers. `context.ts` is the one door all three live behind. */
 const SANITISERS = ['fencePart', 'quoted', 'defang']
@@ -96,6 +109,33 @@ const BARE_IDENTIFIER = /^\$\{[A-Za-z_$][\w$]*\}$/
  * mutation test against a re-implementation proves a COPY can go red. Same
  * argument the gate harness makes for importing the production chunker.
  */
+/**
+ * In a ROUTE, only what reaches the model is a prompt.
+ *
+ * A builder module is prompts end to end, so scanning the whole file is right
+ * there. A route is mostly other work — and the first attempt at this flagged two
+ * `console.warn` lines and an internal id, which would have been answered with
+ * allowlist entries reading "it is a log line". That is how an allowlist rots:
+ * three true-today claims and nobody rechecks them. So for routes the scan reads
+ * the ARGUMENTS of the model call and nothing else, by matching parentheses from
+ * `askModel(` / `ask(` to the call's end.
+ */
+export function modelCallArguments(source: string): string {
+  let out = ''
+  const call = /\b(?:askModel|ask)\s*\(/g
+  let m: RegExpExecArray | null
+  while ((m = call.exec(source))) {
+    let depth = 1
+    let i = m.index + m[0].length
+    for (; i < source.length && depth > 0; i++) {
+      if (source[i] === '(') depth++
+      else if (source[i] === ')') depth--
+    }
+    out += source.slice(m.index, i) + '\n'
+  }
+  return out
+}
+
 export function unsanitised(source: string): string[] {
   // EVERY interpolation, not only the ones naming `input`. Scoping this to
   // `input.` is what let the conversation region ship unguarded: turns reach the
@@ -115,8 +155,18 @@ export function unsanitised(source: string): string[] {
 
 for (const file of BUILDERS) {
   test(`every untrusted interpolation in ${file} goes through a sanitiser`, () => {
-    const src = readFileSync(join(__dirname, file), 'utf8')
-    assert.ok(src.includes('${'), `no interpolations found in ${file} — did the scan break?`)
+    const whole = readFileSync(join(__dirname, file), 'utf8')
+    // A route is scanned at its model calls; a builder module is prompts throughout.
+    const isRoute = file.includes('/route.ts')
+    const src = isRoute ? modelCallArguments(whole) : whole
+    // THE SCAN PROVES IT LOOKED, and what counts as "looked" differs. A builder
+    // with no interpolation left is a broken scan; a ROUTE with none inside its
+    // model call is the GOOD state — it means the prompt is built somewhere this
+    // list already covers. So a route asserts the model CALL was found, which is
+    // the thing that could silently break, and never that it found text to worry
+    // about.
+    if (isRoute) assert.ok(src.trim(), `no askModel call found in ${file} — did the extractor break?`)
+    else assert.ok(src.includes('${'), `no interpolations found in ${file} — did the scan break?`)
     const unguarded = unsanitised(src)
     assert.deepEqual(
       unguarded,

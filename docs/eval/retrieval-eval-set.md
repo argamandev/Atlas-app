@@ -273,7 +273,7 @@ like it, it scores the PRODUCTION modules rather than copies).
 **Result: the swap did not clear the bar — but it is indistinguishable from the planner, not
 worse.** Across shelf sizes 3/6/12 the planner reads 12/8/8 and the scorer swap 11/9/8: they
 trade the lead by one case in both directions. Retrieval's own chunk shape (6–11) loses at every
-size. Workspace chat was therefore left as it is. Evidence, including the four harness bugs found
+size. Workspace chat was therefore left as it is. Evidence, including the six harness bugs found
 — one of which handicapped the swap by three cases and would have produced a false verdict:
 `docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`.
 

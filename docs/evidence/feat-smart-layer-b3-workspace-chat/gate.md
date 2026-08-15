@@ -67,8 +67,8 @@ A **second review round** at the tip found a fifth, of the same family as the fi
    separately. **Re-running all three shelf sizes returned the identical table** — so unlike bug 1,
    this one moved no case, and that is a measured claim rather than a hopeful one. To CHECK it rather
    than take it: the pre-fix runs are `workspace-gate-2026-08-15T16-0{3-17,2-32,5-31}.json` at commit
-   `9df3456^`, removed at `9df3456` so the results directory holds one provenance rather than two —
-   `git show 9df3456^:scripts/retrieval-eval/results/workspace-gate-2026-08-15T16-02-32.json`.
+   `af9ac65^`, removed at `af9ac65` so the results directory holds one provenance rather than two —
+   `git show af9ac65^:scripts/retrieval-eval/results/workspace-gate-2026-08-15T16-02-32.json`.
 
 And a sixth, in the attribution: matching `id: <itemId>)` as a substring of a header that also
 carries an untrusted title is still a proxy. It now matches the whole reconstructed header from

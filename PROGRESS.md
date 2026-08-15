@@ -33,7 +33,7 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   it was the SCAN — bought to end the sequence — repeating the mistake by naming two builders when
   the defect spanned three.** A law is now filed in `app.md` with the scan as its mechanism, and
   both state what they do not reach.
-- **Verified:** 1149/1149 green, `tsc` clean, and the workspace honesty states driven in a browser in
+- **Verified:** 1153/1153 green, `tsc` clean, and the workspace honesty states driven in a browser in
   both locales — then **re-driven** after review changed the code under them, because a drive expires
   (8c). Evidence, review record and all three runs: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
 

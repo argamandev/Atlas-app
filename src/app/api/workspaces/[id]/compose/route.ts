@@ -5,7 +5,7 @@ import { resolveUser } from '@/lib/auth/verifyUser'
 import { unauthorized } from '@/lib/auth'
 import { askModel } from '@/lib/workspace/askModel'
 import { loadItemContent } from '@/lib/workspace/content'
-import { contentToText, type SourceText } from '@/lib/workspace/chat/context'
+import { contentToText, fencePart, fenceSafeLine, type SourceText } from '@/lib/workspace/chat/context'
 import { estimateTokens, planContext, splitBudget } from '@/lib/workspace/chat/plan'
 import { buildComposePrompt, parseCompose } from '@/lib/workspace/chat/compose'
 import { parseAttachments } from '@/lib/chat/attachments'
@@ -155,8 +155,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         ...(clip
           ? {
               attachments: [clip.image],
+              // BOTH parts are the shelf's, not ours — a title and a page label
+              // that came off a workspace item. This caption is a second channel
+              // into the prompt, beside the image, which is why `captions` takes
+              // `FenceSafe` rather than `string`: this line was left open once by
+              // a fix that named it, and a raw string could not say so.
               captions: [
-                clip.meta.title ? `${clip.meta.title} · ${clip.meta.pageLabel}` : clip.meta.pageLabel,
+                clip.meta.title
+                  ? fenceSafeLine`${fencePart(clip.meta.title)} · ${fencePart(clip.meta.pageLabel)}`
+                  : fenceSafeLine`${fencePart(clip.meta.pageLabel)}`,
               ],
             }
           : {}),

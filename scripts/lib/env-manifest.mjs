@@ -332,11 +332,26 @@ export const VOCABULARY_EXEMPT = {
  * fourteen lines to eleven, with its story sent to `case-history`. The last ~24
  * are headroom, for the reason raise four gives.
  *
+ * AMENDED 9,900 → 9,950 later the same day, before the branch merged. Review
+ * round 3 found doors SEVEN and EIGHT — a caption built inline in
+ * `compose/route.ts` that never called `snipCaption` (the site round 1 had named
+ * and a fix had claimed), and the intake route concatenating the analyst's turn
+ * onto a system prompt. ADR-0002 does not let a recurrence buy prose, and it had
+ * already bought the test tier, so the law gained an **impossible** tier:
+ * `askModel`'s `captions` takes `FenceSafe`, a type only the sanitisers produce,
+ * which a route cannot satisfy with a raw string in any file — named by the scan
+ * or not. That declaration is ~50 tokens and it is the difference between a
+ * mechanism that reads three files and one that holds everywhere.
+ *
+ * Shaving the law's wording to land on 9,900 was the alternative and was rejected
+ * for the reason raise five gives: trimming a law to hit a number is how a law
+ * gets quietly weakened by arithmetic. STATUS.md paid what it could first.
+ *
  * ⚠ THE SHRINK IS SIX SLICES OVERDUE. The note above said five consecutive raises
  * mean it will not happen as a side effect of the next ticket, and it did not.
  * It needs to be scheduled as its own mission.
  */
-export const TOKEN_BUDGET = 9_900
+export const TOKEN_BUDGET = 9_950
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

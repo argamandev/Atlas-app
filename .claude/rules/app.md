@@ -131,14 +131,16 @@ it to an enum would land green and break only in production.
 body it opens.** A title, kind, id, label, conversation turn, image caption and `"""` block are all
 someone else's text, and anything that can print a boundary owns the region the model obeys. One
 door per surface: `workspace/chat/context.ts` (`fencePart`/`quoted`/`defang`), `chat2/fence.ts`.
-**ENFORCED** test — `workspace/chat/promptInjectionDiscipline.test.ts` fails for an interpolation
-reaching the model through no sanitiser. It is a TEXT scan of the builders it NAMES: concatenation, a
-helper elsewhere, or an unlisted builder all pass it (`chat/attachments.ts` and `chat2/` have their
-own per-site tests).
-**VERIFY** Fix at the boundary, never at the site (M3.1). **Six occurrences on one branch** — body →
-fence line → shelf listing → `"""` → turns → caption → intake's builder — and the sixth was the SCAN
-itself, scoped narrower than the defect. Grep every OTHER route into that prompt before fixing the
-one in front of you. → `#prompt-boundaries`
+**ENFORCED** two tiers, and the split is the point. **Impossible** for the second CHANNEL — a caption
+rides beside the image where no builder reaches it, so `askModel`'s `captions` takes `FenceSafe`,
+which only `fencePart`/`fenceSafeLine` produce. **Test** for the builders —
+`promptInjectionDiscipline.test.ts` fails for an interpolation reaching the model unsanitised,
+scanning builder modules whole and the workspace ROUTES at their `askModel` arguments. A TEXT scan of
+the files it NAMES: concatenation, a helper elsewhere or an unlisted builder pass it.
+**VERIFY** Fix at the boundary, never at the site (M3.1). **EIGHT occurrences on one branch**, and
+two are instructive: the SCAN was door six, scoped narrower than the defect, and door seven was a
+site review had already named and a fix had already claimed. Grep every OTHER route into that
+prompt before fixing the one in front of you. → `#prompt-boundaries`
 
 ## Bidi & localization
 

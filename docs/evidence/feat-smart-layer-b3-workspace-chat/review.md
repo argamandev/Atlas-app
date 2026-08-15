@@ -3,7 +3,7 @@
 Branch: `feat/smart-layer-b3-workspace-chat` · `atlas-reviewer` plus a two-axis (standards / spec)
 pass, cold context each.
 
-REVIEWED: 680e4d7
+REVIEWED: 58d2a4b
 
 VERDICT: CHANGES
 
@@ -161,4 +161,64 @@ RECURRENCE: no
 FINDING · NIT · `verify-app.md:51` — the 8c re-drive is pinned to `288435c` in prose only, so a
 reader cannot tell a fresh tick from a rotted one.
 FIXED — the table states the sha it was driven at and what has changed since.
+RECURRENCE: no
+
+---
+
+## Round 3 — at the tip (`58d2a4b`)
+
+Round 3 re-derived every number in the evidence, STATUS, PROGRESS, the ticket and the eval set from
+the committed JSONs (all correct), confirmed the pre-fix runs re-score identically, and mutated
+`prompt.ts` to prove the scan goes red against the real file. It then found **doors seven and
+eight** — and door seven was a site round 1 had NAMED and this record had called FIXED.
+
+FINDING · BLOCKER · `src/app/api/workspaces/[id]/compose/route.ts:159` — the compose clip caption
+still interpolated `clip.meta.title` raw into a text part sent beside the image. It never called
+`snipCaption`, so the fix that cited this exact line:col left it open, and this record's round-1
+entry claiming otherwise was FALSE for two rounds.
+FIXED — and the mechanism moved a tier rather than the site: `askModel`'s `captions` now takes
+`FenceSafe`, a type only `fencePart`/`fenceSafeLine` produce, so a route cannot pass a raw string in
+any file whether the scan names it or not. Mutation-verified: reverting the route to the raw caption
+fails `tsc`.
+RECURRENCE: yes → Every untrusted string reaching a MODEL passes a sanitiser — the fence LINE, not just the body it opens
+The law was `ENFORCED test` and a site named in a review survived the fix citing it, so the tier had
+to go up, not sideways. It now declares **impossible** for the caption channel and **test** for the
+builders. That is ADR-0002's requirement met in the commit that hit the recurrence.
+
+FINDING · WARNING · `src/app/api/workspaces/[id]/intake/route.ts:185` — door eight: a client-supplied
+turn concatenated onto a system prompt with no sanitiser, the same value `selectSources.ts` was fixed
+to defang a hundred lines below.
+FIXED — `defang(text)`, and the three workspace ROUTES joined the scan, read at their `askModel`
+arguments rather than whole (scanning a route whole flagged two `console.warn` lines, and answering
+those with allowlist entries reading "it is a log line" is how an allowlist rots).
+RECURRENCE: no
+
+FINDING · WARNING · `.claude/rules/app.md` — the ENFORCED line named `chat/attachments.ts` and
+`chat2/` as what the scan does not reach and said nothing about prompts built inline in routes,
+which is where both live doors were: a scoped law overstating its own closure.
+FIXED — the declaration now names both tiers and what the scan does not cover.
+RECURRENCE: no
+
+FINDING · WARNING · `PROGRESS.md` / `docs/eval/retrieval-eval-set.md` / the ticket — "1149/1149" was
+the count at an earlier commit, and "four harness bugs" survived in two documents after `gate.md`
+was rewritten to say six. Hand-carried counts, twice.
+FIXED — 1153/1153 from a run of this tree, and six everywhere.
+RECURRENCE: no
+It repeats M1's own bullet ("a count restated from another document — wrong every time it was
+hand-carried"), which is a meta-law with no `LAW ·` entry and so cannot be named in this grammar.
+The mechanism worth having is a ship-gate check that a PROGRESS entry's battery count matches the
+battery's own output; it is NOT taken here, and is left as a named suggestion rather than a silent
+omission.
+
+FINDING · NIT · `gate.md` — "removed at `9df3456`"; it was `af9ac65`.
+FIXED
+RECURRENCE: no
+
+FINDING · NIT · `promptInjectionDiscipline.test.ts` — the `lines.join` ALLOWED entry is a substring
+match whose claim is true today and unpinned tomorrow. Round 3 checked the other ten entries line by
+line against the three builders and found every one holds.
+NOT FIXED — recorded deliberately. Every ALLOWED entry is a substring match; that is the shape of the
+mechanism, and narrowing this one entry while ten others share the shape would suggest a precision
+the list does not have. The entries are claims a reader must re-check, which is what the comment
+above them says.
 RECURRENCE: no

@@ -586,9 +586,23 @@ That sentence is only worth something if nothing else can print a marker. Six th
    get fetched — interpolated titles, company names and turns in the clear. The mechanism repeated
    the mistake it was built to stop, by being scoped narrower than the defect.
 
-Doors 1–2 were the author's; 3 came from a standards review, 4–5 from a cold review, and 6 from a
-second cold review at the tip. **Four of the six were found by someone reading with fresh eyes after
-the author had declared the boundary closed** — three separate times.
+7. **The compose route built its own caption.** `snipCaption` was the door every caption was
+   supposed to pass, and the chat route used it — but `compose/route.ts` assembled
+   `${clip.meta.title} · ${clip.meta.pageLabel}` inline and passed it straight to `askModel`. Round 1
+   NAMED THIS EXACT LINE, the fix cited it, and the review record recorded it FIXED. It was open
+   for two more rounds, because a `captions?: string[]` parameter cannot tell a sanitised value
+   from a raw one.
+8. **The intake route concatenated the analyst's turn onto a system prompt** — the same value
+   `selectSources.ts` had just been fixed to defang, a hundred lines below in the same request.
+
+Door seven is why the mechanism moved from a scan to a TYPE. `askModel`'s `captions` now takes
+`FenceSafe`, which only the sanitisers produce, so the compose route stopped compiling until it was
+fixed — a text scan reads the files it names, and both live doors were in files it did not.
+
+Doors 1–2 were the author's; 3 came from a standards review, 4–5 from a cold review, 6 from a second
+round at the tip, and 7–8 from a third. **Six of the eight were found by someone reading with fresh
+eyes after the author had declared the boundary closed** — four separate times, and the fourth found
+a door the first had already named.
 
 **The generalisation.** A boundary is not a place in the code, it is every route by which text
 reaches the model, and a fix applied at the route you noticed will always leave the others. The

@@ -23,20 +23,20 @@ Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`.
 one, branch per slice. **STRICT ORDER: 08 → 09 → 10 → 11 → 12 → 13 → 14** (founder, final).
 
 **Phase A done. TICKETS 08 AND 09 ARE CLOSED.** `/api/chat/v2` is the ONLY chat route; 08c-3's
-residues are filed in `docs/open-findings.md`, plus one founder glance owed (`reportTruncated`'s
-wording changed after its browser drive).
+residues are in `docs/open-findings.md`, plus a founder glance owed (`reportTruncated`'s wording
+changed after its drive).
 
-**Two reds, filed with numbers, not re-scored** (M2; numbers in 08c's `docs/evidence/`):
-market-wide search does not complete — an unscoped scan over 98,042 chunks hits `statement timeout`
-(~8.6s), so class-G discovery is RED, scoped search works — and the $0.06/answer budget did not hold
-($0.1010 company-scoped, no project). Both eval-gated; **a DEDICATED PARALLEL SESSION owns the fix**.
-Re-measure: `scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on a
-v2 chat failing in production check for a 401 first; absent returns 503.
+**Two reds, filed with numbers, not re-scored** (M2; numbers in 08c's `docs/evidence/`): market-wide
+search does not complete — an unscoped scan over 98,042 chunks hits `statement timeout` (~8.6s), so
+class-G discovery is RED, scoped works — and $0.06/answer did not hold ($0.1010 company-scoped).
+Both eval-gated; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
+`scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on a v2 chat
+failing in production check for a 401 first; absent returns 503.
 
 **09 closed by MEASURING, not building.** At shelf 3/6/12 the planner reads 12/8/8 and the swap
-11/9/8 — trading the lead by one case each way, so "measurably beats" is unmet and **workspace chat
-is unchanged**. `workspace-gate.mjs` is standing: re-run before any such change. The lead is UNION,
-but P ∪ E is an ORACLE BOUND that breaks the shared budget — its own ticket and gate.
+11/9/8 — trading the lead each way, so "measurably beats" is unmet and **workspace chat is
+unchanged**. `workspace-gate.mjs` is standing. The lead is UNION, but P ∪ E is an ORACLE BOUND that
+breaks the shared budget — its own ticket and gate.
 
 **Next: 10** — agent tables + create flow.
 

@@ -6,7 +6,7 @@ blocked. Measured across shelf sizes 3/6/12: planner **12/8/8**, the swap **11/9
 the lead by ONE case in each direction, which is not "measurably beats"; retrieval's own chunk
 shape loses at every size. **The swap is not worse, it is indistinguishable** — the first run said
 otherwise and was wrong, because it handicapped the swap by embedding raw window text without
-production's metadata prefix (cold review caught it; worth 3 cases). Evidence, including all four
+production's metadata prefix (cold review caught it; worth 3 cases). Evidence, including all six
 harness bugs: `docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`; harness
 `scripts/retrieval-eval/workspace-gate.mjs`. Ungated items DID ship: SIX prompt-injection doors are
 closed (fence line, `"""` blocks, conversation turns, clip caption, and intake's own builder — the

@@ -5,6 +5,7 @@ import { askModel as ask } from '@/lib/workspace/askModel'
 import { resolveUser } from '@/lib/auth/verifyUser'
 import { unauthorized } from '@/lib/auth'
 import { loadCorpus } from '@/lib/workspace/intake/corpus'
+import { defang } from '@/lib/workspace/chat/context'
 import { parseModelRequest } from '@/lib/workspace/intake/parseRequest'
 import { findSources } from '@/lib/workspace/intake/findSources'
 import {
@@ -182,7 +183,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // the structured request it produces (company, years, kinds) is EXACTLY a
     // MAYA query. One model call, two jobs: narrowing a big local corpus, and
     // telling us whose filings to ask MAYA for.
-    const filterRaw = await askModel(withDates(FILTER_SYSTEM) + `\n\nRequest: ${text}`, 400)
+    // `text` is the analyst's turn, straight from the request body, glued onto a
+    // system prompt with no fence between them — door EIGHT, and the same value
+    // `selectSources.ts` was fixed to defang a hundred lines below.
+    const filterRaw = await askModel(withDates(FILTER_SYSTEM) + `\n\nRequest: ${defang(text)}`, 400)
     const request = parseModelRequest(filterRaw, text)
 
     // ── stage 1b: MAYA ──────────────────────────────────────────────────────

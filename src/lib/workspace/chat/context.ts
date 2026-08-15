@@ -176,11 +176,36 @@ export const defang = (text: string) => text.split(FENCE).join('<<<source')
  * replaced. Nothing here is a length cap: what does not fit is the budget's
  * problem, not this function's.
  */
-export const fencePart = (value: string) =>
+declare const FENCE_SAFE: unique symbol
+
+/**
+ * A string that HAS been through the sanitiser — the type a caller cannot forge.
+ *
+ * A scan can only see the builders it names, and door seven proved that: a
+ * caption built inline in `compose/route.ts` never called `snipCaption`, so the
+ * fix that cited that very line:col left it open and the review record called it
+ * closed. This type is what a text scan cannot be — an interface that refuses
+ * the unsanitised value at the point it is passed, in any file, named or not
+ * (M3.3: make the lying state unrepresentable, not merely guarded).
+ */
+export type FenceSafe = string & { readonly [FENCE_SAFE]: true }
+
+export const fencePart = (value: string): FenceSafe =>
   defang(String(value ?? ''))
     .replace(/[\r\n]+/g, ' ')
     .split('>>>')
-    .join('»')
+    .join('»') as FenceSafe
+
+/**
+ * Brand a line ASSEMBLED from literals and already-safe parts.
+ *
+ * The one legitimate way to reach `FenceSafe` without going through
+ * `fencePart` — a caption reads `תצלום מעמוד 7 של <title>`, and the wrapper text
+ * is ours. Every interpolated part must ALREADY be `FenceSafe`, which the
+ * signature enforces, so this composes safety rather than asserting it.
+ */
+export const fenceSafeLine = (literals: TemplateStringsArray, ...parts: (FenceSafe | number)[]): FenceSafe =>
+  literals.reduce((out, lit, i) => out + lit + (i < parts.length ? parts[i] : ''), '') as FenceSafe
 
 /**
  * The OTHER boundary in these prompts, and it was forgeable for the same reason.

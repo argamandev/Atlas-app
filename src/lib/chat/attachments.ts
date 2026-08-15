@@ -1,4 +1,4 @@
-import { fencePart } from '@/lib/workspace/chat/context'
+import { fencePart, fenceSafeLine, type FenceSafe } from '@/lib/workspace/chat/context'
 
 // Pinge chat attachments (spec 2026-07-17): validation of the wire shape + the
 // provider-specific message parts. PURE on purpose (no server-only imports) so the
@@ -61,8 +61,10 @@ export function attachmentOversized(dataUrl: string): boolean {
  * from instructions. `fencePart` is the same one door those builders use: it
  * defangs the marker, neutralises `>>>`, and keeps a caption to one line.
  */
-export function snipCaption(meta: { title: string } | null, page: number): string {
-  return meta ? `תצלום מעמוד ${page} של ${fencePart(meta.title)}` : `תצלום מעמוד ${page} מהדוח`
+export function snipCaption(meta: { title: string } | null, page: number): FenceSafe {
+  return meta
+    ? fenceSafeLine`תצלום מעמוד ${page} של ${fencePart(meta.title)}`
+    : fenceSafeLine`תצלום מעמוד ${page} מהדוח`
 }
 
 /** Gemini REST parts: inline_data image + caption text, in order, before the user text. */
