@@ -1,16 +1,22 @@
 # Cold review record — ticket 08c-3 (`feat/smart-layer-b2c-doc-grounding`)
 
-Five rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
+SIX rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
 and the mutation results are in `verify-app.md`; this file is the tracked verdict record.
 
-REVIEWED: c008a73
+REVIEWED: 44df944
 
-VERDICT: CHANGES
+VERDICT: APPROVED
 
-Every finding below is answered — the code fixes are in commits `59df709`, `5ec4f80`, `09bb75f`,
-`8ae5487` and the round-5 commit. One finding is answered with a DISPUTE (round 1's bidi
-classification) and one is answered by stating a gap rather than closing it (round 5's un-re-driven
-copy); both are argued in full at the foot of this file.
+Rounds 1–5 each returned CHANGES and every finding is answered below — fixes in `59df709`,
+`5ec4f80`, `09bb75f`, `8ae5487` and the round-5 commit. **Round 6 approved the branch** and returned
+two warnings and three nits, all closed after it: the un-re-driven `truncated` copy was RE-DRIVEN in
+both locales (row 2 of the state table), the call-scope open finding gained its live blast radius,
+the "fails 3 tests" count was measured (one per clause) rather than restated, `/verify-app`'s step
+8c was reordered after 8b, and this header carries round 6's sha and verdict rather than round 5's.
+
+**Only ONE finding across six rounds is answered without a code change:** round 1's bidi
+classification, which is DISPUTED — argued in full at the foot of this file, and judged correct on
+its merits by round 2.
 
 **The shape of this review is itself the finding.** Rounds 1, 2 and 3 each returned a BLOCKER, and
 in every case the PREVIOUS round's fix had caused it — twice in the sibling branch of the same
@@ -118,8 +124,10 @@ FINDING · NIT · src/components/live/LiveTranscriptView.tsx · Four stale route
 RECURRENCE: no
 
 **Mechanism moved:** three cases now pin `anySourceSurvived` — carried pages are a source, a snipped
-image is a source, a block carrying nothing is NOT. Mutation-verified: deleting either clause fails
-3 tests.
+image is a source, a block carrying nothing is NOT. Mutation-verified at round 6, MEASURED rather
+than restated: deleting `documentPagesCarried > 0` fails exactly one test, deleting
+`snips.length > 0` fails exactly one. Each clause is individually pinned — the property the earlier
+"fails 3 tests" was standing in for, and getting wrong (M1, a count carried from the line above it).
 
 ---
 
@@ -144,3 +152,32 @@ restarting). Two harness traps in one attempt is the signal to stop rather than 
 unverified is ONE STRING PER LOCALE, in a slot both locales have already rendered, through a render
 path that is byte-identical. The evidence rows carry a ⚠ and say so instead of keeping a tick; a
 founder glance closes it.
+
+## Round 6 — at `44df944` — VERDICT: APPROVED
+
+FINDING · WARNING · docs/evidence/feat-smart-layer-b2c-doc-grounding/verify-app.md · `reportTruncated` was rewritten in both dictionaries after row 2 was driven, so the string this branch merges had never been rendered in either locale.
+RECURRENCE: yes → Anything that decides what a screen SAYS gets every one of its states driven in a browser
+
+FINDING · WARNING · docs/open-findings.md · The call-scope entry said a tool call past the call "runs market-wide" without noting that market-wide search is currently RED, so today's consequence is a FAILING tool rather than a wider answer.
+RECURRENCE: no
+
+FINDING · NIT · docs/evidence/feat-smart-layer-b2c-doc-grounding/review.md · "deleting either clause fails 3 tests" — measured at round 6, each clause deletion fails exactly one; the count was carried over from the line above it.
+RECURRENCE: no
+  Why not: M1's "a count restated from another document" is a meta-law, not a `**LAW ·**` block, so it cannot be named to the gate. The property claimed was true; the number was not. Fixed by measuring.
+
+FINDING · NIT · .claude/skills/verify-app/SKILL.md · Step 8c was inserted ABOVE step 8b, so the checklist read 8 → 8c → 8b — a merge-time step printed before the drive-time step it depends on.
+RECURRENCE: no
+
+FINDING · NIT · docs/evidence/feat-smart-layer-b2c-doc-grounding/review.md · `REVIEWED:`/`VERDICT:` still carried round 5's values; a second `REVIEWED:` line would hand the gate the oldest sha.
+RECURRENCE: no
+
+**All five closed.** The copy warning is closed at the strongest tier available — actually looking:
+re-driven in BOTH locales through the real path. The earlier attempt had failed because the report
+pane was in MULTI view, where its column is narrow and pdf.js had not painted a text layer; SINGLE
+view with the Report facet renders it at once. **The pane has to be the one the user is looking at,
+not merely mounted** — recorded in `verify-app.md` as the reusable half of that failure.
+
+On step 8c's possible promotion to a mechanical per-row sha: not built here, and the reason is
+stated rather than implied — it needs a mapping from evidence rows to covering files that nothing
+in the repo has, and inventing one in this ticket would be a mechanism whose accuracy nobody has
+checked, which is the over-claim round 3 already caught once. Filed as the next strengthening.

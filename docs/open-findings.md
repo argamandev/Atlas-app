@@ -136,7 +136,7 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   panel sent `companyId` AND `transcriptId` together, so a follow-up question that reached past the
   call still searched inside that company. On `/api/chat/v2` the `Grounding` union carries ONE id
   per recipe by construction, so a `{kind:'call'}` turn puts `transcriptId` on the scope and no
-  company — and a tool call beyond the call runs market-wide until `resolve_company` pins it.
+  company — and a tool call beyond the call runs market-wide until `resolve_company` pins it. **And market-wide search is RED today** (unscoped scan hits `statement timeout` — see STATUS's two reds), so the live consequence is a FAILING tool, not a wider answer. Loud rather than silent, which is why this is a finding and not a defect — but it is worse than "unscoped" reads.
   **This is not a bug in the union, which exists precisely to make "grounded in a call AND a
   workspace" unrepresentable.** It is a question the union does not currently answer: a call
   BELONGS to a company, so the company is derivable from the call rather than being a second

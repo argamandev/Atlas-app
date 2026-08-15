@@ -16,7 +16,7 @@ list exists to make visible.
 | # | State | EN | HE | How |
 | --- | --- | --- | --- | --- |
 | 1 | Marked passage, pages read WHOLE (`documentContext: ok`) — no notice | ✅ driven | ✅ driven | Real selection in the report's text layer → real `mouseup` → real composer → Enter |
-| 2 | Marked passage CUT (`truncated`) — Hebrew/English notice | ⚠ driven, then the STRING changed | ⚠ driven, then the STRING changed | Same real path, `DOCUMENT_BUDGET_CHARS` temporarily 200 (restored). **Round 4 rewrote `reportTruncated` in both dictionaries AFTER this drive; see the note below.** |
+| 2 | Marked passage CUT (`truncated`) — Hebrew/English notice | ✅ RE-driven at round 6 | ✅ RE-driven at round 6 | Same real path, `DOCUMENT_BUDGET_CHARS` temporarily 200 (restored). Round 4 rewrote `reportTruncated` in both dictionaries after the first drive, so it was **driven again against the string that merges** — EN *"Only part of the marked report passage reached this answer."*, HE *"רק חלק מהקטע שסומן בדוח הגיע לתשובה הזו."* |
 | 3 | Report text UNREADABLE (`failed`) — notice | ✅ driven | ✅ driven | Same real path, loader temporarily returning `{meta:null,pages:[]}` (restored). `reportFailed` is unchanged since the drive. |
 | 4 | Snipped IMAGE reaches the model as an image block | ✅ driven (API) | — | Real PNG through `/api/chat/v2` from the signed-in page; the answer cited **page 40**, the SNIPPED page, whose text is fetched alongside the marked ones (`pagesToLoad`) |
 | 5 | Snip + marked page COMPOSED with a call grounding | ✅ driven (API) | — | `grounding:whole` + `documentContext:ok` on one turn, both honoured |
@@ -314,3 +314,41 @@ call it — recorded as a gap, not a design), the dictionary paragraph still exp
 paragraph beneath it disowns, and a comment referring to a field removed in the same commit.
 
 After round 5: `npm test` 1138 green, `npx tsc --noEmit` clean.
+
+## Cold review — round 6, verdict APPROVED
+
+The branch is mergeable. Round 6 re-verified the mutation claims itself, ran the battery, tsc and
+the ship gate, and read the whole diff. Its findings, and what was done:
+
+**WARNING — the `truncated` string that merges had never been rendered.** Round 5 recorded this as
+a gap rather than closing it. **It is now CLOSED: re-driven in BOTH locales at round 6** against the
+copy that merges, through the real path (real selection → real `mouseup` → real composer → Enter),
+with `DOCUMENT_BUDGET_CHARS` temporarily 200 and restored. The earlier attempt failed because the
+report pane was in MULTI view, where its column is narrow and pdf.js had not painted a text layer;
+SINGLE view with the Report facet renders it immediately. That is the fix for the harness problem
+recorded in round 5, and it is worth more than the process note: **the pane has to be the one the
+user is looking at, not merely mounted.** Row 2 now reads ✅ RE-driven.
+
+Step 8c (a drive expires when the code under it changes) was judged "a REAL gate, not a dodge",
+with the observation that a per-row sha would make it mechanical rather than remembered. **Not
+built here, and the reason is stated rather than implied:** a per-row sha needs the ship gate to
+know which files cover which row, which is a mapping nothing in the repo has today — inventing one
+in this ticket would be a mechanism whose accuracy nobody has checked, which is the over-claim
+round 3 already caught once. Filed as the next strengthening; the ritual tier holds meanwhile and
+it is what produced this round's honest ⚠, then this re-drive.
+
+**WARNING — the call-scope open finding understated its own blast radius.** It said a tool call past
+the call "runs market-wide" without noting that market-wide search is currently RED (unscoped scan
+hits `statement timeout`), so today's consequence is a FAILING tool, not a wider answer. Corrected
+in `docs/open-findings.md`.
+
+**NIT — "fails 3 tests" was wrong** (M1, a count restated rather than measured): each clause
+deletion fails exactly ONE test. Corrected in the review record. The property claimed — that each
+clause is individually pinned — is true, and is what the count was standing in for.
+
+**NIT — step 8c was inserted above 8b**, so the checklist read 8 → 8c → 8b. Reordered.
+
+**NIT — the review record's `REVIEWED:`/`VERDICT:` must be this round's**, not round 5's, or the
+gate is handed the oldest sha. Replaced.
+
+Final: `npm test` 1138 green, `npx tsc --noEmit` clean, `npm run build` clean.
