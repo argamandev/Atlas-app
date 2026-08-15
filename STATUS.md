@@ -13,8 +13,8 @@ Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 | --- | --- |
 | Live calls | Works. Two engines (Recall/IVRIT) share `:8788`.|
 | Companies | Works. MAYA connected; 234/234 have sector. |
-| Chat / Ask Atlas | **`/api/chat/v2`, the only route.** Every grounding works — company, call, live captions, project, report page + snip; market-wide search down. |
-| Workspace | Works — intake, tables, chat over the docs. |
+| Chat / Ask Atlas | **`/api/chat/v2`, the only route.** Every grounding works; market-wide search down. |
+| Workspace | Intake, tables, chat over docs — but **the founder reports undescribed problems in workspace chat** (see 09). |
 | Agents | **Stub.** Page + `lib/agents/data.ts`; no machinery. |
 
 ## Building the smart layer
@@ -22,22 +22,20 @@ Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`. Lowest unblocked
 one, branch per slice. **STRICT ORDER: 08 → 09 → 10 → 11 → 12 → 13 → 14** (founder, final).
 
-**Phase A done. TICKETS 08 AND 09 ARE CLOSED.** `/api/chat/v2` is the ONLY chat route; 08c-3's
-residues are in `docs/open-findings.md`, plus a founder glance owed (`reportTruncated`'s wording
-changed after its drive).
+**Phase A done. TICKET 08 IS CLOSED.** 08c-3's residues are in `docs/open-findings.md`, plus a
+founder glance owed (`reportTruncated`'s wording changed after its drive).
 
-**Two reds, filed with numbers, not re-scored** (M2; numbers in 08c's `docs/evidence/`): market-wide
-search does not complete (unscoped scan over 98,042 chunks hits `statement timeout` ~8.6s, so class-G
-discovery is RED, scoped works) and $0.06/answer did not hold ($0.1010 company-scoped). Both
-eval-gated; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
-`scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on a v2 chat
-failing in production check for a 401 first; absent returns 503.
+**Two reds, filed with numbers, not re-scored** (M2; numbers in 08c's evidence): market-wide search
+times out (~8.6s over 98,042 chunks) so class-G discovery is RED, scoped works; and $0.06/answer did
+not hold ($0.1010 company-scoped). Both eval-gated; **a DEDICATED PARALLEL SESSION owns the fix**;
+re-measure with `scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** —
+on a v2 chat failing in production, check for a 401 first.
 
-**09 closed by MEASURING, not building.** At shelf 3/6/12 the planner reads 12/8/8 and the swap
-11/9/8 — trading the lead each way, so "measurably beats" is unmet and **workspace chat is
-unchanged**. `workspace-gate.mjs` is standing. The lead is UNION, but P ∪ E is an ORACLE BOUND that
-breaks the shared budget — its own ticket and gate.
+**09 IS MEASURED BUT NOT MERGED** — branch `feat/smart-layer-b3-workspace-chat`, green. Its gate says
+the swap does not beat the planner (12/8/8 vs 11/9/8 at shelf 3/6/12), so workspace chat is
+deliberately unchanged. **BUT the founder tested it and found problems he has NOT described, and no
+review round has read the tip. → Read that branch's HANDOFF.md and ASK HIM what he saw first.** Do
+not start 10 on top of this.
 
-**Next: 10** — agent tables + create flow.
-
-Also open: **ticket 13** holds the cleanup list; poller/sweep deferred past V1.
+**Next: close 09, then 10** (agent tables + create flow). Also open: **13** holds the cleanup list;
+poller/sweep deferred past V1.
