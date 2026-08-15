@@ -9,22 +9,30 @@
 // scope — is appended LAST. A different scope next turn cannot disturb the
 // prefix.
 //
-// NO CACHING ACTUALLY HAPPENS TODAY. Round 1's cold review caught the original
-// header describing a breakpoint the code never set, and the fix is NOT to set
-// one: a `cache_control` marker that cannot engage is enforcement in appearance
-// only, which `CONTEXT.md` ranks below honest absence.
+// NO CACHING ACTUALLY HAPPENS TODAY — no `cache_control` is set anywhere, and every
+// cost run reads `cache_read 0 / cache_write 0`. Round 1's cold review caught the
+// original header describing a breakpoint the code never set.
 //
-// THE MARGIN, corrected at round 2 — the first version of this note measured only
-// this file and reported ~660 tokens of headroom, which was wrong in the direction
-// that matters. A breakpoint on the system block covers the TOOL DEFINITIONS too
-// (`toolDefs.ts`, 2,095 serialized chars ≈ 520 tokens), so the cacheable prefix is
-// ~880 against Sonnet's 1,024 minimum: **on the order of 100–175 tokens short, not
-// 660**. The range rather than a point is deliberate — the two blocks measure
-// 3.60 and 4.03 chars/token, so any single ratio gives a different answer, and
-// round 3 rightly called the first "about 150" an estimate wearing a
-// measurement's clothes. Close enough that one more tool crosses it, so RE-MEASURE
-// with a token counter rather than trusting this comment. **Until it is crossed, the §5 cost budget
-// must not be justified by prompt caching.** Filed in `docs/open-findings.md`.
+// BUT THE REASON THIS NOTE GAVE FOR NOT SETTING ONE WAS WRONG, and it is worth the
+// space because of HOW it was wrong. Rounds 2 and 3 argued the margin down from
+// "~660 tokens of headroom" to "~880 against Sonnet's 1,024 minimum: 100–175 short,
+// so a breakpoint cannot engage" — three rounds of increasingly careful reasoning
+// over an ESTIMATE, ending in a number stated to the token. Round 3 even called an
+// earlier figure "an estimate wearing a measurement's clothes", and the note then
+// told the next reader to RE-MEASURE with a token counter rather than trust it.
+//
+// Measured 2026-08-15 (`messages.count_tokens`, claude-sonnet-5 — the model `loop.ts`
+// actually calls): static block **450**, `TOOL_DEFS` **1,174**, cacheable prefix
+// (tools render before system) **1,659 — 635 OVER the minimum, not short.** The
+// error was deriving tool tokens from character count at prose ratios: JSON schema
+// runs ~1.8 chars/token, so 2,095 chars is ~1,174 tokens, not the ~520 assumed. No
+// ratio taken from prose describes a schema.
+//
+// So: a breakpoint WOULD engage. Leaving it unset is now a cost decision (reads
+// ~0.1x, writes 1.25x — it pays back on the second turn; caches are model-scoped and
+// any tool-list change invalidates them), not an impossibility. **The §5 cost budget
+// still must not be justified by prompt caching until a run is measured with
+// `cache_read_input_tokens > 0`.** Filed in `docs/open-findings.md`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STATIC_SYSTEM_PROMPT = `You are Atlas, a research assistant for the Israeli public market (TASE-listed companies).

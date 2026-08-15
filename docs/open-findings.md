@@ -53,12 +53,19 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   attribution-verified until this is closed.** → `#classifier-visible-failure`
 - **The chat system prompt is CACHE-READY but nothing is cached** (recorded 2026-08-14, same
   review). `lib/chat2/systemPrompt.ts` orders the static block first and the volatile facts last,
-  which is the part that matters and is correct — but the static block measures ~361 tokens (1,301
-  chars) against Sonnet's 1,024-token minimum cacheable prefix, so setting a `cache_control`
-  breakpoint today would be a mechanism that cannot engage. It was deliberately NOT added for that
-  reason. **Spec §5's ≤ $0.06/answer budget must not be justified by prompt caching** until the
-  static block clears the minimum, at which point the breakpoint goes on the last static block.
-  The ticket's cost acceptance has never been measured against a real answer either.
+  which is the part that matters and is correct. **THE REASON RECORDED HERE FOR NOT CACHING WAS
+  WRONG — corrected 2026-08-15 by measurement, not estimate** (`messages.count_tokens`, Sonnet 5,
+  the model the loop actually calls): static system **450** tokens, `TOOL_DEFS` **1,174**, so the
+  cacheable prefix a breakpoint would cover — tools render before system — is **1,659, which is 635
+  OVER** the 1,024 minimum. This entry and `systemPrompt.ts` both said ~880 and "cannot engage".
+  The error: tool tokens were derived from character count at prose ratios, and JSON schema runs
+  ~1.8 chars/token, so the tool block is more than double the estimate. **A breakpoint WOULD engage
+  today.** It is still not set — that is now a cost/retrieval decision (reads ~0.1×, writes 1.25×,
+  so it pays back on the second turn of any conversation; caches are model-scoped and any tool-list
+  change invalidates them), not a blocked one. **Spec §5's ≤ $0.06/answer budget still must not be
+  justified by prompt caching** until a real run is measured with `cache_read_input_tokens > 0`.
+  Cost HAS since been measured against real answers (ticket 08b, all with caching off): $0.0164
+  company-scoped, $0.0537 / $0.0805 for stuffed call turns.
 - **More pre-joined mixed-language labels exist, outside the chat surface** (recorded 2026-08-14,
   ticket 07). The bidi law's remedy is a `<bdi>` per run, and its VERIFY step says to grep the
   CONSTRUCT rather than fix the component — because fixing one instance is what hid the others.

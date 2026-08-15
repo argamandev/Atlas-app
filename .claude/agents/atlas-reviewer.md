@@ -45,6 +45,13 @@ RECURRENCE: no
 - Zero findings → the single line `FINDINGS: none`. Silence is not an answer: an empty record and
   an unreviewed branch look identical.
 - Never rewrite the code yourself; the author fixes, you re-review.
+- **A MULTI-ROUND RECORD KEEPS EXACTLY ONE `REVIEWED:` AND ONE `VERDICT:` LINE — the last round's.**
+  Earlier rounds state their sha and verdict in prose. `parseReviewRecord` takes the FIRST regex
+  match for each, so a record with one `REVIEWED:` per round hands the gate the OLDEST sha; it then
+  reports every file touched since as staleness and demands a re-review that has already happened.
+  Filed 2026-08-15 (ticket 08b, four rounds): the gate was reading the file correctly while the file
+  was misreporting its own reviewed tip, and the failure looks exactly like a branch that needs
+  overriding — which is the dangerous part, because the fix is one line and the override is not.
 
 A `yes` obliges the author, not you: that law must gain a mechanism one tier stronger in the same
 commit as the fix — impossible → test → hook or grep → ritual gate — or be marked `UNENFORCEABLE`
