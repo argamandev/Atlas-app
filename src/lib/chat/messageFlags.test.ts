@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { sanitizeCallTruncated, sanitizeTruncated, settledFacts, truncatedForPersist } from './messageState'
 
 /**
@@ -145,9 +147,14 @@ test('the two flags stay INDEPENDENT — one must never imply the other', () => 
 // RECURRENCE against "degradation must be VISIBLE", so ADR-0002 wants a
 // mechanism stronger than the comment that used to be the only guard. The
 // mechanism is that there is now ONE function both paths call, and these cases
-// pin what it must carry — a new honesty fact added to the settled message
-// without being added here fails the sweep below rather than being silently
-// dropped by whichever path its author forgot.
+// pin what it must carry.
+//
+// WHAT THESE CASES DO AND DO NOT COVER — round 2 caught this note claiming the
+// wrong one, so it is spelled out. They guard `settledFacts` against NARROWING:
+// delete a field and they fail. They CANNOT see the shape that actually caused
+// the defect — a SECOND WRITER adding a fact to one `setLastAssistant` call and
+// not the other, which leaves this function intact and every case here green.
+// That door is shut by the source scan at the foot of this file, not by these.
 
 const FACTS = {
   source: {
@@ -215,4 +222,93 @@ test('an absent fact stays absent — settling invents nothing', () => {
     callTruncated: false,
   }
   assert.deepEqual(settledFacts(clean), clean)
+})
+
+// ─── THE SECOND-WRITER SHAPE, SCANNED (round 2, ticket 08c-1) ────────────────
+//
+// WHY THIS EXISTS AND WHY THE CASES ABOVE ARE NOT ENOUGH. Round 2's review
+// caught the previous comment here overclaiming: it said "a new honesty fact
+// added to the settled message without being added here fails the sweep below",
+// and that was not true. Those cases guard `settledFacts` against NARROWING —
+// delete a field and they fail. They cannot see the shape that actually caused
+// the defect, which is a SECOND WRITER: someone adding `projectContext` (or the
+// next fact) directly to one `setLastAssistant({...})` call and not the other.
+// That edit keeps `settledFacts` intact, keeps every case above green, and
+// reintroduces exactly the hole — a partial answer rendered with no notice.
+//
+// So the guard is a SOURCE SCAN, the tier this repo already uses for
+// "is this shape looked at" questions (`apiFetchDiscipline`,
+// `supabaseWriteDiscipline`, `chat2/requestScope`). The property: in ChatView,
+// no `setLastAssistant` call may name an honesty field directly — they arrive
+// only by spreading `settledFacts`, so there is ONE writer and no second one to
+// forget.
+//
+// STATED LIMIT (M1), because the sentence this replaces was wrong for want of
+// one: this reads ONE file for ONE call shape. A new component that settles its
+// own assistant message is outside it, and a fact written through some other
+// setter is too. It proves the second-writer door in `ChatView` is shut; it does
+// not prove the class is closed everywhere.
+
+const HONESTY_FIELDS = ['source', 'projectContext', 'incomplete', 'callTruncated']
+
+test('no setLastAssistant call names an honesty field directly — one writer only', () => {
+  const src = readFileSync(join(process.cwd(), 'src', 'components', 'chat', 'ChatView.tsx'), 'utf8')
+    // Comments blanked first: this file DISCUSSES these field names at length, and
+    // a plain search would hit the prose explaining the rule and report the rule
+    // itself as a violation. app.md files that trap by name ("a grep hits prose").
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, ' ')
+
+  // Each `setLastAssistant({ … })` argument, brace-matched rather than regexed to
+  // the first `}` — the settle calls span several lines and contain nested braces.
+  const calls: string[] = []
+  const needle = 'setLastAssistant({'
+  for (let i = src.indexOf(needle); i !== -1; i = src.indexOf(needle, i + 1)) {
+    let depth = 0
+    let j = i + needle.length - 1
+    for (; j < src.length; j++) {
+      if (src[j] === '{') depth++
+      else if (src[j] === '}' && --depth === 0) break
+    }
+    calls.push(src.slice(i, j + 1))
+  }
+  assert.ok(calls.length >= 2, `expected at least 2 settle calls, found ${calls.length} — the scan is broken`)
+
+  const offenders: string[] = []
+  for (const call of calls) {
+    for (const field of HONESTY_FIELDS) {
+      // `field:` as a property key. A spread of `settledFacts(...)` contains the
+      // function name, not the keys, so the compliant calls hold none of these.
+      if (new RegExp(`\\b${field}\\s*:`).test(call)) {
+        offenders.push(`${field} written directly in: ${call.replace(/\s+/g, ' ').slice(0, 90)}…`)
+      }
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    'An honesty fact is being written straight into a settle call instead of through ' +
+      '`settledFacts`. That is the SECOND-WRITER shape that caused the defect: the other ' +
+      'settle path will not carry it, so a turn that fails after the server reported the ' +
+      'degradation renders with no notice at all. Add the field to `settledFacts` and spread it.\n' +
+      offenders.join('\n')
+  )
+})
+
+test('the compliant calls really do go through settledFacts — the scan is not vacuous', () => {
+  // GUARD THE GUARD. If `settledFacts` were deleted from ChatView entirely, the
+  // case above would pass with flying colours: no honesty field named directly,
+  // because none is carried at all. The absence of a violation and the absence of
+  // the mechanism look identical to a scan that only looks for offenders.
+  const src = readFileSync(join(process.cwd(), 'src', 'components', 'chat', 'ChatView.tsx'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, ' ')
+  const spreads = (src.match(/\.\.\.settledFacts\(/g) ?? []).length
+  assert.ok(
+    spreads >= 2,
+    `only ${spreads} call site(s) spread settledFacts — both the success path and the failure ` +
+      'path must, or one of them is settling a message with no honesty facts at all'
+  )
 })

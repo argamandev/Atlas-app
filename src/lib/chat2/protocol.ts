@@ -85,12 +85,6 @@ export function isIncompleteCode(v: unknown): v is IncompleteCode {
 }
 
 /**
- * The TERMINAL event types. Exactly one ends every turn, and it is always last.
- *
- * Exported so a caller can exhaustively switch and so the battery can assert the
- * set has not quietly grown a fourth.
- */
-/**
  * How a PROJECT's written context reached the model on one turn (ticket 08c).
  *
  * ONE DECLARATION, derived from the array, for the same reason the incomplete
@@ -112,6 +106,12 @@ export function isProjectContextState(v: unknown): v is ProjectContextState {
   return typeof v === 'string' && (PROJECT_CONTEXT_STATES as readonly string[]).includes(v)
 }
 
+/**
+ * The TERMINAL event types. Exactly one ends every turn, and it is always last.
+ *
+ * Exported so a caller can exhaustively switch and so the battery can assert the
+ * set has not quietly grown a fourth.
+ */
 export const TERMINAL_EVENTS = ['done', 'incomplete', 'error'] as const
 
 export type TerminalEventType = (typeof TERMINAL_EVENTS)[number]

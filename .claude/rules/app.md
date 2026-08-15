@@ -182,12 +182,13 @@ may emit it — truncation gets its OWN terminal type, never an advisory followe
 **ENFORCED** at two tiers, and the SPLIT is the point (2026-08-14): **impossible** that one
 terminal event means both — `done`/`incomplete` are distinct types, so no caller can conflate them;
 **test** that the right one is CHOSEN — `chat2/terminal.ts` decides it as a pure function of the
-facts, swept exhaustively. Claiming `impossible` for both was rejected at review: the choice was
-still inline guards, and every hole found so far lived exactly there.
-And a degradation you can REFRESH AWAY is not a visible one, so an honesty fact is PERSISTED with
-the message, never held in view state: `chat/messageFlags.test.ts` covers each stored flag and
-asserts they stay INDEPENDENT (08b — reasoning in its header). A new stored flag gets a case there,
-or it is prose.
+facts, swept exhaustively. Claiming `impossible` for both was rejected at review → `#settled-facts`.
+And a degradation you can REFRESH AWAY is not visible, so an honesty fact is PERSISTED with the
+message, never held in view state: `chat/messageFlags.test.ts` covers each stored flag and asserts
+they stay INDEPENDENT (08b). A new stored flag gets a case there, or it is prose.
+**And ONE writer settles it** — two settle sites meant the FAILURE path carried none (08c-1).
+`settledFacts` is that writer; the same test scans `ChatView` so a fact added to one settle call
+and not the other fails. → `#settled-facts`
 **Third tier (ticket 07):** a scope the backend ACCEPTS but never reads is the same lie one layer
 up. `chat2/requestScope.test.ts` fails for any accepted id no handler reads; limit in its header.
 Seven surfaces fail a thin answer sold as whole: `retrieve`, `indexHealth`, `reindex`,

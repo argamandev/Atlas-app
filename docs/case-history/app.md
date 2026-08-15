@@ -287,6 +287,39 @@ way three times).
 
 
 
+## settled-facts
+
+- **Why `impossible` was REFUSED for the terminal-event split (2026-08-14), evicted from the law at
+  08c-1 because it is history and history is not always-on.** The branch claimed the `impossible`
+  tier for BOTH halves of the split: that one terminal event cannot mean "finished" and "stopped
+  early", and that the right one is chosen. The first is genuinely impossible — `done` and
+  `incomplete` are distinct types, so no caller can conflate them. The second was NOT: the choice
+  was still made by inline guards, and **every hole found in that machinery so far had lived
+  exactly there**, not in the type. So the law carries two tiers with the split stated, because a
+  law claiming a stronger tier than it holds is the one thing this structure exists to prevent —
+  it stops the next reader from looking for the hole where the hole actually is.
+
+- **The SECOND-WRITER hole (08c-1, cold review round 1, `RECURRENCE: yes`).** `ChatView.send`
+  settled its assistant message in two places: the success path, which spread every honesty fact
+  off `outcome`, and the `catch`, which built its own object from `error`/`errorKind` alone. So a
+  turn whose server had ALREADY reported `projectContext: 'failed'` — or a call read only in part —
+  and whose stream then broke rendered its partial answer **with no notice at all**, and persisted
+  none. The facts existed and were correct; the second writer simply did not carry them. The
+  failure path is exactly when those facts matter most, which is what made this worth a mechanism
+  rather than a patch.
+  **What the fix had to be, and what it first was not.** The first fix extracted `settledFacts()`
+  and had both paths call it — correct, but the accompanying test only guarded the function against
+  NARROWING (delete a field, the cases fail). Round 2 caught the comment claiming more: a field
+  added to `outcome` and spread beside `settledFacts()` in ONE path leaves the function intact and
+  every such case green, which is the original defect rebuilt. The guard is therefore a SOURCE SCAN
+  in `chat/messageFlags.test.ts` — no `setLastAssistant` call in `ChatView` may name an honesty
+  field directly — plus a vacuity case asserting both sites really do spread it. Mutation-proven
+  both ways: writing a fact directly into one path fails the scan, and removing the failure path's
+  spread (the original hole, exactly) fails the vacuity case.
+  **The lesson is the one M1 keeps teaching**: a guard catches the shape it measures, not the shape
+  you meant. "Both paths carry the same facts" and "this function returns all its fields" are
+  different claims, and only the second was being checked.
+
 ## classifier-visible-failure
 
 - **4th occurrence of that class, and it added a rule of its own: when a decision rests on a

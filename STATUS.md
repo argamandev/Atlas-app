@@ -32,12 +32,12 @@ FIRST turn" call is CLOSED — §5 reads "any turn", re-injection stays, $0.13 u
 
 **Two reds, filed with numbers, not re-scored** (M2) — numbers in that branch's `docs/evidence/`:
 (1) **market-wide search does not complete** — unscoped scan over 98,042 chunks hits `statement
-timeout` (~8.6s), so class-G discovery is RED and its diversification cannot run; scoped search,
-which both MUST-PASS cases close through, works. (2) **the $0.06/answer budget did not hold** on
-07's three samples, caching measured OFF. Both are eval-gated retrieval parameters; **a DEDICATED
-PARALLEL SESSION owns the fix**. Re-measure: `scripts/measure-chat-answer.mjs` (also `--call`).
-**Railway's `ANTHROPIC_API_KEY` is unproven** (local is verified) — **a 401 on the first deploy of
-`/api/chat/v2` is the first thing to check**; absent returns 503.
+timeout` (~8.6s), so class-G discovery is RED; scoped search works. (2) **the $0.06/answer budget
+did not hold** — re-confirmed at 08c-1: a company-scoped turn is $0.1010 with no project at all.
+Both are eval-gated retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
+`scripts/measure-chat-answer.mjs` (`--call`, `--project`). **Railway's `ANTHROPIC_API_KEY` is
+unproven** — **a 401 on the first deploy of `/api/chat/v2` is the first thing to check**; absent
+returns 503.
 
 **Next: 08c-2, then 08c-3** — finish 08 before 09 starts, so workspace chat is never built on a
 route that is about to die. Then 09, smaller than it was: its `shelf` variant is already in the

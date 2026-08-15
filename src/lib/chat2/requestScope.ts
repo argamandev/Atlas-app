@@ -156,19 +156,6 @@ export function scopeIdsFor(s: TurnScope): ScopeIds {
 }
 
 /**
- * Read the grounding out of an untrusted body — uuid-gated, and REFUSING rather
- * than downgrading.
- *
- * `null` means "the client asked for a grounding I cannot honour", and the route
- * turns that into a 400. It deliberately does NOT fall back to `{kind:'none'}`:
- * a malformed `call` grounding silently becoming a market-wide search is the
- * ticket-07 defect with an extra step — the surface still renders its transcript
- * chip, and the answer is still not from that call. A refused request is visible;
- * a downgraded one is not.
- *
- * An ABSENT grounding is not malformed. It is blank Chat.
- */
-/**
  * Read the whole turn scope out of an untrusted body: the grounding, and the
  * project it runs inside.
  *
@@ -192,6 +179,19 @@ export function parseTurnScope(body: unknown): TurnScope | null {
   return projectId ? { grounding, projectId } : null
 }
 
+/**
+ * Read the grounding out of an untrusted body — uuid-gated, and REFUSING rather
+ * than downgrading.
+ *
+ * `null` means "the client asked for a grounding I cannot honour", and the route
+ * turns that into a 400. It deliberately does NOT fall back to `{kind:'none'}`:
+ * a malformed `call` grounding silently becoming a market-wide search is the
+ * ticket-07 defect with an extra step — the surface still renders its transcript
+ * chip, and the answer is still not from that call. A refused request is visible;
+ * a downgraded one is not.
+ *
+ * An ABSENT grounding is not malformed. It is blank Chat.
+ */
 export function parseGrounding(body: unknown): Grounding | null {
   const b = (body ?? {}) as Record<string, unknown>
   const g = b.grounding
