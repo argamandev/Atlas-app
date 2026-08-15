@@ -122,8 +122,6 @@ export interface DocumentPage {
 export interface DocumentBlock {
   /** The fenced block, ready to ride this turn's user message. */
   text: string
-  /** `true` means SOME page in this block was cut. Which ones is `truncatedPages`. */
-  truncated: boolean
   /**
    * WHICH pages were cut, in order — not merely that one was.
    *
@@ -169,7 +167,6 @@ export function buildDocumentBlock(
   if (withText.length === 0) {
     return {
       text: fenceSource({ kind: 'filing', label, content: NO_PAGE_TEXT }),
-      truncated: false,
       truncatedPages: [],
       // EMPTY, not the requested list. `pages` means "what the model was actually
       // GIVEN" — that is the whole reason the loop can compare it against what the
@@ -194,15 +191,13 @@ export function buildDocumentBlock(
       return `[page ${p.pageNo}]\n${text.slice(0, perPage)}`
     })
     .join('\n\n')
-  const truncated = truncatedPages.length > 0
 
   // The notice goes FIRST, so it survives even the pathological case where the
   // block is read from the top and the cut pages follow.
-  const content = truncated ? `${DOCUMENT_TRUNCATION_NOTICE}\n\n${body}` : body
+  const content = truncatedPages.length > 0 ? `${DOCUMENT_TRUNCATION_NOTICE}\n\n${body}` : body
 
   return {
     text: fenceSource({ kind: 'filing', label, content }),
-    truncated,
     truncatedPages,
     pages: withText.map((p) => p.pageNo),
   }

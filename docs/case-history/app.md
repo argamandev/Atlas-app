@@ -537,11 +537,6 @@ final fix is a type split rather than a better condition: `TurnDocuments.pages` 
 promised as text (marked pages only), `pagesToLoad()` is what is worth fetching (marked ∪
 snipped). A snip-only turn promises no text at all and therefore cannot lose any.
 
-The generalisation, and why it earned a tier: **a state that names one channel must never be
-measured against the union of every channel.** Multi-modal grounding makes this shape common —
-the same defect is waiting wherever audio, image and text carry one source — and it is invisible
-to a type checker, because both lists are `number[]`.
-
 **Round 3 — two more, in the branch nobody had touched.** A snip-only turn whose page-text load
 THREW fell into the unconditional `failed` branch — the sibling of the `if` every previous fix had
 edited — and announced that report text nobody had asked for was missing. And `built.truncated` was

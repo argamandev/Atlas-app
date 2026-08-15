@@ -248,7 +248,22 @@ export function TranscriptChatPanel({
           message: outMessage,
           grounding,
           history,
-          documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
+          // ONLY WHEN IT NAMES PAGES. `PdfViewer.onMouseUp` resolves the page
+          // numbers from the selection's endpoints, and a selection whose
+          // endpoints both fail that lookup yields `pages: []` — a documentRef
+          // that asks for nothing. The gate collapses it to "no document", which
+          // is correct, but sending it at all made the request claim a grounding
+          // it did not carry.
+          //
+          // AND NOTHING IS OWED TO THE SCREEN HERE, which is why this is not a
+          // notice: the reference block shows the marked PASSAGE, and that
+          // passage is composed verbatim into `outMessage` above. The answer is
+          // grounded in exactly what the user can see. What an empty page list
+          // loses is the surrounding page prose, which the screen never promised.
+          documentRef:
+            usedDoc && usedDoc.pages.length > 0
+              ? { documentId: usedDoc.documentId, pages: usedDoc.pages }
+              : undefined,
           attachments: usedSnips.length ? usedSnips : undefined,
         },
         (e) => {

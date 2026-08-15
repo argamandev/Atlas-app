@@ -220,8 +220,9 @@ After round 3: `npm test` 1135 green, `npx tsc --noEmit` clean.
 
 | # | State | EN | HE | How |
 | --- | --- | --- | --- | --- |
-| 16 | SNIP-ONLY turn whose page-text load THREW → `ok`, no notice | ❌ NOT driven | ❌ NOT driven | Round 3's BLOCKER. Unit-swept; renders nothing, so it has no locale. |
-| 17 | Marked passage whole beside a snipped page that was CUT → `ok` | ❌ NOT driven | ❌ NOT driven | Round 3's second finding. Unit-swept. |
+| 16 | SNIP-ONLY turn on a page with no text row → `ok`, no notice | ✅ driven (API) | — | Round 3's BLOCKER. Unit-swept AND re-driven against real data (below). Renders nothing, so it has no locale. |
+| 17 | Marked passage whole beside a snipped page that was CUT → `ok` | ✅ driven (API) | — | Round 3's second finding. Unit-swept AND re-driven against real data (below). |
+| 18 | A selection resolving to NO page numbers → no `documentRef` sent at all | ❌ NOT driven | ❌ NOT driven | Round 4's finding. The passage itself is composed into the message, so the answer is grounded in exactly what the reference block shows; nothing is owed to the screen, and no notice is right. Reasoned, not driven. |
 
 ### Round 3's fixes re-driven against REAL data
 
@@ -239,3 +240,34 @@ marked page 999 (no row)                    → grounding:whole | documentContex
 Before round 3 the second line reported `failed` and the third reported `truncated`. Rows 16 and 17
 of the state table are therefore API-driven, not unit-only; neither renders a notice, so neither
 has a locale to check.
+
+## Cold review — round 4, verdict CHANGES (no BLOCKER)
+
+The first round with no blocker. `documentContextState()` survived mutation in the reviewer's own
+hands — reordering its two leading guards fails 3 cases, weakening `markedCut` fails 5, and
+re-supplying the union as `markedPages` in `loop.ts` fails 2 — so the structural fix held where four
+successive conditions had not.
+
+**WARNING — the `truncated` copy asserted a cause the code never established.** It said "too long to
+read in full", but that state is also returned when one marked page was unreadable or had no stored
+row, and naming length sends the user to re-mark a narrower passage that would change nothing. Both
+locales are cause-neutral now: *"Only part of the marked report passage reached this answer."* /
+*"רק חלק מהקטע שסומן בדוח הגיע לתשובה הזו."*
+
+**WARNING — a selection resolving to NO pages still sent a `documentRef`.** `PdfViewer` derives page
+numbers from the selection's endpoints, and when both fail the lookup it yields `pages: []`. The
+gate collapsed that to "no document", correctly, but the request had claimed a grounding it did not
+carry. The panel no longer sends it. **No notice is owed and none was added**, and that is the
+finding's real answer rather than a shortcut: the marked PASSAGE is composed verbatim into the
+message, so the answer is grounded in exactly what the reference block shows. What an empty page
+list loses is the surrounding page prose, which the screen never promised.
+
+**NITs, all fixed** — a second stale "the old /api/chat is still alive" comment in `ChatView` (round
+1 fixed this class in `LiveBroadcastView` and left this site); `ARCHITECTURE.md`'s test index still
+naming a deleted test, which `testRegistry.test.ts` cannot see because it reconciles `package.json`
+only; rows 16–17 marked NOT driven while the section below said they were API-driven; the law tier
+naming only one of its two guards; `DocumentBlock.truncated` left in the public shape after
+`truncatedPages` replaced it — the bare boolean that caused round 3's warning, re-offered to the
+next reader; and a paragraph duplicated in the case history by the round-3 rewrite.
+
+After round 4: `npm test` green, `npx tsc --noEmit` clean.

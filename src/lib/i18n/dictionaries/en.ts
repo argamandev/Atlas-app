@@ -527,8 +527,13 @@ export const en = {
     // CUT passage means "ask about a narrower passage", a FAILED one means "the
     // report text never arrived at all". A shared sentence would make the second
     // read as the first and send the user re-marking pages that were never read.
-    reportTruncated:
-      'The marked report passage was too long to read in full — the answer is based on part of it.',
+    // CAUSE-NEUTRAL, and it was not at first. It said "too long to read in
+    // full", which the code never establishes: `truncated` is also returned when
+    // one marked page was unreadable or had no stored text, and naming length as
+    // the cause sends the user to re-mark a narrower passage that would change
+    // nothing. What IS always true — and is the fact the reader can act on — is
+    // that the answer covers only part of what they marked.
+    reportTruncated: 'Only part of the marked report passage reached this answer.',
     reportFailed: 'The report text could not be loaded, so the answer was written without it.',
     pageShort: 'p.',
     // ─── Ticket 07: the new backend's grounding mode, said out loud ──────────

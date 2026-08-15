@@ -188,12 +188,13 @@ export function ChatView({
   // on. A future grounding v2 cannot honour does NOT get its arm back here; it
   // gets the handler first.
   //
-  // THE OLD `/api/chat` IS STILL ALIVE, and this comment is the wrong place to
-  // conclude otherwise. `TranscriptChatPanel` — live captions, marked PDF pages,
-  // Pinge snips — still calls it, because v2 has no code for those three
-  // groundings yet. Ticket 08's remaining slices own them, and the route dies
-  // when the LAST caller leaves, not when this one does. `streamChat` is
-  // therefore not deleted either.
+  // THE OLD `/api/chat` IS DEAD (08c-3). This comment used to say it was still
+  // alive, because `TranscriptChatPanel` kept calling it for the three groundings
+  // v2 had no code for — live captions, marked PDF pages, Pinge snips. All three
+  // landed (08c-2 and 08c-3), so the LAST caller left and the route, `streamChat`
+  // and `lib/api/chat.ts` went with it. The rule above is unchanged and is what
+  // let the panel move: a surface goes to v2 only when v2 can honour every
+  // grounding it displays.
 
   /**
    * The grounding mode of the CURRENT turn, as the server reported it.

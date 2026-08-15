@@ -357,7 +357,7 @@ run a file cannot tell you it is missing.
 · `apiAuthBoundary.test.ts` · `apiFetchDiscipline.test.ts`
 · `auth/gate.test.ts` · `auth/verifyUser.test.ts`
 · `calendar/event-meta.test.ts` · `chat/attachments.test.ts`
-· `chat/contextStatus.test.ts` · `chat/documentContext.test.ts`
+· `chat/contextStatus.test.ts`
 · `chat/domainBoundary.test.ts` · `chat/history.test.ts`
 · `chat/incompleteCopy.test.ts` · `chat/messageFlags.test.ts`
 · `chat/projectContext.test.ts` · `chat/captionPayload.test.ts`

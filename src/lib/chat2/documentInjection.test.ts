@@ -53,16 +53,16 @@ test('THE BUDGET IS SPLIT PER PAGE, so a fat first page cannot eat the later one
     2_000
   )
   assert.ok(b.text.includes('beta-survives'), 'the later page was sliced away by the earlier one')
-  assert.equal(b.truncated, true)
+  assert.ok(b.truncatedPages.length > 0)
 })
 
 test('truncation is RETURNED and SAID, never inferred downstream from a length', () => {
   const whole = buildDocumentBlock(META, [{ pageNo: 1, text: 'short' }], 2_000)
-  assert.equal(whole.truncated, false)
+  assert.deepEqual(whole.truncatedPages, [])
   assert.ok(!whole.text.includes(DOCUMENT_TRUNCATION_NOTICE))
 
   const cut = buildDocumentBlock(META, [{ pageNo: 1, text: 'x'.repeat(9_000) }], 1_000)
-  assert.equal(cut.truncated, true)
+  assert.ok(cut.truncatedPages.length > 0)
   // MUTATE THIS GUARD, DO NOT READ IT: dropping the notice below must fail here.
   // Both backends cut the same content, so each must SAY it cut (app.md, 4th tier).
   assert.ok(cut.text.includes(DOCUMENT_TRUNCATION_NOTICE), 'it cut without telling the model')
@@ -79,7 +79,7 @@ test('NO STORED PAGE TEXT is its own state — not an empty block and not an err
       b.text.includes(NO_PAGE_TEXT),
       `did not say the pages were unreadable: ${JSON.stringify(pages)}`
     )
-    assert.equal(b.truncated, false)
+    assert.deepEqual(b.truncatedPages, [])
   }
 })
 
@@ -92,7 +92,7 @@ test('a missing meta row still produces a block — the pages are the source, no
 test('the default budget is the exported constant, and it is a real ceiling', () => {
   assert.equal(typeof DOCUMENT_BUDGET_CHARS, 'number')
   const b = buildDocumentBlock(META, [{ pageNo: 1, text: 'x'.repeat(DOCUMENT_BUDGET_CHARS + 10) }])
-  assert.equal(b.truncated, true)
+  assert.ok(b.truncatedPages.length > 0)
 })
 
 test('the scope summary is a CONSTANT — nothing from the request is interpolated', () => {
@@ -180,6 +180,6 @@ test('buildDocumentBlock reports WHICH pages it cut, not merely that it cut', ()
     { pageNo: 9, text: 'x'.repeat(9_000) },
   ], 2_000)
   assert.deepEqual(b.truncatedPages, [9])
-  assert.equal(b.truncated, true)
+  assert.ok(b.truncatedPages.length > 0)
   assert.deepEqual(b.pages, [4, 9])
 })

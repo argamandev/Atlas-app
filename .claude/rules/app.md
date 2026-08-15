@@ -188,10 +188,10 @@ cut — `chat2/liveInjection.ts` owns both, tested down both paths. Mutate such 
 **Same law, two CHANNELS (08c-3, two rounds):** when one source reaches the model by more than one
 route — a report as page TEXT and as snipped IMAGES — the state naming one route is measured
 against what THAT route was asked to carry and what the SCREEN promised, never against everything
-fetched. Four fixes each shipped the next round's defect, twice in the sibling branch of one `if`.
-**ENFORCED test** — `chat2/documentInjection.test.ts` sweeps `documentContextState` as a pure
-function; nothing here is `impossible` (both lists are `number[]`). **VERIFY** Decide it in ONE
-function, never per branch. → `#two-channel-degradation`
+fetched. Four fixes each shipped the next round's defect, twice in one `if`'s sibling branch.
+**ENFORCED test** — `documentInjection.test.ts` sweeps `documentContextState`, `loop.test.ts` pins
+the MARKED list reaching it; nothing here is `impossible` (both lists are `number[]`). **VERIFY**
+Decide it in ONE function, never per branch. → `#two-channel-degradation`
 And a degradation you can REFRESH AWAY is not visible, so an honesty fact is PERSISTED with the
 message, never held in view state: `chat/messageFlags.test.ts` covers each stored flag and asserts
 they stay INDEPENDENT (08b). A new stored flag gets a case there, or it is prose.

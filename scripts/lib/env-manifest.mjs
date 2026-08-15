@@ -292,11 +292,19 @@ export const VOCABULARY_EXEMPT = {
  * codebase paid for twice in one ticket. It arrives with a `test` mechanism and a
  * type-level split, so enforcement per token still goes up.
  *
+ * The figure was 9,650 until round 4 of the same review, which required the tier
+ * to NAME BOTH guards holding it rather than one — the sweep of the pure decision
+ * AND the case pinning that the marked list is what reaches it. That is 30 more
+ * tokens of law and it is not padding: naming one guard while two are load-bearing
+ * is the same over-claim the round before had just deleted. Trimming other words
+ * to land exactly on 9,650 was the alternative and was rejected — shaving a law's
+ * wording to hit a number is how a law gets quietly weakened by arithmetic.
+ *
  * ⚠ THE SHRINK IS NOW FIVE SLICES OVERDUE, and the honest reading of five
  * consecutive raises is that it will not happen as a side effect of the next
  * ticket either. It needs to be scheduled.
  */
-export const TOKEN_BUDGET = 9_650
+export const TOKEN_BUDGET = 9_680
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'
