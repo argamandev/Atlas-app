@@ -109,20 +109,74 @@ export interface ScopeIds {
   companyId?: string
   transcriptId?: string
   workspaceId?: string
+  projectId?: string
 }
 
-/** The ids a grounding puts on `ChatScope`. One recipe, so at most one id. */
-export function scopeIdsFor(g: Grounding): ScopeIds {
-  switch (g.kind) {
+/**
+ * WHAT THIS TURN IS GROUNDED IN, **plus** whose standing instructions it runs
+ * under. Two questions, deliberately not one union (ticket 08c).
+ *
+ * A PROJECT IS NOT A FIFTH RECIPE, and modelling it as one was the obvious move
+ * that would have shipped a silent regression. `Grounding` answers *where the
+ * answer comes from*; a project answers *under whose written instructions it is
+ * written*. They compose: today, on the old `/api/chat`, a user inside a project
+ * can `@mention` a company and gets BOTH — the project's instructions in the
+ * system prompt and the company on the scope. Making `project` a variant of the
+ * union makes that pair unrepresentable, so the `@mention` would have silently
+ * stopped scoping (`ChatView` sets `companyId` from the mention picker in a
+ * project chat exactly as it does anywhere else). The union's job is to make an
+ * INCOHERENT pair unrepresentable — grounded in a call AND a workspace — not to
+ * flatten two orthogonal facts into one field.
+ *
+ * The union's four recipes are therefore untouched, and the second question gets
+ * its own field with its own gate.
+ */
+export interface TurnScope {
+  grounding: Grounding
+  /** The project this chat lives inside, if any. Its context is INJECTED, not searched. */
+  projectId?: string
+}
+
+/**
+ * The ids a turn puts on `ChatScope` — at most one from the grounding (one
+ * recipe, one id) plus the project, which is orthogonal to all four.
+ */
+export function scopeIdsFor(s: TurnScope): ScopeIds {
+  const ids: ScopeIds = s.projectId ? { projectId: s.projectId } : {}
+  switch (s.grounding.kind) {
     case 'none':
-      return {}
+      return ids
     case 'company':
-      return { companyId: g.companyId }
+      return { ...ids, companyId: s.grounding.companyId }
     case 'call':
-      return { transcriptId: g.transcriptId }
+      return { ...ids, transcriptId: s.grounding.transcriptId }
     case 'shelf':
-      return { workspaceId: g.workspaceId }
+      return { ...ids, workspaceId: s.grounding.workspaceId }
   }
+}
+
+/**
+ * Read the whole turn scope out of an untrusted body: the grounding, and the
+ * project it runs inside.
+ *
+ * `null` propagates from `parseGrounding` — a grounding that cannot be honoured
+ * is a 400, never a downgrade. A MALFORMED `projectId` is refused the same way
+ * and for the same reason: the project chat renders its own header and capacity
+ * meter, so answering without the project's instructions under that header is
+ * the identical lie one field over. It is NOT dropped to "no project", which is
+ * the shape that would let a typo'd id look like an ordinary global chat.
+ *
+ * `projects.id` IS a uuid — checked against the live table, not assumed, because
+ * assuming it about `transcripts.id` cost this stack a whole ticket
+ * (see `asTranscriptId`).
+ */
+export function parseTurnScope(body: unknown): TurnScope | null {
+  const grounding = parseGrounding(body)
+  if (!grounding) return null
+  const raw = ((body ?? {}) as Record<string, unknown>).projectId
+  if (raw == null) return { grounding }
+  const projectId = asUuid(raw)
+  return projectId ? { grounding, projectId } : null
 }
 
 /**

@@ -85,6 +85,28 @@ export function isIncompleteCode(v: unknown): v is IncompleteCode {
 }
 
 /**
+ * How a PROJECT's written context reached the model on one turn (ticket 08c).
+ *
+ * ONE DECLARATION, derived from the array, for the same reason the incomplete
+ * codes are: this triple otherwise wants to exist three times — the builder's
+ * return type, the event's inline literal, and the parser's membership test —
+ * and the parser is the only one consulted at runtime. A fourth state added to
+ * a type the parser does not share is a state the parser silently drops.
+ *
+ * It lives HERE rather than in `projectInjection.ts` because it is wire
+ * vocabulary: both the server that emits it and the surface that renders it
+ * need it, and `protocol.ts` is the module both sides already import.
+ */
+export const PROJECT_CONTEXT_STATES = ['ok', 'truncated', 'failed'] as const
+
+export type ProjectContextState = (typeof PROJECT_CONTEXT_STATES)[number]
+
+/** Is this string one of the project-context states? The parser's only membership test. */
+export function isProjectContextState(v: unknown): v is ProjectContextState {
+  return typeof v === 'string' && (PROJECT_CONTEXT_STATES as readonly string[]).includes(v)
+}
+
+/**
  * The TERMINAL event types. Exactly one ends every turn, and it is always last.
  *
  * Exported so a caller can exhaustively switch and so the battery can assert the
@@ -131,6 +153,23 @@ export type ChatEvent =
    * because the surface is already showing a chip promising that call.
    */
   | { type: 'grounding'; state: 'whole' | 'truncated'; source: ChatSource | null }
+  /**
+   * NON-TERMINAL. How the PROJECT's written context reached the model, when this
+   * chat lives inside a project (ticket 08c).
+   *
+   * ITS OWN EVENT, not a widened `grounding` state, and the separation is the
+   * point. `grounding` answers "where did this answer come from" and carries the
+   * citation chip; a project answers "under whose standing instructions was it
+   * written". A project chat can be BOTH — grounded in a company via `@mention`
+   * while running under the project's instructions — so one event carrying both
+   * facts could not describe the ordinary case.
+   *
+   * Emitted only when the turn actually has a project. `ok` is a real value and
+   * is emitted: the surface's alternative to hearing "ok" is hearing nothing,
+   * which is also what it hears when a build is too old to send this event at
+   * all, and those two must not look alike.
+   */
+  | { type: 'projectContext'; state: ProjectContextState }
   /** TERMINAL. The model finished cleanly. The ONLY event that means complete. */
   | { type: 'done' }
   /**
@@ -217,6 +256,16 @@ export function parseChatEvent(line: string): ClientChatEvent | null {
           : null
       return { type: 'grounding', state: e.state, source }
     }
+    case 'projectContext':
+      // Same reasoning as `grounding` above, one field over: an unrecognised
+      // state is DROPPED rather than defaulted to 'ok'. Defaulting would make an
+      // unparseable frame assert the flattering half of the only question this
+      // event exists to answer — the surface would show a clean answer where the
+      // server may have been saying the user's instructions never loaded.
+      // Through the shared membership test, never a hand-written cascade: the
+      // cascade was a second place the state list could drift from the union.
+      if (!isProjectContextState(e.state)) return null
+      return { type: 'projectContext', state: e.state }
     case 'done':
       return { type: 'done' }
     case 'incomplete':

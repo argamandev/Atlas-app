@@ -61,9 +61,18 @@ const companyId = companyFlag !== -1 ? args[companyFlag + 1] : undefined
 // price the wrong path and report a comfortable number for a question nobody asked.
 const callFlag = args.indexOf('--call')
 const transcriptId = callFlag !== -1 ? args[callFlag + 1] : undefined
+// `--project <uuid>` measures a PROJECT turn (ticket 08c-1). It is deliberately
+// COMPOSABLE with `--company` below, unlike the two above, because a project is
+// not a grounding recipe — it is whose standing instructions the turn runs under,
+// and the shipped surface really can send both. Refusing the pair here would make
+// the measurement unable to price the most expensive shape that actually reaches
+// the route.
+const projectFlag = args.indexOf('--project')
+const projectId = projectFlag !== -1 ? args[projectFlag + 1] : undefined
 const flagIdx = new Set([
   ...(companyFlag !== -1 ? [companyFlag, companyFlag + 1] : []),
   ...(callFlag !== -1 ? [callFlag, callFlag + 1] : []),
+  ...(projectFlag !== -1 ? [projectFlag, projectFlag + 1] : []),
 ])
 const question = args
   // Indices are collected per PRESENT flag rather than computed inline: the
@@ -76,14 +85,19 @@ const question = args
 
 if (!question) {
   console.error(
-    'usage: node --import tsx scripts/measure-chat-answer.mjs "question" [--company <uuid>] [--call <transcriptId>]'
+    'usage: node --import tsx scripts/measure-chat-answer.mjs "question" ' +
+      '[--company <uuid>] [--call <transcriptId>] [--project <uuid>]'
   )
   process.exit(2)
 }
-if ((companyFlag !== -1 && !companyId) || (callFlag !== -1 && !transcriptId)) {
+if (
+  (companyFlag !== -1 && !companyId) ||
+  (callFlag !== -1 && !transcriptId) ||
+  (projectFlag !== -1 && !projectId)
+) {
   // A flag with no value used to fall through to an UNSCOPED run, priced against
   // the answer budget — a number for a question nobody asked, printed as a pass.
-  console.error('--company and --call each need a value.')
+  console.error('--company, --call and --project each need a value.')
   process.exit(2)
 }
 if (companyId && transcriptId) {
@@ -120,7 +134,34 @@ const t0 = Date.now()
 
 for await (const e of runChatLoop({
   client,
-  scope: { userId: 'measurement', companyId: companyId ?? null, transcriptId: transcriptId ?? null },
+  scope: {
+    userId: 'measurement',
+    companyId: companyId ?? null,
+    transcriptId: transcriptId ?? null,
+    projectId: projectId ?? null,
+  },
+  // The project is loaded through the CALLER'S supabase client in production
+  // (RLS decides). This harness has no request cookies, so it injects the loader
+  // directly against the service role — legitimate HERE and nowhere else,
+  // because what is being priced is the SIZE of the injected block, and the row
+  // is the same row either way. It is stated rather than left to look like an
+  // RLS bypass someone copied out of the route.
+  loadProject: projectId
+    ? async (id) => {
+        const { supabaseAdmin } = await import('../src/lib/supabase.ts')
+        const { data: p } = await supabaseAdmin
+          .from('projects')
+          .select('name, instructions, memory')
+          .eq('id', id)
+          .maybeSingle()
+        if (!p) return null
+        const { data: s } = await supabaseAdmin
+          .from('project_sources')
+          .select('name, body')
+          .eq('project_id', id)
+        return { name: p.name, instructions: p.instructions, memory: p.memory, sources: s ?? [] }
+      }
+    : undefined,
   history: [],
   message: question,
   todayIsrael: israelDayKey(new Date()),

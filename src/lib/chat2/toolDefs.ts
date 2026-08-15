@@ -24,6 +24,18 @@ export interface ChatScope {
   transcriptId?: string | null
   workspaceId?: string | null
   /**
+   * The project this chat lives inside — its written context is INJECTED into the
+   * system prompt before the first model call (`projectInjection.ts`, ticket 08c).
+   *
+   * NOT a grounding, and it sits beside the other three rather than among them
+   * for that reason: those name where an answer comes FROM and are mutually
+   * exclusive, while a project is whose standing instructions it runs UNDER and
+   * composes with all of them. A project chat pinned to a company by `@mention`
+   * carries `companyId` and `projectId` at once, which is the ordinary case, not
+   * an incoherent pair.
+   */
+  projectId?: string | null
+  /**
    * The CALLER'S OWN supabase client (RLS-bearing), required only for
    * `read_workspace` — workspaces are personal rows and must never be read
    * through the service role (db.md ownership law). Absent = read_workspace
