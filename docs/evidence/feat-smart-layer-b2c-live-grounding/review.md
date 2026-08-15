@@ -48,7 +48,7 @@ dropped the earlier half of a long live call and said nothing, while v2 announce
 cut. Round 2 shared which half survives and stopped there; whether the model is told was still
 decided per-route.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE. Never render success UI for content the server dropped"
+RECURRENCE: yes → app.md, "Degradation must be VISIBLE"
 
 
 ANSWERED: `LIVE_TRUNCATION_NOTICE` is one declaration both routes use, and the legacy route now
@@ -77,7 +77,7 @@ keeping the FRONT with no notice. A snip attached during a >40k-char live call w
 the OPENING of the call underneath a panel promising the live edge. A load-bearing comment
 asserting an agreement that did not exist.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE. Never render success UI for content the server dropped"
+RECURRENCE: yes → app.md, "Degradation must be VISIBLE"
 
 
 ANSWERED at the tier above prose, per ADR-0002: `keepRecent()` is now the ONE function that
@@ -94,7 +94,7 @@ It named the truncation notice, the fallback and cost — and omitted "no captio
 three states round 1's BLOCKER had explicitly named. The gap read as coverage, which is worse
 than an admitted gap.
 
-RECURRENCE: yes → app.md, "Anything that decides what a screen SAYS gets every one of its states driven in a browser, in both locales, before it merges"
+RECURRENCE: yes → app.md, "Anything that decides what a screen SAYS gets every one of its states driven in a browser"
 
 
 ANSWERED twice over. **The state was then actually driven** (`REPLAY_OFFSET=-120`, zero caption
@@ -154,7 +154,7 @@ On the legacy fallback `legacyLiveContext` returns `''`, and the old route read
 to a **company lookup**, while the panel's caption still said "Atlas is following this call
 live". A grounding the screen promises and the backend silently swaps.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE. Never render success UI for content the server dropped"
+RECURRENCE: yes → app.md, "Degradation must be VISIBLE"
 
 
 ANSWERED at the choke point rather than in the branch (M3.1): the old route now TYPE-checks that
