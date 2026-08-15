@@ -495,10 +495,6 @@ export const en = {
     referringTo: 'Referring to',
     snipCap: 'Up to 4 snips per question',
     snipDefault: 'Explain what this snippet shows.',
-    // Ticket 08b: a grounding this chat's backend cannot carry. User-facing, so it
-    // is a dictionary entry — a thrown developer string reaches ErrorLine and
-    // renders where a Hebrew answer belongs.
-    groundingUnsupported: 'This chat cannot read report pages, snips or live captions yet.',
     snipFailed: 'Snip failed — try again',
     snipTooBig: 'Snip too large — select a smaller area',
     historyFailed: 'Could not load your chats — {error}',
@@ -519,6 +515,13 @@ export const en = {
     // model read a PREFIX of it. Said on the answer it applies to, because an
     // answer built on part of a call must not look like one built on the call.
     callTruncated: 'This call was too long to read in full — the answer is based on the first part of it.',
+    // Ticket 08c-2, live captions. THE SAME DEGRADATION, THE OPPOSITE HALF, and
+    // that is why it is not the string above: a stored call is read from the top,
+    // a live one from the most recent captions, because that is what the viewer
+    // is asking about. Telling a live viewer the answer covers "the first part"
+    // would name the one stretch the model did NOT see.
+    liveTruncated:
+      'This call has run long — the answer is based on its most recent part, not everything said so far.',
     pageShort: 'p.',
     // ─── Ticket 07: the new backend's grounding mode, said out loud ──────────
     // Search mode is VISIBLE by design (spec §2.3). It is decided from the scope

@@ -5,6 +5,42 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-15 — The live panel reaches v2: captions become a grounding recipe (`feat/smart-layer-b2c-live-grounding`, ticket 08c-2)
+
+- **Live captions are the fifth `Grounding` recipe, and the only one carrying CONTENT rather than
+  an id** — because a call in progress has no stored row to name; the transcript is written when
+  it ends. So the gate bounds it as content (a size ceiling, a bounded newline-free label) instead
+  of pretending prose has a charset, and what defends it is the same fence every other source goes
+  through plus a system prompt (`LIVE_SCOPE_SUMMARY`) that never interpolates it. A live call is a
+  recipe for the same reason a project is *not* one: it answers the union's own question, where the
+  answer comes from.
+- **It truncates from the FRONT, the opposite of a stored call, and the surface says the opposite
+  half.** A finished call is read from the top; a live viewer is asking about what was just said,
+  so keeping the head would drop the material on screen. That is why `chat.liveTruncated` is its
+  own string in both locales — telling a live viewer the answer covers "the first part" names the
+  one stretch the model did not read. "No captions yet" is a third state, with its own sentence to
+  the model on both routes, so the first seconds of a call cannot answer from the corpus underneath
+  a caption promising the live call.
+- **The route choice moved from the MOUNT to the TURN** (`lib/chat/turnRoute.ts`). The live host
+  also owns a document pane, and v2 cannot read snips until 08c-3 — so a turn carrying one falls
+  back to the old route, which honours it in full. That replaced a `throw` which was correct while
+  no v2-grounded host had a document pane and would have refused a question the product has always
+  answered the moment the live host sent a grounding. A fallback where nothing on screen is left
+  unfulfilled is not a downgrade; the distinction is whether the screen is left promising something.
+- **Cold review found two honesty defects, both fixed at the choke point.** A long call would have
+  400'd *every* question — the client sent its whole caption stream, so past the request ceiling the
+  gate refused, on exactly the calls the front-truncation exists to serve; the client now bounds the
+  payload and stays ABOVE the injection budget, because capping at the budget would have deleted the
+  truncation notice from the screen while the degradation grew. And empty captions leaked a
+  different grounding: the old route's `liveContext || undefined` turned a silent live call into a
+  company lookup under a caption promising the call (a recurrence of the visible-degradation law —
+  it type-checks now).
+- **Verified against a real recorded call, not a fixture**: `2026-07-04-real-zoom-2` replayed
+  mid-flight, both locales, answers grounded in the actual captions and honest about what the call
+  had not yet said, `POST /api/chat/v2 200` twice and no legacy call, zero console errors. **Two
+  states shipped unseen and are named in `STATUS.md`**: the `liveTruncated` notice (no recorded
+  session is 60,000 chars long) and the snip fallback. Battery 1090/1090.
+
 ## 2026-08-15 — Project chats reach v2, and the `useV2` fork dies (`feat/smart-layer-b2c-project-grounding`, ticket 08c-1)
 
 - **Ticket 08c was sliced three ways; this is slice 1.** Its three remaining groundings are not one

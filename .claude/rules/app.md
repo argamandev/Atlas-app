@@ -183,6 +183,8 @@ may emit it — truncation gets its OWN terminal type, never an advisory followe
 terminal event means both — `done`/`incomplete` are distinct types, so no caller can conflate them;
 **test** that the right one is CHOSEN — `chat2/terminal.ts` decides it as a pure function of the
 facts, swept exhaustively. Claiming `impossible` for both was rejected at review → `#settled-facts`.
+Fourth tier (08c-2): content served by TWO backends is cut the same way by both and each SAYS it
+cut — `chat2/liveInjection.ts` owns both, tested down both paths. Mutate such a guard, never read it.
 And a degradation you can REFRESH AWAY is not visible, so an honesty fact is PERSISTED with the
 message, never held in view state: `chat/messageFlags.test.ts` covers each stored flag and asserts
 they stay INDEPENDENT (08b). A new stored flag gets a case there, or it is prose.
@@ -206,8 +208,10 @@ about a design, not a property any file scan can see. Its natural tier is a ritu
 **LAW · Anything that decides what a screen SAYS gets every one of its states driven in a browser,
 in both locales, before it merges** (M4). A four-round defect lived in a state nobody had ever
 rendered and was invisible to a fully green battery.
-**ENFORCED** none — a battery cannot tell whether a human opened a browser. Its natural tier is a
-ritual gate at review (ADR-0002), which does not exist yet.
+**ENFORCED** ritual gate (08c-2) — `/verify-app` step 8b makes the evidence ENUMERATE every state
+the surface can reach, each marked driven or not-driven. A battery cannot see whether a human
+looked, so this is the ritual tier, never test. Bought when 08c-2's evidence prose silently omitted
+one of three new states: a gap reads as coverage, a missing table row does not.
 **VERIFY** Enumerate the states; go and look at each. → `#choke-point-inputs`
 
 **LAW · A Server Component may not pass a FUNCTION to a Client Component.** Create the closure on

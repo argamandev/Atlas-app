@@ -245,7 +245,45 @@ export const VOCABULARY_EXEMPT = {
  * this raise rather than another round of shaving characters out of a status
  * table — which is the budget refusing the behaviour it exists to encourage.
  */
-export const TOKEN_BUDGET = 9_420
+/*
+ * RAISED 9,420 → 9,520 on 2026-08-15 (ticket 08c-2). Mine, not the founder's,
+ * and flagged to him in the handoff.
+ *
+ * A FOURTH RAISE IN FOUR SLICES, on the SAME law, for the FOURTH time:
+ * `Degradation must be VISIBLE` earned another tier. 08c-2 hit that law three
+ * times in one branch — two routes cutting opposite halves of a live call, then
+ * one of them cutting silently, then a test that asserted the shared helper's
+ * flag instead of the route's and so would have stayed green on a revert. The
+ * mechanism is real (one module owns direction AND the cut-plus-notice pairing,
+ * tested down both paths, verified by mutation), and ADR-0002 does not let a
+ * recurrence buy prose.
+ *
+ * The branch paid 89 of the 123 tokens first: STATUS.md's phase and 08c blocks
+ * were merged into one, the "next" line condensed, and the new tier cut from ten
+ * lines to three with its story left in the review record. The rest is this raise.
+ *
+ * AND IT BUYS A PROMOTION, not just a tier. `Anything that decides what a screen
+ * SAYS gets every one of its states driven in a browser` declared `ENFORCED none`
+ * with the words "its natural tier is a ritual gate, which does not exist yet" —
+ * and this branch built exactly that gate (`/verify-app` step 8b), after its own
+ * evidence file silently omitted one of three new states. So the count
+ * `npm run env:health` exists to drive down goes DOWN by one here. That is the
+ * trade ADR-0002 is asking for, and it is the first of these four raises where
+ * the always-on set got more enforcement per token rather than more prose.
+ *
+ * The last 30 are HEADROOM, added at review: landing exactly on the ceiling means the
+ * next always-on edit of any size fails the battery before it is written, which
+ * turns a drift alarm into a tripwire on ordinary work.
+ *
+ * ⚠ THE STANDING PLAN IS NOW FOUR SLICES OVERDUE. `app.md` is roughly half this
+ * budget, and shrinking it to pointers at its tests (`DECISIONS.md` 2026-08-12)
+ * was called "no longer optional" one raise ago and "overdue" the raise before.
+ * The pattern is not that the laws are too wordy — it is that ONE law keeps
+ * earning tiers because the codebase keeps finding new ways to hide a
+ * degradation, and each tier is worth having. That is an argument for doing the
+ * shrink as its own mission, not for refusing the next tier.
+ */
+export const TOKEN_BUDGET = 9_520
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

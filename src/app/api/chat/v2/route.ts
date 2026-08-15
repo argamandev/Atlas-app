@@ -8,6 +8,7 @@ import { runChatLoop, type ChatEvent, type ChatTurn } from '@/lib/chat2/loop'
 import type { ChatScope } from '@/lib/chat2/toolDefs'
 import { parseTurnScope, scopeIdsFor } from '@/lib/chat2/requestScope'
 import { CALL_SCOPE_SUMMARY } from '@/lib/chat2/callInjection'
+import { LIVE_SCOPE_SUMMARY } from '@/lib/chat2/liveInjection'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE UNIFIED CHAT BACKEND (spec §3, ticket 06/B1a). Replaces `/api/chat` for
@@ -105,6 +106,13 @@ export async function POST(req: NextRequest) {
           history,
           message,
           todayIsrael: israelDayKey(new Date()),
+          // THE ONE RECIPE WHOSE CONTENT TRAVELS WITH THE REQUEST (08c-2). It
+          // does not go through `scopeIdsFor` because it is not an id — a call
+          // still running has no stored row to name — so it is handed to the loop
+          // as what it is. Gated for size at `parseGrounding`, fenced at
+          // `buildLiveBlock`, and never interpolated into the system prompt.
+          live:
+            grounding.kind === 'live' ? { captions: grounding.captions, label: grounding.label } : undefined,
           // Built from the GROUNDING union, so there is one answer per recipe
           // rather than a chain of `if (someField)` that two recipes could both
           // satisfy. Every value interpolated here is a uuid — `parseGrounding`
@@ -115,7 +123,9 @@ export async function POST(req: NextRequest) {
               ? `company: ${grounding.companyId} (resolved)`
               : grounding.kind === 'call'
                 ? CALL_SCOPE_SUMMARY
-                : undefined,
+                : grounding.kind === 'live'
+                  ? LIVE_SCOPE_SUMMARY
+                  : undefined,
         })) {
           controller.enqueue(encoder.encode(ndjsonLine(event)))
         }

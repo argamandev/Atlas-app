@@ -22,6 +22,8 @@ import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Fac
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
+import { clientCaptionPayload } from '@/lib/chat/turnRoute'
+import { LIVE_CAPTIONS_MAX_CHARS, LIVE_LABEL_MAX_CHARS } from '@/lib/chat2/requestScope'
 import type { ChatSnip } from '@/lib/chat/grounding'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
@@ -249,13 +251,36 @@ export function LiveBroadcastView({
   const activeIndex = useMemo(() => activeWordIndex(flat, playingRel), [flat, playingRel])
   // The on-screen captions as plain text — fed to "Ask Atlas" so it answers about THIS live call
   // (not a DB lookup that could hit a different company). Undefined until the first captions arrive.
+  //
+  // WHOSE CALL IT IS IS NO LONGER PREPENDED TO THIS STRING (08c-2). It rides its
+  // own field, because a long call is truncated from the FRONT — the recent
+  // captions are what the viewer is asking about — and a header baked into the
+  // text is the first thing such a cut removes. Losing it means the model reads
+  // an anonymous transcript and can attribute it to nobody.
+  //
+  // BOUNDED BEFORE IT GOES ON THE WIRE. The request gate refuses past
+  // `LIVE_CAPTIONS_MAX_CHARS`, and a two-hour call passes that — which would have
+  // 400'd every question on exactly the long calls the server's truncation exists
+  // to serve. The cut keeps the END, the same direction the server cuts, and
+  // stays above the injection budget so the server still sees more than it can
+  // carry and still says so on screen (`lib/chat/turnRoute.ts`).
   const liveCaptionsText = useMemo(
     () =>
       words.length
-        ? `${[companyName, quarter].filter(Boolean).join(' — ')}\n\n${words.map((w) => w.text).join(' ')}`
+        ? clientCaptionPayload(words.map((w) => w.text).join(' '), LIVE_CAPTIONS_MAX_CHARS)
         : undefined,
-    [words, companyName, quarter]
+    [words]
   )
+  // BOUNDED FOR THE SAME REASON THE CAPTIONS ARE (review round 2). `parseGrounding`
+  // refuses a label past `LIVE_LABEL_MAX_CHARS` or carrying a newline, and refusing
+  // the label refuses the whole turn — so an unbounded value here is the identical
+  // client-unbounded/server-refusing shape the caption fix just closed, unreachable
+  // today only because a company name happens to be short. "Only reachable later"
+  // is how the caption one shipped.
+  const liveCallLabel = useMemo(() => {
+    const raw = [companyName, quarter].filter(Boolean).join(' — ').replace(/\s+/g, ' ').trim()
+    return raw ? raw.slice(0, LIVE_LABEL_MAX_CHARS) : undefined
+  }, [companyName, quarter])
 
   function onTab(key: string) {
     if (key === 'overview') {
@@ -780,7 +805,22 @@ export function LiveBroadcastView({
         <TranscriptChatPanel
           companyId={companyId}
           transcriptId={undefined}
-          liveContext={liveCaptionsText}
+          // ON THE NEW BACKEND (ticket 08c-2). The live view displays exactly one
+          // grounding — "Atlas is following this call live" — and v2 now honours
+          // it: the captions on screen are injected, fenced and budgeted, and the
+          // surface is told when they did not all fit (`liveInjection.ts`).
+          //
+          // ALWAYS SET, INCLUDING BEFORE THE FIRST CAPTION. `captions: ''` is the
+          // honest description of a call that has started and not yet said
+          // anything, and the backend has a sentence for it. Withholding the
+          // grounding until words arrive would instead make those first seconds
+          // silently answer as an ordinary company question underneath a caption
+          // promising the live call.
+          //
+          // A turn that also carries a snip or a marked report page still goes to
+          // the old route, per turn, until 08c-3 teaches the loop image content
+          // blocks — `lib/chat/turnRoute.ts`.
+          grounding={{ kind: 'live', captions: liveCaptionsText ?? '', label: liveCallLabel }}
           quote={chat.seed}
           seedNonce={chat.nonce}
           docRef={chat.docRef}

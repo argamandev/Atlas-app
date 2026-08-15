@@ -15,6 +15,24 @@ import {
 } from '@/lib/chat/attachments'
 import { getDocumentMeta } from '@/lib/documents'
 import { sanitizeHistory } from '@/lib/chat/history'
+import { liveContextBlock, NO_CAPTIONS_YET } from '@/lib/chat2/liveInjection'
+
+/**
+ * The chars of live captions THIS route carries. Its own ceiling, deliberately
+ * not v2's — the two routes share which HALF survives, never how much.
+ *
+ * `liveContextBlock` is what applies it, and it is exported from
+ * `liveInjection.ts` rather than local here so the test asserting "this route
+ * says when it cut" can measure this route's function instead of the shared
+ * helper underneath it (review round 4, M2).
+ *
+ * WHAT IS STILL NOT TRUE, said plainly: this tells the MODEL, not the SCREEN.
+ * The `grounding` event carrying `state: 'truncated'` is a v2 frame and this
+ * route cannot send one, so a legacy-fallback turn (a snip attached during a
+ * long live call) renders no `liveTruncated` notice. That gap dies with this
+ * route at 08c-3 and is not worth a second event channel.
+ */
+const LEGACY_LIVE_MAX_CHARS = 40_000
 
 // Chat over the transcript DB (brief §5.3), now **streamed** (Feature 5). Gemini 3.5 Flash —
 // same engine + GEMINI_API_KEY as the formatting pipeline. We proxy Gemini's SSE stream and
@@ -122,7 +140,14 @@ export async function POST(req: NextRequest) {
   const transcriptId: string | undefined = body?.transcriptId || undefined
   // The LIVE view sends the on-screen captions directly (there's no completed transcript yet) so the
   // chat is grounded on the call in front of the user — not a DB lookup that could hit another company.
-  const liveContext: string | undefined = body?.liveContext || undefined
+  //
+  // A TYPE CHECK, NOT A TRUTHINESS ONE (08c-2, cold review). `|| undefined` turned
+  // an EMPTY caption string into "no live context", which fell through to a
+  // company lookup — a different grounding from the one the live panel's caption
+  // is promising on screen, chosen silently. Empty is a real state: a live call
+  // that has not said anything yet. It stays empty, and the block below carries
+  // that rather than substituting the company's corpus for it.
+  const liveContext: string | undefined = typeof body?.liveContext === 'string' ? body.liveContext : undefined
   // A chat inside a project inherits that project's own written context. Loaded
   // through the USER'S client below, so a projectId belonging to someone else
   // returns nothing and injects nothing — RLS decides, not this route.
@@ -147,9 +172,25 @@ export async function POST(req: NextRequest) {
     return textResponse('The chat model isn’t configured yet (missing GEMINI_API_KEY).')
   }
 
-  const ctx = liveContext
-    ? { text: liveContext.slice(0, 40_000), source: null }
-    : await getChatContext(companyId, transcriptId)
+  // `!== undefined`, for the reason stated where `liveContext` is read: a live
+  // grounding with nothing said yet must not fall through to the company corpus.
+  // WHICH HALF SURVIVES IS NOT THIS ROUTE'S CALL (08c-2, review round 2). This
+  // used to be `slice(0, 40_000)` — the FRONT — while v2 and the client both keep
+  // the most recent captions. A snip attached during a long live call was then
+  // answered from the OPENING of the call underneath a panel promising the live
+  // edge, and the two routes disagreed about which half the user was asking
+  // about. `keepRecent` is the one place that decides direction; the ceiling
+  // stays this route's own.
+  const ctx =
+    liveContext !== undefined
+      ? {
+          // Said to the model rather than left blank, so it does not answer from
+          // its own knowledge under a caption promising this call. The SAME
+          // sentence v2 sends — it was a weaker paraphrase here until review.
+          text: liveContext ? liveContextBlock(liveContext, LEGACY_LIVE_MAX_CHARS) : NO_CAPTIONS_YET,
+          source: null,
+        }
+      : await getChatContext(companyId, transcriptId)
 
   // Snipped pages ride the documentRef page-text grounding: image = authority on the
   // numbers, page prose = surrounding context (spec 2026-07-17).
