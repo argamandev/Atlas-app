@@ -290,11 +290,20 @@ The measured Hebrew correction moved each number up ~10–15% from the ticket-09
 | Budget | Typical (recomputed) | Hard cap | Enforced by |
 | --- | --- | --- | --- |
 | Chat / Ask Atlas / Workspace answer | **≤ $0.06** (was $0.05) | **≤ $0.15** | context ceilings (40K *Claude*-token stuffing ceiling, top-20 retrieval), `max_tokens`, ~4 round-trip cap |
-| First turn on a large stuffed document | ≤ $0.13 | ≤ $0.15 | the scope router's ceiling, restated in Claude tokens (§4) |
+| **Any turn** on a large stuffed document | ≤ $0.13 | ≤ $0.15 | the scope router's ceiling, restated in Claude tokens (§4) |
 | Agent run (Sonnet 5, standard mission) | **≤ $0.60** (was $0.50) | **≤ $1.00** | Managed Agents native `budget` = 100¢, platform-enforced |
 | Note Taker / short mechanical run | ≤ $0.30 | ≤ $0.50 | same, 50¢ |
 | Per fund, monthly | **~$40** (was $35) | alert at $100 | our accounting |
 | Monthly envelope | 5 funds ≤ $250 · 30 funds ≤ $1,300 · 100 funds ≤ $4,200 | | monthly reconciliation vs Console |
+
+> **"FIRST turn" was wrong, and the correction is a founder decision (2026-08-15, ticket 08c).**
+> The stuffed-document row used to say *first* turn, which implied the document is injected once
+> and then carried by history. It is not: `chat2/callInjection.ts` re-injects on EVERY turn, on
+> purpose — a turn-2 question would otherwise be answered without the call whose chip is still on
+> screen, which is the silent-degradation class in `rules/app.md`. 08b measured **$0.05–0.08 per
+> turn** with caching OFF, so nothing exceeds a stated budget; the only untrue word was "first".
+> Offered the cheaper alternative (inject once, lean on history) with that cost named, the founder
+> kept the re-injection and fixed the wording. The number is unchanged.
 | Ingestion backfill (one-time) | **$5–8** (ticket 17 demo scope) | ≤ $500 all-in | batch API + batch embeddings |
 
 Worked bases (research/09 §2 arithmetic × the §4 correction): chat tool-loop answer $0.04 →

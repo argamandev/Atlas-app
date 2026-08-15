@@ -1,6 +1,6 @@
 # B2 · Ask Atlas surfaces
 
-Status: in-progress — SPLIT THREE WAYS: 08a done · 08b done · 08c OPEN
+Status: in-progress — 08a done · 08b done · 08c SPLIT AGAIN: 08c-1 done · 08c-2, 08c-3 OPEN
 Blocked by: 07
 
 Spec §2.3 + §6 B2. `TranscriptChatPanel` (live calls, transcripts, multiview) +
@@ -97,14 +97,34 @@ last, which is the exact failure the 08a/08b split was created to avoid.
 page — and left the old route serving the other four, each named above. `useV2` is now one arm
 (`!projectId`) instead of two.
 
-### 08c owes
-1. Project-context injection on v2, then delete the `useV2` fork and the old route.
-2. Live captions as a grounding recipe (probably `{kind:'live'}` carrying the caption text).
-3. `documentRef` + snips — needs image content blocks in the loop, not just text.
-4. **A founder call the measurements surfaced:** §5 says "stuffed FIRST turn ≤ $0.13", but the
-   call is re-injected on EVERY turn — a turn-2 question would otherwise be answered without the
-   call its chip still names. Measured $0.05–0.08 per turn, so nothing exceeds a stated budget;
-   what is not true is the implied "first". Evidence file has the numbers.
+### 08c owes — AND IS ITSELF SLICED THREE WAYS (founder, 2026-08-15)
+
+Sized once more and once more wrongly: these are not one mission. Two of the three are ordinary
+text groundings; the third needs the tool loop to carry IMAGE content blocks, which it never has.
+Offered the three options, the founder took the smallest honest slice — **"Project grounding
+only"** — so 08c runs as 08c-1 → 08c-2 → 08c-3, sequential, same reason 08a/08b were split.
+
+1. **08c-1 — project-context injection. DONE.** `projectId` accepted, gated, injected, and
+   `ChatView`'s `useV2` fork deleted. Branch `feat/smart-layer-b2c-project-grounding`; evidence in
+   `docs/evidence/feat-smart-layer-b2c-project-grounding/verify-app.md`.
+   **⚠ This ticket's own line "then delete the useV2 fork AND THE OLD ROUTE" was half-true and is
+   corrected here.** The fork lived in `ChatView` and is gone. The ROUTE cannot die yet:
+   `TranscriptChatPanel` still calls it directly for the two groundings below. A route dies when
+   its LAST caller leaves, not when one does.
+   **The design correction worth carrying forward:** a project is NOT a fifth `Grounding` recipe.
+   The union answers *where the answer comes from*; a project answers *whose standing instructions
+   it is written under*, and the two COMPOSE — a user inside a project can `@mention` a company and
+   gets both today. A fifth variant would have made that ordinary pair unrepresentable and stopped
+   the mention scoping while the chip still promised it. So `projectId` is its own field beside the
+   union (`TurnScope`), and the "accepted ⇒ consumed" guard covers it.
+2. **08c-2 — live captions** as a grounding recipe (probably `{kind:'live'}` carrying the caption
+   text). Still open.
+3. **08c-3 — `documentRef` + snips.** Needs image content blocks in the loop, not just text. The
+   biggest of the three. Still open. **The old `/api/chat` dies at the end of this one.**
+4. ~~A founder call on the "stuffed FIRST turn" wording.~~ **CLOSED 2026-08-15.** Founder chose to
+   fix the wording rather than change the behaviour: §5's stuffed-document row now reads **"any
+   turn"**, the per-turn re-injection stays as built, and the $0.13 number is unchanged. Reasoning
+   and the alternative he declined are in `DECISIONS.md` and in §5 itself.
 
 ### Landed in 08b
 The `Grounding` union at the request gate (refuses rather than downgrades); `chat2/callInjection.ts`
