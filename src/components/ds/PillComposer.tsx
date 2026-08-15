@@ -31,7 +31,8 @@ export function PillComposer({
 }: {
   value: string
   onChange: (v: string) => void
-  onSend: () => void
+  /** `fromKey` says WHICH affordance sent: the Enter key, or the arrow button. */
+  onSend: (fromKey: boolean) => void
   placeholder: string
   sendLabel: string
   addLabel: string
@@ -67,7 +68,10 @@ export function PillComposer({
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
-            onSend()
+            // `true` = this came from the KEY. A caller with a floating picker
+            // open may decline the keystroke (the picker is choosing with it)
+            // while still honouring the button below — see WorkspaceIntake.
+            onSend(true)
           }
         }}
         placeholder={placeholder}
@@ -89,7 +93,7 @@ export function PillComposer({
         // wrapper, not a bare `onSend`: today's callers take no argument, but a
         // bare handler feeds React's MouseEvent to whatever this becomes later —
         // the exact defect that killed mouse-send in the chat composer
-        onClick={() => onSend()}
+        onClick={() => onSend(false)}
         disabled={disabled}
         aria-label={sendLabel}
         // The design draws the send affordance solid at all times — it does not

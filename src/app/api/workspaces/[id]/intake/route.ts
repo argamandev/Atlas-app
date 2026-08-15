@@ -208,7 +208,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // three sequential API calls to discover that would slow down every
     // ordinary turn.
     let remote: AttachableSource[] = []
-    let sourceError: 'maya_unreachable' | 'request_not_understood' | null = null
+    let sourceError: IntakeResponse['sourceError'] = null
     let unknownCompany: string | null = null
 
     // THE PINNED ROW, READ FROM THE DATABASE. `companies` is shared corpus and
@@ -263,13 +263,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // third door — and `parseModelRequest` already sets `interpreted: false`
     // for precisely this case; the route simply never read it.
     //
-    // GATED ON `settled`, NOT ON `interpreted` ALONE (2026-08-15). That notice
-    // says "I couldn't work out which company you meant, so this covers only
-    // what Atlas already holds" — and with a pin, BOTH halves are false: the
-    // company is known and MAYA was searched. Raising it there would report a
-    // green search as a coverage failure, which is exactly the untrue premise
-    // rules/app.md M2 forbids a signal from carrying.
-    if (!request.interpreted && !company.settled) sourceError = 'request_not_understood'
+    // WHICH failure it is depends on whether the company survived (2026-08-15).
+    //
+    // That notice says "I couldn't work out which company you meant, so this
+    // covers only what Atlas already holds" — and with a pin BOTH halves are
+    // false: the company is known and MAYA was searched. Raising it there would
+    // report a green search as a coverage failure (M2).
+    //
+    // BUT SILENCE IS THE OTHER LIE, and the first cut of this shipped it: the
+    // interpret call also carries the PERIOD and the KINDS, so a pinned
+    // "@בז\"א the 2019 annual report" whose filter timed out would search
+    // 2025–2026, answer confidently, and say nothing about the years it
+    // invented. A failure with a narrower scope gets a narrower sentence — it
+    // does not get suppressed.
+    if (!request.interpreted) {
+      sourceError = company.settled ? 'request_partly_understood' : 'request_not_understood'
+    }
 
     if (company.issuerId !== null) {
       // THE SPAN IS CLAMPED, because the years come from a model and every

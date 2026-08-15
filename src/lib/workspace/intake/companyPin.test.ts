@@ -46,6 +46,23 @@ test('a pinned company with no issuer id is NAMED as unreachable, not silently d
   }
 })
 
+/**
+ * A NAMELESS PINNED ROW IS STILL A DEGRADATION, and the danger is that it is a
+ * FALSY one: `unknownCompany: ''` reads as "nothing to report" to any caller
+ * testing truthiness, and the notice disappears — the exact outcome this
+ * module's header promises cannot happen (09b review, NIT).
+ *
+ * The value stays as-is; what is asserted is that it is NOT NULL, because
+ * `null` is the only thing the panel is allowed to read as "no unknown
+ * company" (`WorkspaceIntake` now tests `!== null` for this reason).
+ */
+test('a pinned company with an empty name still reports a degradation, not silence', () => {
+  const out = resolveIntakeCompany({ taseIssuerId: null, name: '' }, null, ROWS)
+  assert.equal(out.issuerId, null)
+  assert.notEqual(out.unknownCompany, null, 'an empty name must not become "no unknown company"')
+  assert.equal(out.settled, true)
+})
+
 test('no pin, a name that resolves', () => {
   assert.deepEqual(resolveIntakeCompany(null, 'בית זיקוק אשדוד', ROWS), {
     issuerId: 1361,

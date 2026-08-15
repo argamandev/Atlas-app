@@ -10,6 +10,7 @@ import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon } from '@/components/ds/
 import { MentionDropdown } from '@/components/chat/MentionDropdown'
 import { companyDisplayName, type Company } from '@/lib/api/types'
 import { intakeSearchReq, addItemReq, addMayaItemReq } from '@/lib/workspace/client'
+import { chooseIntakeNotice } from '@/lib/workspace/intake/notice'
 import type { IntakeTurn } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
 
@@ -158,24 +159,32 @@ export function WorkspaceIntake({
     focusComposer()
   }
 
-  async function send(text: string) {
+  /**
+   * `fromKey` is the ONE thing the picker can contend with, and it is passed
+   * explicitly rather than inferred.
+   *
+   * ENTER BELONGS TO THE PICKER WHILE IT IS OPEN, and `send` is the only place
+   * that reliably knows it: `MentionDropdown` listens on window in the capture
+   * phase and calls `preventDefault`, which is NOT enough — a composer that
+   * sends from its own `onKeyDown` is a listener on the SAME element, so
+   * neither `preventDefault` nor `stopPropagation` from a capture handler stops
+   * it. Measured in the browser on 2026-08-15: one Enter both picked
+   * בית זיקוק אשדוד and sent "@בז" as a question.
+   *
+   * A CLICK ON SEND IS NOT AMBIGUOUS, and the first fix swallowed it anyway —
+   * the guard sat on every path, so tapping the arrow with the picker open did
+   * nothing at all, no send and no feedback (09b review). The button now always
+   * sends; only the key can be claimed.
+   *
+   * The key's guard asks whether the picker is SHOWING ROWS, not whether an `@`
+   * is being typed: `@zzz` matches nothing, the dropdown declines Enter, and a
+   * guard on the fragment alone would swallow that keystroke with nothing on
+   * screen to explain it (M3.2 — the fact, never a proxy for it).
+   */
+  async function send(text: string, fromKey = false) {
     const q = text.trim()
     if (!q || thinking) return
-    // ENTER BELONGS TO THE PICKER WHILE IT IS OPEN, and this is the only place
-    // that reliably knows it. `MentionDropdown` listens on window in the
-    // capture phase and calls `preventDefault`, which is NOT enough: a composer
-    // that sends from its own `onKeyDown` is a listener on the SAME element, so
-    // neither `preventDefault` nor `stopPropagation` from a capture handler
-    // stops it — measured in the browser on 2026-08-15, where one Enter both
-    // picked בית זיקוק אשדוד and sent "@בז" as a question.
-    //
-    // So the guard sits at the ONE function every composer, key and button
-    // sends through (rules/app.md M3.1), rather than in the keystroke path of
-    // whichever composer is mounted — and it asks whether the picker is SHOWING
-    // ROWS, not whether an `@` is being typed: `@zzz` matches nothing, so the
-    // dropdown declines Enter, and a guard on the fragment alone would swallow
-    // the keystroke with nothing on screen to explain it.
-    if (mentionRows > 0) return
+    if (fromKey && mentionRows > 0) return
 
     const next: IntakeTurn[] = [...turns, { role: 'user', content: q }]
     setTurns(next)
@@ -206,23 +215,24 @@ export function WorkspaceIntake({
             ? dict.workspace.intakeSelectionUnclear
             : null
 
-      // Deterministic, from the server. `unknownCompany` first: if the company
-      // was never resolved, saying MAYA was unreachable would be a second,
-      // wrong explanation for the same missing result.
-      setNotice(
-        result.unknownCompany
-          ? dict.workspace.intakeUnknownCompany
-          : result.sourceError === 'maya_unreachable'
-            ? dict.workspace.intakeMayaUnreachable
-            : result.sourceError === 'request_not_understood'
-              ? dict.workspace.intakeRequestNotUnderstood
-              : // Only when the model's OWN sentence is being shown, so the
-                // conflict is never said twice: with `reply === null` the same
-                // line becomes the spoken turn below.
-                result.reply !== null
-                ? unresolvedLine
-                : null
-      )
+      // WHICH caveat is true is decided in `chooseIntakeNotice` and swept by its
+      // own test; only the WORDING is chosen here, where both locales live.
+      // They were one nested ternary until 09b's review, which is how a fourth
+      // case got appended in a place no test could see (`notice.ts` header).
+      const NOTICE_COPY = {
+        unknown_company: dict.workspace.intakeUnknownCompany,
+        maya_unreachable: dict.workspace.intakeMayaUnreachable,
+        request_not_understood: dict.workspace.intakeRequestNotUnderstood,
+        request_partly_understood: dict.workspace.intakeRequestPartlyUnderstood,
+        unresolved: unresolvedLine,
+      }
+      const notice = chooseIntakeNotice({
+        unknownCompany: result.unknownCompany,
+        sourceError: result.sourceError,
+        hasUnresolvedLine: unresolvedLine !== null,
+        hasReply: result.reply !== null,
+      })
+      setNotice(notice === null ? null : NOTICE_COPY[notice])
 
       const ready = result.status === 'ready' && result.selected.length > 0
 
@@ -388,7 +398,7 @@ export function WorkspaceIntake({
         <PillComposer
           value={draft}
           onChange={onDraftChange}
-          onSend={() => void send(draft)}
+          onSend={(fromKey) => void send(draft, fromKey)}
           placeholder={dict.workspace.intakePlaceholder}
           sendLabel={dict.workspace.intakeSend}
           addLabel={dict.workspace.intakeAdd}
@@ -442,7 +452,7 @@ export function WorkspaceIntake({
                     onChange={(e) => onDraftChange(e.target.value)}
                     // No mention guard HERE — `send` owns that decision for
                     // every composer, so this stays the plain key it always was.
-                    onKeyDown={(e) => e.key === 'Enter' && void send(draft)}
+                    onKeyDown={(e) => e.key === 'Enter' && void send(draft, true)}
                     placeholder={dict.workspace.intakePlaceholder}
                     // Hebrew must read RTL as it is typed, without the user
                     // switching the interface language — the same behaviour

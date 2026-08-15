@@ -97,6 +97,33 @@ the shelf (the 38-page PDF rendered).
 | 12 | console | both | ✅ clean |
 | 13 | a pinned company with NO `tase_issuer_id` | — | ❌ **not driven** — 233 of 234 companies have one, and the odd row is not identified; covered by `companyPin.test.ts` only. |
 
+### Re-driven after the round-5 review (same day, same session)
+
+The review returned CHANGES on this commit. Its fixes changed behaviour in three of the states
+above, so those were driven again rather than argued about:
+
+| # | state | locale | mark |
+| --- | --- | --- | --- |
+| 14 | **the send ARROW with the picker open** — was a dead button (guard sat on every send path); now sends | HE | ✅ driven |
+| 15 | unknown-company notice, with its NEW wording pointing at `@` | HE | ✅ driven — *"לא זיהיתי חברה בשם הזה. אפשר לבחור אותה מהרשימה עם @"* |
+| 16 | rows 7 and 8 (Enter picks / Enter sends when empty) after the guard moved behind `fromKey` | HE | ✅ re-driven, unchanged |
+
+**The notice matrix itself is now held by a TEST, not by this table.** The review's third finding was
+right that the state this commit actually changed server-side — which of the five caveats the panel
+shows — was not enumerated here at all. Rather than enumerate five browser states, two of which
+(`maya_unreachable`, and a filter-model timeout) cannot be forced from a browser without breaking the
+environment, the decision moved OUT of the component into `lib/workspace/intake/notice.ts` and is
+swept exhaustively by `notice.test.ts`. What remains ritual is only that the WORDING renders, which
+rows 15 and the earlier rows cover.
+
+| notice | how it is held |
+| --- | --- |
+| `unknown_company` | ✅ driven (row 15) + test |
+| `request_partly_understood` (new) | ❌ not driven — needs the filter model to time out mid-turn, which cannot be forced from a browser. Held by `notice.test.ts`, which pins that it is never silent and never the same line as `request_not_understood`. |
+| `maya_unreachable` | ❌ not driven — needs MAYA down. Pre-existing, untouched by this commit, held by the test. |
+| `request_not_understood` | ❌ not driven — same reason as the pinned variant. Pre-existing. |
+| `unresolved` | ❌ not driven — pre-existing, untouched. |
+
 **Row 7 is why this drive existed.** The first implementation guarded Enter with
 `onKeyDownCapture` + `stopPropagation` on the composer, reasoned from how `ChatComposer` is wired.
 In the browser one Enter BOTH picked בית זיקוק אשדוד and sent `@בז` as a question: a React capture
