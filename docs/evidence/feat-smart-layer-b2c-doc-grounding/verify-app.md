@@ -204,8 +204,9 @@ review rejected, made again.
 the next round's defect, twice in the sibling branch of one `if`. The decision moved out of the
 branches into `documentContextState()` — a pure function of four named facts — and is swept as a
 TABLE where a new combination is a row. **Verified by mutation, not by reading:** dropping the
-snip-only guard fails 3 tests; counting any cut page instead of a marked one fails 5; restoring is
-green.
+snip-only guard goes RED, and so does counting any cut page instead of a marked one; restoring is
+green. (Counts deliberately omitted — the numbers first written here came from `grep -c "^✖"`,
+which counts node:test OUTPUT LINES rather than tests. See the round-7 note in `review.md`.)
 
 **NITs** — the evidence paragraph describing the merge round 2 deleted, a comment still pointing at
 `turnRoute.ts`, and the ticket's own status line. All three fixed. One of those edits silently
@@ -244,9 +245,9 @@ has a locale to check.
 ## Cold review — round 4, verdict CHANGES (no BLOCKER)
 
 The first round with no blocker. `documentContextState()` survived mutation in the reviewer's own
-hands — reordering its two leading guards fails 3 cases, weakening `markedCut` fails 5, and
-re-supplying the union as `markedPages` in `loop.ts` fails 2 — so the structural fix held where four
-successive conditions had not.
+hands — reordering its two leading guards goes red, weakening `markedCut` goes red, and re-supplying
+the union as `markedPages` in `loop.ts` goes red — so the structural fix held where four successive
+conditions had not.
 
 **WARNING — the `truncated` copy asserted a cause the code never established.** It said "too long to
 read in full", but that state is also returned when one marked page was unreadable or had no stored
@@ -342,9 +343,15 @@ the call "runs market-wide" without noting that market-wide search is currently 
 hits `statement timeout`), so today's consequence is a FAILING tool, not a wider answer. Corrected
 in `docs/open-findings.md`.
 
-**NIT — "fails 3 tests" was wrong** (M1, a count restated rather than measured): each clause
-deletion fails exactly ONE test. Corrected in the review record. The property claimed — that each
-clause is individually pinned — is true, and is what the count was standing in for.
+**NIT — "fails 3 tests" was wrong** (M1, a count restated rather than measured). Round 7 then found
+the SAME error two lines away in the same file, which is how the real cause surfaced: every one of
+these counts came from `grep -c "^✖"`, and node:test prints each failure TWICE — inline and again
+under `failing tests:` — plus a header line, so the command was counting output lines at roughly
+2n+1 and never counting tests at all. **Every mutation count in this evidence is now dropped rather
+than corrected**: the property is "the guard goes red", and the command that answers it is
+`npx tsx --test <file> | grep "^ℹ fail"`. A count in prose has been wrong three times on this
+branch; `app.md`'s "counts carry their command" is the rule, and this is the third time it was paid
+for.
 
 **NIT — step 8c was inserted above 8b**, so the checklist read 8 → 8c → 8b. Reordered.
 

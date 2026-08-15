@@ -1,22 +1,27 @@
 # Cold review record — ticket 08c-3 (`feat/smart-layer-b2c-doc-grounding`)
 
-SIX rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
+SEVEN rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
 and the mutation results are in `verify-app.md`; this file is the tracked verdict record.
 
-REVIEWED: 44df944
+REVIEWED: 7476771
 
 VERDICT: APPROVED
 
 Rounds 1–5 each returned CHANGES and every finding is answered below — fixes in `59df709`,
-`5ec4f80`, `09bb75f`, `8ae5487` and the round-5 commit. **Round 6 approved the branch** and returned
-two warnings and three nits, all closed after it: the un-re-driven `truncated` copy was RE-DRIVEN in
-both locales (row 2 of the state table), the call-scope open finding gained its live blast radius,
-the "fails 3 tests" count was measured (one per clause) rather than restated, `/verify-app`'s step
-8c was reordered after 8b, and this header carries round 6's sha and verdict rather than round 5's.
+`5ec4f80`, `09bb75f`, `8ae5487` and the round-5 commit. **Round 6 approved the branch**, returning
+two warnings and three nits, all closed after it. **Round 7 confirmed the approval AT THE TIP** —
+the gate is right to refuse a verdict about code that has since moved, and `git diff 44df944..HEAD`
+touches no source file, which round 7 verified rather than took on trust.
 
-**Only ONE finding across six rounds is answered without a code change:** round 1's bidi
+**Only ONE finding across seven rounds is answered without a code change:** round 1's bidi
 classification, which is DISPUTED — argued in full at the foot of this file, and judged correct on
 its merits by round 2.
+
+**And one class of error survived five rounds of review inside this very file:** the mutation
+COUNTS. Round 6 corrected one; round 7 found the same error two lines away; the cause turned out to
+be a grep that counted node:test output lines rather than tests. Every count is now dropped in
+favour of the property and the command that checks it — the record of a review is not exempt from
+`app.md`'s "counts carry their command", and this file proved it the hard way.
 
 **The shape of this review is itself the finding.** Rounds 1, 2 and 3 each returned a BLOCKER, and
 in every case the PREVIOUS round's fix had caused it — twice in the sibling branch of the same
@@ -85,7 +90,16 @@ RECURRENCE: no
 
 **The structural answer.** The decision left `loop.ts`'s branches for `documentContextState()`, a
 pure function of four named facts, swept as a table. Mutation-verified: dropping the snip-only guard
-fails 3 cases, weakening `markedCut` fails 5.
+goes RED, and so does weakening `markedCut` to `truncatedPages.length > 0`.
+
+**THE COUNTS THAT USED TO BE HERE WERE WRONG, and how is the point** (round 7's nit, and M1 twice
+over). They read "fails 3 cases" and "fails 5". Those came from `grep -c "^✖"`, and node:test prints
+each failure TWICE — inline and again under `failing tests:` — plus a `✖ failing tests:` header, so
+the command counted roughly 2n+1 and was never counting tests at all. Re-measured with the command
+that answers the question actually being asked, `npx tsx --test <file> | grep "^ℹ fail"`: the
+snip-only guard is pinned by 1 case, `markedCut` by 2. **The numbers are dropped rather than
+corrected** — the property is "each guard goes red under mutation", the command above is how to
+check it, and a bare count in prose is exactly what this repo has been wrong about three times.
 
 ## Round 4 — at `8ae5487` — the first round with NO BLOCKER
 
@@ -124,10 +138,10 @@ FINDING · NIT · src/components/live/LiveTranscriptView.tsx · Four stale route
 RECURRENCE: no
 
 **Mechanism moved:** three cases now pin `anySourceSurvived` — carried pages are a source, a snipped
-image is a source, a block carrying nothing is NOT. Mutation-verified at round 6, MEASURED rather
-than restated: deleting `documentPagesCarried > 0` fails exactly one test, deleting
-`snips.length > 0` fails exactly one. Each clause is individually pinned — the property the earlier
-"fails 3 tests" was standing in for, and getting wrong (M1, a count carried from the line above it).
+image is a source, a block carrying nothing is NOT. Mutation-verified: deleting either clause goes
+RED. Each clause is individually pinned — which is the property every count in this file was
+standing in for while getting the number wrong (see round 3's note above for why the counts were
+systematically inflated, and why they are dropped rather than corrected).
 
 ---
 
@@ -181,3 +195,28 @@ On step 8c's possible promotion to a mechanical per-row sha: not built here, and
 stated rather than implied — it needs a mapping from evidence rows to covering files that nothing
 in the repo has, and inventing one in this ticket would be a mechanism whose accuracy nobody has
 checked, which is the over-claim round 3 already caught once. Filed as the next strengthening.
+
+## Round 7 — at `7476771` — VERDICT: APPROVED (confirmation at the tip)
+
+Round 6 approved at `44df944`; the ship gate then refused, correctly, because commits had landed
+after the reviewed sha. Round 7 verified independently that `git diff 44df944..HEAD -- src/
+supabase/ scripts/ package.json` is EMPTY — only the skill, the two evidence files, open-findings
+and the deletion of a stray empty file — so round 6's verdict still describes the shipping code. It
+also re-checked round 6's five closures rather than taking them on trust: the re-driven copy quoted
+in the evidence matches both dictionaries byte-for-byte, and `reportTruncated` has exactly one
+render site.
+
+FINDING · NIT · docs/evidence/feat-smart-layer-b2c-doc-grounding/review.md · Round 3's sibling mutation counts ("fails 3 cases", "fails 5") do not reproduce — round 6 corrected one hand-carried count and left the identical error two lines away in the same file.
+RECURRENCE: no
+  Why not: the class is M1, "a count restated from another document", a meta-law rather than a `**LAW ·**` block, so it cannot be named to the gate — the same ruling round 6 recorded for the identical nit.
+
+**Closed, and the cause found rather than the number patched.** Every one of these counts came from
+`grep -c "^✖"`. node:test prints each failure TWICE — inline and again under `failing tests:` —
+plus a header line, so that command reports roughly 2n+1 and never counts tests at all. The
+numbers are DROPPED throughout this file and `verify-app.md` rather than corrected: the property is
+"the guard goes red under mutation", and `npx tsx --test <file> | grep "^ℹ fail"` is how to check
+it. Three wrong counts on one branch is what `app.md`'s "counts carry their command" is for, and a
+review record is not exempt from it.
+
+Round 7's own count was also off in the brief it was given (five commits after `44df944`; there
+were two) and it said so — which is the behaviour this whole structure is trying to buy.
