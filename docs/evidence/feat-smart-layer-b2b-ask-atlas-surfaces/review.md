@@ -160,7 +160,7 @@ separate-concern mixing this repo forbids elsewhere. Carried to the founder in t
 
 ## Round 4 — the re-review the ship gate demanded
 
-REVIEWED: 936148c
+REVIEWED: c30e2ed
 VERDICT: APPROVED
 
 Three docs-only commits landed after round 3's approval (the review record itself, the collision
@@ -196,3 +196,14 @@ rather than things I asserted: the DECISIONS entries quote the founder inside qu
 the surrounding reasoning attributed to the session, and neither claims more than its quote
 supports; the collision entries are genuine shared-type material and belong in that file; and
 round 3's record does not overclaim — its two `RECURRENCE: no` answers match what landed.
+
+**Round 4 closed: VERDICT APPROVED, FINDINGS none, at `c30e2ed`.** All three findings above were
+fixed and re-read against the source rather than against the commit message — the reviewer verified
+`protocol.ts` really does gain the non-terminal `grounding` variant and `messageState.ts` really
+does gain `sanitizeCallTruncated`, which is what the corrected collision entry now claims.
+
+**On the sha gap, said out loud so the next reader does not mistake it for an unreviewed change:**
+recording `REVIEWED: c30e2ed` necessarily creates one commit on top of `c30e2ed` — this file
+catching up to itself. That final docs commit contains nothing but this section and needs no further
+round; if it did, the ritual could never terminate. Any commit after it would be a real change and
+would need a real review.
