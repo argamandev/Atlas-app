@@ -3,7 +3,7 @@
 Branch: `feat/smart-layer-b3-workspace-chat` · `atlas-reviewer` plus a two-axis (standards / spec)
 pass, cold context each.
 
-REVIEWED: e567d46
+REVIEWED: 680e4d7
 
 VERDICT: CHANGES
 
@@ -108,3 +108,57 @@ The 8c re-check it asked for was done: every driven row was **re-driven**, not r
 - **Standards axis smells** — `fenceLine`'s four positional strings, `planByChunks`'s boolean flag
   arm selector, the repeated anchor switch, and `score`/`scoreWindow` shadowing in `plan.ts`. All
   fair; all in code that is either a harness or a one-line helper. Left as noted.
+
+---
+
+## Round 2 — at the tip (`680e4d7`)
+
+Round 1's verdict was about `e567d46`, and 23 files had changed since; a verdict cannot clear a
+merge of code it never read. Round 2 re-derived **every number** in `gate.md`, `STATUS.md`,
+`PROGRESS.md`, the ticket and `retrieval-eval-set.md` from the three result JSONs and found them all
+correct, and it mutated `prompt.ts` with a live unsanitised interpolation to confirm the scan goes
+red against the real file. It then found five more, two of them substantive.
+
+FINDING · BLOCKER · `src/lib/workspace/intake/selectSources.ts:73,135,158,171` — A SIXTH DOOR. This
+builder, in the same feature, interpolated document titles, company names, MAYA candidate titles and
+raw conversation turns with no sanitiser — and it is the step that decides which FILES get fetched,
+reachable from workspace chat because `wantsDocuments` is model text written under the influence of
+the documents the fence exists to quarantine. Worse, the scan bought to end this sequence named two
+builders and silently omitted this third, so "the prompt boundaries are closed" was a scoped claim
+overstating its own closure — in four documents.
+FIXED — titles, company names, ids and turns sanitised; `selectSources.ts` added to `BUILDERS`;
+every claim in the evidence, STATUS, PROGRESS and the ticket now says which six doors and states
+what the scan does not reach.
+RECURRENCE: no
+This is the first occurrence of the law it repeats, because that law did not exist until this commit
+— it is filed here as `Every untrusted string reaching a MODEL passes a sanitiser` in
+`.claude/rules/app.md`, ENFORCED test. Filing it is the answer ADR-0002 asks for; the six occurrences
+are recorded in its VERIFY line so the next reader knows the tier was bought, not guessed.
+
+FINDING · WARNING · `scripts/retrieval-eval/workspace-gate.mjs:329` — arm E's prefix for a SPLIT page
+window read `עמ' 1412`, because `p.14 (1/2)` was digit-stripped whole. Same family as the bug that
+already flipped this gate's headline once, on the same arm.
+FIXED — page and part read separately and passed to `filingPrefix` as production does. **8,735 of
+95,274 document windows (9.2%) were affected, and re-running all three shelf sizes returned the
+IDENTICAL table** — so this one moved no case, measured rather than assumed.
+RECURRENCE: no
+It repeats meta-law M2 (never let a test certify an untrue premise), which is not a `LAW ·` entry and
+so cannot be named in this grammar. The mechanism taken instead: the harness reads page and part from
+the window's own structure rather than re-deriving them from a label.
+
+FINDING · WARNING · `promptInjectionDiscipline.test.ts` — the mutation case re-implemented the scan's
+filter, so it proved a COPY could go red rather than the scan itself. The branch makes exactly this
+argument about the gate harness two files over.
+FIXED — one exported `unsanitised()` predicate; both file scans and the mutation case call it.
+RECURRENCE: no
+
+FINDING · NIT · `workspace-gate.mjs:376` — attribution substring-matched `id: <itemId>)` against a
+header line that also carries an untrusted title: membership-flavoured, not membership.
+FIXED — matches the whole reconstructed header from position 0, which a title cannot forge because
+the marker the split runs on is already defanged.
+RECURRENCE: no
+
+FINDING · NIT · `verify-app.md:51` — the 8c re-drive is pinned to `288435c` in prose only, so a
+reader cannot tell a fresh tick from a rotted one.
+FIXED — the table states the sha it was driven at and what has changed since.
+RECURRENCE: no

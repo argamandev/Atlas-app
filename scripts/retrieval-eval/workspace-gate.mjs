@@ -324,9 +324,17 @@ function anchorSources(anchors, byId) {
  * the label the file gave the window.
  */
 function windowEmbInput(source, w) {
-  return source.kind === 'transcript'
-    ? transcriptPrefix(source.company, w.label, []) + w.text
-    : filingPrefix(source.company, source.title, parseInt(w.label.replace(/\D/g, ''), 10) || 0, null) + w.text
+  if (source.kind === 'transcript') return transcriptPrefix(source.company, w.label, []) + w.text
+  // THE PAGE AND THE PART ARE READ SEPARATELY, and this is not fussiness. A long
+  // page becomes two windows labelled `p.14 (1/2)`, and digit-stripping that
+  // whole label gives 1412 — so every split filing page was being embedded under
+  // `עמ' 1412`, a page number that does not exist, on the arm the verdict is
+  // about. It is the SAME class as the raw-text handicap this harness already
+  // fixed once: a wrong prefix invented by the harness, not by the design.
+  const m = w.label.match(/p\.(\d+)(?:\s*\((\d+)\/\d+\))?/)
+  const pageNo = m ? Number(m[1]) : 0
+  const partNo = m && m[2] ? Number(m[2]) : null
+  return filingPrefix(source.company, source.title, pageNo, partNo) + w.text
 }
 
 /**
@@ -372,8 +380,14 @@ function buildShelf(anchored, allSources) {
 function sentPerItem(text, shelf) {
   const out = new Map()
   for (const part of text.split('<<<ATLAS-SOURCE').slice(1)) {
-    const header = part.slice(0, part.indexOf('\n') + 1)
-    const owner = shelf.find((s) => header.includes(`id: ${fencePart(s.itemId)})`))
+    // STARTS-WITH THE WHOLE RECONSTRUCTED HEAD, not "contains the id somewhere".
+    // A substring match is still a proxy: a title carrying another shelf item's
+    // `id: t:…)` would misattribute. Rebuilding each source's exact header and
+    // anchoring at position 0 removes the guess — and a title cannot forge one,
+    // because `fencePart` has already defanged the marker this split runs on.
+    const owner = shelf.find((s) =>
+      part.startsWith(` ${fencePart(s.title)} (${fencePart(s.kind)}, id: ${fencePart(s.itemId)})`)
+    )
     if (owner) out.set(owner.itemId, (out.get(owner.itemId) ?? '') + part)
   }
   return out

@@ -304,7 +304,39 @@ export const VOCABULARY_EXEMPT = {
  * consecutive raises is that it will not happen as a side effect of the next
  * ticket either. It needs to be scheduled.
  */
-export const TOKEN_BUDGET = 9_680
+/*
+ * RAISED 9,680 → 9,900 on 2026-08-15 (ticket 09). Mine, not the founder's, and
+ * flagged to him in the handoff.
+ *
+ * RAISE SIX — AND THE FIRST ONE THAT IS NOT THE DEGRADATION LAW EARNING ANOTHER
+ * TIER. Every raise above bought a new tier for `Degradation must be VISIBLE`.
+ * This one files a NEW law: `Every untrusted string reaching a MODEL passes a
+ * sanitiser — the fence LINE, not just the body it opens`, with a test mechanism
+ * (`workspace/chat/promptInjectionDiscipline.test.ts`).
+ *
+ * It is filed because the defect recurred SIX TIMES ON ONE BRANCH, each fix
+ * landing where the bug was noticed and each leaving the next door open: the
+ * source body, the fence marker line, the shelf listing, the `"""` blocks, the
+ * conversation turns, the clip caption — and then the SCAN bought to end the
+ * sequence, which named two builders while the defect spanned three. Two cold
+ * review rounds found doors four through six. A defect that recurs six times in
+ * one branch and has no law is precisely what ADR-0002 says to file, and prose
+ * would not have caught door six — the scan did, once it was widened.
+ *
+ * So `npm run env:health`'s mechanism count goes UP by one here (13 → 14), which
+ * is the trade ADR-0002 asks for: more enforcement per token, not more prose.
+ *
+ * The branch paid before asking, as the notes above require: STATUS.md's 08 block
+ * was cut to three lines now that 08 has landed, its two-reds block condensed, and
+ * the 09 entry written at a third of its first draft. The law itself was cut from
+ * fourteen lines to eleven, with its story sent to `case-history`. The last ~24
+ * are headroom, for the reason raise four gives.
+ *
+ * ⚠ THE SHRINK IS SIX SLICES OVERDUE. The note above said five consecutive raises
+ * mean it will not happen as a side effect of the next ticket, and it did not.
+ * It needs to be scheduled as its own mission.
+ */
+export const TOKEN_BUDGET = 9_900
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

@@ -13,7 +13,8 @@ shelf is, in both directions. "Measurably beats" is not met by a design that los
 size and wins at another by one case out of fourteen.
 
 Harness: `scripts/retrieval-eval/workspace-gate.mjs`. Raw results in
-`scripts/retrieval-eval/results/workspace-gate-2026-08-15T16-0{3-17,2-32,5-31}.{md,json}`.
+`scripts/retrieval-eval/results/workspace-gate-2026-08-15T16-2{1-54,1-13,2-32}.{md,json}` (shelf
+3, 6, 12).
 
 ## The measurement
 
@@ -55,7 +56,20 @@ And one found before review, kept because the first number was wrong for it: arm
 2/14 because the harness built its markers from the chunker's numeric `firstLine` instead of its
 `firstLineId` string, so every transcript case failed by construction.
 
-**Four harness bugs, three of which moved a number that was about to be reported.** That is the
+A **second review round** at the tip found a fifth, of the same family as the first:
+
+5. **A split page's prefix named a page that does not exist.** A long filing page becomes two
+   windows labelled `p.14 (1/2)`, and the harness digit-stripped that whole label — embedding the
+   window under `עמ' 1412`. It hit **8,735 of 95,274 document windows (9.2%)**, again on arm E,
+   again a wrong input invented by the harness rather than by the design. Page and part are now read
+   separately. **Re-running all three shelf sizes returned the identical table** — so unlike bug 1,
+   this one moved no case, and that is a measured claim rather than a hopeful one.
+
+And a sixth, in the attribution: matching `id: <itemId>)` as a substring of a header that also
+carries an untrusted title is still a proxy. It now matches the whole reconstructed header from
+position 0, which a title cannot forge because the marker it splits on is already defanged.
+
+**Six harness bugs, three of which moved a number that was about to be reported.** That is the
 argument for the two guards this file now carries: a missing embedding **throws** rather than
 scoring 0 (`cosine` returns 0 for an absent vector — indistinguishable from "this passage does not
 answer the question"), and the per-item `spread` is written to the JSON so a reader can see WHICH
@@ -115,9 +129,14 @@ two anchors in two files at once, which every arm gets half of.
 
 The gate's outcome is "change nothing", but two things in the ticket are not gated on it:
 
-1. **The prompt boundaries are closed** (the slice-2 BLOCKER, and three more doors cold review
-   found): the fence marker line, the shelf listing, the partial list, the `"""` quote blocks, the
-   conversation turns and the clip caption. `fencePart`/`quoted` in `context.ts` are the one door,
-   and `promptInjectionDiscipline.test.ts` fails for a NEW interpolation that skips them.
+1. **The prompt boundaries are closed across SIX doors** — the slice-2 BLOCKER plus five more that
+   two review rounds found: the fence marker line, the shelf listing and partial list, the `"""`
+   quote blocks, the conversation turns, the clip caption, and `intake/selectSources.ts` (the
+   builder that decides which FILES get fetched, which the first version of the scan did not name).
+   `fencePart`/`quoted` in `context.ts` are the one door; `promptInjectionDiscipline.test.ts` fails
+   for a NEW interpolation that skips them, and app.md now carries the law it enforces.
+   **The honest limit:** the scan reads the three builders it names. `chat/attachments.ts` and
+   `chat2/` are held by their own per-site tests. Door six was found because the scan was scoped
+   narrower than the defect — so "closed" here means these six, not "no such door remains".
 2. **`planContext` takes its scorer as an argument** — the D8 seam, made real so this gate could
    measure production code instead of a copy. The default is unchanged.

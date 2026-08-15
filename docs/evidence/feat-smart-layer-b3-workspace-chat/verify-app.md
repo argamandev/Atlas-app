@@ -35,7 +35,10 @@ in. Rows 2/3/8 are the ones that could have regressed, and they did not.
 **Yes, once — and it was RE-DRIVEN rather than re-ticked.** The table was first driven at `4b728b3`.
 Cold review then found three more prompt boundaries, and fixing them (`ed225c3`) rewrote the marked-
 passage block, the conversation region and the clip caption — all inside the code the drive covered.
-A stale ✅ there would be worse than a ❌, so every row above was re-driven at `288435c`:
+A stale ✅ there would be worse than a ❌, so every row above was re-driven **against the tree at
+`288435c`** — not re-ticked. Everything committed after that sha is docs, plus the round-2 fixes to
+`selectSources.ts`, the harness and this scan; none of it touches the code these rows rendered
+(`WorkspaceChat.tsx`, `planContext`, the caveat path), which is why the ticks below still stand:
 
 | row | mark | why |
 | --- | --- | --- |
@@ -48,7 +51,16 @@ A stale ✅ there would be worse than a ❌, so every row above was re-driven at
 The three new fixes changed what the MODEL is sent, not what the screen says — but that is a claim
 about the code, and 8c exists because such claims are what rot. Hence the re-drive.
 
-**Re-check again before merge if any further commit touches `src/lib/workspace/`,
+**Has it rotted again since?** Round 2 then found a sixth door and changed
+`src/lib/workspace/intake/selectSources.ts` — the INTAKE prompt, which this drive never exercised
+(the drive asked a question; it did not ask Atlas to fetch a file). No row above covers it, so no
+row above is stale on its account, and intake gets its own row:
+
+| row | mark | why |
+| --- | --- | --- |
+| 10 | ❌ **not driven** | `selectSources.ts`'s sanitising is covered by the scan and by `tsc`, not by a browser. Driving it means running the intake conversation to a file-fetch, which is a different surface from the honesty states this drive is about. It changes what the MODEL is sent, not what the screen says. |
+
+**Re-check before merge if any further commit touches `src/lib/workspace/`,
 `src/lib/chat/attachments.ts` or `src/components/workspace/`.**
 
 ## Not evidence of

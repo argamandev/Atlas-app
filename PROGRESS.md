@@ -25,12 +25,14 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   and the user's own words still find it), the swap keeps the headline numbers. ⚠ Recorded as an
   ORACLE BOUND: a real union sends both selections through the one shared budget every arm was held
   to, so it is not an achieved score. Its own ticket, its own gate.
-- **The ungated half was a prompt-injection hole, and it took four passes to close.** Only the source
-  BODY was defanged; the fence marker LINE interpolated a title, kind and id, and so did the shelf
-  listing, the partial list, the `"""` quote blocks, the conversation turns and the clip caption —
-  all outside any fence. Each fix landed where the bug was noticed, which is exactly what M3.1
-  forbids, so the fourth pass bought a mechanism instead of a fifth patch:
-  `promptInjectionDiscipline.test.ts` fails for a NEW interpolation that skips the sanitisers.
+- **The ungated half was a prompt-injection hole, and it took SIX passes to close.** Only the source
+  BODY was defanged; then the fence marker LINE (a title, a kind, an id), then the shelf listing and
+  partial list, then the `"""` quote blocks, then the conversation turns, then the clip caption —
+  and then `intake/selectSources.ts`, the builder that decides which FILES get fetched. Each fix
+  landed where the bug was noticed, which is what M3.1 forbids. **The sixth is the instructive one:
+  it was the SCAN — bought to end the sequence — repeating the mistake by naming two builders when
+  the defect spanned three.** A law is now filed in `app.md` with the scan as its mechanism, and
+  both state what they do not reach.
 - **Verified:** 1149/1149 green, `tsc` clean, and the workspace honesty states driven in a browser in
   both locales — then **re-driven** after review changed the code under them, because a drive expires
   (8c). Evidence, review record and all three runs: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
