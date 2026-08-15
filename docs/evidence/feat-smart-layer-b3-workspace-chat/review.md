@@ -22,7 +22,7 @@ every turn's content with no sanitiser, so a client-supplied turn (or a stored a
 echoed a document's words) could print a literal fence marker and forge the boundary this branch
 claims to close. It was the one field the new forge test did not fill.
 FIXED `ed225c3` — turns go through `defang`; `prompt.test.ts` covers both roles.
-**RECURRENCE: yes → M3.1** (fix at the choke point, never in the branch where the bug appeared).
+RECURRENCE: yes → M3.1 (fix at the choke point, never in the branch where the bug appeared).
 The mechanism bought: `promptInjectionDiscipline.test.ts`, which fails for ANY interpolation in the
 builders that reaches the model through no sanitiser. Its first version scoped to `input.` and would
 have missed this exact hole — that is now its own mutation case.
@@ -32,24 +32,24 @@ the clip caption is built from `workspace_items.name` and handed to the model as
 the image, a second channel the prompt-builder fix never touched.
 FIXED `ed225c3` — sanitised in `snipCaption` itself (the one door every caption passes through),
 with a test asserting it stays one line. chat2's own `snipCaption` has carried this case since 08c-3.
-**RECURRENCE: yes → M3.1**, same law, and the same mechanism covers new call sites in the builders.
+RECURRENCE: yes → M3.1, same law, and the same mechanism covers new call sites in the builders.
 Note the honest limit: the scan does NOT reach `src/lib/chat/attachments.ts`, so this specific door
 is held by its unit test, not by the scan.
 
-FINDING · BLOCKER (standards axis) · `prompt.ts` / `compose.ts` — `"""` is a second boundary
+FINDING · BLOCKER · (standards axis) `prompt.ts` / `compose.ts` — `"""` is a second boundary
 marker in the same prompts and only the fence was defanged. A passage containing a line of `"""`
 closes its block and the rest reads as instruction.
 FIXED `ed225c3` — `quoted()` owns those blocks and neutralises the delimiter inside.
-**RECURRENCE: yes → M3.1.** Third instance of one law on one branch, which is why the branch stopped
+RECURRENCE: yes → M3.1. Third instance of one law on one branch, which is why the branch stopped
 patching sites and bought the scan.
 
-FINDING · BLOCKER (spec axis) · `scripts/retrieval-eval/workspace-gate.mjs` — arm E, the arm the
+FINDING · BLOCKER · (spec axis) `scripts/retrieval-eval/workspace-gate.mjs` — arm E, the arm the
 ticket DEFINES as the swap, embedded raw window text while arm R and production both embed a
 deterministic metadata prefix. The verdict rested on it.
 FIXED `288435c` — same prefix recipe production uses. **Worth three cases: E went 6/14 → 9/14.**
 The headline changed from "the planner won" to "indistinguishable"; the ticket's gate is still unmet,
 so the outcome did not change, but the stated reason was wrong and is now right.
-**RECURRENCE: yes → M2** (never let a test certify an untrue premise) **and M1** (a green signal
+RECURRENCE: yes → M2 (never let a test certify an untrue premise) **and M1** (a green signal
 proves only what it measured). Mechanism: the harness header now states what each arm is measured
 as, and the evidence file records all four harness bugs rather than only the verdict. No test tier
 is available — this is a one-off script, and its guard is that it refuses to score on a missing
@@ -61,7 +61,7 @@ budget every arm was held to — and the ticket status line carried it forward w
 FIXED `288435c` — labelled an ORACLE BOUND in `gate.md`, `STATUS.md` and the ticket, with the
 reason. **RECURRENCE: yes → M1.** Same law as the finding above, one document over.
 
-FINDING · WARNING (spec axis) · `gate.md` — "the same verdict at both shelf sizes, so it is not
+FINDING · WARNING · (spec axis) `gate.md` — "the same verdict at both shelf sizes, so it is not
 an artifact" claimed more than 3 and 6 could support; both are small, and the planner IMPROVES as the
 shelf shrinks.
 FIXED `288435c` — a third size (12) was run; the table now carries all three. **RECURRENCE: no.**
@@ -71,7 +71,7 @@ P and E paid for their `[label]` lines, so the challenger ran on slightly more u
 FIXED `288435c` — charged; R fell 8 → 7. A bias in the LOSER's favour, which is why it was fixed
 rather than argued away. **RECURRENCE: no.**
 
-FINDING · NIT (standards axis) · `workspace-gate.mjs` — attribution re-parsed the fence header
+FINDING · NIT · (standards axis) `workspace-gate.mjs` — attribution re-parsed the fence header
 with `/id: ([^)]+)\)/`, a regex over a line that also carries an untrusted title (M3.2, a proxy for
 a fact the harness already had).
 FIXED `288435c` — attribution is by membership in the known shelf. **RECURRENCE: no.**
