@@ -6,6 +6,7 @@ import {
   LIVE_BUDGET_CHARS,
   LIVE_SCOPE_SUMMARY,
   LIVE_TRUNCATION_NOTICE,
+  liveContextBlock,
   NO_CAPTIONS_YET,
 } from './liveInjection'
 
@@ -123,9 +124,24 @@ test('BOTH routes keep the SAME half of a long call, at their own ceilings', () 
   // `keepRecent(...).text` and dropped the `truncated` flag, so the earlier half
   // of a long call vanished with no sentence about it while v2 announced the
   // identical cut. The flag is the fact; discarding it is the defect.
-  assert.equal(legacy.truncated, true, 'the legacy path did not report the cut it made')
+  // ...AND BOTH MUST SAY THEY CUT (rounds 3 and 4). Round 3 found the legacy
+  // route taking `keepRecent(...).text` and dropping the flag, so the earlier
+  // half vanished with no sentence while v2 announced the identical cut. Round 4
+  // then found the FIRST version of this assertion measuring `keepRecent`'s own
+  // flag — the shared helper's property, not the route's — so reverting the route
+  // would have reproduced the defect with this test green (M2). It now measures
+  // the function the route actually calls.
+  assert.equal(legacy.truncated, true, 'keepRecent did not report the cut it made')
   assert.equal(v2.truncated, true, 'v2 did not report the cut it made')
   assert.ok(v2.text.includes(LIVE_TRUNCATION_NOTICE), 'v2 cut without telling the model')
+  const legacyBlock = liveContextBlock(captions, 40_000)
+  assert.ok(legacyBlock.includes(LIVE_TRUNCATION_NOTICE), 'the legacy route cut without telling the model')
+  assert.ok(legacyBlock.includes('THE-LATEST-THING'))
+  assert.equal(legacyBlock.includes('OPENING'), false)
+})
+
+test('an UNtruncated legacy block carries no notice — a notice is a claim, not decoration', () => {
+  assert.equal(liveContextBlock('short call', 40_000), 'short call')
 })
 
 test('keepRecent reports truncation rather than leaving it to be inferred from a length', () => {

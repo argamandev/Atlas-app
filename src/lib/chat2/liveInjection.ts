@@ -123,6 +123,30 @@ export const LIVE_TRUNCATION_NOTICE =
   '[This call has run longer than one turn can carry. The EARLIER part of it is NOT shown — ' +
   'what follows is only the most recent stretch. Say so if the answer depends on the part you cannot see.]'
 
+/**
+ * The live captions a PLAIN-TEXT caller puts in front of the model — cut from
+ * the end, and carrying the notice whenever it cut.
+ *
+ * The old `/api/chat` is the only caller and it dies at 08c-3, so this could
+ * have been a local function there. It lives HERE because of what round 4 of
+ * review found when it WAS local: the test claiming "the legacy path reports the
+ * cut" could not reach a non-exported function, so it asserted `keepRecent`'s
+ * flag instead — the shared helper's property, not the route's. Reverting the
+ * route to `keepRecent(...).text` would then have reintroduced the defect with
+ * that test green, which is M2 exactly: a mechanism that certifies a premise it
+ * never measured is worse than none, because it points the wrong way at
+ * recurrence. Verified by mutation, not by reading: dropping the notice here
+ * fails `liveInjection.test.ts` with "the legacy route cut without telling the
+ * model".
+ *
+ * The rule this encodes: the flag is consumed where it is produced. There is no
+ * shape of this function that returns the text without the notice.
+ */
+export function liveContextBlock(captions: string, maxChars: number): string {
+  const { text, truncated } = keepRecent(captions, maxChars)
+  return truncated ? `${LIVE_TRUNCATION_NOTICE}\n\n${text}` : text
+}
+
 export interface LiveCaptions {
   /** The caption text so far. May be empty — a call that has not spoken yet. */
   captions: string

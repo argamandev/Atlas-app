@@ -1,17 +1,35 @@
 # Cold review — 08c-2, live-caption grounding
 
-`atlas-reviewer`, fresh context, twice: **round 1** at `0b791cc` (VERDICT: CHANGES — five
-findings), **round 2** at the tip `0e1f1b9`, which reviewed round 1's own fixes because those had
-never themselves been read. The `VERDICT:`/`REVIEWED:` pair below is ROUND 2's — the gate takes
-the first match, and a round-1 verdict sitting at the top would clear a merge at a commit nobody
-reviewed. Round 1 is restated in prose beneath it.
+`atlas-reviewer`, fresh context, FOUR rounds — `0b791cc`, `0e1f1b9`, `574d416`, `412942a` — each
+reading the previous round's fixes. That is the point rather than an accident: **rounds 2, 3 and
+4 each found a real defect inside a fix**, and none of those three would have been read at all if
+the branch had merged on round 1's verdict. The single `VERDICT:`/`REVIEWED:` pair below is the
+LAST round's, because `parseReviewRecord` takes the first match and an older pair sitting on top
+would clear a merge at a commit nobody read.
 
 VERDICT: CHANGES
-REVIEWED: 574d416
+REVIEWED: 412942a
 
-Three rounds, each reading the previous round's fixes — which is the point: round 2 and round 3
-each found a real defect *inside a fix*, and neither would have been read at all if the branch
-had merged on round 1's verdict.
+## Round 4 — at `412942a`
+
+---
+
+FINDING · WARNING · the test for round 3's fix measured the helper, not the route
+
+The new assertion read `keepRecent(...).truncated` — the shared helper's property, already covered
+by the next test — while claiming to prove the ROUTE reports its cut. `liveContextBlock` was a
+non-exported local, so nothing measured it: reverting the route to `keepRecent(...).text` would
+have reproduced round 3's defect with this test green.
+
+RECURRENCE: yes → app.md M2, "Never let a test certify an untrue premise" — a green test asserting
+the wrong outcome is worse than none, because the mechanism that would catch recurrence points the
+wrong way
+
+ANSWERED: `liveContextBlock` is exported from `liveInjection.ts` and the test measures IT, plus a
+case pinning that an untruncated block carries no notice (a notice is a claim, not decoration).
+**Verified by MUTATION rather than by reading** — dropping the notice inside `liveContextBlock`
+fails the battery with "the legacy route cut without telling the model". That step is what round 4
+existed to insist on, and it is how this assertion differs from the one it replaced.
 
 ## Round 3 — at `574d416`
 
