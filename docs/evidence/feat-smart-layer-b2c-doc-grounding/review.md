@@ -1,9 +1,9 @@
 # Cold review record — ticket 08c-3 (`feat/smart-layer-b2c-doc-grounding`)
 
-SEVEN rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
+EIGHT rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
 and the mutation results are in `verify-app.md`; this file is the tracked verdict record.
 
-REVIEWED: 7476771
+REVIEWED: bdd820c
 
 VERDICT: APPROVED
 
@@ -220,3 +220,24 @@ review record is not exempt from it.
 
 Round 7's own count was also off in the brief it was given (five commits after `44df944`; there
 were two) and it said so — which is the behaviour this whole structure is trying to buy.
+
+## Round 8 — at `bdd820c` — VERDICT: APPROVED, no findings
+
+The round the ship gate's own arithmetic requires: rounds 6 and 7 approved, but each verdict was
+filed in a commit, so the record could never name the tip it was written into. Round 8 reads
+`bdd820c` and finds `git diff 7476771..bdd820c` touches only the two evidence documents — no source,
+no migration, no config — so 6 and 7's APPROVED still describes the shipping code.
+
+It verified round 7's fix by REPRODUCING the cause rather than reading it: a throwaway test file
+with 2 real failures makes `grep -c "^✖"` report 5 against `ℹ fail 2`, which is the 2n+1 the record
+describes, and a real mutant of `markedCut` yields `ℹ fail 2` of 14. No mutation count survives in
+either evidence file.
+
+`npm test` 1138/1138, `tsc` clean, unenforced-law count 13 on the branch and 13 on `main` — unchanged,
+as a docs-only round should leave it.
+
+**One instruction taken, and it is worth recording as a trap:** `parseReviewRecord` takes the FIRST
+`REVIEWED:` and `VERDICT:` in the file, so a new verdict must REPLACE the header rather than be
+appended — otherwise the gate reads the oldest sha and a review filed at the first commit clears a
+merge at the eighth. The header carries `bdd820c`; every earlier sha survives only as its round's
+own heading.
