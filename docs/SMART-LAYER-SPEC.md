@@ -295,6 +295,7 @@ The measured Hebrew correction moved each number up ~10–15% from the ticket-09
 | Note Taker / short mechanical run | ≤ $0.30 | ≤ $0.50 | same, 50¢ |
 | Per fund, monthly | **~$40** (was $35) | alert at $100 | our accounting |
 | Monthly envelope | 5 funds ≤ $250 · 30 funds ≤ $1,300 · 100 funds ≤ $4,200 | | monthly reconciliation vs Console |
+| Ingestion backfill (one-time) | **$5–8** (ticket 17 demo scope) | ≤ $500 all-in | batch API + batch embeddings |
 
 > **"FIRST turn" was wrong, and the correction is a founder decision (2026-08-15, ticket 08c).**
 > The stuffed-document row used to say *first* turn, which implied the document is injected once
@@ -304,7 +305,6 @@ The measured Hebrew correction moved each number up ~10–15% from the ticket-09
 > turn** with caching OFF, so nothing exceeds a stated budget; the only untrue word was "first".
 > Offered the cheaper alternative (inject once, lean on history) with that cost named, the founder
 > kept the re-injection and fixed the wording. The number is unchanged.
-| Ingestion backfill (one-time) | **$5–8** (ticket 17 demo scope) | ≤ $500 all-in | batch API + batch embeddings |
 
 Worked bases (research/09 §2 arithmetic × the §4 correction): chat tool-loop answer $0.04 →
 **≈ $0.055–0.06**; 20K stuffed first turn $0.06 → **≈ $0.09** (follow-ups ≈ $0.02, riding

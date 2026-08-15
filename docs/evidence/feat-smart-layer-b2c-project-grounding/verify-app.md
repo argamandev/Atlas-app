@@ -93,6 +93,34 @@ slice claims otherwise.
 
 ---
 
+## Cost — ticket 08's acceptance line, measured rather than assumed
+
+`scripts/measure-chat-answer.mjs` grew a `--project` arm for this (it composes with `--company`,
+unlike `--call`, because a project is not a grounding recipe). Measured against a project filled to
+**5,560 chars** of real Hebrew analyst prose — near the 8,000-char ceiling, so this is close to the
+worst case, not a flattering small one. Caching OFF, as every prior run in this stack.
+
+| Turn | Input tok | Cost | vs $0.06 |
+| --- | --- | --- | --- |
+| project only, unscoped | 3,989 | **$0.0147** | WITHIN |
+| **project + company** (the composed worst case) | 32,328 | **$0.1226** | OVER |
+| **company only — the CONTROL** | 27,263 | **$0.1010** | OVER |
+
+**THE CONTROL IS THE POINT, and without it this table would have been read the wrong way.** The
+company-scoped turn is already $0.1010 **with no project at all**, so the $0.06 breach is
+`STATUS.md`'s existing red from ticket 07 — *"the $0.06/answer budget did not hold on 07's three
+samples, with caching measured OFF"* — and is owned by the dedicated retrieval session, not by this
+branch. **Project injection's own cost is the delta: +$0.0216 on a near-maximal block**, most of it
+the system prompt being re-sent on each of two round-trips.
+
+So: this slice does not introduce a budget breach, and it does not fix one. Both halves stated,
+because reporting only the first would be the flattering half of a measurement (M1).
+
+The composed answer also demonstrated the injection at the layer that matters — unprompted, it
+closed with the project's own investment criteria applied to the numbers it had just retrieved
+(*"…אינם עומדים בקריטריונים שהגדרתם"* — "these do not meet the criteria you defined"), which is
+the project's instructions and the company's corpus in one answer.
+
 ## Battery
 
 - `npx tsc --noEmit` — clean

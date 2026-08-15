@@ -46,24 +46,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { buildProjectContext, type ProjectContextInput } from '@/lib/chat/projectContext'
+// The state triple is WIRE vocabulary and is declared once in `protocol.ts`,
+// which both this module and every surface already import. Re-exported because
+// a caller of this builder reasons in terms of it.
+import type { ProjectContextState } from './protocol'
+export type { ProjectContextState } from './protocol'
 
 /**
- * How the project's context actually reached the model on THIS turn.
+ * The parts of a project this needs.
  *
- * The same three values the old route put on `x-chat-project-context`, and the
- * same two the stored message already persists (`sanitizeContextStatus`), so a
- * surface migrating to v2 keeps the notice it already had rather than trading it
- * for silence.
+ * An ALIAS, not a second declaration: it is `ProjectContextInput` under the name
+ * this module's callers think in. Copying its four fields into a parallel
+ * interface bought a second place to edit when a field is added — Shotgun
+ * Surgery on a type whose whole job is to stay in step with the one budgeted
+ * builder (`lib/chat/projectContext.ts`).
  */
-export type ProjectContextState = 'ok' | 'truncated' | 'failed'
-
-/** The parts of a project this needs. Structural subset of the db row + its sources. */
-export interface ProjectForInjection {
-  name: string
-  instructions: string
-  memory: string
-  sources: { name: string; body: string }[]
-}
+export type ProjectForInjection = ProjectContextInput
 
 export interface ProjectBlock {
   /**
@@ -84,13 +82,7 @@ export interface ProjectBlock {
  * injectable into the loop, for the same reason `loadCall` is.
  */
 export function buildProjectBlock(project: ProjectForInjection): ProjectBlock {
-  const input: ProjectContextInput = {
-    name: project.name,
-    instructions: project.instructions,
-    memory: project.memory,
-    sources: project.sources,
-  }
-  const built = buildProjectContext(input)
+  const built = buildProjectContext(project)
   return { text: built.text, state: built.truncated ? 'truncated' : 'ok' }
 }
 

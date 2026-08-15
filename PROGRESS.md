@@ -5,6 +5,43 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-15 — Project chats reach v2, and the `useV2` fork dies (`feat/smart-layer-b2c-project-grounding`, ticket 08c-1)
+
+- **Ticket 08c was sliced three ways; this is slice 1.** Its three remaining groundings are not one
+  mission: project context reuses an existing budgeted builder, live captions is a new recipe, and
+  `documentRef`+snips needs IMAGE content blocks the tool loop has never carried. Shown that, the
+  founder took the smallest honest slice — *"Project grounding only"*. **The old `/api/chat` is
+  still alive**: `TranscriptChatPanel` calls it for the other two, and a route dies when its LAST
+  caller leaves. Ticket 08's own line saying slice 1 would delete the route was half-true and is
+  corrected in the ticket rather than quietly satisfied.
+- **A project is NOT a fifth `Grounding` recipe, and that was the load-bearing call.** The union
+  answers *where an answer comes from*; a project answers *whose standing instructions it runs
+  under*, and the two COMPOSE — a user inside a project can `@mention` a company and today gets
+  both. A fifth variant would have made that ordinary pair unrepresentable, silently dropping the
+  company scope under a chip still promising it. So `projectId` is its own field beside the union
+  (`TurnScope`), refused rather than dropped when malformed, and swept by the accepted-⇒-consumed
+  guard — mutation-tested: removing every `scope.projectId` read makes that guard fail.
+- **A failed project does NOT end the turn — the deliberate asymmetry with whole-call injection.** A
+  call IS the answer's source, so a call that will not load ends the turn. A project is a modifier:
+  the corpus, the tools and any company scope all survive, so the answer is still worth having
+  provided it says so — to the user (a persisted `projectContext` event) and to the MODEL, so the
+  answer cannot sound fully informed underneath a notice saying it is not.
+- **Verified in a browser in both locales against real data**, with a token planted in the project's
+  instructions so compliance had one unambiguous reading, and a CONTROL request proving the token
+  came from the project and nowhere else. All five request states driven, `failed` through real RLS.
+  Cost measured for the first time on this path: **+$0.0216** for injection on a near-maximal block;
+  the $0.06 breach on a composed project+company turn is ticket 07's existing red, proven by a
+  company-only control at $0.1010 with no project at all.
+- **Cold review returned CHANGES with six findings; four were `RECURRENCE: yes`, and three bought a
+  structural fix rather than a comment** (ADR-0002): a missing supabase client now THROWS instead of
+  masquerading as "RLS said no" (an M3.2 proxy), the load failure is logged at the point where three
+  causes collapse into one user-visible state (M1 — the old comment claimed another file logged it,
+  and that file did not), and the honesty facts are now settled by ONE function both the success and
+  failure paths call, closing a hole where a stream breaking after `projectContext: 'failed'`
+  rendered a partial answer with no notice at all. Battery 1052 → **1056**, all green.
+
+---
+
 ## 2026-08-15 — Chat plumbing, so ticket 08 is one change (`feat/smart-layer-b2a-chat-plumbing`, ticket 08a)
 
 - **Ticket 08 was split into 08a (plumbing) / 08b (surfaces), the way B1 was split into 06/07, and

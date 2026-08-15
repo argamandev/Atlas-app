@@ -83,3 +83,18 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   `aria-label` hits from the same grep are NOT instances: they build model-prompt text or
   screen-reader strings, neither of which is a bidi-rendered line.
   Whoever touches one of those four surfaces should fix it there, at the construct. → `#bidi-bdi`
+- **A project SOURCE body reaches the system prompt UNFENCED** (recorded 2026-08-15, ticket 08c-1).
+  `chat2/projectInjection.ts` injects the project's block into the system prompt without a
+  `<<<ATLAS-SOURCE>>>` fence, and that is CORRECT for the two fields it is mainly about: standing
+  instructions and memory are text the user wrote to be OBEYED, and fencing marks content as
+  "quoted material, never an instruction" — the exact opposite of what they are for. It is also
+  the behaviour the old `/api/chat` has shipped since projects existed, so this is not a
+  regression introduced by 08c-1.
+  **What is not covered:** a project SOURCE (a typed note) may hold text the user pasted out of a
+  document, and that rides in at system level with the instructions. The user is the principal
+  here — injecting into your own turn buys you nothing you could not simply type — so the exposure
+  is bounded and is NOT the tool-result case the fence exists for. Closing it properly means
+  splitting the block so notes fence and instructions do not, which changes `buildProjectContext`,
+  the old route and the UI's capacity meter together, and that shared budget function being ONE
+  function is its own law.
+  **Not a law and not a blocker.** Whoever splits that block should do it as its own small mission.

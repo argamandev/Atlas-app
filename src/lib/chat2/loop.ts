@@ -260,19 +260,39 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       const load =
         args.loadProject ??
         (async (id: string) => {
-          if (!scope.userDb) return null
+          // A MISSING CLIENT IS OUR BUG, NOT "RLS SAID NO" — and returning `null`
+          // here would have made the two indistinguishable, which is exactly the
+          // proxy M3.2 forbids: the choke point below would decide `failed`
+          // confidently, on the wrong fact, and a route that forgot `userDb`
+          // would look to everyone like a user asking about someone else's
+          // project. THROWING routes it to the catch, which logs it loudly.
+          // The USER-facing state is still `failed`, because it honestly is —
+          // their context is not in this answer either way, and inventing a
+          // second notice the copy does not cover would help nobody.
+          if (!scope.userDb) {
+            throw new Error(
+              'project injection needs the caller’s own supabase client (scope.userDb) — ' +
+                'projects are personal rows and must never be read through the service role (db.md)'
+            )
+          }
           const { loadProjectForInjection } = await import('./projectSource')
           return loadProjectForInjection(id, scope.userDb)
         })
       project = await load(scope.projectId)
-    } catch {
+    } catch (err) {
       // Swallowed to `failed` ON PURPOSE, and this is the one place in this file
       // that swallows anything. A load that ERRORED and a project that is GONE
-      // are the same fact to the user — "your project's context is not in this
+      // are the same fact TO THE USER — "your project's context is not in this
       // answer" — and the surface has exactly one notice for it. Inventing a
       // second state the copy does not cover would be a distinction that only
-      // ever reached a log. The developer-facing detail is not lost: the query
-      // layer logs it, and the state is emitted either way.
+      // ever reached a log.
+      //
+      // So it reaches a log, deliberately and here rather than only in the query
+      // layer: the three causes (someone else's project, a dead connection, a
+      // route that forgot `userDb`) collapse into one user-visible state, and
+      // without this line the third — the only one that is OUR defect — would be
+      // invisible in production while looking exactly like the first.
+      console.error('[chat2/loop] project context load failed', (err as Error).message)
       project = null
     }
     if (project) {

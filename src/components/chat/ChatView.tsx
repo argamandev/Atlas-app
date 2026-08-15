@@ -18,6 +18,7 @@ import {
   sanitizeCallTruncated,
   sanitizeContextStatus,
   sanitizeTruncated,
+  settledFacts,
   truncatedForPersist,
   type ProjectContextStatus,
 } from '@/lib/chat/messageState'
@@ -418,14 +419,7 @@ export function ChatView({
       if (outcome.error) throw new Error(outcome.error)
       const projectContext = outcome.projectContext
       streamFinished = true
-      setLastAssistant({
-        content: full,
-        source: outcome.source,
-        projectContext,
-        incomplete: outcome.incomplete,
-        callTruncated: outcome.callTruncated,
-        streaming: false,
-      })
+      setLastAssistant({ content: full, ...settledFacts(outcome), streaming: false })
 
       // Persist the full thread — create the conversation lazily on the first exchange.
       // `projectContext` rides along so the notice SURVIVES a reload. It used to
@@ -498,8 +492,18 @@ export function ChatView({
       // if the failure came from createConversation/saveConversation the answer
       // is complete and correct, and the only true statement is that it was not
       // saved. Leaving `content` alone keeps it on screen.
+      //
+      // AND IT CARRIES THE HONESTY FACTS TOO (cold review, RECURRENCE). This
+      // branch used to build its own object from `error`/`errorKind` alone, so a
+      // turn the server had ALREADY reported as `projectContext:'failed'` — or as
+      // grounded in a partly-read call — lost that notice the moment anything
+      // downstream broke. The text stayed on screen; the statement about what it
+      // was written WITHOUT did not. Failure is when those facts matter most, so
+      // both paths now settle through the same function and neither can forget a
+      // field the other remembers.
       setLastAssistant({
         streaming: false,
+        ...settledFacts(outcome),
         error: err,
         errorKind: streamFinished ? 'save' : full.length > 0 ? 'truncated' : 'answer',
       })

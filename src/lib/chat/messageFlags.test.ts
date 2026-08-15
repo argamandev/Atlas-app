@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sanitizeCallTruncated, sanitizeTruncated, truncatedForPersist } from './messageState'
+import { sanitizeCallTruncated, sanitizeTruncated, settledFacts, truncatedForPersist } from './messageState'
 
 /**
  * The two halves of the round-three BLOCKER fix.
@@ -131,4 +131,88 @@ test('the two flags stay INDEPENDENT — one must never imply the other', () => 
     false
   )
   assert.equal(sanitizeCallTruncated(true), true)
+})
+
+// ─── BOTH PATHS SETTLE THE SAME FACTS (ticket 08c-1, cold review) ────────────
+//
+// THE DEFECT. `ChatView.send` settles its assistant message in TWO places — the
+// success path and the `catch` — and the catch built its own object from
+// `error`/`errorKind` alone. So a turn where the server had ALREADY said
+// `projectContext:'failed'`, or had reported the call as partly read, and whose
+// stream THEN broke, rendered its partial answer with no notice and persisted
+// none. The facts existed; the second writer did not carry them.
+//
+// RECURRENCE against "degradation must be VISIBLE", so ADR-0002 wants a
+// mechanism stronger than the comment that used to be the only guard. The
+// mechanism is that there is now ONE function both paths call, and these cases
+// pin what it must carry — a new honesty fact added to the settled message
+// without being added here fails the sweep below rather than being silently
+// dropped by whichever path its author forgot.
+
+const FACTS = {
+  source: {
+    company: 'תיגבור',
+    quarter: 'Q3 2025',
+    transcriptId: 'PyuMxe88e8g',
+  },
+  projectContext: 'failed' as const,
+  incomplete: 'length_limit',
+  callTruncated: true,
+}
+
+test('every honesty fact survives settling — none is dropped', () => {
+  assert.deepEqual(settledFacts(FACTS), FACTS)
+})
+
+test('THE HOLE: the failure path carries what the success path carries', () => {
+  // Both call sites are modelled as they are written: the success path spreads
+  // the result into a settled message, the catch spreads it alongside its own
+  // error fields. The property is that the honesty half is IDENTICAL — the error
+  // fields may differ, the facts about what the user is looking at may not.
+  const success = {
+    content: 'half an answ',
+    ...settledFacts(FACTS),
+    streaming: false,
+  }
+  const failure = {
+    streaming: false,
+    ...settledFacts(FACTS),
+    error: new Error('connection reset'),
+    errorKind: 'truncated' as const,
+  }
+  for (const key of Object.keys(FACTS) as (keyof typeof FACTS)[]) {
+    assert.deepEqual(
+      failure[key],
+      success[key],
+      `the failure path dropped "${key}" — a partial answer would render with no notice that it ` +
+        'was written without that context, which is the exact defect this function exists to close'
+    )
+  }
+})
+
+test('the fact set is not silently narrowed — a dropped field fails here', () => {
+  // GUARD THE GUARD. Without this, deleting a line from `settledFacts` would
+  // still pass the two cases above for every field that remained, and the case
+  // names would go on claiming "every honesty fact". The count is asserted
+  // against the keys the function actually returns, so narrowing it is a failure
+  // rather than a quieter pass.
+  assert.deepEqual(Object.keys(settledFacts(FACTS)).sort(), [
+    'callTruncated',
+    'incomplete',
+    'projectContext',
+    'source',
+  ])
+})
+
+test('an absent fact stays absent — settling invents nothing', () => {
+  // The ordinary clean turn. `settledFacts` must not manufacture a notice where
+  // the server sent none: a fabricated warning on a good answer is the same
+  // class of lie as a missing one on a bad answer, pointed the other way.
+  const clean = {
+    source: null,
+    projectContext: null,
+    incomplete: null,
+    callTruncated: false,
+  }
+  assert.deepEqual(settledFacts(clean), clean)
 })

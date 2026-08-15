@@ -90,6 +90,28 @@ export function isIncompleteCode(v: unknown): v is IncompleteCode {
  * Exported so a caller can exhaustively switch and so the battery can assert the
  * set has not quietly grown a fourth.
  */
+/**
+ * How a PROJECT's written context reached the model on one turn (ticket 08c).
+ *
+ * ONE DECLARATION, derived from the array, for the same reason the incomplete
+ * codes are: this triple otherwise wants to exist three times — the builder's
+ * return type, the event's inline literal, and the parser's membership test —
+ * and the parser is the only one consulted at runtime. A fourth state added to
+ * a type the parser does not share is a state the parser silently drops.
+ *
+ * It lives HERE rather than in `projectInjection.ts` because it is wire
+ * vocabulary: both the server that emits it and the surface that renders it
+ * need it, and `protocol.ts` is the module both sides already import.
+ */
+export const PROJECT_CONTEXT_STATES = ['ok', 'truncated', 'failed'] as const
+
+export type ProjectContextState = (typeof PROJECT_CONTEXT_STATES)[number]
+
+/** Is this string one of the project-context states? The parser's only membership test. */
+export function isProjectContextState(v: unknown): v is ProjectContextState {
+  return typeof v === 'string' && (PROJECT_CONTEXT_STATES as readonly string[]).includes(v)
+}
+
 export const TERMINAL_EVENTS = ['done', 'incomplete', 'error'] as const
 
 export type TerminalEventType = (typeof TERMINAL_EVENTS)[number]
@@ -147,7 +169,7 @@ export type ChatEvent =
    * which is also what it hears when a build is too old to send this event at
    * all, and those two must not look alike.
    */
-  | { type: 'projectContext'; state: 'ok' | 'truncated' | 'failed' }
+  | { type: 'projectContext'; state: ProjectContextState }
   /** TERMINAL. The model finished cleanly. The ONLY event that means complete. */
   | { type: 'done' }
   /**
@@ -240,7 +262,9 @@ export function parseChatEvent(line: string): ClientChatEvent | null {
       // unparseable frame assert the flattering half of the only question this
       // event exists to answer — the surface would show a clean answer where the
       // server may have been saying the user's instructions never loaded.
-      if (e.state !== 'ok' && e.state !== 'truncated' && e.state !== 'failed') return null
+      // Through the shared membership test, never a hand-written cascade: the
+      // cascade was a second place the state list could drift from the union.
+      if (!isProjectContextState(e.state)) return null
       return { type: 'projectContext', state: e.state }
     case 'done':
       return { type: 'done' }

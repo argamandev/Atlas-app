@@ -62,6 +62,42 @@ export function sanitizeCallTruncated(raw: unknown): boolean {
 }
 
 /**
+ * THE HONESTY FACTS A SETTLED ASSISTANT MESSAGE CARRIES — from the ONE place
+ * that decides them, so no path can settle a message and forget one (M3.1).
+ *
+ * WHY THIS EXISTS (cold review, ticket 08c-1, RECURRENCE against "degradation
+ * must be VISIBLE"). `ChatView.send` settles its assistant message in TWO
+ * places: the success path, which spread every fact off `outcome`, and the
+ * `catch`, which built its own object from `error`/`errorKind` alone. So a turn
+ * where the server had ALREADY said `projectContext:'failed'` — or that the
+ * server had already reported as a partly-read call — and whose stream then
+ * broke, rendered its partial answer with NO notice, and persisted none. The
+ * facts existed; the second writer simply did not carry them.
+ *
+ * Every one of those fields is a statement about what the user is looking at,
+ * and the failure path is exactly when they matter most. Making both callers ask
+ * this function is what stops the next field from being forgotten by the same
+ * door: a new honesty fact is added HERE, and both paths get it for free.
+ */
+export interface SettledFacts<TIncomplete, TSource> {
+  source: TSource | null
+  projectContext: ProjectContextStatus | null
+  incomplete: TIncomplete | null
+  callTruncated: boolean
+}
+
+export function settledFacts<TIncomplete, TSource>(
+  outcome: SettledFacts<TIncomplete, TSource>
+): SettledFacts<TIncomplete, TSource> {
+  return {
+    source: outcome.source,
+    projectContext: outcome.projectContext,
+    incomplete: outcome.incomplete,
+    callTruncated: outcome.callTruncated,
+  }
+}
+
+/**
  * Should this message be STORED as truncated? Write side.
  *
  * Two sources, and both are needed. `errorKind` is this session's live failure
