@@ -43,9 +43,10 @@ console clean + tests green.
    evidence, list every state the changed surface can reach — loading, empty, error, degraded,
    truncated, each fallback path — and put that list IN the evidence file with a verdict per
    row. Not a paragraph: a list, where "not driven" is a legal answer and silence is not.
-   **This is a ritual gate, added 2026-08-15 (ticket 08c-2) paying an ADR-0002 recurrence.**
-   `app.md`'s "every state driven in a browser" law is `ENFORCED none` — no battery can see
-   whether a human looked — and it failed here in the way it always fails: three new states
+   **This IS the mechanism `app.md`'s "every state driven in a browser" law now declares** —
+   added 2026-08-15 (ticket 08c-2), which promoted that law from `ENFORCED none` to this ritual
+   gate. No battery can see whether a human looked, so weakening this step silently un-enforces
+   a law that names it. It was bought the way it always is: three new states
    existed, two were driven, and the evidence file's own "not verified" list silently omitted
    the third, so the gap read as coverage. Enumerating BEFORE driving is what makes an omission
    visible, because a row with no verdict is obvious and a missing paragraph is not.

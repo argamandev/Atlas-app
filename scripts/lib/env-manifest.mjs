@@ -246,7 +246,7 @@ export const VOCABULARY_EXEMPT = {
  * table — which is the budget refusing the behaviour it exists to encourage.
  */
 /*
- * RAISED 9,420 → 9,490 on 2026-08-15 (ticket 08c-2). Mine, not the founder's,
+ * RAISED 9,420 → 9,520 on 2026-08-15 (ticket 08c-2). Mine, not the founder's,
  * and flagged to him in the handoff.
  *
  * A FOURTH RAISE IN FOUR SLICES, on the SAME law, for the FOURTH time:
@@ -271,6 +271,10 @@ export const VOCABULARY_EXEMPT = {
  * trade ADR-0002 is asking for, and it is the first of these four raises where
  * the always-on set got more enforcement per token rather than more prose.
  *
+ * The last 30 are HEADROOM, added at review: landing exactly on the ceiling means the
+ * next always-on edit of any size fails the battery before it is written, which
+ * turns a drift alarm into a tripwire on ordinary work.
+ *
  * ⚠ THE STANDING PLAN IS NOW FOUR SLICES OVERDUE. `app.md` is roughly half this
  * budget, and shrinking it to pointers at its tests (`DECISIONS.md` 2026-08-12)
  * was called "no longer optional" one raise ago and "overdue" the raise before.
@@ -279,7 +283,7 @@ export const VOCABULARY_EXEMPT = {
  * degradation, and each tier is worth having. That is an argument for doing the
  * shrink as its own mission, not for refusing the next tier.
  */
-export const TOKEN_BUDGET = 9_490
+export const TOKEN_BUDGET = 9_520
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

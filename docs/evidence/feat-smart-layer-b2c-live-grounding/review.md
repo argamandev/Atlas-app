@@ -1,19 +1,56 @@
 # Cold review — 08c-2, live-caption grounding
 
-`atlas-reviewer`, fresh context, FIVE rounds — `0b791cc`, `0e1f1b9`, `574d416`, `412942a`, `b9ff226` — each
-reading the previous round's fixes. That is the point rather than an accident: **rounds 2, 3 and
-4 each found a real defect inside a fix**, and none of those three would have been read at all if
-the branch had merged on round 1's verdict. The single `VERDICT:`/`REVIEWED:` pair below is the
-LAST round's, because `parseReviewRecord` takes the first match and an older pair sitting on top
-would clear a merge at a commit nobody read.
+`atlas-reviewer`, fresh context, SEVEN rounds — `0b791cc`, `0e1f1b9`, `574d416`, `412942a`,
+`b9ff226`, `8e1d8fd`, `a4ffac3` — each reading the previous round's fixes. That is the point
+rather than an accident: **rounds 2, 3, 4 and 6 each found a real defect inside a fix**, and none
+of them would have been read at all if the branch had merged on round 1's verdict. Rounds 1–4
+were product code; round 5 approved it and `src/` has not changed since; rounds 6–7 were the
+mechanism bookkeeping ADR-0002 binds to the merge.
+
+The single `VERDICT:`/`REVIEWED:` pair below is the LAST round's, because `parseReviewRecord`
+takes the first match and an older pair on top would clear a merge at a commit nobody read.
 
 VERDICT: APPROVED
-REVIEWED: b9ff226
+REVIEWED: a4ffac3
 
-FINDINGS: none in round 5 — it confirmed round 4's fix behaviourally identical to the local
-version it replaced, the mutation genuinely failing in BOTH directions (drop the notice, or add
-one when nothing was cut), scope clean, 1094/1094, `tsc` clean. Rounds 1–4 and their answers are
-below, in prose.
+Round 7 verified independently, not by reading: `parseLaws` on main's and the branch's `app.md`
+(the fourth tier is now inside the captured ENFORCED reason), `recurrenceProblems` returning `[]`,
+a diff of every law's parsed enforcement kind across all five always-on files showing exactly ONE
+change and no law weakened, `/verify-app` step 8b existing and requiring what the promoted law
+claims, `env:health` 14 → 13, battery 1094/1094, `tsc` clean, `src/` untouched since `b9ff226`.
+Its two NITs — step 8b's rationale still calling the law `ENFORCED none`, and the budget landing
+one token under its ceiling — are fixed in the commit carrying this line.
+
+## Round 6 — at `8e1d8fd`
+
+---
+
+FINDING · BLOCKER · the fourth tier was recorded where the parser cannot see it
+
+It sat AFTER the third tier's paragraph, and `enforcementOf()` ends a declaration at the next
+`**UPPERCASE` marker — so the law's parsed ENFORCED reason was byte-identical to main's. The
+mechanism was real and the declaration recorded nothing, which is the same class of defect as a
+law whose stated reason is wrong: the next reader cannot check it.
+
+RECURRENCE: no
+
+ANSWERED: moved inside the clause and unbolded so it does not terminate it. Verified by running
+`parseLaws` and `recurrenceProblems` directly rather than by reading the file.
+
+---
+
+FINDING · BLOCKER · a promotion this branch had earned was never declared
+
+`Anything that decides what a screen SAYS gets every one of its states driven in a browser` still
+read `ENFORCED none`, its text saying the ritual gate "does not exist yet" — while this branch had
+built exactly that gate. An unclaimed promotion is invisible to `env:health`, which is the number
+ADR-0002 exists to move.
+
+RECURRENCE: no
+
+ANSWERED: the law declares the ritual gate and names the step. `UNENFORCED LAWS` 14 → 13, and a
+diff of every law's parsed enforcement kind across all five always-on files confirms exactly one
+changed and none was weakened to get there.
 
 ## Round 4 — at `412942a`
 
@@ -65,7 +102,9 @@ second event channel for a route with weeks to live would be the wrong trade.
 
 FINDING · NIT · the ticket claimed "merged" on an unmerged branch
 
-RECURRENCE: no. ANSWERED — it says what is true at the time it is read.
+RECURRENCE: no
+
+ANSWERED — it says what is true at the time it is read.
 
 ## Round 2 — at `0e1f1b9`
 
@@ -111,7 +150,11 @@ law is enforceable, it was simply unenforced.
 FINDING · NIT · the legacy empty-caption sentence was a weaker paraphrase of v2's
 
 Two unlinked copies, and the one telling the model not to answer from its own knowledge was the
-weaker. RECURRENCE: no. ANSWERED — `NO_CAPTIONS_YET` is one exported declaration both routes
+weaker.
+
+RECURRENCE: no
+
+ANSWERED — `NO_CAPTIONS_YET` is one exported declaration both routes
 import, asserted by test.
 
 ---
@@ -119,15 +162,21 @@ import, asserted by test.
 FINDING · NIT · `liveCallLabel` went on the wire unbounded
 
 The same client-unbounded/server-refusing shape the caption fix had just closed, one field over —
-unreachable today only because a company name is short. RECURRENCE: no. ANSWERED — bounded and
+unreachable today only because a company name is short.
+
+RECURRENCE: no
+
+ANSWERED — bounded and
 newline-collapsed at the source. "Only reachable later" is exactly how the caption one shipped.
 
 ---
 
 FINDING · NIT · STATUS.md said "two" unseen states, and the review record's verdict pair was round 1's
 
-RECURRENCE: no. ANSWERED — the count is correct now that the third state is driven, and this
-file's verdict pair is round 2's, as explained at the top.
+RECURRENCE: no
+
+ANSWERED — the count is correct now that the third state is driven, and this
+file's verdict pair is the last round's, as explained at the top.
 
 ## Round 1 — at `0b791cc`
 
