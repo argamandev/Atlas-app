@@ -22,6 +22,8 @@ import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Fac
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
+import { clientCaptionPayload } from '@/lib/chat/turnRoute'
+import { LIVE_CAPTIONS_MAX_CHARS } from '@/lib/chat2/requestScope'
 import type { ChatSnip } from '@/lib/chat/grounding'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
@@ -255,8 +257,18 @@ export function LiveBroadcastView({
   // captions are what the viewer is asking about — and a header baked into the
   // text is the first thing such a cut removes. Losing it means the model reads
   // an anonymous transcript and can attribute it to nobody.
+  //
+  // BOUNDED BEFORE IT GOES ON THE WIRE. The request gate refuses past
+  // `LIVE_CAPTIONS_MAX_CHARS`, and a two-hour call passes that — which would have
+  // 400'd every question on exactly the long calls the server's truncation exists
+  // to serve. The cut keeps the END, the same direction the server cuts, and
+  // stays above the injection budget so the server still sees more than it can
+  // carry and still says so on screen (`lib/chat/turnRoute.ts`).
   const liveCaptionsText = useMemo(
-    () => (words.length ? words.map((w) => w.text).join(' ') : undefined),
+    () =>
+      words.length
+        ? clientCaptionPayload(words.map((w) => w.text).join(' '), LIVE_CAPTIONS_MAX_CHARS)
+        : undefined,
     [words]
   )
   const liveCallLabel = useMemo(

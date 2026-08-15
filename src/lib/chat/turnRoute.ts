@@ -75,3 +75,28 @@ export function chooseChatRoute(turn: TurnAttachments): ChatRoute {
 export function legacyLiveContext(grounding?: Grounding): string | undefined {
   return grounding?.kind === 'live' ? grounding.captions : undefined
 }
+
+/**
+ * The caption payload a client may put on the wire, bounded so the REQUEST GATE
+ * never has to refuse a real call.
+ *
+ * THE BUG THIS EXISTS TO KILL (cold review, 08c-2). The live view held the whole
+ * caption stream and sent all of it on every turn. `parseGrounding` refuses past
+ * `LIVE_CAPTIONS_MAX_CHARS`, so a long enough call would have made EVERY question
+ * 400 — with the route's English "this grounding cannot be honoured" landing in a
+ * Hebrew panel. And the case that broke is precisely the one `buildLiveBlock`'s
+ * front-truncation was written to serve: the gate refused before the truncation
+ * could ever run.
+ *
+ * IT KEEPS THE END, matching the server's own truncation direction, so the two
+ * cuts cannot disagree about which half of a call the user is asking about.
+ *
+ * AND IT MUST STAY ABOVE THE INJECTION BUDGET. Capping the client at the budget
+ * instead would mean the server never sees more than it can carry, so it would
+ * never report `truncated` — the notice would vanish from the screen while the
+ * degradation behind it got worse. This is the request ceiling, more than three
+ * times the budget, so a long call still arrives visibly over it.
+ */
+export function clientCaptionPayload(captions: string, maxChars: number): string {
+  return captions.length <= maxChars ? captions : captions.slice(captions.length - maxChars)
+}

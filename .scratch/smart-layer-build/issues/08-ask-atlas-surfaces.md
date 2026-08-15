@@ -1,6 +1,7 @@
 # B2 · Ask Atlas surfaces
 
-Status: in-progress — 08a done · 08b done · 08c SPLIT AGAIN: 08c-1 done · 08c-2, 08c-3 OPEN
+Status: in-progress — 08a done · 08b done · 08c SPLIT AGAIN: 08c-1 done · 08c-2 BUILT, NOT YET
+VERIFIED (branch `feat/smart-layer-b2c-live-grounding`) · 08c-3 OPEN
 Blocked by: 07
 
 Spec §2.3 + §6 B2. `TranscriptChatPanel` (live calls, transcripts, multiview) +
@@ -117,8 +118,18 @@ only"** — so 08c runs as 08c-1 → 08c-2 → 08c-3, sequential, same reason 08
    gets both today. A fifth variant would have made that ordinary pair unrepresentable and stopped
    the mention scoping while the chip still promised it. So `projectId` is its own field beside the
    union (`TurnScope`), and the "accepted ⇒ consumed" guard covers it.
-2. **08c-2 — live captions** as a grounding recipe (probably `{kind:'live'}` carrying the caption
-   text). Still open.
+2. **08c-2 — live captions. BUILT, NOT YET VERIFIED.** `{kind:'live'}` carrying the caption text —
+   the only recipe carrying CONTENT rather than an id, because a call in progress has no stored row
+   to name, so the gate bounds it as content instead of pretending prose has a charset. Fenced and
+   budgeted like a call but **truncated from the FRONT**: a live viewer asks about what was just
+   said, so the surface says `liveTruncated`, never `callTruncated` — the wrong one names the
+   stretch the model did not read. "No captions yet" is its own state on both routes.
+   **The route choice moved from the MOUNT to the TURN** (`lib/chat/turnRoute.ts`): the live host
+   also owns a document pane, and a turn carrying a snip falls back to the old route, which honours
+   it in full. That replaced a throw which would have refused a question the product can answer.
+   **Still owed before merge: `/verify-app` on a running live call in both locales, and a cost
+   measurement against the ≤$0.06/answer line** — a 60,000-char injection per turn is the same
+   shape as the stuffed-call number, and it has not been priced.
 3. **08c-3 — `documentRef` + snips.** Needs image content blocks in the loop, not just text. The
    biggest of the three. Still open. **The old `/api/chat` dies at the end of this one.**
 4. ~~A founder call on the "stuffed FIRST turn" wording.~~ **CLOSED 2026-08-15.** Founder chose to

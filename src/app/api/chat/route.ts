@@ -122,7 +122,14 @@ export async function POST(req: NextRequest) {
   const transcriptId: string | undefined = body?.transcriptId || undefined
   // The LIVE view sends the on-screen captions directly (there's no completed transcript yet) so the
   // chat is grounded on the call in front of the user — not a DB lookup that could hit another company.
-  const liveContext: string | undefined = body?.liveContext || undefined
+  //
+  // A TYPE CHECK, NOT A TRUTHINESS ONE (08c-2, cold review). `|| undefined` turned
+  // an EMPTY caption string into "no live context", which fell through to a
+  // company lookup — a different grounding from the one the live panel's caption
+  // is promising on screen, chosen silently. Empty is a real state: a live call
+  // that has not said anything yet. It stays empty, and the block below carries
+  // that rather than substituting the company's corpus for it.
+  const liveContext: string | undefined = typeof body?.liveContext === 'string' ? body.liveContext : undefined
   // A chat inside a project inherits that project's own written context. Loaded
   // through the USER'S client below, so a projectId belonging to someone else
   // returns nothing and injects nothing — RLS decides, not this route.
@@ -147,9 +154,19 @@ export async function POST(req: NextRequest) {
     return textResponse('The chat model isn’t configured yet (missing GEMINI_API_KEY).')
   }
 
-  const ctx = liveContext
-    ? { text: liveContext.slice(0, 40_000), source: null }
-    : await getChatContext(companyId, transcriptId)
+  // `!== undefined`, for the reason stated where `liveContext` is read: a live
+  // grounding with nothing said yet must not fall through to the company corpus.
+  const ctx =
+    liveContext !== undefined
+      ? {
+          text: liveContext
+            ? liveContext.slice(0, 40_000)
+            : // Said to the model rather than left blank, so it does not answer
+              // from its own knowledge under a caption promising this call.
+              '(this call is live, but nothing has been transcribed yet)',
+          source: null,
+        }
+      : await getChatContext(companyId, transcriptId)
 
   // Snipped pages ride the documentRef page-text grounding: image = authority on the
   // numbers, page prose = surrounding context (spec 2026-07-17).
