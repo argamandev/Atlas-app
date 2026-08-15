@@ -107,6 +107,13 @@ above, so those were driven again rather than argued about:
 | 14 | **the send ARROW with the picker open** — was a dead button (guard sat on every send path); now sends | HE | ✅ driven |
 | 15 | unknown-company notice, with its NEW wording pointing at `@` | HE | ✅ driven — *"לא זיהיתי חברה בשם הזה. אפשר לבחור אותה מהרשימה עם @"* |
 | 16 | rows 7 and 8 (Enter picks / Enter sends when empty) after the guard moved behind `fromKey` | HE | ✅ re-driven, unchanged |
+| 17 | the same unknown-company notice, EN wording | EN | ✅ driven — *"I couldn't identify a company by that name. You can pick it from the list with @…"* |
+
+**Observed while driving row 17, and NOT fixed:** `notice` is held in state as a resolved STRING, so
+switching locale mid-conversation leaves the previous turn's caveat in the old language until the
+next turn replaces it. Pre-existing shape, not introduced here, and now cheap to close because
+`chooseIntakeNotice` returns a KEY — storing the key and resolving the copy at render would do it.
+Filed in the 09b ticket rather than fixed, because it is outside the founder's stated scope.
 
 **The notice matrix itself is now held by a TEST, not by this table.** The review's third finding was
 right that the state this commit actually changed server-side — which of the five caveats the panel

@@ -91,8 +91,14 @@ resolved the company — otherwise a green MAYA search would be reported as a co
    and the first turn is often the sentence handed over from workspace chat, not anything typed in
    the panel. This is the direct cause of the founder's *"i even clarified it"*. The `@` path is
    immune (the pin is state, not text), so this now bites only the typed path.
-2. **An unresolved company still gets a fluent answer.** `buildSelectionPrompt` is never told that
-   the company failed to resolve, so the model answers confidently from the local shelf
-   (*"אין לי את המסמכים שלהם"*) while the honest signal is a grey footnote below it that neither
-   names the string that failed nor asks for anything. This is the founder's complaint #1 and it is
-   NOT closed by `@` alone — only made avoidable by using `@`.
+2. **The intake's `notice` is stored as a resolved STRING, not a key**, so switching locale
+   mid-conversation leaves the previous turn's caveat in the old language until the next turn
+   replaces it. Seen on screen while driving row 17. Pre-existing; cheap to close now that
+   `chooseIntakeNotice` returns a key — store the key, resolve the copy at render.
+3. **An unresolved company still gets a fluent answer.** `buildSelectionPrompt` is never told that
+   the company failed to resolve, so the model still answers confidently from the local shelf
+   (*"לא מצאתי כאן דוחות של…"* — driven, and it is still what a user reads FIRST). The founder's
+   complaint #1 is now half-closed: the grey notice below that sentence does tell them what to do
+   (*"אפשר לבחור אותה מהרשימה עם @"*), but the model's own confident denial is still above it and
+   still louder. Closing it properly means handing the selection step the fact — the same M3.2 shape
+   `companyPin` just applied one layer up.
