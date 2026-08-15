@@ -47,6 +47,7 @@ import { decideTerminal, type IncompleteCode } from './terminal'
 import { chatMode, modeChanged, type ChatMode } from './mode'
 import { defang } from './fence'
 import { buildCallBlock, type CallForInjection } from './callInjection'
+import { buildLiveBlock, type LiveCaptions } from './liveInjection'
 import {
   buildProjectBlock,
   PROJECT_UNAVAILABLE_SUMMARY,
@@ -159,6 +160,21 @@ export interface RunChatLoopArgs {
    */
   loadCall?: (transcriptId: string) => Promise<CallForInjection | null>
   /**
+   * THE LIVE CALL'S CAPTIONS, when this turn is grounded in one (08c-2).
+   *
+   * An ARGUMENT, not a field on `ChatScope`, and the split is the point.
+   * `ChatScope` is what the TOOL HANDLERS query with — ids they filter on — and
+   * caption text is not that. It is content for this turn, in the same position
+   * as the loaded call: prepended to the user message, fenced, counted as a
+   * source. Putting it on the scope would have made every handler's parameter
+   * object carry a document.
+   *
+   * There is no `loadLive` beside `loadCall` because there is nothing to load: a
+   * running call has no stored row yet, which is the whole reason this recipe
+   * carries its content instead of an id (`requestScope.ts`).
+   */
+  live?: LiveCaptions
+  /**
    * Loads the project named by `scope.projectId`. Injectable for the same reason
    * `loadCall` is — the real one reaches Supabase through the caller's own client.
    *
@@ -225,6 +241,31 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
     yield { type: 'grounding', state: callBlock.truncated ? 'truncated' : 'whole', source: callBlock.source }
   }
 
+  // ─── LIVE-CAPTION INJECTION (spec §2.3, ticket 08c-2) ──────────────────────
+  //
+  // The same position in the turn as the call above, and deliberately the same
+  // shape — fenced, budgeted, reporting its own truncation on the same
+  // `grounding` event. What differs is that nothing is LOADED: a call in progress
+  // has no stored row, so the surface sends what the user is looking at.
+  //
+  // WHICH IS WHY THERE IS NO FAILURE PATH HERE and there is one for a call. The
+  // call path can fail because it asks a database a question; this one cannot,
+  // because the text arrived with the request. The nearest thing to a failure —
+  // no captions yet — is not one: it is a live call that has not said anything,
+  // and `buildLiveBlock` gives the model that sentence rather than an empty block.
+  //
+  // `source` is NULL on the event, and that is the honest value rather than a
+  // missing one: a citation chip names a stored call, and this call has not
+  // become one yet. The union guarantees `live` and `call` never both arrive, so
+  // these two blocks can never both be built.
+  let liveBlock: ReturnType<typeof buildLiveBlock> | null = null
+  if (args.live) {
+    liveBlock = buildLiveBlock(args.live)
+    yield { type: 'grounding', state: liveBlock.truncated ? 'truncated' : 'whole', source: null }
+  }
+
+  const groundingBlock = callBlock ?? liveBlock
+
   const messages: Anthropic.MessageParam[] = [
     ...history.map((t) => ({ role: t.role, content: t.content }) as Anthropic.MessageParam),
     {
@@ -233,7 +274,7 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       // prompt. The system block is the cache-stable prefix (`systemPrompt.ts`),
       // and a 60,000-char call pushed in front of it would vary per request —
       // destroying the one property that block's ordering exists to preserve.
-      content: callBlock ? `${callBlock.text}\n\n${message}` : message,
+      content: groundingBlock ? `${groundingBlock.text}\n\n${message}` : message,
     },
   ]
 
@@ -330,7 +371,11 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // built on. That is the round-2 hole in `terminal.ts` arriving through a new
   // door. (Verification itself is off today; this makes the pool correct for when
   // it returns, rather than leaving a hole for it to return into.)
-  let sourcePool = callBlock ? '\n' + callBlock.text : ''
+  // Injected LIVE CAPTIONS are a source on exactly the same terms as an injected
+  // call — a turn can legitimately answer from them without calling a tool, which
+  // is the point of injecting them — so they seed the pool through the same
+  // variable rather than through a second branch that could be forgotten.
+  let sourcePool = groundingBlock ? '\n' + groundingBlock.text : ''
   let citationRetried = false
   // Two facts the terminal decision needs, and they are NOT the same question as
   // "is sourcePool empty" — round 2's hole. A turn whose every tool failed has an
@@ -342,7 +387,7 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // source that survived. It does not change any branch today (`anySourceSurvived`
   // is only consulted when a tool ran) — it is set so the fact stays true rather
   // than accidentally true.
-  let anySourceSurvived = callBlock !== null
+  let anySourceSurvived = groundingBlock !== null
   // EVERY delta this turn sends, accumulated at the one point they are yielded, so
   // `anyTextEmitted` describes what the USER SAW rather than what the last API
   // response happened to contain. It does NOT mean every delta is quote-checked:

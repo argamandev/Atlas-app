@@ -249,12 +249,19 @@ export function LiveBroadcastView({
   const activeIndex = useMemo(() => activeWordIndex(flat, playingRel), [flat, playingRel])
   // The on-screen captions as plain text — fed to "Ask Atlas" so it answers about THIS live call
   // (not a DB lookup that could hit a different company). Undefined until the first captions arrive.
+  //
+  // WHOSE CALL IT IS IS NO LONGER PREPENDED TO THIS STRING (08c-2). It rides its
+  // own field, because a long call is truncated from the FRONT — the recent
+  // captions are what the viewer is asking about — and a header baked into the
+  // text is the first thing such a cut removes. Losing it means the model reads
+  // an anonymous transcript and can attribute it to nobody.
   const liveCaptionsText = useMemo(
-    () =>
-      words.length
-        ? `${[companyName, quarter].filter(Boolean).join(' — ')}\n\n${words.map((w) => w.text).join(' ')}`
-        : undefined,
-    [words, companyName, quarter]
+    () => (words.length ? words.map((w) => w.text).join(' ') : undefined),
+    [words]
+  )
+  const liveCallLabel = useMemo(
+    () => [companyName, quarter].filter(Boolean).join(' — ') || undefined,
+    [companyName, quarter]
   )
 
   function onTab(key: string) {
@@ -780,7 +787,22 @@ export function LiveBroadcastView({
         <TranscriptChatPanel
           companyId={companyId}
           transcriptId={undefined}
-          liveContext={liveCaptionsText}
+          // ON THE NEW BACKEND (ticket 08c-2). The live view displays exactly one
+          // grounding — "Atlas is following this call live" — and v2 now honours
+          // it: the captions on screen are injected, fenced and budgeted, and the
+          // surface is told when they did not all fit (`liveInjection.ts`).
+          //
+          // ALWAYS SET, INCLUDING BEFORE THE FIRST CAPTION. `captions: ''` is the
+          // honest description of a call that has started and not yet said
+          // anything, and the backend has a sentence for it. Withholding the
+          // grounding until words arrive would instead make those first seconds
+          // silently answer as an ordinary company question underneath a caption
+          // promising the live call.
+          //
+          // A turn that also carries a snip or a marked report page still goes to
+          // the old route, per turn, until 08c-3 teaches the loop image content
+          // blocks — `lib/chat/turnRoute.ts`.
+          grounding={{ kind: 'live', captions: liveCaptionsText ?? '', label: liveCallLabel }}
           quote={chat.seed}
           seedNonce={chat.nonce}
           docRef={chat.docRef}

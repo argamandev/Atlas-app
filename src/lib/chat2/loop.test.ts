@@ -762,6 +762,153 @@ test('an ungrounded turn emits NO grounding event — absence is a claim too', a
   )
 })
 
+// ─── LIVE-CAPTION INJECTION (ticket 08c-2) ───────────────────────────────────
+//
+// THIS IS THE "ACCEPTED ⇒ CONSUMED" MECHANISM FOR THE LIVE RECIPE, and it has to
+// be a behavioural test rather than the file scan at the foot of
+// `requestScope.test.ts`. That scan looks for scope IDS read off a scope-shaped
+// object; live captions are neither — they are content, handed to the loop as an
+// argument. A recipe the gate accepts and the loop drops on the floor would be
+// invisible to the scan and would render exactly the ticket-07 lie: the live
+// panel's caption says "Atlas is following this call live" while the answer came
+// from the market-wide corpus. So the property is asserted where it is true —
+// the captions reach the model.
+
+function captionSender() {
+  const sent: { messages: { role: string; content: unknown }[]; system: string }[] = []
+  const client = {
+    messages: {
+      async create(args: { messages: { role: string; content: unknown }[]; system: string }) {
+        sent.push(args)
+        return { content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }
+      },
+    },
+  } as never
+  return {
+    client,
+    lastUserContent: () => String(sent[0].messages[sent[0].messages.length - 1].content),
+    sent,
+  }
+}
+
+test('a live-grounded turn puts the captions in the prompt, fenced, before the question', async () => {
+  const s = captionSender()
+  await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה הוא אמר על השוליים?',
+      todayIsrael: '2026-08-15',
+      live: { captions: 'המנכ"ל: השוליים השתפרו ברבעון הזה', label: 'אורמת — Q2 2026' },
+    })
+  )
+  const content = s.lastUserContent()
+  assert.ok(content.includes('<<<ATLAS-SOURCE>>>'), 'the captions reached the model unfenced')
+  assert.ok(content.includes('kind=live_captions'), 'live captions were fenced as a stored transcript')
+  assert.ok(content.includes('השוליים השתפרו ברבעון הזה'), 'the caption text is missing')
+  assert.ok(
+    content.indexOf('<<<END-ATLAS-SOURCE>>>') < content.indexOf('מה הוא אמר על השוליים?'),
+    'the question must come after the captions, not inside their fence'
+  )
+})
+
+test('the captions ride the USER turn, never the cache-stable system prompt', async () => {
+  const s = captionSender()
+  await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      live: { captions: 'המנכ"ל: השוליים השתפרו' },
+    })
+  )
+  assert.ok(!s.sent[0].system.includes('השוליים השתפרו'), 'the captions were put in the cacheable prefix')
+})
+
+test('a live turn announces its grounding — with a NULL source, which is the honest value', async () => {
+  // There is no citation chip to give: a call still running has no stored row to
+  // cite. `null` says that; omitting the event would say nothing happened.
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      live: { captions: 'שלום' },
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'grounding'),
+    { type: 'grounding', state: 'whole', source: null }
+  )
+})
+
+test('captions too long for one turn report `truncated`, and the answer still happens', async () => {
+  // The contrast with a missing CALL, which ends the turn: nothing failed here.
+  // The user saw what is on screen; the model saw the recent part of it and the
+  // surface is told so.
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      live: { captions: 'מילה '.repeat(40_000) },
+    })
+  )
+  const g = events.find((e) => e.type === 'grounding') as { state: string } | undefined
+  assert.equal(g?.state, 'truncated')
+  assert.equal(events[events.length - 1].type, 'done')
+})
+
+test('a live call with NO captions yet still answers, and tells the model there is nothing to read', async () => {
+  // The panel can be opened before the first caption arrives. That is not a
+  // failure and must not be a silent one either: the model is told, in the block,
+  // rather than left to answer from the corpus underneath a "following live" caption.
+  const s = captionSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה קורה?',
+      todayIsrael: '2026-08-15',
+      live: { captions: '' },
+    })
+  )
+  assert.ok(s.lastUserContent().includes('nothing has been transcribed yet'))
+  assert.deepEqual(
+    events.find((e) => e.type === 'grounding'),
+    { type: 'grounding', state: 'whole', source: null }
+  )
+})
+
+test('injected captions are a SOURCE — a live turn that calls no tool is not "all sources failed"', async () => {
+  // Same reasoning as the injected call: the whole point of injecting is that the
+  // turn can answer without a tool. If the captions did not seed the source pool,
+  // citation checking would run with nothing to check against while holding the
+  // one document the answer is built on.
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      live: { captions: 'המנכ"ל: הכנסות עלו' },
+    })
+  )
+  assert.equal(events[events.length - 1].type, 'done')
+})
+
 // ─── PROJECT-CONTEXT INJECTION (ticket 08c) ──────────────────────────────────
 //
 // The three states are the point, and only one of them is the happy path. The

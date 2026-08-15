@@ -8,6 +8,7 @@ import { incompleteMessage } from '@/lib/chat/incompleteCopy'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import type { ChatSource, ChatSnip } from '@/lib/chat/grounding'
 import { sanitizeHistory } from '@/lib/chat/history'
+import { chooseChatRoute, legacyLiveContext } from '@/lib/chat/turnRoute'
 import { appendSnip } from '@/lib/documents/snip'
 import { armSnip, getSnipTarget, subscribeSnipTarget } from '@/lib/live/snipBridge'
 import { CitationChip } from '@/components/chat/CitationPopover'
@@ -58,7 +59,6 @@ export function TranscriptChatPanel({
   companyId,
   transcriptId,
   grounding,
-  liveContext,
   quote,
   seedNonce,
   docRef,
@@ -73,19 +73,22 @@ export function TranscriptChatPanel({
    * WHICH BACKEND, AND WHY IT IS A GROUNDING RATHER THAN A FLAG (ticket 08b).
    *
    * Set → this panel talks to `/api/chat/v2` with exactly this grounding. Unset →
-   * the old `/api/chat`, which is still the only route that can honour the two
-   * groundings v2 has no code for: the live view's on-screen captions, and
-   * multiview's marked-PDF pages and snipped images.
+   * the old `/api/chat`, which is still the only route that can honour the one
+   * grounding v2 has no code for: multiview's marked-PDF pages and snipped
+   * images (08c-3, the ticket that finally retires that route).
    *
    * A boolean `useV2` would have said "which backend"; this says WHAT THE ANSWER
    * IS GROUNDED IN, and the backend follows from it. That direction matters: the
    * rule the fork exists to keep is "a surface goes to v2 only when v2 can honour
    * every grounding that surface displays", and a caller that has to name its
    * grounding cannot satisfy that rule by accident.
+   *
+   * THE LIVE CAPTIONS TRAVEL IN HERE NOW (08c-2), in the `live` recipe, and the
+   * separate `liveContext` prop is gone. It was the same fact in a second place:
+   * the panel's own guard checked the grounding for attachments and forgot
+   * `liveContext`, a review finding that the shape itself invited.
    */
   grounding?: Grounding
-  /** LIVE view only: the on-screen captions, sent as grounding context instead of a DB lookup */
-  liveContext?: string
   quote: string
   /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
@@ -212,24 +215,18 @@ export function TranscriptChatPanel({
       source: null,
     }
     try {
-      if (grounding) {
-        // A GROUNDING V2 CANNOT CARRY IS REFUSED, NOT DROPPED. Nothing on the
-        // company page can produce a marked passage or a snip — there is no
-        // document pane there — so this branch is unreachable today. It is here
-        // because "unreachable today" is how the attachment would silently stop
-        // reaching the model the day a document pane is added to a v2-grounded
-        // host: the thumbnail would still render in the user's own turn, above an
-        // answer that never saw it. Refusing says so instead.
-        //
-        // `liveContext` IS IN THIS LIST, and leaving it out was a review finding.
-        // The prop's own docstring names it as one of the two groundings v2
-        // cannot carry — so the one input the comment predicted would be lost was
-        // the one the guard did not check. It is not reachable today either (no
-        // live host passes `grounding`), and that is precisely the argument that
-        // was already wrong once here.
-        if (usedDoc || usedSnips.length > 0 || liveContext !== undefined) {
-          throw new Error(dict.chat.groundingUnsupported)
-        }
+      // WHICH BACKEND, PER TURN (08c-2). The live host has both a grounding v2
+      // can honour (its captions) and, in multiview, a document pane that can
+      // attach a marked page or a snipped image to a single turn — which v2
+      // cannot read until 08c-3. So the choice cannot be made once at mount.
+      //
+      // This REPLACES a throw. Refusing was right while no v2-grounded host owned
+      // a document pane; the live host owns one, so refusing would have turned a
+      // question the product has always answered into an error message. The old
+      // route honours every grounding on this screen in full, which is what makes
+      // handing the turn to it a fallback rather than a downgrade
+      // (`lib/chat/turnRoute.ts` carries the reasoning and its tests).
+      if (chooseChatRoute({ grounding, hasDocRef: !!usedDoc, hasSnips: usedSnips.length > 0 }) === 'v2') {
         await streamChatV2({ message: outMessage, grounding, history }, (e) => {
           switch (e.type) {
             case 'delta':
@@ -266,12 +263,14 @@ export function TranscriptChatPanel({
         // rendered as a reason beside an answer that does not exist.
         if (outcome.error) throw new Error(outcome.error)
       } else {
+        // The legacy route. `liveContext` is read back OFF THE GROUNDING rather
+        // than from a prop beside it — one fact, one place (`turnRoute.ts`).
         const res = await streamChat(
           {
             message: outMessage,
             companyId: companyId ?? undefined,
             transcriptId,
-            liveContext,
+            liveContext: legacyLiveContext(grounding),
             history,
             documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
             attachments: usedSnips.length ? usedSnips : undefined,
@@ -411,7 +410,14 @@ export function TranscriptChatPanel({
                   cut off", and both can be true at once. */}
               {m.callTruncated && !m.streaming && (
                 <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
-                  {dict.chat.callTruncated}
+                  {/* WHICH HALF WAS DROPPED depends on the recipe, and saying
+                      the wrong one names the exact stretch the model did not
+                      read. A stored call is injected from the top; live captions
+                      are injected from the most recent end (`liveInjection.ts`).
+                      Read off the prop rather than stored per message because a
+                      panel's grounding KIND cannot change while it is mounted —
+                      the live host is live for its whole life. */}
+                  {grounding?.kind === 'live' ? dict.chat.liveTruncated : dict.chat.callTruncated}
                 </p>
               )}
               {m.incomplete && !m.streaming && (
@@ -558,7 +564,7 @@ export function TranscriptChatPanel({
         </div>
         {/* what Atlas is connected to, per context (design round 2 captions) */}
         <p className="call-muted mt-2 px-1 text-center text-[11.5px] leading-[1.5]">
-          {liveContext !== undefined
+          {grounding?.kind === 'live'
             ? dict.live.askFollowLive
             : transcriptId
               ? dict.live.askConnectedCall

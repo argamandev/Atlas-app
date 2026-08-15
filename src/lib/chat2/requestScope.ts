@@ -59,6 +59,24 @@ export function asUuid(v: unknown): string | undefined {
  */
 export const TRANSCRIPT_ID_RE = /^[A-Za-z0-9_-]{1,128}$/
 
+/**
+ * The hard ceiling on the CAPTION TEXT a live-grounded request may carry.
+ *
+ * NOT the injection budget — `LIVE_BUDGET_CHARS` decides how much of a legitimate
+ * caption stream reaches the model, and exceeding that is an ordinary, visible
+ * truncation. This decides whether the body is a plausible caption payload at
+ * all: a three-hour Hebrew call sits comfortably under 200,000 characters, so
+ * anything past it is not a call, and taking it would mean defanging and slicing
+ * a megabyte per turn on the way to discarding four fifths of it.
+ *
+ * It lives HERE, with the gate that applies it, rather than beside the budget it
+ * would be confused with.
+ */
+export const LIVE_CAPTIONS_MAX_CHARS = 200_000
+
+/** The longest label a client may attach: a company name plus a quarter, bounded. */
+export const LIVE_LABEL_MAX_CHARS = 200
+
 export function asTranscriptId(v: unknown): string | undefined {
   return typeof v === 'string' && TRANSCRIPT_ID_RE.test(v) ? v : undefined
 }
@@ -85,6 +103,16 @@ export type Grounding =
   | { kind: 'company'; companyId: string }
   /** A live call or a transcript → that call injected WHOLE (`callInjection.ts`). */
   | { kind: 'call'; transcriptId: string }
+  /**
+   * A call happening RIGHT NOW → the on-screen captions, injected
+   * (`liveInjection.ts`). THE ONLY RECIPE THAT CARRIES CONTENT RATHER THAN AN ID,
+   * and that is not an inconsistency to tidy away: while a call is running there
+   * is no row to name. The transcript is written when it ends. So the client
+   * sends what the user is looking at, which is exactly the thing the surface has
+   * promised — and it is gated as CONTENT below (bounded, then fenced) rather
+   * than as an identifier.
+   */
+  | { kind: 'live'; captions: string; label?: string }
   /** Workspace chat → the shelf, via `read_workspace`. Ticket 09 wires the surface. */
   | { kind: 'shelf'; workspaceId: string }
 
@@ -150,6 +178,13 @@ export function scopeIdsFor(s: TurnScope): ScopeIds {
       return { ...ids, companyId: s.grounding.companyId }
     case 'call':
       return { ...ids, transcriptId: s.grounding.transcriptId }
+    case 'live':
+      // NO ID. The live recipe carries its own content, so there is nothing for
+      // the tool scope to be pinned to — and inventing a synthetic id here would
+      // put a field on `ChatScope` that no handler reads, which is the exact
+      // "accepted ⇒ consumed" defect this module's tests exist to catch. The
+      // captions reach the loop as what they are: text on the turn.
+      return ids
     case 'shelf':
       return { ...ids, workspaceId: s.grounding.workspaceId }
   }
@@ -209,6 +244,42 @@ export function parseGrounding(body: unknown): Grounding | null {
       // NOT `asUuid` — `transcripts.id` is `text`. See `asTranscriptId`.
       const transcriptId = asTranscriptId(r.transcriptId)
       return transcriptId ? { kind: 'call', transcriptId } : null
+    }
+    case 'live': {
+      // A CONTENT GATE, and the difference from the three id gates above is worth
+      // saying rather than leaving to be inferred from the code. There is no
+      // charset to bound here — captions are arbitrary Hebrew and English prose,
+      // with newlines, quotes and whatever the speaker said — so narrowing the
+      // SHAPE is not available as a defence and pretending otherwise would be a
+      // gate whose stated reason is wrong (`asTranscriptId`).
+      //
+      // What defends this text is that it is FENCED, exactly like every other
+      // untrusted source (`liveInjection.ts`), and that it never reaches the
+      // system prompt: `LIVE_SCOPE_SUMMARY` is a constant. What is left for this
+      // gate is a SIZE bound — the one property fencing does not give — so a
+      // request cannot spend a megabyte of defanging on its way to being cut down
+      // to the budget anyway.
+      if (typeof r.captions !== 'string') return null
+      if (r.captions.length > LIVE_CAPTIONS_MAX_CHARS) return null
+      // The label is optional; a malformed one is REFUSED rather than dropped,
+      // for the same reason a malformed `projectId` is — a live panel showing
+      // "אורמת — שיחת משקיעים" over an answer whose fence says "live investor
+      // call" is a smaller lie than the others on this page but it is the same
+      // kind, and the client has no reason to send a bad one.
+      let label: string | undefined
+      if (r.label != null) {
+        if (typeof r.label !== 'string') return null
+        if (r.label.length > LIVE_LABEL_MAX_CHARS) return null
+        // No newlines: the label rides the fence's single ATTRIBUTE LINE, and a
+        // line break in it would push caption text up into the position the model
+        // reads as fence metadata. `fenceSource` defangs and escapes the label but
+        // cannot re-join a line it was handed already broken.
+        if (/[\r\n]/.test(r.label)) return null
+        label = r.label
+      }
+      return label === undefined
+        ? { kind: 'live', captions: r.captions }
+        : { kind: 'live', captions: r.captions, label }
     }
     case 'shelf': {
       const workspaceId = asUuid(r.workspaceId)

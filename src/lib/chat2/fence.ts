@@ -31,7 +31,10 @@ export function defang(text: string): string {
 
 export interface SourceToFence {
   /** e.g. "transcript", "filing", "web" — never user-supplied. */
-  kind: 'transcript' | 'filing' | 'filing_fact' | 'web' | 'disclosure' | 'workspace'
+  // `live_captions` is deliberately distinct from `transcript`: one is a stored,
+  // reviewed call, the other is machine transcription of a call still running,
+  // and the model is told to treat their last sentence differently (08c-2).
+  kind: 'transcript' | 'filing' | 'filing_fact' | 'web' | 'disclosure' | 'workspace' | 'live_captions'
   /** Human label — untrusted (a filing/company title), always defanged. */
   label: string
   /** The quoted body — untrusted, always defanged. */
