@@ -117,11 +117,17 @@ export function isProjectContextState(v: unknown): v is ProjectContextState {
  * `LIVE_BUDGET_CHARS` and `CALL_BUDGET_CHARS` apart on exactly that reasoning:
  * equal today by coincidence is not the same as derived from one another.
  *
- * `failed` here means the READ failed or the report is gone. It does NOT mean
- * "no text could be extracted" — that is a real, non-degraded state of a scanned
- * PDF and the model is told about it inside the block (`NO_PAGE_TEXT`), so
- * calling it a failure on screen would put a warning under an answer that is as
- * good as the document allows.
+ * `failed` MEANS "NO REPORT TEXT IS IN THIS ANSWER" — and this comment said the
+ * opposite until the first real-data run of 08c-3. It read: *`failed` means the
+ * READ failed or the report is gone; it does NOT mean "no text could be
+ * extracted"*. Under that reading a scanned PDF, and a `documentId` naming no
+ * row, both reported `ok`: the read had succeeded, so the flattering branch was
+ * taken, and the screen said nothing while the model had been handed
+ * `NO_PAGE_TEXT`. That is success UI over content the server never had.
+ *
+ * The three causes — a thrown read, a deleted row, an image-only PDF — are one
+ * fact to the reader and the copy has one sentence for them, the same collapse
+ * `projectContext` makes. Distinguishing them would only ever have reached a log.
  */
 export const DOCUMENT_CONTEXT_STATES = ['ok', 'truncated', 'failed'] as const
 

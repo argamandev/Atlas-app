@@ -1392,6 +1392,38 @@ test('a FAILED page load does NOT end the turn — the passage is already in the
   assert.ok(s.blocks().some((b) => b.type === 'image'))
 })
 
+test('REGRESSION: a report with NO extracted text reports failed, not ok', async () => {
+  // FOUND BY DRIVING REAL DATA, not by this suite (M1). The read SUCCEEDS for a
+  // scanned PDF and for a documentId naming no row — `getPageText` simply returns
+  // nothing — so the first version took the `ok` branch on the strength of the
+  // read having worked. The model was correctly told the pages were unreadable
+  // and the SCREEN said nothing at all: success UI over content the server never
+  // had. The state is decided on whether any page text reached the model.
+  for (const loaded of [
+    { meta: { title: 'סרוק', quarter: 'Q2' }, pages: [] },
+    { meta: { title: 'סרוק', quarter: 'Q2' }, pages: [{ pageNo: 4, text: '   ' }] },
+    { meta: null, pages: [] },
+  ]) {
+    const s = docSender()
+    const events = await collect(
+      runChatLoop({
+        client: s.client,
+        scope: { userId: 'u1' },
+        history: [],
+        message: 'q',
+        todayIsrael: '2026-08-15',
+        documents: { documentId: 'doc-1', pages: [4], snips: [] },
+        loadDocument: async () => loaded,
+      })
+    )
+    assert.deepEqual(
+      events.find((e) => e.type === 'documentContext'),
+      { type: 'documentContext', state: 'failed' },
+      `an unreadable report reported ok: ${JSON.stringify(loaded)}`
+    )
+  }
+})
+
 test('the documentContext event lands BEFORE the answer starts, never after it', async () => {
   const s = docSender()
   const events = await collect(

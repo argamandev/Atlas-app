@@ -332,7 +332,21 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       documentMeta = loaded.meta
       const built = buildDocumentBlock(loaded.meta, loaded.pages)
       documentBlockText = built.text
-      documentState = built.truncated ? 'truncated' : 'ok'
+      // `failed` MEANS "NO REPORT TEXT IS IN THIS ANSWER", not "the read threw",
+      // and the difference cost a state on the first real-data run of this
+      // ticket. A document whose pages hold no extracted text — a scanned PDF,
+      // or a documentId that no longer names a row — took the `ok` branch,
+      // because the read had succeeded. The model was correctly told the pages
+      // were unreadable (`NO_PAGE_TEXT`), and the SCREEN said nothing at all:
+      // success UI over content the server never had.
+      //
+      // So the choke point decides on the fact it is reporting — did any page
+      // text reach the model — rather than on a proxy for it (M3.2). The three
+      // causes (a thrown read, a deleted row, an image-only PDF) collapse into
+      // the one thing the user can act on, exactly as the project load's three
+      // causes do: "the report text is not in this answer".
+      const anyPageText = loaded.pages.some((p) => (p.text ?? '').trim().length > 0)
+      documentState = !anyPageText ? 'failed' : built.truncated ? 'truncated' : 'ok'
     } else {
       documentState = 'failed'
     }

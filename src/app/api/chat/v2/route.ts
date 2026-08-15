@@ -6,7 +6,7 @@ import { createServerSupabase } from '@/lib/supabase'
 import { israelDayKey } from '@/lib/i18n/format'
 import { runChatLoop, type ChatEvent, type ChatTurn } from '@/lib/chat2/loop'
 import type { ChatScope } from '@/lib/chat2/toolDefs'
-import { parseTurnScope, scopeIdsFor } from '@/lib/chat2/requestScope'
+import { parseTurnDocuments, parseTurnScope, scopeIdsFor } from '@/lib/chat2/requestScope'
 import { CALL_SCOPE_SUMMARY } from '@/lib/chat2/callInjection'
 import { LIVE_SCOPE_SUMMARY } from '@/lib/chat2/liveInjection'
 import { DOCUMENT_SCOPE_SUMMARY } from '@/lib/chat2/documentInjection'
@@ -82,7 +82,19 @@ export async function POST(req: NextRequest) {
   // recipe. `parseTurnScope` reads both and refuses a malformed either.
   const turn = parseTurnScope(body)
   if (!turn) {
-    return NextResponse.json({ error: 'this grounding cannot be honoured' }, { status: 400 })
+    // WHICH GATE REFUSED, said accurately. `parseTurnScope` folds three
+    // questions — the grounding, the project, the attachments — into one null,
+    // and the single sentence this used to return called all three "a
+    // grounding". Attachments are not one; that is the whole point of their
+    // being a field beside the union, and a 400 that names the wrong noun sends
+    // whoever reads the log looking at the wrong half of the request. Re-parsed
+    // only on the failure path, where the cost is a pure function on a body that
+    // is already going nowhere.
+    const message =
+      parseTurnDocuments(body) === null
+        ? 'the attached report pages or images cannot be honoured'
+        : 'this grounding cannot be honoured'
+    return NextResponse.json({ error: message }, { status: 400 })
   }
   const { grounding } = turn
 
