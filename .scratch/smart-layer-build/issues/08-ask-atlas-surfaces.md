@@ -1,7 +1,7 @@
 # B2 · Ask Atlas surfaces
 
-Status: in-progress — 08a done · 08b done · 08c SPLIT AGAIN: 08c-1 done · 08c-2 DONE (verified,
-two reviews, merged) · 08c-3 OPEN — and 08c-3 is what CLOSES this ticket
+Status: in-progress — 08a done · 08b done · 08c SPLIT AGAIN: 08c-1 done · 08c-2 verified and
+reviewed three rounds, MERGING · 08c-3 OPEN — and 08c-3 is what CLOSES this ticket
 Blocked by: 07
 
 Spec §2.3 + §6 B2. `TranscriptChatPanel` (live calls, transcripts, multiview) +

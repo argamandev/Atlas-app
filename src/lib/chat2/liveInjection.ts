@@ -110,6 +110,19 @@ export function keepRecent(text: string, maxChars: number): { text: string; trun
   return { text: kept.trimStart(), truncated: true }
 }
 
+/**
+ * What the model is told when the earlier part of a live call did not fit.
+ *
+ * ONE DECLARATION, for the same reason `NO_CAPTIONS_YET` is: BOTH routes cut, so
+ * both must say they cut. Round 3 of review caught the legacy route taking
+ * `keepRecent(...).text` and dropping the `truncated` flag on the floor — the
+ * identical cut, silently, while v2 announced it. Sharing the direction without
+ * sharing the notice fixed half a defect.
+ */
+export const LIVE_TRUNCATION_NOTICE =
+  '[This call has run longer than one turn can carry. The EARLIER part of it is NOT shown — ' +
+  'what follows is only the most recent stretch. Say so if the answer depends on the part you cannot see.]'
+
 export interface LiveCaptions {
   /** The caption text so far. May be empty — a call that has not spoken yet. */
   captions: string
@@ -147,11 +160,7 @@ export function buildLiveBlock(input: LiveCaptions, budgetChars: number = LIVE_B
 
   const { text: kept, truncated } = keepRecent(captions, budgetChars)
 
-  const body = truncated
-    ? '[This call has run longer than one turn can carry. The EARLIER part of it is NOT shown — ' +
-      'what follows is only the most recent stretch. Say so if the answer depends on the part you cannot see.]\n\n' +
-      kept
-    : kept
+  const body = truncated ? `${LIVE_TRUNCATION_NOTICE}\n\n${kept}` : kept
 
   return { text: fenceSource({ kind: 'live_captions', label, content: body }), truncated }
 }

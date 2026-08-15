@@ -7,12 +7,41 @@ the first match, and a round-1 verdict sitting at the top would clear a merge at
 reviewed. Round 1 is restated in prose beneath it.
 
 VERDICT: CHANGES
-REVIEWED: 0e1f1b9
+REVIEWED: 574d416
 
-Every finding from both rounds is answered below. Round 1's answers landed in `1e45e30`; round
-2's in the commit carrying this file.
+Three rounds, each reading the previous round's fixes — which is the point: round 2 and round 3
+each found a real defect *inside a fix*, and neither would have been read at all if the branch
+had merged on round 1's verdict.
 
-## Round 2 — the fixes, reviewed
+## Round 3 — at `574d416`
+
+---
+
+FINDING · WARNING · the legacy route shared the CUT but dropped the NOTICE
+
+`keepRecent(liveContext, 40_000).text` discarded the returned `truncated` flag, so the old route
+dropped the earlier half of a long live call and said nothing, while v2 announced the identical
+cut. Round 2 shared which half survives and stopped there; whether the model is told was still
+decided per-route.
+
+RECURRENCE: yes → app.md, "Degradation must be VISIBLE — never render success UI for content the
+server dropped"
+
+ANSWERED: `LIVE_TRUNCATION_NOTICE` is one declaration both routes use, and the legacy route now
+goes through `liveContextBlock()`, which cannot return the text without the notice — the flag is
+consumed at the same point it is produced. The existing "BOTH routes keep the SAME half" test
+extends one path further: both must also REPORT the cut. **Stated limit, in the code:** this
+tells the MODEL, not the SCREEN — the `grounding` event is a v2 frame, so a legacy-fallback turn
+still renders no `liveTruncated` notice. That gap dies with the route at 08c-3, and building a
+second event channel for a route with weeks to live would be the wrong trade.
+
+---
+
+FINDING · NIT · the ticket claimed "merged" on an unmerged branch
+
+RECURRENCE: no. ANSWERED — it says what is true at the time it is read.
+
+## Round 2 — at `0e1f1b9`
 
 ---
 

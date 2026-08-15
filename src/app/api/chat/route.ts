@@ -15,7 +15,31 @@ import {
 } from '@/lib/chat/attachments'
 import { getDocumentMeta } from '@/lib/documents'
 import { sanitizeHistory } from '@/lib/chat/history'
-import { keepRecent, NO_CAPTIONS_YET } from '@/lib/chat2/liveInjection'
+import { keepRecent, LIVE_TRUNCATION_NOTICE, NO_CAPTIONS_YET } from '@/lib/chat2/liveInjection'
+
+/** The chars of live captions this route carries. Its own ceiling; not v2's. */
+const LEGACY_LIVE_MAX_CHARS = 40_000
+
+/**
+ * The live captions this route puts in front of the model — cut from the same
+ * end v2 cuts from, and SAYING SO when it cuts.
+ *
+ * Round 3 of 08c-2's review found the direction shared and the NOTICE dropped:
+ * this route took `keepRecent(...).text` and discarded the `truncated` flag, so
+ * the earlier half of a long call vanished with no sentence about it while v2
+ * announced the identical cut. Sharing which half survives without sharing
+ * whether the model is told is half a fix.
+ *
+ * WHAT IS STILL NOT TRUE HERE, said plainly: this tells the MODEL, not the
+ * SCREEN. The `grounding` event carrying `state: 'truncated'` is a v2 frame, and
+ * this route has no way to send one — so a legacy-fallback turn (a snip attached
+ * during a long live call) renders no `liveTruncated` notice. That gap dies with
+ * this route at 08c-3 and is not worth building a second event channel for.
+ */
+function liveContextBlock(captions: string): string {
+  const { text, truncated } = keepRecent(captions, LEGACY_LIVE_MAX_CHARS)
+  return truncated ? `${LIVE_TRUNCATION_NOTICE}\n\n${text}` : text
+}
 
 // Chat over the transcript DB (brief §5.3), now **streamed** (Feature 5). Gemini 3.5 Flash —
 // same engine + GEMINI_API_KEY as the formatting pipeline. We proxy Gemini's SSE stream and
@@ -170,7 +194,7 @@ export async function POST(req: NextRequest) {
           // Said to the model rather than left blank, so it does not answer from
           // its own knowledge under a caption promising this call. The SAME
           // sentence v2 sends — it was a weaker paraphrase here until review.
-          text: liveContext ? keepRecent(liveContext, 40_000).text : NO_CAPTIONS_YET,
+          text: liveContext ? liveContextBlock(liveContext) : NO_CAPTIONS_YET,
           source: null,
         }
       : await getChatContext(companyId, transcriptId)

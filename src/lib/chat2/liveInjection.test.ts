@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildLiveBlock, keepRecent, LIVE_BUDGET_CHARS, LIVE_SCOPE_SUMMARY, NO_CAPTIONS_YET } from './liveInjection'
+import {
+  buildLiveBlock,
+  keepRecent,
+  LIVE_BUDGET_CHARS,
+  LIVE_SCOPE_SUMMARY,
+  LIVE_TRUNCATION_NOTICE,
+  NO_CAPTIONS_YET,
+} from './liveInjection'
 
 test('captions that fit are injected whole, inside the fence', () => {
   const b = buildLiveBlock({ captions: 'שלום לכולם, נתחיל בסקירת הרבעון', label: 'אורמת — Q2 2026' })
@@ -110,6 +117,15 @@ test('BOTH routes keep the SAME half of a long call, at their own ceilings', () 
     assert.ok(text.includes('THE-LATEST-THING'), `${name} dropped the live edge`)
     assert.equal(text.includes('OPENING'), false, `${name} kept the opening instead`)
   }
+
+  // ...AND BOTH MUST SAY THEY CUT (review round 3). Sharing the direction while
+  // one path stays silent about the cut is half a fix: the legacy route took
+  // `keepRecent(...).text` and dropped the `truncated` flag, so the earlier half
+  // of a long call vanished with no sentence about it while v2 announced the
+  // identical cut. The flag is the fact; discarding it is the defect.
+  assert.equal(legacy.truncated, true, 'the legacy path did not report the cut it made')
+  assert.equal(v2.truncated, true, 'v2 did not report the cut it made')
+  assert.ok(v2.text.includes(LIVE_TRUNCATION_NOTICE), 'v2 cut without telling the model')
 })
 
 test('keepRecent reports truncation rather than leaving it to be inferred from a length', () => {
