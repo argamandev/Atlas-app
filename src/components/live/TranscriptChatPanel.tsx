@@ -426,7 +426,7 @@ export function TranscriptChatPanel({
                       Read off the prop rather than stored per message because a
                       panel's grounding KIND cannot change while it is mounted —
                       the live host is live for its whole life. */}
-                  {grounding?.kind === 'live' ? dict.chat.liveTruncated : dict.chat.callTruncated}
+                  {grounding.kind === 'live' ? dict.chat.liveTruncated : dict.chat.callTruncated}
                 </p>
               )}
               {/* The ATTACHED REPORT, said separately from the call above —
@@ -588,7 +588,7 @@ export function TranscriptChatPanel({
         </div>
         {/* what Atlas is connected to, per context (design round 2 captions) */}
         <p className="call-muted mt-2 px-1 text-center text-[11.5px] leading-[1.5]">
-          {grounding?.kind === 'live'
+          {grounding.kind === 'live'
             ? dict.live.askFollowLive
             : transcriptId
               ? dict.live.askConnectedCall

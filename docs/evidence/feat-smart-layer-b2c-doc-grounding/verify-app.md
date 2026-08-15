@@ -84,12 +84,41 @@ both files dropped out of `git diff` entirely, and the `ok` path was re-driven a
 `npm test` 1125 → 1126 green (the regression case above), `npx tsc --noEmit` clean,
 `npm run build` clean.
 
-## Observation, not a finding
+## Cold review — round 1, `atlas-reviewer`, verdict CHANGES
 
-When the report text is unreadable, the model sometimes QUOTES the English `NO_PAGE_TEXT`
-instruction into an otherwise-Hebrew answer, and that mixed run renders with its quote mark and
-full stop on the wrong side. The sentence is an English prompt constant exactly like every other
-one in this stack (`NO_CAPTIONS_YET`, shipped at 08c-2, has the identical shape), and the
-rendering is `Markdown` inside `dir="auto"` — pre-existing for any answer mixing scripts. Recorded
-here rather than fixed, because narrowing it is a change to the prompt contract and belongs with
-the structural-citations ticket, not this one.
+**BLOCKER — pages PARTLY readable reported `ok`.** The fix above decided the state with
+`some()` — *did ANY page survive* — which is the wrong question when a marked passage spans a
+text page and a scanned one. One page arrives, `some()` says yes, the state reads `ok`, and the
+answer is built on a strict SUBSET of the pages the reference block on screen names. The same
+defect the `ok`-for-an-unreadable-report fix had just closed, one page over, in the fix itself.
+
+Now a SET DIFFERENCE — `built.pages` (what the model was given) against `args.documents.pages`
+(what the user marked) — which also gives `DocumentBlock.pages` its first reader and makes the
+no-text branch return `[]` rather than echoing the request back. No third state was needed:
+`truncated` already means "you did not get all of it". Two cases pin it (a blank page beside a
+good one; a page with no row at all).
+
+**WARNING — the live panel's comment still described the deleted route.** Corrected.
+
+**WARNING — the retirement silently dropped the chat stack's only model-availability fallback.**
+The old route ran Gemini with a GPT-4.1 streaming fallback on a 503 or blip; `/api/chat/v2` has
+one engine. Real capability loss, recorded in `docs/open-findings.md` with why it is not a patch
+(a second engine now has to carry tool use and image blocks, which the text-only fallback never
+did) and why it is not a blocker (the failure is visible — 503, or an `error` terminal — never an
+answer).
+
+**WARNING — bidi, classified as a recurrence by the reviewer. Disputed, and mitigated anyway.**
+The observed line was MODEL ANSWER PROSE: the model quoted the English `NO_PAGE_TEXT` instruction
+into an otherwise-Hebrew answer, and the mixed run rendered with its punctuation on the wrong
+side. `app.md`'s bidi law is about lines **we** compose from data — a company name beside a
+ticker — and every one of its eight prior occurrences is that shape. Model prose inside `Markdown`
+is not reachable by a `<bdi>`-per-run rule without a bidi segmenter, so calling this a recurrence
+of that law would move a mechanism onto a surface the mechanism cannot see. What IS actionable is
+not handing the model an English sentence it wants to quote: `NO_PAGE_TEXT` now says to answer in
+the user's own language and not to repeat the note. That is named in the code as a **mitigation,
+not a mechanism**, which is the honest tier.
+
+**NITs** — `DocumentBlock.pages` documentation (fixed by the blocker fix, which gave it a reader)
+and optional chaining on a prop this diff made required (removed at both sites).
+
+After the round: `npm test` 1128 green, `npx tsc --noEmit` clean.

@@ -345,8 +345,22 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       // causes (a thrown read, a deleted row, an image-only PDF) collapse into
       // the one thing the user can act on, exactly as the project load's three
       // causes do: "the report text is not in this answer".
-      const anyPageText = loaded.pages.some((p) => (p.text ?? '').trim().length > 0)
-      documentState = !anyPageText ? 'failed' : built.truncated ? 'truncated' : 'ok'
+      //
+      // AND IT IS A SET COMPARISON, NOT A `some()` — the cold-review BLOCKER on
+      // the first version of this very fix. `some()` asks "did ANY page survive",
+      // which is the wrong question when a marked passage spans a text page and a
+      // scanned one: one page arrives, `some()` says yes, the state reads `ok`,
+      // and the answer is built on a strict SUBSET of the pages the reference
+      // block on screen names — with nothing saying so. That is the same defect
+      // the `ok`-for-an-unreadable-report fix had just closed, one page over.
+      //
+      // `built.pages` is what the model was GIVEN; `args.documents.pages` is what
+      // the user marked. Their difference is the fact, and no third state is
+      // needed: `truncated` already means "you did not get all of it".
+      const carried = new Set(built.pages)
+      const missing = args.documents.pages.filter((p) => !carried.has(p))
+      documentState =
+        built.pages.length === 0 ? 'failed' : built.truncated || missing.length > 0 ? 'truncated' : 'ok'
     } else {
       documentState = 'failed'
     }

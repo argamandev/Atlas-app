@@ -98,3 +98,19 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   the old route and the UI's capacity meter together, and that shared budget function being ONE
   function is its own law.
   **Not a law and not a blocker.** Whoever splits that block should do it as its own small mission.
+- **The chat stack has NO model-availability fallback since `/api/chat` was deleted** (recorded
+  2026-08-15, ticket 08c-3, found at cold review). The retired route ran Gemini 3.5 Flash with a
+  **GPT-4.1 streaming fallback** that fired on a 503 or a network blip, so a vendor wobble did not
+  kill a chat mid-call. `/api/chat/v2` has one engine — Anthropic Sonnet 5 — and no second one.
+  **This is a real capability LOSS, not a code cleanup**, and it is recorded here because the
+  retirement commit did not say so. It matters more than it looks: `STATUS.md` still says
+  Railway's `ANTHROPIC_API_KEY` is UNPROVEN, so today a missing or rotated key takes the whole of
+  Ask Atlas down on every surface at once, where before the live-call chat would have kept
+  answering.
+  **What IS true, and is why this is not filed as a blocker:** the failure is VISIBLE rather than
+  silent — an absent key returns 503 and a provider error ends the turn in an `error` event, which
+  the surface renders as a failure beside the answer, never as an answer. The degradation law is
+  satisfied; the availability is not.
+  **Not a law and not a blocker.** Restoring a second engine means a provider-agnostic tool loop
+  (the fallback has to carry tool use and image content blocks now, which the old text-only
+  fallback never did), so it is its own mission, not a patch.

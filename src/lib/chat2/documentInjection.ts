@@ -88,11 +88,22 @@ export const DOCUMENT_TRUNCATION_NOTICE =
  * The model has to be able to tell "there is no document here" from "this page
  * has no readable text", or it answers from its own knowledge underneath a
  * reference block quoting a passage.
+ *
+ * IT TELLS THE MODEL NOT TO QUOTE IT, and that clause was bought at verification
+ * rather than reasoned in. Driving this state on real data, the model repeated
+ * this English sentence verbatim inside an otherwise-Hebrew answer, and the
+ * resulting mixed run rendered with its quote mark and full stop on the wrong
+ * side — the shape `app.md`'s bidi law is about, arriving through the one door
+ * that law cannot reach. Answer text is model prose inside `Markdown`; no code
+ * we write wraps its runs in `<bdi>` without a bidi segmenter, so the only lever
+ * here is not to hand the model an English sentence it is tempted to quote.
+ * That is a mitigation, not a mechanism, and it is named as one.
  */
 export const NO_PAGE_TEXT =
   '(no text could be extracted from the marked pages of this report) ' +
-  'Say that you cannot read the report text, rather than answering from anything else. ' +
-  'If an image of the page is attached, read that instead.'
+  'Say IN THE USER’S OWN LANGUAGE that you cannot read the report text, rather than answering ' +
+  'from anything else. Do not quote or repeat this note — it is an instruction to you, not ' +
+  'material to show the user. If an image of the page is attached, read that instead.'
 
 export interface DocumentMeta {
   title: string
@@ -109,7 +120,14 @@ export interface DocumentBlock {
   text: string
   /** `true` means the model saw a CUT version of these pages, not all of them. */
   truncated: boolean
-  /** The page numbers actually carried, in order — what an answer may cite. */
+  /**
+   * The page numbers actually CARRIED, in order.
+   *
+   * READ BY THE LOOP, and it has to be: a page the user marked can be missing
+   * from this list while others survive — a scanned page inside a text PDF, or a
+   * page with no `document_pages` row at all — and the difference between this
+   * and the requested list is the only place that partial loss is visible.
+   */
   pages: number[]
 }
 
@@ -137,7 +155,11 @@ export function buildDocumentBlock(
     return {
       text: fenceSource({ kind: 'filing', label, content: NO_PAGE_TEXT }),
       truncated: false,
-      pages: pages.map((p) => p.pageNo),
+      // EMPTY, not the requested list. `pages` means "what the model was actually
+      // GIVEN" — that is the whole reason the loop can compare it against what the
+      // user marked — and returning the requested pages made the field describe
+      // the REQUEST, which is the one thing the caller already knows.
+      pages: [],
     }
   }
 

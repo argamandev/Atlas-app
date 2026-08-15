@@ -1424,6 +1424,63 @@ test('REGRESSION: a report with NO extracted text reports failed, not ok', async
   }
 })
 
+test('BLOCKER: pages PARTLY readable is not ok — the answer is on a subset of what was marked', async () => {
+  // Cold review, 08c-3. The state was decided with `some()` — "did ANY page
+  // survive" — which is the wrong question when a marked passage spans a text
+  // page and a scanned one. One page arrives, `some()` says yes, the state reads
+  // `ok`, and the answer is built on a strict SUBSET of the pages the reference
+  // block on screen names, with nothing saying so. Decided by SET DIFFERENCE now:
+  // what the model was given versus what the user marked.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4, 5], snips: [] },
+      // Page 5 is scanned: a row exists with no text. Page 4 is fine.
+      loadDocument: async () => ({
+        meta: { title: 'דוח', quarter: 'Q2' },
+        pages: [
+          { pageNo: 4, text: 'alpha' },
+          { pageNo: 5, text: '' },
+        ],
+      }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'truncated' },
+    'a half-read passage reported as whole'
+  )
+})
+
+test('a page with NO ROW AT ALL counts as missing, not as never asked for', async () => {
+  // `getPageText` returns only the rows it finds, so a page the user marked can
+  // simply be absent from the result. Absent and blank are the same loss.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4, 9], snips: [] },
+      loadDocument: async () => ({
+        meta: { title: 'דוח', quarter: 'Q2' },
+        pages: [{ pageNo: 4, text: 'a' }],
+      }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'truncated' }
+  )
+})
+
 test('the documentContext event lands BEFORE the answer starts, never after it', async () => {
   const s = docSender()
   const events = await collect(

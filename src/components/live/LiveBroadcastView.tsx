@@ -817,9 +817,11 @@ export function LiveBroadcastView({
           // silently answer as an ordinary company question underneath a caption
           // promising the live call.
           //
-          // A turn that also carries a snip or a marked report page still goes to
-          // the old route, per turn, until 08c-3 teaches the loop image content
-          // blocks — `lib/chat/turnRoute.ts`.
+          // A turn that also carries a snip or a marked report page STAYS HERE
+          // (08c-3). It used to fall back to the old `/api/chat` per turn, via
+          // `lib/chat/turnRoute.ts`; the loop carries image content blocks now,
+          // that route and that module are deleted, and there is no second wire
+          // left for this panel to fall back to.
           grounding={{ kind: 'live', captions: liveCaptionsText ?? '', label: liveCallLabel }}
           quote={chat.seed}
           seedNonce={chat.nonce}
