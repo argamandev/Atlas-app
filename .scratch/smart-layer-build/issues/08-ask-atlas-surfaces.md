@@ -1,7 +1,8 @@
 # B2 · Ask Atlas surfaces
 
-Status: DONE (pending merge) — 08a · 08b · 08c-1 · 08c-2 merged; **08c-3 CLOSES this ticket**,
-verified in both locales and reviewed three rounds on `feat/smart-layer-b2c-doc-grounding`. The
+Status: **DONE — MERGED 2026-08-15** (`6d2b421`). 08a · 08b · 08c-1 · 08c-2 · 08c-3 all on main;
+**08c-3 CLOSED this ticket**, verified in both locales and reviewed TEN rounds on
+`feat/smart-layer-b2c-doc-grounding` (three blockers, each caused by the previous round's fix). The
 marked report passage and the snipped page images reach `/api/chat/v2` as a fenced page block and
 as IMAGE content blocks, and the old `/api/chat` is DELETED — its last caller left.
 Blocked by: 07

@@ -92,13 +92,24 @@ word coverage vs audio duration ≥ expected, caption-vs-audio drift within buff
 output on the same audio (scripts/run-experiment.ts pattern). Then WATCH it: open the live
 page mid-replay, screenshot karaoke, confirm highlighted word matches the audio position.
 
-**Multiview:** ingest local-assets/demo-report.pdf → assert extracted per-page text contains
+**Multiview:** the report pane must be the one the USER IS LOOKING AT, not merely mounted — in
+MULTI view its column is narrow and pdf.js may not have painted a text layer at all, so a
+selection-driven check finds no spans and reads as "broken" when nothing is. SINGLE view with the
+Report facet renders it at once (08c-3: an evidence gap was filed as un-drivable on this alone,
+then driven in both locales once the pane was foregrounded properly).
+Ingest local-assets/demo-report.pdf → assert extracted per-page text contains
 known Hebrew strings in CORRECT order (RTL extraction is the known risk) → render in pdf.js →
 via Chrome MCP select text inside the PDF → trigger Ask Atlas → the answer must reference the
 marked passage → screenshot the multi-panel layout.
 
 ## Gotchas (do not re-learn)
 
+- **Never count test failures with `grep -c "^✖"`.** node:test prints each failure TWICE — inline
+  and again under `failing tests:` — plus a `✖ failing tests:` header, so that command reports
+  roughly 2n+1 and is not counting tests at all. Three wrong mutation counts reached a review
+  record on one branch (08c-3) before anyone measured. Use `| grep "^ℹ fail"`, or better, state the
+  PROPERTY ("the guard goes red") and the command beside it rather than a bare number — app.md's
+  "counts carry their command" applies to evidence and review records too, not only to prose.
 - Hard-refresh after every dev restart; `rm -rf .next` on MODULE_NOT_FOUND 500.
 - Screenshot BEFORE and AFTER fixes — the before/after pair is your review evidence.
 - If Chrome MCP is unresponsive 2-3 tries → tell the founder, don't loop.

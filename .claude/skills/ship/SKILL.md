@@ -25,6 +25,22 @@ prints that part too, generated from the laws, so the list can never drift from 
 
 1. **Re-read `COLLISIONS.md`** — a migration, a shared type or a design token may have moved
    under you since you started.
+
+   **And append YOUR entry here, before the merge, DERIVED FROM `git diff main...HEAD`.** Four
+   consecutive slices (08a, 08b, 08c-1, 08c-3) appended at ship time or later, and three of the
+   four named an INCOMPLETE list. The two failure modes are different and both are now paid for:
+   - **Enumeration.** A list assembled from recollection of the work misses what you did not
+     think of as a shared change — a test seam added to an exported interface, for instance.
+     Derive it: `git diff main...HEAD` and read the exported surface of every file it touches.
+   - **Judgement.** 08c-3 derived the list and still missed the i18n dictionaries, because
+     "adding a translation string" does not feel like a shared type. **It is one: a shared type
+     includes any file whose SHAPE another file is compiled against.** `en.ts` defines
+     `Dictionary`; `tsc` holds `he.ts` to it; two sessions adding keys collide exactly as they
+     would on an interface.
+
+   Nothing mechanical checks this yet — a branch whose diff touches an exported type under
+   `src/lib` having a COLLISIONS line is the check that is owed, and it is the founder's call
+   because it changes the workflow.
 2. `git fetch origin && git merge origin/main` into your branch; resolve; re-run everything.
 3. **Battery:** `npm test` (all pass) · `npx tsc --noEmit` (clean) · `npm run build` (green) ·
    `/verify-app` (clean pass, every state you can reach, in BOTH locales).
