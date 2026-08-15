@@ -31,11 +31,11 @@ not hold ($0.1010 company-scoped). Both eval-gated; **a DEDICATED PARALLEL SESSI
 re-measure with `scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** —
 on a v2 chat failing in production, check for a 401 first.
 
-**09 IS MEASURED BUT NOT MERGED** — branch `feat/smart-layer-b3-workspace-chat`, green. Its gate says
-the swap does not beat the planner (12/8/8 vs 11/9/8 at shelf 3/6/12), so workspace chat is
-deliberately unchanged. **BUT the founder tested it and found problems he has NOT described, and no
-review round has read the tip. → Read that branch's HANDOFF.md and ASK HIM what he saw first.** Do
-not start 10 on top of this.
+**09 IS BUILT BUT NOT MERGED** — branch `feat/smart-layer-b3-workspace-chat`, green (1167). Its gate
+says the swap does not beat the planner (12/8/8 vs 11/9/8 at shelf 3/6/12), so workspace chat is
+deliberately unchanged. **The founder's test hit the INTAKE, not chat:** `בז"א` matches no MAYA
+name, so Atlas denied holding 12 filings it could reach. **09b** fixes it — the company is PICKED
+with `@`, travelling as an id. **A merge owes a review verdict on the tip.**
 
-**Next: close 09, then 10** (agent tables + create flow). Also open: **13** holds the cleanup list;
+**Next: close 09, then 10** (agent tables + create flow). **13** holds the cleanup list;
 poller/sweep deferred past V1.
