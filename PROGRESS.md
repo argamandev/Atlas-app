@@ -5,6 +5,30 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-15 — The loop learns images, and the old `/api/chat` dies (`feat/smart-layer-b2c-doc-grounding`, ticket 08c-3 — CLOSES ticket 08)
+
+- **The tool loop carries IMAGE content blocks.** Up to four snipped report-page PNGs ride the user
+  turn, each captioned with its page; the marked pages' extracted text rides beside them, fenced and
+  budgeted per page. That capability is the only thing that had kept `/api/chat` alive through three
+  slices, so the route is deleted — along with `lib/api/chat.ts`, `lib/chat/turnRoute.ts`,
+  `lib/chat/context.ts`, `lib/chat/documentBlock.ts` and their tests. **A route dies when its LAST
+  caller leaves**, and `TranscriptChatPanel` was it.
+- **The attached document is a THIRD orthogonal question**, beside the `Grounding` union and
+  `projectId` — the same correction 08c-1 made for projects. Multiview is a call AND a report at
+  once, so a fifth recipe would have made the ordinary case unrepresentable.
+- **Five review rounds, and rounds 1–3 each found a blocker the PREVIOUS round's fix had caused** —
+  twice in the sibling branch of one `if`. Four successive "better conditions" each shipped the next
+  defect. What stopped it was structural: the decision moved into `documentContextState()`, a pure
+  function of four named facts, swept as a table. **The degradation law gained a fifth tier** for the
+  general shape — *a state naming one channel must never be measured against the union of every
+  channel* — with the three rounds in `docs/case-history/app.md#two-channel-degradation`.
+- **Two real-data defects the battery could not see**, both found by driving the surface: a report
+  whose pages hold no extracted text reported `ok` while the screen said nothing, and the 400 for a
+  malformed attachment called it a "grounding".
+- **Two capability losses recorded rather than papered over** (`docs/open-findings.md`): the chat
+  stack has no model-availability fallback since the Gemini→GPT-4.1 route went, and a call-grounded
+  turn is no longer company-scoped for its tools.
+
 ## 2026-08-15 — The live panel reaches v2: captions become a grounding recipe (`feat/smart-layer-b2c-live-grounding`, ticket 08c-2)
 
 - **Live captions are the fifth `Grounding` recipe, and the only one carrying CONTENT rather than

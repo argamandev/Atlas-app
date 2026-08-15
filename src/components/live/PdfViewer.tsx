@@ -230,7 +230,9 @@ export function PdfViewer({
       const rectPdf = scaleRect(cssRect, 1 / cssScale)
       const dataUrl = await captureSnip(d.pageNo, rectPdf)
       if (attachmentOversized(dataUrl)) {
-        // /api/chat would strip it while the chip still renders — refuse loudly instead
+        // the chip would still render while the image never reached the model — refuse loudly
+        // instead. (Since 08c-3 /api/chat/v2 REFUSES an oversized snip with a 400 rather than
+        // stripping it, so this client check is the friendlier half of the same law, not the only one.)
         onSnipError?.('toolarge')
         onSnipCancel?.()
         return

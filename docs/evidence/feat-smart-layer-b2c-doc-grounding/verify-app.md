@@ -16,8 +16,8 @@ list exists to make visible.
 | # | State | EN | HE | How |
 | --- | --- | --- | --- | --- |
 | 1 | Marked passage, pages read WHOLE (`documentContext: ok`) — no notice | ✅ driven | ✅ driven | Real selection in the report's text layer → real `mouseup` → real composer → Enter |
-| 2 | Marked passage CUT (`truncated`) — Hebrew/English notice | ✅ driven | ✅ driven | Same real path, `DOCUMENT_BUDGET_CHARS` temporarily 200 (restored; see below) |
-| 3 | Report text UNREADABLE (`failed`) — notice | ✅ driven | ✅ driven | Same real path, loader temporarily returning `{meta:null,pages:[]}` (restored) |
+| 2 | Marked passage CUT (`truncated`) — Hebrew/English notice | ⚠ driven, then the STRING changed | ⚠ driven, then the STRING changed | Same real path, `DOCUMENT_BUDGET_CHARS` temporarily 200 (restored). **Round 4 rewrote `reportTruncated` in both dictionaries AFTER this drive; see the note below.** |
+| 3 | Report text UNREADABLE (`failed`) — notice | ✅ driven | ✅ driven | Same real path, loader temporarily returning `{meta:null,pages:[]}` (restored). `reportFailed` is unchanged since the drive. |
 | 4 | Snipped IMAGE reaches the model as an image block | ✅ driven (API) | — | Real PNG through `/api/chat/v2` from the signed-in page; the answer cited **page 40**, the SNIPPED page, whose text is fetched alongside the marked ones (`pagesToLoad`) |
 | 5 | Snip + marked page COMPOSED with a call grounding | ✅ driven (API) | — | `grounding:whole` + `documentContext:ok` on one turn, both honoured |
 | 6 | Malformed snip → 400, never a quietly shorter image list | ✅ driven (API) | — | jpeg data-url, 5 snips (cap 4), 9 marked pages (ceiling 8), bad `documentId`, two documents on one turn — all `400` |
@@ -271,3 +271,46 @@ naming only one of its two guards; `DocumentBlock.truncated` left in the public 
 next reader; and a paragraph duplicated in the case history by the round-3 rewrite.
 
 After round 4: `npm test` green, `npx tsc --noEmit` clean.
+
+## Cold review — round 5, verdict CHANGES (no BLOCKER; round 4's fixes broke the pattern)
+
+Rounds 1–3 each had a blocker caused by the previous round's fix. Round 4's did not, and round 5
+confirmed round 4's two fixes are clean: `parseTurnDocuments` already collapsed `pages: []`, so the
+panel guard is belt-and-braces rather than a new unreachable path, and `DocumentBlock.truncated` is
+gone with no remaining reader.
+
+**WARNING — `anySourceSurvived`'s two new clauses were untested.** Round 3 corrected it to count
+carried PAGES rather than the presence of a block, and the correction shipped with no case: either
+clause could be deleted with the battery green. A law refiled at the same tier. Three cases now
+pin it — carried pages are a source, a snipped image is a source, and a block that carries nothing
+is NOT (the `NO_PAGE_TEXT` fence is non-empty). **Mutation-verified:** deleting either clause fails
+3 tests.
+
+**WARNING — `companyId` was a dead prop hiding a behaviour change.** Removed from the panel and its
+three call sites. The change it hid — a call-grounded turn is no longer company-scoped for its
+tools, because the union carries one id per recipe — is filed in `docs/open-findings.md`, together
+with the actionable half: this panel DISCARDS the `mode` event that would make it visible, while
+`ChatView` renders it.
+
+**WARNING — the state table claimed a drive of copy that no longer existed.** Round 4 rewrote
+`reportTruncated` in both dictionaries after rows 2 and 3 were driven. **NOT re-driven**, and the
+rows say so rather than keeping a tick: the render path is byte-identical (the same
+`<p role="status" dir="auto">`, the same branch, only the string differs), and re-driving it
+requires the temporary budget change again. **It was attempted and abandoned**: pdf.js text layers
+do not render in a never-foregrounded automation tab — a standing `/verify-app` gotcha — and the
+attempt also tripped the `npm run build`-while-dev-server-up trap (`.next` overwritten, recovered
+by killing dev, deleting `.next`, restarting). Two harness traps in one attempt is the signal to
+stop rather than loop. **What is unverified is one string per locale in a slot both locales have
+already rendered**; a founder glance closes it in seconds.
+
+**WARNING — `ARCHITECTURE.md`'s test-count header was stale** (1094/106 → measured 1138/105), which
+the ship gate refuses on. **WARNING — `STATUS.md` and `PROGRESS.md`** were the ship gate's other two;
+both done.
+
+**NITs, all fixed** — four stale comments still describing the deleted route (`LiveTranscriptView`
+×2, `PdfViewer`, `TranscriptChatPanel`), `ARCHITECTURE.md`'s `chat/history.ts` row claiming
+`sanitizeHistory` runs on the `/api/chat` body (the v2 route filters history inline and does NOT
+call it — recorded as a gap, not a design), the dictionary paragraph still explaining the cause the
+paragraph beneath it disowns, and a comment referring to a field removed in the same commit.
+
+After round 5: `npm test` 1138 green, `npx tsc --noEmit` clean.

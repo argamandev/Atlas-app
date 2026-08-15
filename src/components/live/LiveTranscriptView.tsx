@@ -165,7 +165,7 @@ export function LiveTranscriptView({
   // search lives as an icon in the chips row (founder round 2); closing it clears the query
   const [searchOpen, setSearchOpen] = useState(false)
   // in-transcript side chat (Feature 6): open + the seeded quote + a nonce so re-starring re-seeds
-  // docRef (multiview): set only when a report-PDF selection seeded the chat, so /api/chat can
+  // docRef (multiview): set only when a report-PDF selection seeded the chat, so /api/chat/v2 can
   // ground on document + page text; any transcript highlight clears it back to null.
   const [chat, setChat] = useState<{
     open: boolean
@@ -375,7 +375,7 @@ export function LiveTranscriptView({
   }
 
   // A passage marked inside the report PDF → open the side chat seeded with it (same UX as
-  // transcript highlights), tagged with document + page so /api/chat grounds on the page text.
+  // transcript highlights), tagged with document + page so /api/chat/v2 grounds on the page text.
   // Unified marking rule (spec 2026-07-17): chat open → auto-reference; chat closed →
   // floating Ask-Atlas button first (same UX as transcript marking).
   function onReportAsk(
@@ -1000,7 +1000,6 @@ export function LiveTranscriptView({
       {/* in-transcript side chat (Feature 6) — opens beside the transcript; audio keeps playing */}
       {chat.open && (
         <TranscriptChatPanel
-          companyId={call.companyId}
           transcriptId={call.id === 'demo' ? undefined : call.id}
           // ON THE NEW BACKEND (ticket 08c-3) — the last surface to move, and
           // the one that kept `/api/chat` alive. This screen displays a stored

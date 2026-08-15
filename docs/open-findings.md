@@ -131,3 +131,21 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   (08c-2), the truncation notices, the citation-retry sentence — has the same exposure and has not
   been given the same clause. **Not a law and not a blocker.** The real fix is upstream of all of
   them: answers that carry their citations structurally, which is its own ticket.
+- **A CALL-grounded turn is no longer company-scoped for its tools** (recorded 2026-08-15, ticket
+  08c-3, found at review round 5 behind a dead prop). On the retired `/api/chat`, the multiview
+  panel sent `companyId` AND `transcriptId` together, so a follow-up question that reached past the
+  call still searched inside that company. On `/api/chat/v2` the `Grounding` union carries ONE id
+  per recipe by construction, so a `{kind:'call'}` turn puts `transcriptId` on the scope and no
+  company — and a tool call beyond the call runs market-wide until `resolve_company` pins it.
+  **This is not a bug in the union, which exists precisely to make "grounded in a call AND a
+  workspace" unrepresentable.** It is a question the union does not currently answer: a call
+  BELONGS to a company, so the company is derivable from the call rather than being a second
+  grounding — which is a different fix from adding a field, and a different one again from letting
+  the client send both.
+  **Why it is not silent:** the loop announces the mode on every turn (`{type:'mode'}`), which is
+  what "search mode is VISIBLE" was built for. `TranscriptChatPanel` currently DISCARDS that event
+  (`case 'mode': break`), so the fact reaches the surface and is dropped there — `ChatView` renders
+  it. That drop is the actionable half.
+  **Not a law and not a blocker.** Whoever picks it up should decide whether the company is
+  derived server-side from `transcriptId` (my reading of the right answer) and should render the
+  mode chip in this panel either way.

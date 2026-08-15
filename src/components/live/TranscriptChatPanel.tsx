@@ -24,7 +24,7 @@ import { detectDir } from '@/lib/utils'
 interface Msg {
   role: 'user' | 'assistant'
   content: string
-  /** what /api/chat actually received (reference-labeled / snip default) — replayed as history */
+  /** what the ROUTE actually received (reference-labeled / snip default) — replayed as history */
   apiContent?: string
   reference?: string
   snips?: ChatSnip[]
@@ -66,7 +66,6 @@ interface Msg {
 }
 
 export function TranscriptChatPanel({
-  companyId,
   transcriptId,
   grounding,
   quote,
@@ -77,7 +76,6 @@ export function TranscriptChatPanel({
   heroLine2,
   snipAvailable,
 }: {
-  companyId: string | null
   transcriptId: string | undefined
   /**
    * WHAT THIS PANEL'S ANSWERS ARE GROUNDED IN. **Required** since 08c-3.

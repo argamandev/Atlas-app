@@ -1555,6 +1555,85 @@ test('the loader is asked for the MARKED pages AND the snipped ones', async () =
   assert.deepEqual(asked, [4, 77])
 })
 
+// ─── THE ATTACHED REPORT IS A SOURCE THAT SURVIVED ──────────────────────────
+//
+// `anySourceSurvived` decides `all_sources_failed` versus `done` when a tool ran
+// and failed. Round 3 corrected it to count CARRIED PAGES rather than the
+// presence of a block (the no-text block is non-empty — it holds `NO_PAGE_TEXT`),
+// and round 5 found the correction had shipped with NO test: both new clauses
+// could be deleted with the battery green. A law refiled at the same tier. These
+// two cases are the tier.
+
+function failingToolTurn() {
+  // The model calls a tool, the tool fails, then the model answers anyway.
+  return fakeClient([
+    { content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: {} }], stop_reason: 'tool_use' },
+    { content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' },
+  ])
+}
+const alwaysFails = {
+  async search_corpus() {
+    return { content: 'nope', isError: true }
+  },
+}
+
+test('CARRIED REPORT PAGES are a source: a failing tool beside them is not "all sources failed"', async () => {
+  const events = await collect(
+    runChatLoop({
+      client: failingToolTurn(),
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      handlers: alwaysFails,
+      documents: { documentId: 'doc-1', pages: [4], snips: [] },
+      loadDocument: async () => ({ meta: null, pages: [{ pageNo: 4, text: 'alpha' }] }),
+    })
+  )
+  assert.equal(events[events.length - 1].type, 'done', 'a carried report page did not count as a source')
+})
+
+test('A SNIPPED IMAGE is a source too — it arrived with the request and cannot fail', async () => {
+  // And this turn's page text is EMPTY, so the block exists but carries nothing.
+  // If the image did not count, a turn whose only grounding is a picture would
+  // end `all_sources_failed` the moment a tool failed beside it.
+  const events = await collect(
+    runChatLoop({
+      client: failingToolTurn(),
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      handlers: alwaysFails,
+      documents: { documentId: 'doc-1', pages: [], snips: [{ dataUrl: SNIP_PNG, page: 4 }] },
+      loadDocument: async () => ({ meta: null, pages: [] }),
+    })
+  )
+  assert.equal(events[events.length - 1].type, 'done', 'a snipped image did not count as a source')
+})
+
+test('AND A BLOCK THAT CARRIES NOTHING IS NOT A SOURCE — the round-3 correction, pinned', async () => {
+  // `buildDocumentBlock` returns a NON-EMPTY fence for a report with no text: it
+  // holds `NO_PAGE_TEXT`, the sentence saying nothing could be extracted. Reading
+  // the block instead of the pages made that count as a surviving source, so a
+  // turn with no grounding at all and every tool failing ended `done`.
+  const events = await collect(
+    runChatLoop({
+      client: failingToolTurn(),
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      handlers: alwaysFails,
+      documents: { documentId: 'doc-1', pages: [4], snips: [] },
+      loadDocument: async () => ({ meta: null, pages: [] }),
+    })
+  )
+  const last = events[events.length - 1]
+  assert.equal(last.type, 'incomplete')
+  assert.equal((last as { code: string }).code, 'all_sources_failed')
+})
+
 test('the documentContext event lands BEFORE the answer starts, never after it', async () => {
   const s = docSender()
   const events = await collect(

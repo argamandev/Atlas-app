@@ -125,8 +125,9 @@ export interface DocumentBlock {
   /**
    * WHICH pages were cut, in order — not merely that one was.
    *
-   * The bare boolean above was a WARNING at round 3: a block holds the marked
-   * pages AND every snipped page, so `truncated` went true when a page loaded
+   * A BARE `truncated` BOOLEAN used to sit beside this field and was a WARNING
+   * at round 3; it is gone now, removed at round 4 once nothing read it. A block
+   * holds the marked pages AND every snipped page, so `truncated` went true when a page loaded
    * only because it was SNIPPED ran long, and the surface then told the user
    * their marked passage "was too long to read in full" about a passage that was
    * short. A state naming one channel cannot be decided by a flag that answers

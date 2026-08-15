@@ -297,7 +297,7 @@ the deploy, which comes after this chapter.
 | `player/PlayerProvider.tsx` | Global **recorded**-audio player context (survives navigation + chat) — incl. `usePlayerTimeDerived()` (subscribe to derived word/second, not the raw 60fps playhead) and `barHidden`. |
 | `chat/attachments.ts` | Pinge attachment contract, pure: `parseAttachments` (PNG-only, ≤4, ~1.5MB decoded cap), `attachmentOversized` client pre-check (same constant — no drift), Hebrew captions, Gemini/OpenAI message-part builders. Unit-tested. |
 | `chat/captionPayload.ts` | The one function that survived `turnRoute.ts` (08c-3): the CLIENT-side ceiling on how many live captions a turn puts on the wire, keeping the END so the two cuts cannot disagree, and staying ABOVE the injection budget so the server still reports `truncated`. Unit-tested. |
-| `chat/history.ts` | Pure `sanitizeHistory` — drops empty/junk history turns (empty Gemini `{text:''}` parts reject the whole request), prefers `apiContent` over display content. Run client-side AND on the untrusted `/api/chat` body. Unit-tested. |
+| `chat/history.ts` | Pure `sanitizeHistory` — drops empty/junk history turns (empty Gemini `{text:''}` parts reject the whole request), prefers `apiContent` over display content. Run client-side by the chat panel. The v2 route filters history inline and does NOT call it — a gap, not a design (08c-3). Unit-tested. |
 | `documents/` | Multiview M1 backend: `extract.ts` (Hebrew-safe per-page PDF text — y-group → RTL desc-x with LTR runs; unit-tested quirk cases), `ingest.ts` (idempotent upload+extract+seed), `index.ts` (server-only reads: `getDocumentsFor`, `getDocumentMeta`, `getPageText`), `snip.ts` (pure Pinge crop geometry: drag→page-rect clamp + zoom-proof render-scale math; unit-tested). |
 | `transcription.ts` | **The pipeline.** IVRIT/Whisper transcription + Gemini formatting (`formatTranscript`, `parseGeminiOutput`, `parseTitleMeta`) + GPT-4.1 fallback. |
 | `correction.ts` | `KNOWN_CORRECTIONS` deterministic fixes. |
@@ -344,7 +344,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **1094 tests across 106 files** as of 2026-08-15; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
+### Tests (run via `npm test` — **1138 tests across 105 files** as of 2026-08-15; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
