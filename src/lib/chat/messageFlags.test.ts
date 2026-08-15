@@ -243,13 +243,32 @@ test('an absent fact stays absent — settling invents nothing', () => {
 // only by spreading `settledFacts`, so there is ONE writer and no second one to
 // forget.
 //
-// STATED LIMIT (M1), because the sentence this replaces was wrong for want of
-// one: this reads ONE file for ONE call shape. A new component that settles its
-// own assistant message is outside it, and a fact written through some other
-// setter is too. It proves the second-writer door in `ChatView` is shut; it does
-// not prove the class is closed everywhere.
+// STATED LIMITS (M1), because the sentence this replaces was wrong for want of
+// one, and an under-stated limit is how the next author over-trusts a guard:
+//   * ONE file, ONE call shape. A new component that settles its own assistant
+//     message is outside this, and so is a fact written through a different
+//     setter. It proves the second-writer door in `ChatView` is shut; it does
+//     not prove the class is closed everywhere.
+//   * THE PERSIST PATH IS A THIRD WRITER and is NOT reached here. `fullThread`
+//     maps the stored copy field-by-field, so a fifth fact added to
+//     `settledFacts` would render correctly and still not be persisted. It reads
+//     FROM the settled message rather than from a parallel source, which is why
+//     it is a coverage gap rather than a live defect — but it is a gap, and it is
+//     named rather than left for someone to discover.
+//   * The brace matcher below counts `{`/`}` without skipping strings, template
+//     literals or regex literals. Exact for the calls that exist today (verified
+//     at review); a future settle call containing a braced string would truncate
+//     the captured argument and quietly stop scanning the rest of it.
 
-const HONESTY_FIELDS = ['source', 'projectContext', 'incomplete', 'callTruncated']
+/**
+ * DERIVED, never hand-kept — the round-3 finding, and the exact drift this whole
+ * file argues against. As a literal list, a fifth honesty fact would fail the
+ * narrowing case above, get added to `settledFacts` to fix it, and then be
+ * missing from THIS list — leaving the new fact unguarded by the very scan built
+ * to guard it. Taking the names from the function means the scan widens the
+ * moment the function does.
+ */
+const HONESTY_FIELDS = Object.keys(settledFacts(FACTS))
 
 test('no setLastAssistant call names an honesty field directly — one writer only', () => {
   const src = readFileSync(join(process.cwd(), 'src', 'components', 'chat', 'ChatView.tsx'), 'utf8')
