@@ -1,5 +1,14 @@
 # Cold review record — ticket 08b (B2, Ask Atlas surfaces)
 
+> **EXACTLY ONE `REVIEWED:` AND ONE `VERDICT:` LINE LIVE IN THIS FILE**, in the last round's
+> section, and they describe the tip that merges. Earlier rounds state their sha and verdict in
+> prose instead. This is not tidiness: `parseReviewRecord` takes the FIRST regex match for each,
+> so a four-round record with a `REVIEWED:` line per round hands the gate the OLDEST sha and it
+> reports every file changed since as staleness — which is what happened here, and the gate was
+> reading the file correctly while the file was lying to it. A record that misreports its own
+> reviewed tip is worse than none: it makes an approval look narrower than it was, and the fix
+> looks like an override.
+
 Branch: `feat/smart-layer-b2b-ask-atlas-surfaces`. Reviewer: `atlas-reviewer`, fresh context, two
 rounds. Both rounds were told the scope narrowing is founder-approved, so "the old route still
 exists" is not a finding on this branch.
@@ -13,7 +22,7 @@ the `requestScope` consumption guard re-mutated independently (`ORIG {transcript
 {transcriptId:false}`); the persist round-trip end to end; that removing `server-only` opens no
 client-bundle path; that `CALL_BUDGET_CHARS` is back at `60_000` and pinned by its own test.
 
-## Round 1 — VERDICT: CHANGES
+## Round 1 — verdict at the time: CHANGES
 
 FINDING · BLOCKER · src/components/chat/ChatView.tsx:97 · `callTruncated` is session-only, so after
 a reload an answer written from part of a call renders as an ordinary whole answer. The stated
@@ -83,7 +92,7 @@ FINDING · NIT · docs/evidence/feat-smart-layer-b2b-ask-atlas-surfaces/verify-a
 RECURRENCE: no
 FIX: re-read from the run, with a note.
 
-## Round 2 — VERDICT: CHANGES
+## Round 2 — verdict at the time: CHANGES
 
 FINDING · WARNING · src/lib/chat/messageState.ts:51 · `sanitizeCallTruncated` and the whole
 persisted-`callTruncated` path ship with zero test coverage while the identical sibling
@@ -130,8 +139,8 @@ outcome (M2), pointing the other way.
 
 ## Round 3 — the verdict this branch merges on
 
-REVIEWED: 0bdb196
-VERDICT: APPROVED
+Reviewed at `0bdb196` (prose, not a `REVIEWED:` line — see the header note at the top of this file).
+Verdict at the time: APPROVED.
 
 Round 3 ran at the frozen tip `21d83b07`, verified every round-1 and round-2 fix in the diff rather
 than taking the record's word for it, and re-checked the branch's own claims independently
