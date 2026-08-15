@@ -114,3 +114,20 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   **Not a law and not a blocker.** Restoring a second engine means a provider-agnostic tool loop
   (the fallback has to carry tool use and image content blocks now, which the old text-only
   fallback never did), so it is its own mission, not a patch.
+- **A Hebrew answer that quotes an English prompt constant renders its punctuation on the wrong
+  side** (recorded 2026-08-15, ticket 08c-3, seen while driving the unreadable-report state).
+  The model repeated the English `NO_PAGE_TEXT` instruction verbatim inside an otherwise-Hebrew
+  answer, and that mixed run rendered with its quote mark and full stop misplaced.
+  **This is NOT a recurrence of the `<bdi>` law, and the distinction is the point.** All eight of
+  that law's occurrences are lines **we** compose from data — a company name joined to a quarter, a
+  `dir="ltr"` wrapper, a citation. This is MODEL PROSE inside `Markdown`, and no `<bdi>`-per-run
+  rule reaches it without a bidi segmenter; filing it as a recurrence would move a mechanism onto a
+  surface the mechanism cannot see. The cold reviewer classified it as one and the classification
+  was disputed on those grounds — recorded here so the argument survives the branch rather than
+  only its conclusion.
+  **What was done:** `NO_PAGE_TEXT` now asks for the user's own language and says not to repeat the
+  note. Named in the code as a **mitigation, not a mechanism**.
+  **What is still open:** every OTHER English prompt constant the model may quote — `NO_CAPTIONS_YET`
+  (08c-2), the truncation notices, the citation-retry sentence — has the same exposure and has not
+  been given the same clause. **Not a law and not a blocker.** The real fix is upstream of all of
+  them: answers that carry their citations structurally, which is its own ticket.

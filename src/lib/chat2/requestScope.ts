@@ -166,7 +166,21 @@ export interface ScopeIds {
 export interface TurnDocuments {
   /** The document both the marked pages and the snips came from. Always a uuid. */
   documentId: string
-  /** Marked pages, deduped and ordered. May be empty when only snips ride the turn. */
+  /**
+   * The pages the user MARKED, deduped and ordered. Empty on a snip-only turn.
+   *
+   * SNIPPED PAGES ARE NOT IN HERE, and merging them in was a review BLOCKER at
+   * round 2. This list is what the reference block on screen PROMISES as report
+   * TEXT, and the loop reports degradation by comparing it against the text that
+   * actually arrived. A snipped page merged in here is counted as promised text
+   * while only its IMAGE was ever promised — so a snip of a scanned page said
+   * "the report text could not be loaded" on the exact turn the image grounding
+   * had worked. The two lists answer different questions and are now two lists.
+   *
+   * What to LOAD is the union, and `pagesToLoad` is the one place that computes
+   * it — a snipped page still gets its prose fetched when it has any, which is
+   * the behaviour the retired route had and this keeps.
+   */
   pages: number[]
   /** Snipped page images, as captured PNG data URLs. May be empty. */
   snips: TurnSnip[]
@@ -366,20 +380,32 @@ export function parseTurnDocuments(body: unknown): TurnDocuments | null | undefi
   // prompt for a turn that carries no report.
   if (!documentId || (pages.length === 0 && snips.length === 0)) return undefined
 
-  // THE SNIPPED PAGES JOIN THE MARKED ONES, carried over from the old route
-  // deliberately: an image of a table answers "what is the number" and the page
-  // prose around it answers "what is the number ABOUT". Sending the image without
-  // its own page's text was measurably worse at the second question.
-  //
-  // AND THE MERGE IS NOT RE-BOUNDED, deliberately. Slicing here would drop a
-  // snipped page's text while its image still rode the turn — the exact silent
-  // half-grounding the ceiling above refuses rather than trims. Both inputs are
-  // already bounded, so the union cannot exceed `DOCUMENT_PAGES_MAX +
-  // ATTACHMENT_MAX`, and the per-page budget in `documentInjection.ts` is what
-  // keeps twelve pages affordable.
-  for (const s of snips) if (!pages.includes(s.page)) pages.push(s.page)
-  pages.sort((a, z) => a - z)
+  // THE SNIPPED PAGES ARE NOT MERGED IN HERE — round 2's BLOCKER. They still get
+  // their prose loaded (`pagesToLoad`); what they must not do is join the list the
+  // loop measures degradation against. See `TurnDocuments.pages`.
   return { documentId, pages, snips }
+}
+
+/**
+ * WHICH PAGES TO FETCH TEXT FOR — the marked ones, plus every snipped page.
+ *
+ * ONE PLACE, and it is separate from `TurnDocuments.pages` because the two answer
+ * different questions and answering both with one list was a review BLOCKER. This
+ * is "what is worth loading"; that is "what the screen promised as text". A
+ * snipped page's prose is worth loading — an image of a table answers *what is
+ * the number* and the page around it answers *what is the number ABOUT*, and
+ * sending the image without its own page's text was measurably worse at the
+ * second — but its absence is not a loss the user can perceive, because the image
+ * they attached is right there.
+ *
+ * NOT RE-BOUNDED. Both inputs are already bounded at the gate, so the union
+ * cannot exceed `DOCUMENT_PAGES_MAX + ATTACHMENT_MAX`, and slicing here would
+ * drop a snipped page's text while its image still rode the turn.
+ */
+export function pagesToLoad(documents: TurnDocuments): number[] {
+  const out = [...documents.pages]
+  for (const s of documents.snips) if (!out.includes(s.page)) out.push(s.page)
+  return out.sort((a, z) => a - z)
 }
 
 /**

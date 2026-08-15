@@ -185,6 +185,12 @@ terminal event means both — `done`/`incomplete` are distinct types, so no call
 facts, swept exhaustively. Claiming `impossible` for both was rejected at review → `#settled-facts`.
 Fourth tier (08c-2): content served by TWO backends is cut the same way by both and each SAYS it
 cut — `chat2/liveInjection.ts` owns both, tested down both paths. Mutate such a guard, never read it.
+**Same law, two CHANNELS (08c-3, two rounds):** when one source reaches the model by more than one
+route — a report as page TEXT and as snipped IMAGES — the state naming one route is measured
+against what THAT route was asked to carry and what the SCREEN promised, never against everything
+fetched. Both halves shipped wrong in successive commits. **ENFORCED test** `chat2/loop.test.ts`
+(mixed cases by name) + the two lists split in the TYPE, so the merge cannot return.
+→ `#two-channel-degradation`
 And a degradation you can REFRESH AWAY is not visible, so an honesty fact is PERSISTED with the
 message, never held in view state: `chat/messageFlags.test.ts` covers each stored flag and asserts
 they stay INDEPENDENT (08b). A new stored flag gets a case there, or it is prose.

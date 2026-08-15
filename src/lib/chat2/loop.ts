@@ -50,7 +50,7 @@ import { buildCallBlock, type CallForInjection } from './callInjection'
 import { buildLiveBlock, type LiveCaptions } from './liveInjection'
 import { buildDocumentBlock, snipCaption } from './documentInjection'
 import type { LoadedDocument } from './documentSource'
-import type { TurnDocuments } from './requestScope'
+import { pagesToLoad, type TurnDocuments } from './requestScope'
 import { PNG_DATA_URL_PREFIX } from '@/lib/chat/attachments'
 import type { DocumentContextState } from './protocol'
 import {
@@ -320,7 +320,10 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
     let loaded: LoadedDocument | null = null
     try {
       const load = args.loadDocument ?? (await import('./documentSource')).loadDocumentForInjection
-      loaded = await load(args.documents.documentId, args.documents.pages)
+      // The UNION — the marked pages plus every snipped page, because a snipped
+      // page's prose is worth having. What the state is measured against is a
+      // different list; see below.
+      loaded = await load(args.documents.documentId, pagesToLoad(args.documents))
     } catch (err) {
       // Logged rather than only counted, for the reason the project load is: the
       // user-visible state is one word and the causes are not, and the one that
@@ -340,27 +343,42 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       // were unreadable (`NO_PAGE_TEXT`), and the SCREEN said nothing at all:
       // success UI over content the server never had.
       //
-      // So the choke point decides on the fact it is reporting — did any page
-      // text reach the model — rather than on a proxy for it (M3.2). The three
-      // causes (a thrown read, a deleted row, an image-only PDF) collapse into
-      // the one thing the user can act on, exactly as the project load's three
-      // causes do: "the report text is not in this answer".
-      //
-      // AND IT IS A SET COMPARISON, NOT A `some()` — the cold-review BLOCKER on
-      // the first version of this very fix. `some()` asks "did ANY page survive",
+      // AND IT IS A SET COMPARISON, NOT A `some()` — round 1's BLOCKER on the
+      // first version of this very fix. `some()` asks "did ANY page survive",
       // which is the wrong question when a marked passage spans a text page and a
       // scanned one: one page arrives, `some()` says yes, the state reads `ok`,
       // and the answer is built on a strict SUBSET of the pages the reference
-      // block on screen names — with nothing saying so. That is the same defect
-      // the `ok`-for-an-unreadable-report fix had just closed, one page over.
+      // block on screen names, with nothing saying so.
       //
-      // `built.pages` is what the model was GIVEN; `args.documents.pages` is what
-      // the user marked. Their difference is the fact, and no third state is
-      // needed: `truncated` already means "you did not get all of it".
+      // MEASURED AGAINST THE MARKED PAGES, NOT THE LOADED ONES — round 2's
+      // BLOCKER, which the round-1 fix introduced. `pagesToLoad` adds every
+      // snipped page to the FETCH, and the first version compared against that
+      // union: a snip of a scanned page then has no text row, the difference is
+      // non-empty, and the surface said "the report text could not be loaded" on
+      // the exact turn the IMAGE grounding had worked perfectly. Two channels
+      // carry report content here — fenced text and image blocks — and a state
+      // describing only one of them must only ever be measured against what that
+      // one was asked to carry.
+      //
+      // So: what did the SCREEN promise as text? `args.documents.pages`, the
+      // marked passage. `built.pages` is what the model was given. Their
+      // difference is the fact, and no third state is needed — `truncated`
+      // already means "you did not get all of it".
+      //
+      // A SNIP-ONLY TURN PROMISES NO TEXT AT ALL, so it cannot lose any: there is
+      // no reference block, only thumbnails, and those always arrive. `ok` is the
+      // honest answer there rather than a failure about text nobody asked for.
       const carried = new Set(built.pages)
-      const missing = args.documents.pages.filter((p) => !carried.has(p))
+      const marked = args.documents.pages
+      const missing = marked.filter((p) => !carried.has(p))
       documentState =
-        built.pages.length === 0 ? 'failed' : built.truncated || missing.length > 0 ? 'truncated' : 'ok'
+        marked.length === 0
+          ? 'ok'
+          : missing.length === marked.length
+            ? 'failed'
+            : built.truncated || missing.length > 0
+              ? 'truncated'
+              : 'ok'
     } else {
       documentState = 'failed'
     }

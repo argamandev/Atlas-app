@@ -27,6 +27,24 @@ list exists to make visible.
 | 10 | Live panel's own states (`liveTruncated`, no-captions-yet, snip on a live turn) | ❌ NOT re-driven | ❌ NOT re-driven | 08c-2's evidence covers them. What changed here is that a live turn carrying a snip no longer falls back to a second route — it stays on v2. Not re-verified in the browser. |
 | 11 | Demo call (`call.id === 'demo'`) → grounds on the COMPANY, not a call id with no row | ❌ NOT driven | ❌ NOT driven | No demo call was reachable in this checkout. Reasoned and unit-typed only. |
 
+### Added after the review rounds
+
+The rounds created new ways to reach `truncated` and `failed`, so the table above was no longer
+complete. Enumerated here rather than folded in silently — a table that grows without saying so is
+the same gap this step exists to close.
+
+| # | State | EN | HE | How |
+| --- | --- | --- | --- | --- |
+| 12 | Marked passage PARTLY readable (a blank page beside a good one) → `truncated` | ❌ NOT driven | ❌ NOT driven | Round 1's BLOCKER. Unit-driven only (`loop.test.ts`); the notice it renders is byte-identical to row 2, which WAS driven in both locales, so what is unverified is the state's arrival, not its rendering. |
+| 13 | A marked page with NO `document_pages` row → `truncated` | ❌ NOT driven | ❌ NOT driven | Same; unit-driven. |
+| 14 | A SNIP on a page with no text, beside a readable marked page → `ok`, no notice | ❌ NOT driven | ❌ NOT driven | Round 2's BLOCKER — the round-1 fix reported this as a report failure on a turn the image had grounded. Unit-driven. Rendering "no notice" has no locale. |
+| 15 | SNIP-ONLY turn (no marked passage) → `ok` | ✅ driven (API) | — | Nothing on screen promises report text, so none can be lost. |
+
+Rows 12–14 are unit-driven and not browser-driven. Stated plainly rather than counted as coverage:
+each renders one of the two notices already driven in both locales at rows 2 and 3, so the untested
+half is which state is CHOSEN — which is exactly what `loop.test.ts` sweeps and what a browser
+could not have shown more convincingly.
+
 Rows 9–11 are the honest gaps. 9 is a pre-existing harness limit on a gesture this ticket did not
 touch; 10 and 11 are real not-driven states.
 
@@ -122,3 +140,35 @@ not a mechanism**, which is the honest tier.
 and optional chaining on a prop this diff made required (removed at both sites).
 
 After the round: `npm test` 1128 green, `npx tsc --noEmit` clean.
+
+## Cold review — round 2, verdict CHANGES
+
+**BLOCKER, and round 1's fix caused it.** `parseTurnDocuments` merged every SNIPPED page into
+`TurnDocuments.pages`, and round 1 started measuring degradation against that list. A snip of a
+scanned page has no text row, so the difference was non-empty and the surface said *"the report
+text could not be loaded"* on the exact turn the IMAGE grounding had worked. A snip beside a
+readable marked page said *"too long to read in full"* for a page that was never long — and that
+case had been `ok` before round 1 touched it.
+
+The two lists answered different questions and are now two things, at the TYPE rather than in a
+branch: `TurnDocuments.pages` is **what the screen promised as text** (the marked passage only) and
+`pagesToLoad()` is **what is worth fetching** (marked ∪ snipped, so a snipped page still gets its
+prose). A snip-only turn promises no text at all, so it cannot lose any — `ok`, not a failure about
+text nobody asked for. Four cases pin it.
+
+**The law moved, per ADR-0002.** The degradation law's fourth tier named content served by two
+*backends*; this was two *channels* of one source, which the tier did not reach. `.claude/rules/app.md`
+now states the channel case explicitly, `ENFORCED test`, and names both halves it was got wrong in:
+measure only what the named route was asked to carry, and only what the screen promised.
+
+**WARNING — the state table was stale after round 1.** Four rows added above, three of them marked
+NOT browser-driven with the reason.
+
+**WARNING — the mixed-script finding lived only in branch evidence, which is history.** Now filed in
+`docs/open-findings.md`, with the disputed classification preserved and the wider exposure named
+(every other English prompt constant the model may quote has it and has not been given the clause).
+
+**NIT — a comment claimed M3.2 "the fact, not a proxy"** for page text, which is itself a proxy now
+that images carry the same content. The claim is removed rather than reworded.
+
+After round 2: `npm test` 1132 green, `npx tsc --noEmit` clean.

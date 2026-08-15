@@ -1481,6 +1481,80 @@ test('a page with NO ROW AT ALL counts as missing, not as never asked for', asyn
   )
 })
 
+test('BLOCKER: a SNIP on a page with no text is not a report failure — the image arrived', async () => {
+  // Round 2, and the round-1 fix introduced it. `pagesToLoad` adds every snipped
+  // page to the FETCH; the first version measured the state against that union,
+  // so a snip of a scanned page had no text row, the difference was non-empty,
+  // and the surface said "the report text could not be loaded" on the exact turn
+  // the IMAGE grounding had worked. Two channels carry report content here, and a
+  // state describing one of them may only be measured against what that one was
+  // asked to carry.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      // Marked page 4 (readable); snipped page 77, which has no text row at all.
+      documents: { documentId: 'doc-1', pages: [4], snips: [{ dataUrl: SNIP_PNG, page: 77 }] },
+      loadDocument: async () => ({
+        meta: { title: 'דוח', quarter: 'Q2' },
+        pages: [{ pageNo: 4, text: 'a' }],
+      }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'ok' },
+    'a snipped page with no prose was reported as lost report text'
+  )
+  assert.ok(s.blocks().some((b) => b.type === 'image'))
+})
+
+test('a SNIP-ONLY turn promises no report text, so it cannot lose any', async () => {
+  // No reference block on screen — only thumbnails, and those always arrive.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [], snips: [{ dataUrl: SNIP_PNG, page: 77 }] },
+      loadDocument: async () => ({ meta: null, pages: [] }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'ok' }
+  )
+})
+
+test('the loader is asked for the MARKED pages AND the snipped ones', async () => {
+  // The two lists are separate now; this is the one that must still be the union,
+  // or a snipped page silently loses the prose that says what its number is about.
+  let asked: number[] = []
+  const s = docSender()
+  await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4], snips: [{ dataUrl: SNIP_PNG, page: 77 }] },
+      loadDocument: async (_id, pages) => {
+        asked = pages
+        return { meta: null, pages: [{ pageNo: 4, text: 'a' }] }
+      },
+    })
+  )
+  assert.deepEqual(asked, [4, 77])
+})
+
 test('the documentContext event lands BEFORE the answer starts, never after it', async () => {
   const s = docSender()
   const events = await collect(

@@ -6,6 +6,7 @@ import { ATTACHMENT_MAX, ATTACHMENT_MAX_B64, PNG_DATA_URL_PREFIX } from '@/lib/c
 import {
   asUuid,
   DOCUMENT_PAGES_MAX,
+  pagesToLoad,
   parseTurnDocuments,
   LIVE_CAPTIONS_MAX_CHARS,
   LIVE_LABEL_MAX_CHARS,
@@ -384,20 +385,44 @@ test('marked pages are deduped and ordered', () => {
   })
 })
 
-test('a snipped page JOINS the marked pages — the image needs its own page prose', () => {
+test('BLOCKER: `pages` is the MARKED pages only — a snipped page does not join it', () => {
+  // Round 2. Merging them made a snipped page count as PROMISED TEXT while only
+  // its image was ever promised, so a snip of a scanned page reported "the report
+  // text could not be loaded" on the turn its image had grounded perfectly.
   const parsed = parseTurnDocuments({
     documentRef: { documentId: DOC_UUID, pages: [4] },
     attachments: [{ dataUrl: PNG, page: 9, documentId: DOC_UUID }],
   })
-  assert.deepEqual(parsed, { documentId: DOC_UUID, pages: [4, 9], snips: [{ dataUrl: PNG, page: 9 }] })
+  assert.deepEqual(parsed, { documentId: DOC_UUID, pages: [4], snips: [{ dataUrl: PNG, page: 9 }] })
+  // ...and the snipped page still gets its prose FETCHED. Separate question.
+  assert.deepEqual(pagesToLoad(parsed!), [4, 9])
 })
 
 test('snips alone carry the document — a turn can be all image and no marker', () => {
   assert.deepEqual(parseTurnDocuments({ attachments: [{ dataUrl: PNG, page: 2, documentId: DOC_UUID }] }), {
     documentId: DOC_UUID,
-    pages: [2],
+    // NO marked pages: nothing on screen promises report TEXT on this turn.
+    pages: [],
     snips: [{ dataUrl: PNG, page: 2 }],
   })
+  assert.deepEqual(
+    pagesToLoad(parseTurnDocuments({ attachments: [{ dataUrl: PNG, page: 2, documentId: DOC_UUID }] })!),
+    [2]
+  )
+})
+
+test('pagesToLoad dedupes and orders, and never drops a snipped page', () => {
+  assert.deepEqual(
+    pagesToLoad({
+      documentId: DOC_UUID,
+      pages: [9, 4],
+      snips: [
+        { dataUrl: PNG, page: 4 },
+        { dataUrl: PNG, page: 1 },
+      ],
+    }),
+    [1, 4, 9]
+  )
 })
 
 test('a gated snip carries NO documentId — the disagreement is unrepresentable', () => {
@@ -489,7 +514,9 @@ test('a merged page list is NOT re-sliced — a snipped page always keeps its te
     documentRef: { documentId: DOC_UUID, pages: marked },
     attachments: [{ dataUrl: PNG, page: 90, documentId: DOC_UUID }],
   })
-  assert.ok(parsed!.pages.includes(90), 'the snipped page lost its text')
+  // The FETCH list is where the union lives now — `pages` is the marked ones.
+  assert.ok(pagesToLoad(parsed!).includes(90), 'the snipped page lost its text')
+  assert.equal(parsed!.pages.includes(90), false, 'a snipped page leaked into the marked list')
 })
 
 test('a malformed documentRef is refused, never dropped to "no document"', () => {
@@ -530,7 +557,7 @@ test('documents COMPOSE with every grounding and with a project', () => {
     const scope = parseTurnScope({ grounding, projectId: PROJECT_UUID, ...attach })
     assert.deepEqual(
       scope?.documents,
-      { documentId: DOC_UUID, pages: [3], snips: [{ dataUrl: PNG, page: 3 }] },
+      { documentId: DOC_UUID, pages: [], snips: [{ dataUrl: PNG, page: 3 }] },
       `${grounding.kind} dropped the attached document`
     )
     assert.equal(scope?.projectId, PROJECT_UUID, `${grounding.kind} dropped the project`)
