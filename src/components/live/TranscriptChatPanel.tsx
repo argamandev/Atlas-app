@@ -2,13 +2,12 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
-import { streamChat } from '@/lib/api/chat'
 import { streamChatV2, type ClientIncompleteCode, type Grounding } from '@/lib/api/chat2'
+import type { DocumentContextState } from '@/lib/chat2/protocol'
 import { incompleteMessage } from '@/lib/chat/incompleteCopy'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import type { ChatSource, ChatSnip } from '@/lib/chat/grounding'
 import { sanitizeHistory } from '@/lib/chat/history'
-import { chooseChatRoute, legacyLiveContext } from '@/lib/chat/turnRoute'
 import { appendSnip } from '@/lib/documents/snip'
 import { armSnip, getSnipTarget, subscribeSnipTarget } from '@/lib/live/snipBridge'
 import { CitationChip } from '@/components/chat/CitationPopover'
@@ -44,6 +43,17 @@ interface Msg {
    */
   callTruncated?: boolean
   /**
+   * How the ATTACHED REPORT reached the model on this turn (08c-3).
+   *
+   * A SEPARATE FIELD from `callTruncated`, never a widened one. A multiview turn
+   * can be a whole call beside a cut report page, or a cut call beside a whole
+   * page, and both notices are true at once — one flag for the pair would name
+   * the wrong half of the screen. Held per message rather than read off a prop
+   * because it varies by TURN: a user attaches a snip to one question and
+   * nothing to the next, in the same panel.
+   */
+  documentContext?: DocumentContextState | null
+  /**
    * The failure, held as the THROWN VALUE and kept out of `content`.
    *
    * This panel used to do `setLast({ content: (err as Error).message })`, which
@@ -70,25 +80,28 @@ export function TranscriptChatPanel({
   companyId: string | null
   transcriptId: string | undefined
   /**
-   * WHICH BACKEND, AND WHY IT IS A GROUNDING RATHER THAN A FLAG (ticket 08b).
+   * WHAT THIS PANEL'S ANSWERS ARE GROUNDED IN. **Required** since 08c-3.
    *
-   * Set → this panel talks to `/api/chat/v2` with exactly this grounding. Unset →
-   * the old `/api/chat`, which is still the only route that can honour the one
-   * grounding v2 has no code for: multiview's marked-PDF pages and snipped
-   * images (08c-3, the ticket that finally retires that route).
+   * It used to be optional, and the optionality was load-bearing: unset meant
+   * "send this turn to the old `/api/chat`", which was the only route that could
+   * honour multiview's marked-PDF pages and snipped images. v2 honours them now,
+   * that route is deleted, and there is nowhere for an ungrounded turn to go —
+   * so the field is required and every call site names its recipe.
    *
-   * A boolean `useV2` would have said "which backend"; this says WHAT THE ANSWER
-   * IS GROUNDED IN, and the backend follows from it. That direction matters: the
-   * rule the fork exists to keep is "a surface goes to v2 only when v2 can honour
-   * every grounding that surface displays", and a caller that has to name its
-   * grounding cannot satisfy that rule by accident.
+   * WHY THAT IS THE SAFE DIRECTION rather than a tidy-up. `chooseChatRoute`'s
+   * default fell to `legacy` precisely because a surface that has not said what
+   * it is grounded in has not earned the new backend, and quietly sending it to
+   * v2 as a blank market-wide chat is the downgrade the union exists to prevent.
+   * With the fallback gone, an unset grounding could ONLY become that downgrade —
+   * so it is made unrepresentable instead (M3.3). A caller with genuinely no
+   * grounding says `{kind:'none'}` out loud, which is a real recipe.
    *
-   * THE LIVE CAPTIONS TRAVEL IN HERE NOW (08c-2), in the `live` recipe, and the
-   * separate `liveContext` prop is gone. It was the same fact in a second place:
+   * THE LIVE CAPTIONS TRAVEL IN HERE (08c-2), in the `live` recipe, rather than
+   * in a `liveContext` prop beside it. That was the same fact in a second place:
    * the panel's own guard checked the grounding for attachments and forgot
-   * `liveContext`, a review finding that the shape itself invited.
+   * `liveContext`, a review finding the shape itself invited.
    */
-  grounding?: Grounding
+  grounding: Grounding
   quote: string
   /** bumps every time a fresh selection is referenced (star or, while open, any highlight) */
   seedNonce: number
@@ -208,26 +221,37 @@ export function TranscriptChatPanel({
       // it is written only inside the event closure, so as a `let … = null` it
       // narrows back to `null` and the `setLast` below reads as a constant.
       source: ChatSource | null
+      /** How the ATTACHED REPORT reached the model, when one rode this turn. */
+      documentContext: DocumentContextState | null
     } = {
       incomplete: null,
       error: null,
       callTruncated: false,
       source: null,
+      documentContext: null,
     }
     try {
-      // WHICH BACKEND, PER TURN (08c-2). The live host has both a grounding v2
-      // can honour (its captions) and, in multiview, a document pane that can
-      // attach a marked page or a snipped image to a single turn — which v2
-      // cannot read until 08c-3. So the choice cannot be made once at mount.
+      // ONE BACKEND (08c-3). There is no route choice left to make: v2 now
+      // honours every grounding this panel can display — the company, the stored
+      // call, the live captions — AND the two things that kept `/api/chat` alive
+      // through three slices, a marked report passage and a snipped page image,
+      // which ride the turn as a fenced page block and as IMAGE CONTENT BLOCKS.
       //
-      // This REPLACES a throw. Refusing was right while no v2-grounded host owned
-      // a document pane; the live host owns one, so refusing would have turned a
-      // question the product has always answered into an error message. The old
-      // route honours every grounding on this screen in full, which is what makes
-      // handing the turn to it a fallback rather than a downgrade
-      // (`lib/chat/turnRoute.ts` carries the reasoning and its tests).
-      if (chooseChatRoute({ grounding, hasDocRef: !!usedDoc, hasSnips: usedSnips.length > 0 }) === 'v2') {
-        await streamChatV2({ message: outMessage, grounding, history }, (e) => {
+      // `chooseChatRoute` and the per-turn fallback it decided are gone with the
+      // route they chose between. What replaces them is not a widened fallback
+      // but the absence of one: nothing on this screen is left unfulfilled, which
+      // is the only condition under which the rule the fork enforced — *a surface
+      // goes to v2 only when v2 can honour every grounding it displays* — is
+      // satisfied by having no fork at all.
+      await streamChatV2(
+        {
+          message: outMessage,
+          grounding,
+          history,
+          documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
+          attachments: usedSnips.length ? usedSnips : undefined,
+        },
+        (e) => {
           switch (e.type) {
             case 'delta':
               full += e.text
@@ -239,12 +263,15 @@ export function TranscriptChatPanel({
               // BOTH halves of the event, not just the chip. Recording `source`
               // and dropping `state` renders a call read in part exactly like a
               // call read whole — the degradation this event exists to carry,
-              // discarded at the one surface that receives it. Unreachable
-              // today (only the company page passes a grounding, and a company
-              // grounding never truncates), but the prop takes the whole
-              // `Grounding` union, so nothing except today's single call site
-              // keeps it that way.
+              // discarded at the one surface that receives it.
               outcome.callTruncated = e.state === 'truncated'
+              break
+            case 'documentContext':
+              // The attached report's own state, kept SEPARATE from
+              // `callTruncated`. A multiview turn can be a whole call beside a
+              // cut report page, or the reverse, and one flag for both would
+              // name the wrong half of the screen.
+              outcome.documentContext = e.state
               break
             case 'incomplete':
               outcome.incomplete = e.code
@@ -254,40 +281,22 @@ export function TranscriptChatPanel({
               break
             case 'mode':
             case 'tool':
+            case 'projectContext':
             case 'done':
               break
           }
-        })
-        // `error` is the backend saying nothing usable came back — a failure, not
-        // a partial answer, so it goes down the error path rather than being
-        // rendered as a reason beside an answer that does not exist.
-        if (outcome.error) throw new Error(outcome.error)
-      } else {
-        // The legacy route. `liveContext` is read back OFF THE GROUNDING rather
-        // than from a prop beside it — one fact, one place (`turnRoute.ts`).
-        const res = await streamChat(
-          {
-            message: outMessage,
-            companyId: companyId ?? undefined,
-            transcriptId,
-            liveContext: legacyLiveContext(grounding),
-            history,
-            documentRef: usedDoc ? { documentId: usedDoc.documentId, pages: usedDoc.pages } : undefined,
-            attachments: usedSnips.length ? usedSnips : undefined,
-          },
-          (delta) => {
-            full += delta
-            setLast({ content: full })
-            scrollToEnd()
-          }
-        )
-        outcome.source = res.source
-      }
+        }
+      )
+      // `error` is the backend saying nothing usable came back — a failure, not
+      // a partial answer, so it goes down the error path rather than being
+      // rendered as a reason beside an answer that does not exist.
+      if (outcome.error) throw new Error(outcome.error)
       setLast({
         content: full,
         source: outcome.source,
         incomplete: outcome.incomplete,
         callTruncated: outcome.callTruncated,
+        documentContext: outcome.documentContext,
         streaming: false,
       })
     } catch (err) {
@@ -418,6 +427,21 @@ export function TranscriptChatPanel({
                       panel's grounding KIND cannot change while it is mounted —
                       the live host is live for its whole life. */}
                   {grounding?.kind === 'live' ? dict.chat.liveTruncated : dict.chat.callTruncated}
+                </p>
+              )}
+              {/* The ATTACHED REPORT, said separately from the call above —
+                  both can be true on one multiview turn, and a shared line
+                  would name the wrong half of the screen. `ok` renders
+                  nothing: it is the undegraded case, and a green notice under
+                  every snip would train the user to stop reading this line. */}
+              {m.documentContext === 'truncated' && !m.streaming && (
+                <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                  {dict.chat.reportTruncated}
+                </p>
+              )}
+              {m.documentContext === 'failed' && !m.streaming && (
+                <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                  {dict.chat.reportFailed}
                 </p>
               )}
               {m.incomplete && !m.streaming && (

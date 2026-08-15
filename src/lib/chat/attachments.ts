@@ -11,7 +11,16 @@ export interface ChatAttachment {
 export const ATTACHMENT_MAX = 4
 /** Per-image base64 cap (~1.5MB decoded) — the client downscales long side to 1600px anyway. */
 export const ATTACHMENT_MAX_B64 = 2_000_000
-const PNG_PREFIX = 'data:image/png;base64,'
+/**
+ * The only data-URL prefix a snip may carry.
+ *
+ * EXPORTED because `chat2/requestScope.ts` gates the same bytes for `/api/chat/v2`
+ * and a second copy of this literal is a second thing to get wrong — one of them
+ * accepting `image/jpeg` while the other refuses it is a difference no test would
+ * be looking for. One declaration, two gates.
+ */
+export const PNG_DATA_URL_PREFIX = 'data:image/png;base64,'
+const PNG_PREFIX = PNG_DATA_URL_PREFIX
 
 /** Untrusted request body → clean attachment list (silently drops invalid/excess entries). */
 export function parseAttachments(raw: unknown): ChatAttachment[] {

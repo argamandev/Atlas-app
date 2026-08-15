@@ -35,6 +35,9 @@ export type { ClientChatEvent, ClientIncompleteCode } from '@/lib/chat2/protocol
 // switch, no imports.
 import type { Grounding } from '@/lib/chat2/requestScope'
 export type { Grounding } from '@/lib/chat2/requestScope'
+// Domain vocabulary, from the pure module that owns it (08a.1) — never declared
+// here, which is the direction of dependency that whole split exists to remove.
+import type { ChatSnip, DocumentRef } from '@/lib/chat/grounding'
 
 /**
  * Line-framed NDJSON decoder that remembers a partial line between chunks, and
@@ -96,6 +99,22 @@ export interface ChatV2Input {
    * made that ordinary pair unrepresentable — see `requestScope.ts`.
    */
   projectId?: string
+  /**
+   * A marked passage from the report pane — the document and the pages in play
+   * (ticket 08c-3). A THIRD question again, beside the grounding and the
+   * project: multiview is a call AND a report at once.
+   */
+  documentRef?: DocumentRef
+  /**
+   * Snipped page images (≤4), as captured PNG data URLs.
+   *
+   * REFUSED RATHER THAN TRIMMED by the backend, which is the one place the v2
+   * gate deliberately differs from the route it replaces. The old one dropped
+   * invalid or excess entries and answered with what was left, while the chips
+   * stayed on screen in the sent message's own bubble — an answer written
+   * without one of them looked exactly like one that read it.
+   */
+  attachments?: ChatSnip[]
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
 

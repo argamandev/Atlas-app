@@ -57,10 +57,6 @@ const DROPPED: Record<string, { count: number; why: string }> = {
     count: 1,
     why: 'requireAdmin profile read: fail-closed',
   },
-  'src/lib/chat/context.ts': {
-    count: 1,
-    why: 'chat context enrichment; failure = less context, visibly generic answer (pre-existing)',
-  },
   'src/lib/db/transcripts.ts': {
     count: 1,
     why: 'renameSpeaker overlay read: failure rebuilds the override map from empty — lossy but display-only overlay, and the write that persists it IS read (pre-existing shape, kept until overlays join the consistency unit)',

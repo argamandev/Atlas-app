@@ -1,8 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  DOCUMENT_CONTEXT_STATES,
+  PROJECT_CONTEXT_STATES,
   SERVER_INCOMPLETE_CODES,
   TERMINAL_EVENTS,
+  isDocumentContextState,
   isIncompleteCode,
   isTerminal,
   parseChatEvent,
@@ -161,4 +164,51 @@ test('an unrecognised projectContext state is DROPPED, never defaulted to ok', (
 
 test('the projectContext frame is NOT terminal — it cannot end a turn', () => {
   assert.equal(isTerminal({ type: 'projectContext' }), false)
+})
+
+// ─── THE `documentContext` FRAME (ticket 08c-3) ──────────────────────────────
+
+test('a documentContext frame parses all three states', () => {
+  for (const state of ['ok', 'truncated', 'failed']) {
+    assert.deepEqual(parseChatEvent(JSON.stringify({ type: 'documentContext', state })), {
+      type: 'documentContext',
+      state,
+    })
+  }
+})
+
+test('an unrecognised documentContext state is DROPPED, never defaulted to ok', () => {
+  for (const state of ['whole', 'OK', '', null, undefined, 7, {}, true]) {
+    assert.equal(
+      parseChatEvent(JSON.stringify({ type: 'documentContext', state })),
+      null,
+      `should have dropped state: ${JSON.stringify(state)}`
+    )
+  }
+  assert.equal(parseChatEvent(JSON.stringify({ type: 'documentContext' })), null)
+})
+
+test('the frame carries NOTHING the gate cannot make disagree', () => {
+  // It held a `snips` count in the first draft, justified as "the surface can
+  // tell four chips from three images". The gate REFUSES a malformed or excess
+  // snip with a 400 rather than trimming, so that state is unreachable — the
+  // count could never differ from what the client sent. A field that cannot
+  // disagree is a stub filling a designed slot, and it reads as evidence of a
+  // check nobody performs.
+  const parsed = parseChatEvent(JSON.stringify({ type: 'documentContext', state: 'ok', snips: 3 }))
+  assert.deepEqual(Object.keys(parsed!).sort(), ['state', 'type'])
+})
+
+test('the documentContext frame is NOT terminal — it cannot end a turn', () => {
+  assert.equal(isTerminal({ type: 'documentContext' }), false)
+})
+
+test('the two context state lists are SEPARATE declarations, equal only today', () => {
+  // Sharing one array would mean a state added for the project silently appearing
+  // in the document parser and union, with copy for it existing on neither
+  // surface. Same reasoning that keeps LIVE_BUDGET_CHARS and CALL_BUDGET_CHARS
+  // apart: equal today by coincidence is not derived from one another.
+  assert.notEqual(PROJECT_CONTEXT_STATES, DOCUMENT_CONTEXT_STATES)
+  assert.equal(isDocumentContextState('ok'), true)
+  assert.equal(isDocumentContextState('whole'), false)
 })

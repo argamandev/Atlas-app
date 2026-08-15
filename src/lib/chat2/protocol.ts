@@ -107,6 +107,32 @@ export function isProjectContextState(v: unknown): v is ProjectContextState {
 }
 
 /**
+ * How an ATTACHED REPORT's pages reached the model on one turn (ticket 08c-3).
+ *
+ * ITS OWN ARRAY, not `PROJECT_CONTEXT_STATES` reused because the three words
+ * happen to match today. The two answer different questions — "did your standing
+ * instructions load" versus "did the marked pages fit" — and sharing the list
+ * would mean a state added for one silently appearing in the other's parser and
+ * union, with copy for it existing on neither surface. This repo already keeps
+ * `LIVE_BUDGET_CHARS` and `CALL_BUDGET_CHARS` apart on exactly that reasoning:
+ * equal today by coincidence is not the same as derived from one another.
+ *
+ * `failed` here means the READ failed or the report is gone. It does NOT mean
+ * "no text could be extracted" — that is a real, non-degraded state of a scanned
+ * PDF and the model is told about it inside the block (`NO_PAGE_TEXT`), so
+ * calling it a failure on screen would put a warning under an answer that is as
+ * good as the document allows.
+ */
+export const DOCUMENT_CONTEXT_STATES = ['ok', 'truncated', 'failed'] as const
+
+export type DocumentContextState = (typeof DOCUMENT_CONTEXT_STATES)[number]
+
+/** Is this string one of the document-context states? The parser's only membership test. */
+export function isDocumentContextState(v: unknown): v is DocumentContextState {
+  return typeof v === 'string' && (DOCUMENT_CONTEXT_STATES as readonly string[]).includes(v)
+}
+
+/**
  * The TERMINAL event types. Exactly one ends every turn, and it is always last.
  *
  * Exported so a caller can exhaustively switch and so the battery can assert the
@@ -170,6 +196,26 @@ export type ChatEvent =
    * all, and those two must not look alike.
    */
   | { type: 'projectContext'; state: ProjectContextState }
+  /**
+   * NON-TERMINAL. How the ATTACHED REPORT PAGES reached the model, when the user
+   * put a marked passage or a snipped image on this turn (ticket 08c-3).
+   *
+   * A THIRD event rather than a widened `grounding`, and the reason is the same
+   * one that kept `projectContext` separate: a multiview turn is grounded in a
+   * call AND carries a report page, so one event carrying both facts could not
+   * describe the ordinary case. `grounding` also carries the citation chip, which
+   * names a CALL; a report page is not one.
+   *
+   * IT CARRIES NO SNIP COUNT, and the first draft of this event did. The
+   * reasoning for it was "a surface showing four chips over an answer the model
+   * saw three of has no way to know" — which describes a state this gate cannot
+   * reach: `parseTurnDocuments` REFUSES a malformed or excess snip with a 400
+   * rather than trimming the list, so the count the server sees is always the
+   * count the client sent. A field that can never disagree is a stub filling a
+   * designed slot (app.md), and it would have read as evidence of a check nobody
+   * is performing.
+   */
+  | { type: 'documentContext'; state: DocumentContextState }
   /** TERMINAL. The model finished cleanly. The ONLY event that means complete. */
   | { type: 'done' }
   /**
@@ -266,6 +312,11 @@ export function parseChatEvent(line: string): ClientChatEvent | null {
       // cascade was a second place the state list could drift from the union.
       if (!isProjectContextState(e.state)) return null
       return { type: 'projectContext', state: e.state }
+    case 'documentContext':
+      // Same reasoning again, one event over: an unrecognised state is DROPPED
+      // rather than defaulted to 'ok'.
+      if (!isDocumentContextState(e.state)) return null
+      return { type: 'documentContext', state: e.state }
     case 'done':
       return { type: 'done' }
     case 'incomplete':

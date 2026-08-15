@@ -1002,6 +1002,28 @@ export function LiveTranscriptView({
         <TranscriptChatPanel
           companyId={call.companyId}
           transcriptId={call.id === 'demo' ? undefined : call.id}
+          // ON THE NEW BACKEND (ticket 08c-3) — the last surface to move, and
+          // the one that kept `/api/chat` alive. This screen displays a stored
+          // call AND, in multiview, a report pane whose marked pages and snipped
+          // images ride individual turns; v2 honours all three now (the call
+          // whole via `callInjection.ts`, the pages fenced and the snips as image
+          // content blocks via `documentInjection.ts`), so nothing on screen is
+          // left unfulfilled.
+          //
+          // THE DEMO CALL HAS NO STORED ROW, so it cannot be `{kind:'call'}` —
+          // the gate would accept the id and the loader would find nothing, which
+          // ends the turn in `error` under a chip promising the call. It falls
+          // back to the COMPANY, which is a grounding this screen can honestly
+          // claim, and to `none` when there is not even that. Chosen here rather
+          // than left to the backend for the reason the union exists: a recipe a
+          // surface cannot honour must not be sent, not silently downgraded.
+          grounding={
+            call.id !== 'demo'
+              ? { kind: 'call', transcriptId: call.id }
+              : call.companyId
+                ? { kind: 'company', companyId: call.companyId }
+                : { kind: 'none' }
+          }
           quote={chat.seed}
           seedNonce={chat.nonce}
           docRef={chat.docRef}

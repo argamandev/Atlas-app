@@ -522,6 +522,14 @@ export const en = {
     // would name the one stretch the model did NOT see.
     liveTruncated:
       'This call has run long — the answer is based on its most recent part, not everything said so far.',
+    // Ticket 08c-3, the attached report. TWO strings, not one, because the two
+    // states are different facts and the reader can act on only one of them: a
+    // CUT passage means "ask about a narrower passage", a FAILED one means "the
+    // report text never arrived at all". A shared sentence would make the second
+    // read as the first and send the user re-marking pages that were never read.
+    reportTruncated:
+      'The marked report passage was too long to read in full — the answer is based on part of it.',
+    reportFailed: 'The report text could not be loaded, so the answer was written without it.',
     pageShort: 'p.',
     // ─── Ticket 07: the new backend's grounding mode, said out loud ──────────
     // Search mode is VISIBLE by design (spec §2.3). It is decided from the scope

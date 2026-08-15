@@ -9,6 +9,7 @@ import type { ChatScope } from '@/lib/chat2/toolDefs'
 import { parseTurnScope, scopeIdsFor } from '@/lib/chat2/requestScope'
 import { CALL_SCOPE_SUMMARY } from '@/lib/chat2/callInjection'
 import { LIVE_SCOPE_SUMMARY } from '@/lib/chat2/liveInjection'
+import { DOCUMENT_SCOPE_SUMMARY } from '@/lib/chat2/documentInjection'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE UNIFIED CHAT BACKEND (spec §3, ticket 06/B1a). Replaces `/api/chat` for
@@ -113,19 +114,37 @@ export async function POST(req: NextRequest) {
           // `buildLiveBlock`, and never interpolated into the system prompt.
           live:
             grounding.kind === 'live' ? { captions: grounding.captions, label: grounding.label } : undefined,
+          // THE ATTACHED REPORT PAGES AND SNIPPED IMAGES (08c-3). Like `live`,
+          // they do not go through `scopeIdsFor` — a document the user is
+          // pointing at is content for one turn, not a filter the tool handlers
+          // query with. Gated at `parseTurnDocuments`; fenced (text) and sent as
+          // image content blocks (snips) in the loop.
+          documents: turn.documents,
           // Built from the GROUNDING union, so there is one answer per recipe
           // rather than a chain of `if (someField)` that two recipes could both
           // satisfy. Every value interpolated here is a uuid — `parseGrounding`
           // refused anything else, which is what keeps an untrusted body out of
           // the system prompt (round 1 of ticket 06).
+          //
+          // AND THE DOCUMENT SENTENCE IS APPENDED, not substituted: a multiview
+          // turn is grounded in a call AND carrying a report page, so a scope
+          // summary that could only say one of them would drop whichever it did
+          // not choose — the same "two orthogonal facts, one field" mistake the
+          // `Grounding` union refuses one layer down. `DOCUMENT_SCOPE_SUMMARY` is
+          // a constant like the other two; nothing from the body is interpolated.
           scopeSummary:
-            grounding.kind === 'company'
-              ? `company: ${grounding.companyId} (resolved)`
-              : grounding.kind === 'call'
-                ? CALL_SCOPE_SUMMARY
-                : grounding.kind === 'live'
-                  ? LIVE_SCOPE_SUMMARY
-                  : undefined,
+            [
+              grounding.kind === 'company'
+                ? `company: ${grounding.companyId} (resolved)`
+                : grounding.kind === 'call'
+                  ? CALL_SCOPE_SUMMARY
+                  : grounding.kind === 'live'
+                    ? LIVE_SCOPE_SUMMARY
+                    : undefined,
+              turn.documents ? DOCUMENT_SCOPE_SUMMARY : undefined,
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined,
         })) {
           controller.enqueue(encoder.encode(ndjsonLine(event)))
         }

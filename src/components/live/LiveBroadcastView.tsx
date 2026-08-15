@@ -22,7 +22,7 @@ import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Fac
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
-import { clientCaptionPayload } from '@/lib/chat/turnRoute'
+import { clientCaptionPayload } from '@/lib/chat/captionPayload'
 import { LIVE_CAPTIONS_MAX_CHARS, LIVE_LABEL_MAX_CHARS } from '@/lib/chat2/requestScope'
 import type { ChatSnip } from '@/lib/chat/grounding'
 import { MediaPlayer } from './MediaPlayer'

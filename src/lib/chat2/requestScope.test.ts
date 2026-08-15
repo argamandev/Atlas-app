@@ -2,8 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { ATTACHMENT_MAX, ATTACHMENT_MAX_B64, PNG_DATA_URL_PREFIX } from '@/lib/chat/attachments'
 import {
   asUuid,
+  DOCUMENT_PAGES_MAX,
+  parseTurnDocuments,
   LIVE_CAPTIONS_MAX_CHARS,
   LIVE_LABEL_MAX_CHARS,
   parseGrounding,
@@ -354,6 +357,195 @@ test('a missing or non-object body is handled, not thrown on', () => {
       `a ${JSON.stringify(body)} body produced a scope id`
     )
   }
+})
+
+// ─── THE REPORT PAGES AND SNIPS, A THIRD QUESTION (ticket 08c-3) ─────────────
+
+const DOC_UUID = 'c3d4e5f6-3333-4444-5555-666677778888'
+const OTHER_DOC = 'd4e5f6a7-4444-5555-6666-777788889999'
+const PNG = `${PNG_DATA_URL_PREFIX}iVBORw0KGgo=`
+
+test('nothing attached is UNDEFINED, not an empty document', () => {
+  // The overwhelmingly common turn. An empty `TurnDocuments` would put a "read
+  // the attached report" instruction in the system prompt for a turn with no
+  // report on it.
+  for (const body of [{}, { documentRef: null }, { attachments: null }, { attachments: [] }]) {
+    assert.equal(parseTurnDocuments(body), undefined, `should have been undefined: ${JSON.stringify(body)}`)
+  }
+  // A ref naming a document but marking no pages, with no snips, is also nothing.
+  assert.equal(parseTurnDocuments({ documentRef: { documentId: DOC_UUID, pages: [] } }), undefined)
+})
+
+test('marked pages are deduped and ordered', () => {
+  assert.deepEqual(parseTurnDocuments({ documentRef: { documentId: DOC_UUID, pages: [5, 4, 4] } }), {
+    documentId: DOC_UUID,
+    pages: [4, 5],
+    snips: [],
+  })
+})
+
+test('a snipped page JOINS the marked pages — the image needs its own page prose', () => {
+  const parsed = parseTurnDocuments({
+    documentRef: { documentId: DOC_UUID, pages: [4] },
+    attachments: [{ dataUrl: PNG, page: 9, documentId: DOC_UUID }],
+  })
+  assert.deepEqual(parsed, { documentId: DOC_UUID, pages: [4, 9], snips: [{ dataUrl: PNG, page: 9 }] })
+})
+
+test('snips alone carry the document — a turn can be all image and no marker', () => {
+  assert.deepEqual(parseTurnDocuments({ attachments: [{ dataUrl: PNG, page: 2, documentId: DOC_UUID }] }), {
+    documentId: DOC_UUID,
+    pages: [2],
+    snips: [{ dataUrl: PNG, page: 2 }],
+  })
+})
+
+test('a gated snip carries NO documentId — the disagreement is unrepresentable', () => {
+  const parsed = parseTurnDocuments({ attachments: [{ dataUrl: PNG, page: 2, documentId: DOC_UUID }] })
+  assert.deepEqual(Object.keys(parsed!.snips[0]).sort(), ['dataUrl', 'page'])
+})
+
+test('TWO documents on one turn is refused — the marker and the scissors share a pane', () => {
+  // Not a user action: one document pane, one document. Composing it would mean
+  // captioning an image with a different report's title.
+  assert.equal(
+    parseTurnDocuments({
+      documentRef: { documentId: DOC_UUID, pages: [1] },
+      attachments: [{ dataUrl: PNG, page: 1, documentId: OTHER_DOC }],
+    }),
+    null
+  )
+  assert.equal(
+    parseTurnDocuments({
+      attachments: [
+        { dataUrl: PNG, page: 1, documentId: DOC_UUID },
+        { dataUrl: PNG, page: 2, documentId: OTHER_DOC },
+      ],
+    }),
+    null
+  )
+})
+
+test('A MALFORMED SNIP IS REFUSED, NEVER DROPPED — this is the whole point', () => {
+  // `parseAttachments` on the retired route silently dropped invalid or excess
+  // entries and answered with what was left. The chips are on screen and in the
+  // sent message's own bubble, so an answer written without one of them is
+  // indistinguishable from one that read it — ticket 07's defect in image form.
+  // A 400 the panel renders as a failure is visible; a shorter image list is not.
+  for (const bad of [
+    { dataUrl: 'data:image/jpeg;base64,zzz', page: 1, documentId: DOC_UUID },
+    { dataUrl: PNG, page: 0, documentId: DOC_UUID },
+    { dataUrl: PNG, page: 1.5, documentId: DOC_UUID },
+    { dataUrl: PNG, page: 1, documentId: 'not-a-uuid' },
+    { dataUrl: PNG, page: 1 },
+    { dataUrl: `${PNG_DATA_URL_PREFIX}${'a'.repeat(ATTACHMENT_MAX_B64 + 1)}`, page: 1, documentId: DOC_UUID },
+    'a string',
+    null,
+  ]) {
+    assert.equal(
+      parseTurnDocuments({ attachments: [bad] }),
+      null,
+      `should have refused: ${JSON.stringify(bad).slice(0, 60)}`
+    )
+  }
+  // ...and a GOOD snip beside a bad one does not rescue the request.
+  assert.equal(
+    parseTurnDocuments({
+      attachments: [
+        { dataUrl: PNG, page: 1, documentId: DOC_UUID },
+        { dataUrl: 'nonsense', page: 2, documentId: DOC_UUID },
+      ],
+    }),
+    null
+  )
+})
+
+test('more snips than the cap is refused, not trimmed to the cap', () => {
+  const one = { dataUrl: PNG, page: 1, documentId: DOC_UUID }
+  assert.notEqual(parseTurnDocuments({ attachments: Array(ATTACHMENT_MAX).fill(one) }), null)
+  assert.equal(parseTurnDocuments({ attachments: Array(ATTACHMENT_MAX + 1).fill(one) }), null)
+})
+
+test('more marked pages than the ceiling is refused, not sliced', () => {
+  // The retired route did `pages.slice(0, 4)` inside its loader, so a fifth
+  // marked page vanished between the reference block on screen and the text the
+  // model read.
+  const pages = (n: number) => Array.from({ length: n }, (_, i) => i + 1)
+  assert.notEqual(
+    parseTurnDocuments({ documentRef: { documentId: DOC_UUID, pages: pages(DOCUMENT_PAGES_MAX) } }),
+    null
+  )
+  assert.equal(
+    parseTurnDocuments({ documentRef: { documentId: DOC_UUID, pages: pages(DOCUMENT_PAGES_MAX + 1) } }),
+    null
+  )
+})
+
+test('a merged page list is NOT re-sliced — a snipped page always keeps its text', () => {
+  // Both inputs are bounded, so the union is bounded. Slicing here would drop a
+  // snipped page's prose while its image still rode the turn.
+  const marked = Array.from({ length: DOCUMENT_PAGES_MAX }, (_, i) => i + 1)
+  const parsed = parseTurnDocuments({
+    documentRef: { documentId: DOC_UUID, pages: marked },
+    attachments: [{ dataUrl: PNG, page: 90, documentId: DOC_UUID }],
+  })
+  assert.ok(parsed!.pages.includes(90), 'the snipped page lost its text')
+})
+
+test('a malformed documentRef is refused, never dropped to "no document"', () => {
+  for (const bad of [
+    { documentId: 'not-a-uuid', pages: [1] },
+    { documentId: DOC_UUID, pages: 'four' },
+    { documentId: DOC_UUID, pages: [0] },
+    { documentId: DOC_UUID, pages: [1.5] },
+    { documentId: DOC_UUID, pages: ['1'] },
+    { pages: [1] },
+    'a string',
+    [],
+    7,
+  ]) {
+    assert.equal(
+      parseTurnDocuments({ documentRef: bad }),
+      null,
+      `should have refused: ${JSON.stringify(bad).slice(0, 60)}`
+    )
+  }
+})
+
+test('parseTurnScope refuses the WHOLE turn when the attachments are malformed', () => {
+  // The three gates are not independent escape hatches, exactly as a bad
+  // grounding is not rescued by a good project.
+  assert.equal(parseTurnScope({ grounding: { kind: 'none' }, attachments: [{ dataUrl: 'x' }] }), null)
+  assert.equal(
+    parseTurnScope({ grounding: { kind: 'none' }, documentRef: { documentId: 'nope', pages: [1] } }),
+    null
+  )
+})
+
+test('documents COMPOSE with every grounding and with a project', () => {
+  // The reason this is a field beside the union rather than a fifth recipe:
+  // multiview is a call AND a report at once, which is the point of the layout.
+  const attach = { attachments: [{ dataUrl: PNG, page: 3, documentId: DOC_UUID }] }
+  for (const grounding of EVERY_RECIPE) {
+    const scope = parseTurnScope({ grounding, projectId: PROJECT_UUID, ...attach })
+    assert.deepEqual(
+      scope?.documents,
+      { documentId: DOC_UUID, pages: [3], snips: [{ dataUrl: PNG, page: 3 }] },
+      `${grounding.kind} dropped the attached document`
+    )
+    assert.equal(scope?.projectId, PROJECT_UUID, `${grounding.kind} dropped the project`)
+  }
+})
+
+test('the attached document puts NO id on the tool scope — it is content, not a filter', () => {
+  // Same call the `live` recipe made. `ChatScope` is what the handlers FILTER on;
+  // an id there that no handler reads is the "accepted ⇒ consumed" defect the
+  // sweep below exists to catch.
+  const scope = parseTurnScope({
+    grounding: { kind: 'none' },
+    attachments: [{ dataUrl: PNG, page: 3, documentId: DOC_UUID }],
+  })!
+  assert.deepEqual(scopeIdsFor(scope), {})
 })
 
 test('a global regex would leak state across calls — this one must not be global', () => {
