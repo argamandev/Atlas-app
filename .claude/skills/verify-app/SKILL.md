@@ -39,6 +39,16 @@ console clean + tests green.
 6. Interact (click/scroll/type) through the feature's main path.
 7. Broken → fix → repeat. Only a clean pass counts as verified.
 8. `npm test` + `npx tsc --noEmit` green.
+8b. **ENUMERATE THE STATES FIRST, THEN MARK EACH DRIVEN OR NOT-DRIVEN.** Before writing the
+   evidence, list every state the changed surface can reach — loading, empty, error, degraded,
+   truncated, each fallback path — and put that list IN the evidence file with a verdict per
+   row. Not a paragraph: a list, where "not driven" is a legal answer and silence is not.
+   **This is a ritual gate, added 2026-08-15 (ticket 08c-2) paying an ADR-0002 recurrence.**
+   `app.md`'s "every state driven in a browser" law is `ENFORCED none` — no battery can see
+   whether a human looked — and it failed here in the way it always fails: three new states
+   existed, two were driven, and the evidence file's own "not verified" list silently omitted
+   the third, so the gap read as coverage. Enumerating BEFORE driving is what makes an omission
+   visible, because a row with no verdict is obvious and a missing paragraph is not.
 9. Record what you verified, and record it DURABLY: screenshots can't be saved by every
    harness, so write the walkthrough/finding sheet you built into `docs/evidence/<branch>/`.
    A claude.ai artifact URL or a session screenshot alone is evidence that expires.

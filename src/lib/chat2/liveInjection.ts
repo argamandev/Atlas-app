@@ -72,6 +72,44 @@ export const LIVE_SCOPE_SUMMARY =
   'the call has currently reached. Answer from it first; never present its last, unfinished ' +
   'sentence as a completed statement, and use tools only for anything beyond this call.'
 
+/**
+ * The sentence the model gets when a live call has not been transcribed yet.
+ *
+ * ONE DECLARATION, because BOTH routes need it while `/api/chat` is alive (it
+ * dies at 08c-3) and the two had already drifted at review: the legacy copy
+ * carried the description without the instruction, so the weaker of the two
+ * sentences was the one telling the model not to answer from its own knowledge.
+ * A duplicated prompt fragment is the same defect class `protocol.ts` exists to
+ * have deleted — two declarations, one consulted, no mechanism noticing.
+ */
+export const NO_CAPTIONS_YET =
+  '(this call is live, but nothing has been transcribed yet) ' +
+  'Say that the call has not said anything you can read yet, rather than answering from anything else.'
+
+/**
+ * KEEP THE MOST RECENT `maxChars`, snapped forward to a word boundary.
+ *
+ * THE CHOKE POINT FOR *WHICH HALF* (M3.1), and it is one because the two routes
+ * had already disagreed. This module cut from the front; the old `/api/chat` cut
+ * `slice(0, 40_000)` — the opposite half, with no notice — so a snip attached
+ * during a long live call was answered from the OPENING of the call underneath a
+ * panel promising the live edge. Two cuts, two directions, one screen: exactly
+ * the invisible degradation this stack keeps re-learning.
+ *
+ * So the direction is decided in ONE function that every caller passes through,
+ * rather than in each caller's own `slice`. Callers still choose their own
+ * ceiling — they legitimately differ — but not which end survives.
+ */
+export function keepRecent(text: string, maxChars: number): { text: string; truncated: boolean } {
+  if (text.length <= maxChars) return { text, truncated: false }
+  let kept = text.slice(text.length - maxChars)
+  // Snap forward to the next whitespace so the block does not open on half a
+  // word — a fragment the model can read as a name it then attributes a claim to.
+  const firstSpace = kept.search(/\s/)
+  if (firstSpace !== -1) kept = kept.slice(firstSpace + 1)
+  return { text: kept.trimStart(), truncated: true }
+}
+
 export interface LiveCaptions {
   /** The caption text so far. May be empty — a call that has not spoken yet. */
   captions: string
@@ -102,28 +140,12 @@ export function buildLiveBlock(input: LiveCaptions, budgetChars: number = LIVE_B
     // "there is no call" and "the call has not spoken yet" it is looking at — the
     // three-states lesson `callInjection.ts` learned at review.
     return {
-      text: fenceSource({
-        kind: 'live_captions',
-        label,
-        content:
-          '(this call is live, but nothing has been transcribed yet) ' +
-          'Say that the call has not said anything you can read yet, rather than answering from anything else.',
-      }),
+      text: fenceSource({ kind: 'live_captions', label, content: NO_CAPTIONS_YET }),
       truncated: false,
     }
   }
 
-  let kept = captions
-  let truncated = false
-  if (captions.length > budgetChars) {
-    truncated = true
-    kept = captions.slice(captions.length - budgetChars)
-    // Snap forward to the next whitespace so the block does not open on half a
-    // word — a fragment the model can read as a name it then attributes a claim to.
-    const firstSpace = kept.search(/\s/)
-    if (firstSpace !== -1) kept = kept.slice(firstSpace + 1)
-    kept = kept.trimStart()
-  }
+  const { text: kept, truncated } = keepRecent(captions, budgetChars)
 
   const body = truncated
     ? '[This call has run longer than one turn can carry. The EARLIER part of it is NOT shown — ' +

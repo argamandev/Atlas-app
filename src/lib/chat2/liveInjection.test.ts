@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildLiveBlock, LIVE_BUDGET_CHARS, LIVE_SCOPE_SUMMARY } from './liveInjection'
+import { buildLiveBlock, keepRecent, LIVE_BUDGET_CHARS, LIVE_SCOPE_SUMMARY, NO_CAPTIONS_YET } from './liveInjection'
 
 test('captions that fit are injected whole, inside the fence', () => {
   const b = buildLiveBlock({ captions: 'שלום לכולם, נתחיל בסקירת הרבעון', label: 'אורמת — Q2 2026' })
@@ -89,4 +89,38 @@ test('the scope summary is a CONSTANT and warns about the unfinished last senten
   // prompt. And the live-specific hazard is stated: captions end mid-sentence.
   assert.equal(LIVE_SCOPE_SUMMARY.includes('${'), false)
   assert.ok(/unfinished sentence/.test(LIVE_SCOPE_SUMMARY))
+})
+
+// ─── ONE DECISION ABOUT WHICH HALF (review round 2) ──────────────────────────
+
+test('BOTH routes keep the SAME half of a long call, at their own ceilings', () => {
+  // THE DEFECT: v2 and the client kept the most recent captions; the old
+  // `/api/chat` did `slice(0, 40_000)` — the opposite half, with no notice. A
+  // snip attached during a long live call was answered from the OPENING of the
+  // call underneath a panel promising the live edge. Two cuts, two directions,
+  // one screen. `keepRecent` is now the only thing that decides direction, and
+  // this is what stops a caller growing its own `slice` again.
+  const captions = 'OPENING ' + 'x '.repeat(50_000) + 'THE-LATEST-THING'
+  const legacy = keepRecent(captions, 40_000)
+  const v2 = buildLiveBlock({ captions })
+  for (const [name, text] of [
+    ['legacy', legacy.text],
+    ['v2', v2.text],
+  ] as const) {
+    assert.ok(text.includes('THE-LATEST-THING'), `${name} dropped the live edge`)
+    assert.equal(text.includes('OPENING'), false, `${name} kept the opening instead`)
+  }
+})
+
+test('keepRecent reports truncation rather than leaving it to be inferred from a length', () => {
+  assert.deepEqual(keepRecent('short', 100), { text: 'short', truncated: false })
+  assert.equal(keepRecent('a'.repeat(200), 100).truncated, true)
+})
+
+test('the no-captions sentence is ONE declaration, carrying its instruction', () => {
+  // It had drifted into two copies at review, and the weaker of them was the one
+  // telling the model not to answer from its own knowledge.
+  assert.ok(NO_CAPTIONS_YET.includes('nothing has been transcribed yet'))
+  assert.ok(NO_CAPTIONS_YET.includes('rather than answering from anything else'))
+  assert.ok(buildLiveBlock({ captions: '' }).text.includes(NO_CAPTIONS_YET))
 })

@@ -23,7 +23,7 @@ import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
 import { clientCaptionPayload } from '@/lib/chat/turnRoute'
-import { LIVE_CAPTIONS_MAX_CHARS } from '@/lib/chat2/requestScope'
+import { LIVE_CAPTIONS_MAX_CHARS, LIVE_LABEL_MAX_CHARS } from '@/lib/chat2/requestScope'
 import type { ChatSnip } from '@/lib/chat/grounding'
 import { MediaPlayer } from './MediaPlayer'
 import { flattenWords, activeWordIndex, type WordTimedTranscript } from '@/lib/live/syncEngine'
@@ -271,10 +271,16 @@ export function LiveBroadcastView({
         : undefined,
     [words]
   )
-  const liveCallLabel = useMemo(
-    () => [companyName, quarter].filter(Boolean).join(' — ') || undefined,
-    [companyName, quarter]
-  )
+  // BOUNDED FOR THE SAME REASON THE CAPTIONS ARE (review round 2). `parseGrounding`
+  // refuses a label past `LIVE_LABEL_MAX_CHARS` or carrying a newline, and refusing
+  // the label refuses the whole turn — so an unbounded value here is the identical
+  // client-unbounded/server-refusing shape the caption fix just closed, unreachable
+  // today only because a company name happens to be short. "Only reachable later"
+  // is how the caption one shipped.
+  const liveCallLabel = useMemo(() => {
+    const raw = [companyName, quarter].filter(Boolean).join(' — ').replace(/\s+/g, ' ').trim()
+    return raw ? raw.slice(0, LIVE_LABEL_MAX_CHARS) : undefined
+  }, [companyName, quarter])
 
   function onTab(key: string) {
     if (key === 'overview') {

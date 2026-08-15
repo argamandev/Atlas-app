@@ -34,21 +34,26 @@ That last row is the one that matters most and is the easiest to assume: the who
 "this surface moves to v2", and every other check above would look identical if the old route
 had quietly served both turns.
 
-## NOT verified in a browser — stated rather than implied (M1)
+## EVERY state this surface can reach, each marked — enumerated BEFORE driving
 
-1. **The truncation notice (`chat.liveTruncated`).** Reaching it needs a call whose captions
-   exceed `LIVE_BUDGET_CHARS` (60,000). The longest recorded session here is ~27KB of lines, so
-   this state was NOT rendered. It is covered by `liveInjection.test.ts` (the block, the
-   direction of the cut, the label surviving) and `loop.test.ts` (the `truncated` event, and
-   that the turn still answers) — tests, not eyes. **This is the one state a real two-hour call
-   will hit first.**
-2. **The per-turn legacy fallback** (`turnRoute.ts`) — a snip or marked report page attached to
-   a live turn, which routes to the old `/api/chat`. Not driven; multiview snipping needs a
-   report pane open on a live call. Covered by `turnRoute.test.ts` only.
-3. **Cost.** No `scripts/measure-chat-answer.mjs` run for a live-grounded turn. The ticket's
-   ≤$0.06/answer line is already known-red at 08c-1 ($0.1010 for a company-scoped turn), and a
-   caption injection is the same shape as the stuffed-call number — so this does not change the
-   red, but it has not been measured either.
+The first version of this file wrote its gaps as a paragraph and silently omitted one of the
+three new states, so the omission read as coverage. That is the recurrence that added step 8b to
+the `/verify-app` skill; this is the list that step demands.
+
+| State | Driven? |
+| --- | --- |
+| Live call, captions present, HE | ✅ driven |
+| Live call, captions present, EN | ✅ driven |
+| **No captions yet** (panel opened before the first caption) | ✅ **driven** — `REPLAY_OFFSET=-120`, zero lines on `/state`. Atlas answered "לא נקלט שום דבר מהשיחה… ברגע שיתחילו לדבר ותהיה תמלול זמין, אוכל לענות על סמך מה שבאמת נאמר" and did NOT answer from the corpus. This is the property the state exists for. |
+| Captions truncated (`chat.liveTruncated`) | ❌ **NOT driven** — needs captions past `LIVE_BUDGET_CHARS` (60,000); the longest recorded session is ~27KB. Covered by `liveInjection.test.ts` (the cut, its direction, the label surviving, both routes agreeing on which half) and `loop.test.ts` (the event, and that the turn still answers). **A real two-hour call hits this first.** |
+| Per-turn legacy fallback (snip / marked page on a live turn) | ❌ **NOT driven** — needs a report pane open on a live call. Covered by `turnRoute.test.ts` only. |
+| Grounding refused (400) | ❌ not driven — unreachable from the UI now that the client bounds both the captions and the label. |
+| Model/stream error beside a partial answer | ❌ not driven — unchanged by this ticket; existing panel behaviour. |
+
+**Cost: not measured.** No `scripts/measure-chat-answer.mjs` run for a live-grounded turn. The
+ticket's ≤$0.06/answer line is already known-red at 08c-1 ($0.1010 for a company-scoped turn) and
+a caption injection is the same shape as the stuffed-call number, so this does not change the
+red — but it has not been measured, and saying "unchanged" would be a claim nothing here made.
 
 ## Cleanup
 
