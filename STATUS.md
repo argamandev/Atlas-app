@@ -27,22 +27,19 @@ page's Ask Atlas are on the unified backend — spec §2.3's four recipes as one
 whole-call injection behind the `call` variant.
 
 **Ticket 08 SPLIT AGAIN — 08b landed, 08c open.** Re-scoped by the founder 2026-08-15: the old
-route carries SIX groundings, not two. Still on OLD `/api/chat`, and all 08c owes: **project
-chats**, **live captions**, **multiview PDF pages + snips**. `useV2` is down to `!projectId`.
-Detail + a waiting founder call on the "stuffed FIRST turn" wording: that ticket file.
+route carries SIX groundings, not two. **Project chats, live captions and multiview PDF/snips stay
+on OLD `/api/chat`** — that is all 08c owes, and `useV2` is down to `!projectId`. Detail, plus a
+founder call waiting on the "stuffed FIRST turn" wording, in that ticket file.
 
-**Two reds, filed with numbers, not re-scored** (M2) — evidence in that branch's
-`docs/evidence/` dir:
-
-1. **Market-wide search does not complete.** Unscoped scan over 98,042 chunks →
-   `statement timeout` (~8.6s). Scoped search — the channel both MUST-PASS cases close through —
-   works end to end. Class-G discovery is RED; the diversification built for it cannot run yet.
-2. **The $0.06/answer budget does not hold.** Three real answers: $0.086 / $0.025 / $0.097. Caching
-   measured OFF, so it cannot justify the budget.
-
-Both are eval-gated retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
-`scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** (local is verified)
-— **a 401 on the first deploy of `/api/chat/v2` is the first thing to check**; absent returns 503.
+**Two reds, filed with numbers, not re-scored** (M2) — numbers in that branch's `docs/evidence/`:
+(1) **market-wide search does not complete** — unscoped scan over 98,042 chunks hits
+`statement timeout` (~8.6s), so class-G discovery is RED and the diversification built for it
+cannot run; scoped search, which both MUST-PASS cases close through, works. (2) **the $0.06/answer
+budget did not hold** on 07's three samples, with caching measured OFF. Both are eval-gated
+retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
+`scripts/measure-chat-answer.mjs` (now also `--call`). **Railway's `ANTHROPIC_API_KEY` is
+unproven** (local is verified) — **a 401 on the first deploy of `/api/chat/v2` is the first thing
+to check**; absent returns 503.
 
 **Next: ticket 09 (workspace chat) — or 08c, founder's call.** Strict order says 09, and 08c is
 cleanup of a route that still works. 09 is smaller than it was: its `shelf` grounding variant is

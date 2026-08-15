@@ -224,8 +224,28 @@ export const VOCABULARY_EXEMPT = {
  * `app.md` is 4,861 of these 9,350 tokens, and shrinking it to pointers at its
  * tests (`DECISIONS.md` 2026-08-12) is the standing plan. Two raises in two
  * slices is the signal that the plan has stopped being optional.
+ *
+ * RAISED 9,350 → 9,420 on 2026-08-15 (ticket 08b). Mine, not the founder's,
+ * flagged in the handoff — and this is the THIRD raise in three slices, which
+ * the note directly above already called the point at which app.md's shrink
+ * stops being optional. It is now overdue, and it is its own mission: folding it
+ * into 08b would be exactly the "do not fold a separate concern into unrelated
+ * work" this repo enforces elsewhere.
+ *
+ * SAME LAW, SAME PATTERN, a third time: `Degradation must be VISIBLE` earned a
+ * FOURTH tier when 08b's cold review found `callTruncated` held in view state —
+ * a degradation one refresh erased. ADR-0002 requires the recurrence to buy a
+ * stronger mechanism IN THIS COMMIT, so the tier is not optional either; the
+ * only question was where its ~50 tokens come from.
+ *
+ * The branch paid first, again: STATUS.md's two-reds block was condensed, the
+ * 08b/08c summary points at the ticket file instead of restating it, and the new
+ * tier was cut from five lines to three with its reasoning moved into
+ * `messageFlags.test.ts`'s header. That closed 89 of the 143 tokens. The rest is
+ * this raise rather than another round of shaving characters out of a status
+ * table — which is the budget refusing the behaviour it exists to encourage.
  */
-export const TOKEN_BUDGET = 9_350
+export const TOKEN_BUDGET = 9_420
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

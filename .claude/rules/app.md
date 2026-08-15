@@ -188,6 +188,9 @@ still inline guards, and every hole found so far lived exactly there.
 up. `chat2/requestScope.test.ts` fails for any accepted id no handler reads; limit in its header.
 Seven surfaces fail a thin answer sold as whole: `retrieve`, `indexHealth`, `reindex`,
 `syncFilings`, `chat2/loop`, `chat2/tools`, `chat2/terminal`. A new surface still gets `none`.
+**Fourth tier (08b):** a degradation you can REFRESH AWAY is not visible, so an honesty fact is
+PERSISTED, never view state. `chat/messageFlags.test.ts` covers each stored flag and asserts they
+stay INDEPENDENT; reasoning in its header. **A new stored flag gets a case there, or it is prose.**
 → `#stubs-on-designed-slots`
 
 **LAW · When a decision rests on a natural-language classifier over an open vocabulary, buy VISIBLE
