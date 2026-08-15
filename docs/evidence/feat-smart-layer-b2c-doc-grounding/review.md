@@ -1,9 +1,9 @@
 # Cold review record — ticket 08c-3 (`feat/smart-layer-b2c-doc-grounding`)
 
-EIGHT rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
+NINE rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
 and the mutation results are in `verify-app.md`; this file is the tracked verdict record.
 
-REVIEWED: bdd820c
+REVIEWED: e357cf3
 
 VERDICT: APPROVED
 
@@ -241,3 +241,31 @@ as a docs-only round should leave it.
 appended — otherwise the gate reads the oldest sha and a review filed at the first commit clears a
 merge at the eighth. The header carries `bdd820c`; every earlier sha survives only as its round's
 own heading.
+
+## Round 9 — at `e357cf3` — VERDICT: APPROVED — the pre-merge review
+
+The review the ship gate reads. Rounds 6–8 approved the code; this one covers the ship-ritual
+commits that landed after round 8 — the COLLISIONS entry, the security-notes sweep, and round 8's
+own verdict — and re-checks the whole `main...HEAD` diff against those two documents.
+
+It confirmed the COLLISIONS entry against the DIFF rather than against its own prose: the five
+deletions it names are exactly the five non-test deletions, and every changed exported surface is
+named, including the member-on-an-existing-interface shapes the 08b and 08c-1 entries missed. It
+confirmed the security-notes correction earns its "closed by deletion" — `getChatContext` and its
+all-companies fallback are genuinely gone, and v2 refuses an unhonourable grounding with a 400
+rather than substituting — while leaving the rate limit and the size cap OPEN on the replacement,
+which they are.
+
+FINDING · NIT · COLLISIONS.md · The 08c-3 entry omits `src/lib/i18n/dictionaries/{en,he}.ts`, which gain keys under `chat` and so widen the inferred `Dictionary` shape a concurrent session could conflict on.
+RECURRENCE: no
+
+**Closed by an appended correction, and the correction is the interesting part.** This is the THIRD
+consecutive slice with an incomplete COLLISIONS entry — and this one WAS derived from
+`git diff main...HEAD`, exactly as the previous correction prescribed. The derivation listed both
+dictionary files; they were not classified as a shared type, because "adding a translation string"
+does not feel like one. **Deriving the list fixed the ENUMERATION and not the JUDGEMENT applied to
+it.** The definition is now written down where the next person will hit it: a shared type includes
+any file whose SHAPE another file is compiled against — `en.ts` defines `Dictionary`, `tsc` holds
+`he.ts` to it, so they are one.
+
+Battery 1138/1138, `tsc` clean, `build` completes, no secrets, no DB change on this branch.
