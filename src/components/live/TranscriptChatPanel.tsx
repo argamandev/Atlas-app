@@ -228,7 +228,7 @@ export function TranscriptChatPanel({
         // live host passes `grounding`), and that is precisely the argument that
         // was already wrong once here.
         if (usedDoc || usedSnips.length > 0 || liveContext !== undefined) {
-          throw new Error('this chat cannot read report pages, snips or live captions yet')
+          throw new Error(dict.chat.groundingUnsupported)
         }
         await streamChatV2({ message: outMessage, grounding, history }, (e) => {
           switch (e.type) {

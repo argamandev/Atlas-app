@@ -495,6 +495,10 @@ export const en = {
     referringTo: 'Referring to',
     snipCap: 'Up to 4 snips per question',
     snipDefault: 'Explain what this snippet shows.',
+    // Ticket 08b: a grounding this chat's backend cannot carry. User-facing, so it
+    // is a dictionary entry — a thrown developer string reaches ErrorLine and
+    // renders where a Hebrew answer belongs.
+    groundingUnsupported: 'This chat cannot read report pages, snips or live captions yet.',
     snipFailed: 'Snip failed — try again',
     snipTooBig: 'Snip too large — select a smaller area',
     historyFailed: 'Could not load your chats — {error}',
