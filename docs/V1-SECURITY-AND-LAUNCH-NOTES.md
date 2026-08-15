@@ -28,9 +28,12 @@ change — read the dates. Current state:
   read `LIVE_ENGINE_URL || 'http://localhost:8788'`, so they are localhost-bound only while that
   variable is UNSET. **Gate them before it is ever set on a deploy.**
 - Everything below this line still stands unless marked otherwise:
-- ~~`POST /api/chat` is **unauthenticated**~~ — auth ✅ 2026-08-03. **Still unbounded and uncapped:**
-  no rate limit, no size cap on `message`/`history`, and `getChatContext` still falls back to the
-  most recent transcript across ALL companies. See item 2 — only its first clause is done.
+- ~~`POST /api/chat` is **unauthenticated**~~ — auth ✅ 2026-08-03. ~~Still unbounded and
+  uncapped~~ — **the route is DELETED (2026-08-15, ticket 08c-3)** and so is `getChatContext`, so
+  the all-companies fallback named here no longer exists. **What did NOT move to `/api/chat/v2`:
+  there is still no rate limit and no size cap on `message`/`history`.** v2 caps what it can name —
+  caption payloads, snip bytes, marked pages — but the two limits this line was really about are
+  open on the replacement. See item 2.
 - ~~`/api/quotes` and `/api/calls/follow` fall back to a shared `DEMO_USER_ID`~~ — ✅ 2026-08-03,
   and the count in that sentence was wrong: it was **16 call sites across 8 route files**
   (`grep -rn "?? DEMO_USER_ID" src/app/api | wc -l`), not two routes. They still query through
@@ -77,13 +80,16 @@ change — read the dates. Current state:
    ~~STILL OPEN from this item: the user-scoped API routes…~~ **✅ API HALF DONE 2026-08-03**
    (`fix/api-security`) — all of them, plus the ones this line failed to list. A page gate does
    not cover direct API calls; a per-method test now does.
-2. **Lock down `/api/chat`.** ✅ **Auth done 2026-08-03** — the route 401s without a session
+2. **Lock down the chat route.** ✅ **Auth done 2026-08-03** — the route 401s without a session
    (it previously resolved a user only when a document or snip was attached, so a plain question
-   ran anonymously). **STILL OPEN, and this item is NOT closed:** no per-user rate limit, no cap
-   on `message`/`history` size, and `getChatContext` still falls back to "the most recent
-   completed transcript across ALL companies" — now reachable only by a signed-in user, which
-   narrows it from anonymous to any-member but does not fix it. Company-scoping that fallback is
-   the remaining work.
+   ran anonymously). **The ROUTE this item named is gone: `/api/chat` was deleted 2026-08-15
+   (ticket 08c-3) and `/api/chat/v2` is the only chat route.** That closed one of the three open
+   clauses by deletion — `getChatContext`'s "most recent completed transcript across ALL
+   companies" fallback went with it, and v2 has no such fallback: a grounding it cannot honour is
+   a 400, never a silent substitution.
+   **STILL OPEN on the replacement, and this item is NOT closed:** no per-user rate limit and no
+   cap on `message`/`history` size. v2 bounds the payloads it can name (live captions, snip bytes,
+   marked pages) but not those two.
 3. ~~**Remove the `DEMO_USER_ID` fallback** in `/api/quotes` + `/api/calls/follow`~~ — ✅ DONE
    2026-08-03. All 16 API sites across 8 route files (the two named here were an undercount), plus
    two SERVER COMPONENTS the first pass missed entirely — `app/company/[id]/page.tsx` and
@@ -108,7 +114,7 @@ change — read the dates. Current state:
 - **Completed-transcript karaoke:** transcripts without word timings now render as a clean read
   view (no stuck active-word cursor). (`TranscriptBody.tsx` / `LiveTranscriptView.tsx`)
 - **Chat history:** the trimmed history can no longer start with an assistant turn (the Anthropic
-  API requires a leading user message — previously errored after ~4 turns). (`api/chat/route.ts`)
+  API requires a leading user message — previously errored after ~4 turns). (was `api/chat/route.ts`, deleted 08c-3; `/api/chat/v2` filters history in the route)
 - **@-mention in Hebrew:** the trigger regex now matches non-ASCII, so Hebrew company names filter
   the dropdown. (`ChatView.tsx`)
 - **Company search injection:** user input is stripped of PostgREST `.or()` metacharacters
@@ -119,7 +125,7 @@ change — read the dates. Current state:
   (`MediaPlayer.tsx`)
 - **Quote-save guard:** saving with no resolved company shows a message instead of a 400.
   (`LiveTranscriptView.tsx`)
-- **Error disclosure:** `/api/chat`, `/api/calls`, `/api/companies` return generic errors and log
+- **Error disclosure:** `/api/chat/v2` (and `/api/chat` before its deletion), `/api/calls`, `/api/companies` return generic errors and log
   details server-side (no raw SDK/HTTP strings to the client).
 
 ## Cleanup follow-ups (non-blocking)
