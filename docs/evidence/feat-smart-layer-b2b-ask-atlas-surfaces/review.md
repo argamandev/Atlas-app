@@ -48,9 +48,9 @@ FINDING · WARNING · docs/evidence/feat-smart-layer-b2b-ask-atlas-surfaces/veri
 `truncated` grounding state — the honesty state this slice exists to add — was driven in neither
 locale and is not listed in the file's own "what was NOT rendered" section, so its absence reads as
 coverage.
-RECURRENCE: no — and this answer is deliberate rather than convenient. The law is about what MERGES;
-nothing merged. The shortfall was in a draft evidence file, and it was caught by the cold review
-that exists to catch it, working as designed. Answering "yes" would claim a defect reached the
+RECURRENCE: no
+WHY NOT: deliberate, not convenient. The law is about what MERGES; nothing merged. The shortfall
+was in a draft evidence file, caught by the cold review that exists to catch it, working as designed. Answering "yes" would claim a defect reached the
 product when it did not, which is the same overclaim in the other direction (M2).
 FIX: driven in both locales by temporarily lowering the budget (no corpus call is long enough),
 then reverted; the reload case driven too.
@@ -58,8 +58,9 @@ then reverted; the reload case driven too.
 FINDING · WARNING · src/components/live/TranscriptChatPanel.tsx:246 · the error-beside-the-answer
 rewrite changes the OLD branch too — the live-captions and multiview hosts the evidence states were
 "unchanged and were not re-driven". A correct change, verified on neither surface it lands on.
-RECURRENCE: no — same reasoning as the finding above: a draft evidence file, corrected before merge
-by the review step the law depends on.
+RECURRENCE: no
+WHY NOT: same as the finding above — a draft evidence file, corrected before merge by the review
+step the law depends on.
 FIX: re-driven on `/app/live/PyuMxe88e8g` in Hebrew — answer, table and citation chip unchanged.
 
 FINDING · WARNING · docs/evidence/feat-smart-layer-b2b-ask-atlas-surfaces/verify-app.md:83 · the
