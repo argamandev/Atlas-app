@@ -1,6 +1,6 @@
 # Cold review — 08c-2, live-caption grounding
 
-`atlas-reviewer`, fresh context, FOUR rounds — `0b791cc`, `0e1f1b9`, `574d416`, `412942a` — each
+`atlas-reviewer`, fresh context, FIVE rounds — `0b791cc`, `0e1f1b9`, `574d416`, `412942a`, `b9ff226` — each
 reading the previous round's fixes. That is the point rather than an accident: **rounds 2, 3 and
 4 each found a real defect inside a fix**, and none of those three would have been read at all if
 the branch had merged on round 1's verdict. The single `VERDICT:`/`REVIEWED:` pair below is the
@@ -26,9 +26,10 @@ by the next test — while claiming to prove the ROUTE reports its cut. `liveCon
 non-exported local, so nothing measured it: reverting the route to `keepRecent(...).text` would
 have reproduced round 3's defect with this test green.
 
-RECURRENCE: yes → app.md M2, "Never let a test certify an untrue premise" — a green test asserting
-the wrong outcome is worse than none, because the mechanism that would catch recurrence points the
-wrong way
+RECURRENCE: yes → app.md, "M2 · Never let a test certify an untrue premise"
+
+A green test asserting the wrong outcome is worse than none: the mechanism that would catch
+recurrence now points the wrong way.
 
 ANSWERED: `liveContextBlock` is exported from `liveInjection.ts` and the test measures IT, plus a
 case pinning that an untruncated block carries no notice (a notice is a claim, not decoration).
@@ -47,8 +48,8 @@ dropped the earlier half of a long live call and said nothing, while v2 announce
 cut. Round 2 shared which half survives and stopped there; whether the model is told was still
 decided per-route.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE — never render success UI for content the
-server dropped"
+RECURRENCE: yes → app.md, "Degradation must be VISIBLE. Never render success UI for content the server dropped"
+
 
 ANSWERED: `LIVE_TRUNCATION_NOTICE` is one declaration both routes use, and the legacy route now
 goes through `liveContextBlock()`, which cannot return the text without the notice — the flag is
@@ -76,8 +77,8 @@ keeping the FRONT with no notice. A snip attached during a >40k-char live call w
 the OPENING of the call underneath a panel promising the live edge. A load-bearing comment
 asserting an agreement that did not exist.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE — never render success UI for content the
-server dropped"
+RECURRENCE: yes → app.md, "Degradation must be VISIBLE. Never render success UI for content the server dropped"
+
 
 ANSWERED at the tier above prose, per ADR-0002: `keepRecent()` is now the ONE function that
 decides which half survives, and both routes pass through it (M3.1) — the ceilings still differ
@@ -93,8 +94,8 @@ It named the truncation notice, the fallback and cost — and omitted "no captio
 three states round 1's BLOCKER had explicitly named. The gap read as coverage, which is worse
 than an admitted gap.
 
-RECURRENCE: yes → app.md, "Anything that decides what a screen SAYS gets every one of its states
-driven in a browser, in both locales, before it merges"
+RECURRENCE: yes → app.md, "Anything that decides what a screen SAYS gets every one of its states driven in a browser, in both locales, before it merges"
+
 
 ANSWERED twice over. **The state was then actually driven** (`REPLAY_OFFSET=-120`, zero caption
 lines; Atlas said the call has not been transcribed yet and refused to answer from the corpus).
@@ -153,8 +154,8 @@ On the legacy fallback `legacyLiveContext` returns `''`, and the old route read
 to a **company lookup**, while the panel's caption still said "Atlas is following this call
 live". A grounding the screen promises and the backend silently swaps.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE — never render success UI for content the
-server dropped"
+RECURRENCE: yes → app.md, "Degradation must be VISIBLE. Never render success UI for content the server dropped"
+
 
 ANSWERED at the choke point rather than in the branch (M3.1): the old route now TYPE-checks that
 field instead of truthiness-checking it, so empty stays empty everywhere it is read, and it tells
