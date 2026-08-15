@@ -60,10 +60,15 @@ A **second review round** at the tip found a fifth, of the same family as the fi
 
 5. **A split page's prefix named a page that does not exist.** A long filing page becomes two
    windows labelled `p.14 (1/2)`, and the harness digit-stripped that whole label — embedding the
-   window under `עמ' 1412`. It hit **8,735 of 95,274 document windows (9.2%)**, again on arm E,
+   window under `עמ' 1412`. It hit **8,735 of 95,274 document windows (9.2%)** — count it by running
+   the production `windowsOf` over every `document_pages` row and matching labels against
+   `/\(\d+\/\d+\)/`, which is what produced those two numbers — again on arm E,
    again a wrong input invented by the harness rather than by the design. Page and part are now read
    separately. **Re-running all three shelf sizes returned the identical table** — so unlike bug 1,
-   this one moved no case, and that is a measured claim rather than a hopeful one.
+   this one moved no case, and that is a measured claim rather than a hopeful one. To CHECK it rather
+   than take it: the pre-fix runs are `workspace-gate-2026-08-15T16-0{3-17,2-32,5-31}.json` at commit
+   `9df3456^`, removed at `9df3456` so the results directory holds one provenance rather than two —
+   `git show 9df3456^:scripts/retrieval-eval/results/workspace-gate-2026-08-15T16-02-32.json`.
 
 And a sixth, in the attribution: matching `id: <itemId>)` as a substring of a header that also
 carries an untrusted title is still a proxy. It now matches the whole reconstructed header from
