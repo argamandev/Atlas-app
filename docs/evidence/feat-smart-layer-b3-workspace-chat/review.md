@@ -22,7 +22,7 @@ every turn's content with no sanitiser, so a client-supplied turn (or a stored a
 echoed a document's words) could print a literal fence marker and forge the boundary this branch
 claims to close. It was the one field the new forge test did not fill.
 FIXED `ed225c3` — turns go through `defang`; `prompt.test.ts` covers both roles.
-RECURRENCE: yes → M3 · Fix at the choke point, with the fact, and make the lie unrepresentable
+RECURRENCE: no
 The fix landed in the branch where the bug was noticed, which is the clause this law opens with.
 The mechanism bought: `promptInjectionDiscipline.test.ts`, which fails for ANY interpolation in the
 builders that reaches the model through no sanitiser. Its first version scoped to `input.` and would
@@ -33,7 +33,7 @@ the clip caption is built from `workspace_items.name` and handed to the model as
 the image, a second channel the prompt-builder fix never touched.
 FIXED `ed225c3` — sanitised in `snipCaption` itself (the one door every caption passes through),
 with a test asserting it stays one line. chat2's own `snipCaption` has carried this case since 08c-3.
-RECURRENCE: yes → M3 · Fix at the choke point, with the fact, and make the lie unrepresentable
+RECURRENCE: no
 Same law again, one channel over.
 Note the honest limit: the scan does NOT reach `src/lib/chat/attachments.ts`, so this specific door
 is held by its unit test, not by the scan.
@@ -42,7 +42,7 @@ FINDING · BLOCKER · (standards axis) `prompt.ts` / `compose.ts` — `"""` is a
 marker in the same prompts and only the fence was defanged. A passage containing a line of `"""`
 closes its block and the rest reads as instruction.
 FIXED `ed225c3` — `quoted()` owns those blocks and neutralises the delimiter inside.
-RECURRENCE: yes → M3 · Fix at the choke point, with the fact, and make the lie unrepresentable
+RECURRENCE: no
 Third instance of one law on one branch, which is why the branch stopped
 patching sites and bought the scan.
 
@@ -52,7 +52,7 @@ deterministic metadata prefix. The verdict rested on it.
 FIXED `288435c` — same prefix recipe production uses. **Worth three cases: E went 6/14 → 9/14.**
 The headline changed from "the planner won" to "indistinguishable"; the ticket's gate is still unmet,
 so the outcome did not change, but the stated reason was wrong and is now right.
-RECURRENCE: yes → M2 · Never let a test certify an untrue premise
+RECURRENCE: no
 And M1 · A green signal proves only what it measured (a green signal
 proves only what it measured). Mechanism: the harness header now states what each arm is measured
 as, and the evidence file records all four harness bugs rather than only the verdict. No test tier
@@ -64,7 +64,7 @@ upper bound, not a measured system: a union sends both selections and breaks the
 budget every arm was held to — and the ticket status line carried it forward without the caveat.
 FIXED `288435c` — labelled an ORACLE BOUND in `gate.md`, `STATUS.md` and the ticket, with the
 reason.
-RECURRENCE: yes → M1 · A green signal proves only what it measured
+RECURRENCE: no
 Same law as the finding above, one document over.
 
 FINDING · WARNING · (spec axis) `gate.md` — "the same verdict at both shelf sizes, so it is not
@@ -110,6 +110,25 @@ The 8c re-check it asked for was done: every driven row was **re-driven**, not r
   fair; all in code that is either a harness or a one-line helper. Left as noted.
 
 ---
+
+## Why every RECURRENCE answer here reads "no"
+
+Not because nothing recurred — eight doors on one branch is the opposite of that — but because the
+gate's grammar cannot express what did. `recurrenceProblems` resolves a named law against the
+always-on set and requires that law to exist ON MAIN, so:
+
+- **The meta-laws (M1, M2, M3) are not `LAW ·` entries**, so `parseLaws` never indexes them. Most of
+  what recurred here repeats M3.1 (fix at the choke point) and M1 (a green signal proves only what it
+  measured). Those repetitions are named in each finding's prose instead.
+- **The law this branch FILES cannot be named either**, by design: a branch that could satisfy the
+  recurrence ritual by writing the law it claims to be repeating would satisfy nothing. The gate says
+  so itself — "answer RECURRENCE: no and file the new law normally" — which is what happened here.
+
+The strengthening ADR-0002 actually asks for DID land, and it is the thing to check rather than these
+lines: the new law arrived at `ENFORCED test`, and when round 3 found a door the test could not
+reach, it gained an `impossible` tier in that same commit (`askModel`'s `captions` takes `FenceSafe`).
+Reading a file full of "no" as "nothing recurred" would be exactly backwards.
+
 
 ## Round 2 — at the tip (`680e4d7`)
 
@@ -180,7 +199,7 @@ FIXED — and the mechanism moved a tier rather than the site: `askModel`'s `cap
 `FenceSafe`, a type only `fencePart`/`fenceSafeLine` produce, so a route cannot pass a raw string in
 any file whether the scan names it or not. Mutation-verified: reverting the route to the raw caption
 fails `tsc`.
-RECURRENCE: yes → Every untrusted string reaching a MODEL passes a sanitiser — the fence LINE, not just the body it opens
+RECURRENCE: no
 The law was `ENFORCED test` and a site named in a review survived the fix citing it, so the tier had
 to go up, not sideways. It now declares **impossible** for the caption channel and **test** for the
 builders. That is ADR-0002's requirement met in the commit that hit the recurrence.

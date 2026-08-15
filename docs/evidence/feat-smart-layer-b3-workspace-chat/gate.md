@@ -134,14 +134,17 @@ two anchors in two files at once, which every arm gets half of.
 
 The gate's outcome is "change nothing", but two things in the ticket are not gated on it:
 
-1. **The prompt boundaries are closed across SIX doors** — the slice-2 BLOCKER plus five more that
-   two review rounds found: the fence marker line, the shelf listing and partial list, the `"""`
-   quote blocks, the conversation turns, the clip caption, and `intake/selectSources.ts` (the
-   builder that decides which FILES get fetched, which the first version of the scan did not name).
-   `fencePart`/`quoted` in `context.ts` are the one door; `promptInjectionDiscipline.test.ts` fails
-   for a NEW interpolation that skips them, and app.md now carries the law it enforces.
-   **The honest limit:** the scan reads the three builders it names. `chat/attachments.ts` and
-   `chat2/` are held by their own per-site tests. Door six was found because the scan was scoped
-   narrower than the defect — so "closed" here means these six, not "no such door remains".
+1. **The prompt boundaries are closed across EIGHT doors** — the slice-2 BLOCKER plus seven that
+   three review rounds found: the fence marker line, the shelf listing and partial list, the `"""`
+   quote blocks, the conversation turns, the clip caption, `intake/selectSources.ts` (the builder
+   that decides which FILES get fetched), and finally the compose route's own inline caption and the
+   intake route's inline prompt. Two tiers hold them: **impossible** for the caption channel
+   (`askModel`'s `captions` takes `FenceSafe`, which only the sanitisers produce) and a **test** for
+   the builders.
+   **The honest limits, because this claim has been overstated twice:** the scan reads the six files
+   it names — `chat2/` has its own per-site tests, and `lib/transcription.ts` interpolates transcript
+   text into a Gemini prompt outside this feature entirely. Door six WAS the scan, scoped narrower
+   than the defect, and door seven was a site an earlier round had already named. "Closed" means
+   these eight, not "no such door remains".
 2. **`planContext` takes its scorer as an argument** — the D8 seam, made real so this gate could
    measure production code instead of a copy. The default is unchanged.

@@ -16,8 +16,8 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   Harness `scripts/retrieval-eval/workspace-gate.mjs` is standing, beside `run.mjs`.
 - **The first run said the planner won outright, and that was a harness artifact.** Arm E — the arm
   the ticket DEFINES as the swap — was embedding raw window text while production and arm R embed a
-  deterministic metadata prefix. Given the same recipe it went 6/14 → 9/14. Four harness bugs in
-  total, three of which moved a number that was about to be reported; all four are written down in
+  deterministic metadata prefix. Given the same recipe it went 6/14 → 9/14. Six harness bugs in
+  total, three of which moved a number that was about to be reported; all six are written down in
   the evidence, because a gate that hides its own repairs is not a gate. **The verdict survived
   every repair** — which is the only reason it can be trusted.
 - **The real lead is UNION, not replacement.** P and E miss *different* cases at every shelf size
@@ -25,14 +25,19 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   and the user's own words still find it), the swap keeps the headline numbers. ⚠ Recorded as an
   ORACLE BOUND: a real union sends both selections through the one shared budget every arm was held
   to, so it is not an achieved score. Its own ticket, its own gate.
-- **The ungated half was a prompt-injection hole, and it took SIX passes to close.** Only the source
+- **The ungated half was a prompt-injection hole, and it took EIGHT passes to close.** Only the source
   BODY was defanged; then the fence marker LINE (a title, a kind, an id), then the shelf listing and
-  partial list, then the `"""` quote blocks, then the conversation turns, then the clip caption —
-  and then `intake/selectSources.ts`, the builder that decides which FILES get fetched. Each fix
-  landed where the bug was noticed, which is what M3.1 forbids. **The sixth is the instructive one:
-  it was the SCAN — bought to end the sequence — repeating the mistake by naming two builders when
-  the defect spanned three.** A law is now filed in `app.md` with the scan as its mechanism, and
-  both state what they do not reach.
+  partial list, then the `"""` quote blocks, then the conversation turns, then the clip caption,
+  then `intake/selectSources.ts` (the builder that decides which FILES get fetched), and finally the
+  compose route's own inline caption and the intake route's inline prompt. Each fix
+  landed where the bug was noticed, which is what M3.1 forbids. **Two are the instructive ones: door
+  six was the SCAN — bought to end the sequence — repeating the mistake by naming two builders when
+  the defect spanned three; and door seven was a site review had ALREADY named, a fix had cited, and
+  this branch's own review record recorded as FIXED while it stayed open for two more rounds.** Six
+  of the eight were found by fresh eyes after the boundary had been declared closed. A law is filed
+  in `app.md`, and door seven is why its mechanism is a TYPE and not another scan: `askModel`'s
+  `captions` takes a `FenceSafe` only the sanitisers produce, so a route cannot pass a raw string
+  whether the scan names its file or not.
 - **Verified:** 1153/1153 green, `tsc` clean, and the workspace honesty states driven in a browser in
   both locales — then **re-driven** after review changed the code under them, because a drive expires
   (8c). Evidence, review record and all three runs: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.

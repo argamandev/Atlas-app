@@ -8,7 +8,7 @@ shape loses at every size. **The swap is not worse, it is indistinguishable** â€
 otherwise and was wrong, because it handicapped the swap by embedding raw window text without
 production's metadata prefix (cold review caught it; worth 3 cases). Evidence, including all six
 harness bugs: `docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`; harness
-`scripts/retrieval-eval/workspace-gate.mjs`. Ungated items DID ship: SIX prompt-injection doors are
+`scripts/retrieval-eval/workspace-gate.mjs`. Ungated items DID ship: EIGHT prompt-injection doors are
 closed (fence line, `"""` blocks, conversation turns, clip caption, and intake's own builder â€” the
 one that decides which FILES get fetched), held by a discipline scan and a new law in `app.md`, plus
 the D8 scorer seam in `planContext`. **The lead for a later ticket is UNION, not

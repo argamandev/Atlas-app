@@ -27,9 +27,9 @@ residues are in `docs/open-findings.md`, plus a founder glance owed (`reportTrun
 changed after its drive).
 
 **Two reds, filed with numbers, not re-scored** (M2; numbers in 08c's `docs/evidence/`): market-wide
-search does not complete — an unscoped scan over 98,042 chunks hits `statement timeout` (~8.6s), so
-class-G discovery is RED, scoped works — and $0.06/answer did not hold ($0.1010 company-scoped).
-Both eval-gated; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
+search does not complete (unscoped scan over 98,042 chunks hits `statement timeout` ~8.6s, so class-G
+discovery is RED, scoped works) and $0.06/answer did not hold ($0.1010 company-scoped). Both
+eval-gated; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
 `scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on a v2 chat
 failing in production check for a 401 first; absent returns 503.
 
