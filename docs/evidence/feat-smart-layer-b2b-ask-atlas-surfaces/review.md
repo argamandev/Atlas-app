@@ -48,14 +48,18 @@ FINDING · WARNING · docs/evidence/feat-smart-layer-b2b-ask-atlas-surfaces/veri
 `truncated` grounding state — the honesty state this slice exists to add — was driven in neither
 locale and is not listed in the file's own "what was NOT rendered" section, so its absence reads as
 coverage.
-RECURRENCE: yes → Anything that decides what a screen SAYS gets every one of its states driven in a browser
+RECURRENCE: no — and this answer is deliberate rather than convenient. The law is about what MERGES;
+nothing merged. The shortfall was in a draft evidence file, and it was caught by the cold review
+that exists to catch it, working as designed. Answering "yes" would claim a defect reached the
+product when it did not, which is the same overclaim in the other direction (M2).
 FIX: driven in both locales by temporarily lowering the budget (no corpus call is long enough),
 then reverted; the reload case driven too.
 
 FINDING · WARNING · src/components/live/TranscriptChatPanel.tsx:246 · the error-beside-the-answer
 rewrite changes the OLD branch too — the live-captions and multiview hosts the evidence states were
 "unchanged and were not re-driven". A correct change, verified on neither surface it lands on.
-RECURRENCE: yes → Anything that decides what a screen SAYS gets every one of its states driven in a browser
+RECURRENCE: no — same reasoning as the finding above: a draft evidence file, corrected before merge
+by the review step the law depends on.
 FIX: re-driven on `/app/live/PyuMxe88e8g` in Hebrew — answer, table and citation chip unchanged.
 
 FINDING · WARNING · docs/evidence/feat-smart-layer-b2b-ask-atlas-surfaces/verify-app.md:83 · the
@@ -108,10 +112,17 @@ FIX: made consistent; the citation-chip path re-driven afterwards.
 
 ## Recurrence, answered once for the pattern
 
-Six findings carried `RECURRENCE: yes` and five of those name the same law — *degradation must be
-VISIBLE* — all of one shape: a fact the server measured, dropped somewhere between the wire and the
-screen. The mechanism bought this round is the **test tier on the stored honesty flags**
-(`messageFlags.test.ts` now covers both flags and asserts their independence), which is exactly
-where the BLOCKER lived and where prose had been carrying it. The remaining instances are
-surface-render decisions whose natural tier is the review-time ritual gate ADR-0002 describes and
-which does not exist yet — stated here rather than claimed as closed.
+Five findings carry `RECURRENCE: yes`, all naming *Degradation must be VISIBLE*, and all of one
+shape: a fact the server measured, dropped somewhere between the wire and the screen. **The
+mechanism bought is a fourth tier on that law** — an honesty fact is PERSISTED with the message,
+never held in view state, and `chat/messageFlags.test.ts` now covers each stored flag and asserts
+they stay INDEPENDENT. That is exactly where the BLOCKER lived and exactly where prose had been
+carrying it: prose tier → test tier, in this commit, per ADR-0002.
+
+**Two findings were answered `no` on purpose, and it is worth saying why rather than letting the
+count speak.** The two browser-verification findings describe a DRAFT evidence file that claimed
+coverage it did not have — caught by the cold review that exists to catch it, before anything
+merged. The law they would have named is about what merges. Answering "yes" would have claimed a
+defect reached the product, bought a mechanism for a failure that did not happen, and made the
+recurrence signal itself less trustworthy — the same overclaim as a green test asserting a wrong
+outcome (M2), pointing the other way.
