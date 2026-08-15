@@ -4,11 +4,15 @@ Branch `feat/smart-layer-b2c-project-grounding`. Three reviewers on the same dif
 (`git diff main...HEAD`): the repo's `atlas-reviewer` (cold context, verdict-bearing) plus a
 Standards axis and a Spec axis, run in parallel.
 
-**Two `atlas-reviewer` rounds. Round 1 returned CHANGES on six findings; round 2, at the fix tip,
-returned CHANGES on five more. The record below is ROUND 3's — every finding from both earlier
-rounds, with its fix and its recurrence answer.** The earlier rounds' verdicts are deliberately not
-reproduced as `VERDICT:` lines: the gate reads the FIRST one, and a superseded CHANGES sitting
-above the current verdict is how a record ends up describing code that no longer exists.
+**Four `atlas-reviewer` rounds.** Round 1 (`1eef987`) CHANGES, six findings. Round 2 (`ede0853`)
+CHANGES, five — including one that caught the round-1 FIX describing itself as stronger than it was,
+which is the most valuable thing any round produced. Round 3 (`5b1ed13`) APPROVED with three
+non-blocking findings; the first was taken rather than banked, which moved the tip. Round 4
+(`a538b1c`) is the targeted re-review of that one-file change and is the verdict below.
+
+**The earlier verdicts are deliberately NOT reproduced as `VERDICT:` lines.** The gate reads the
+first match, and a superseded CHANGES sitting above the live verdict is exactly how a record ends
+up describing code that no longer exists — the failure mode round 2 caught in this very file.
 
 Cleared by the reviewer and not re-litigated here: the `TurnScope` design (a project is not a fifth
 `Grounding` recipe) and that it is tested where a regression would show; the
@@ -25,8 +29,8 @@ scan itself builds `everyTurn` with the project set on all four recipes. Mutatio
 every `scope.projectId` read from `loop.ts` fails it. **Not accepted, with evidence.**
 
 ```
-REVIEWED: PENDING-ROUND-3
-VERDICT: PENDING
+REVIEWED: a538b1c
+VERDICT: APPROVED
 FINDING · WARNING · src/lib/chat2/loop.ts:264 · `if (!scope.userDb) return null` made a route that forgot the client indistinguishable from "RLS says this project is not yours", so our own wiring bug rendered to the user as `failed`.
 RECURRENCE: yes → Fix at the choke point, with the fact, and make the lie unrepresentable
 FINDING · WARNING · src/lib/chat2/loop.ts:275 · the catch swallowed the load error and nothing logged it; the comment claimed "the query layer logs it" and that file does not log.
@@ -48,6 +52,12 @@ RECURRENCE: no
 FINDING · NIT · docs/SMART-LAYER-SPEC.md:298 · the new blockquote was inserted between two rows of the budget table, orphaning the `Ingestion backfill` row into a second one-row table.
 RECURRENCE: no
 FINDING · NIT · src/lib/chat2/protocol.ts:87 · the `PROJECT_CONTEXT_STATES` doc block was inserted between `TERMINAL_EVENTS`' doc comment and its declaration, orphaning it; `requestScope.ts:168` did the same to `parseGrounding`.
+RECURRENCE: no
+FINDING · WARNING · src/lib/chat/messageFlags.test.ts:246 · `HONESTY_FIELDS` was a hand-kept literal duplicating the four names the narrowing case already asserts, so a fifth honesty fact would fail that case, be added to `settledFacts`, and then be missing from the scanned list — unguarded by the very scan built to guard it.
+RECURRENCE: no
+FINDING · NIT · src/lib/chat/messageFlags.test.ts:264 · the brace matcher counts braces without skipping strings, template literals or regex literals, so a future settle call containing a braced string would truncate the captured argument and silently stop scanning the rest.
+RECURRENCE: no
+FINDING · NIT · src/components/chat/ChatView.tsx:462 · the PERSIST path writes the stored copy field-by-field into `fullThread`, a third writer the scan does not reach — a coverage gap rather than a defect, since it reads FROM the settled message rather than a parallel source.
 RECURRENCE: no
 ```
 
@@ -118,9 +128,38 @@ RECURRENCE: no
 - **Data Clumps** (`outcome`'s co-travelling honesty fields): resolved by the `settledFacts`
   extraction.
 
+10. **Hand-kept scanned list** (round 3, taken not banked). `HONESTY_FIELDS` is now
+    `Object.keys(settledFacts(FACTS))`, so the scan widens the moment the function does.
+    Mutation-proven that the derivation buys something real: adding a fifth field to `settledFacts`
+    AND writing it directly into one settle call is caught, which the literal list could not have
+    caught.
+    **The obvious objection, asked at round 4 and answered there rather than assumed:** does
+    deriving the list from a FIXTURE make the scan hostage to that fixture — trim `FACTS`, silently
+    narrow the scan? **No.** `settledFacts` returns an explicit four-key object literal, not a
+    spread of its argument, so the keys are a function of the FUNCTION and not of the fixture;
+    trimming `FACTS` cannot narrow them, and would fail `tsc` against `SettledFacts` first. The one
+    rewrite that WOULD make the fixture load-bearing — `return {...outcome}` — is already caught,
+    because the narrowing case pins the sorted key set against a hand-written literal. Worth
+    recording because "derived, therefore safe" is itself the kind of claim this branch kept getting
+    wrong; it is safe here for a specific reason, not by category.
+11. **The two remaining round-3 findings are COVERAGE GAPS, not defects, and were answered with
+    honesty rather than code**: both are now named in the scan's STATED LIMITS — the persist path
+    (`fullThread`) is a third writer the scan does not reach, and the brace matcher does not skip
+    string/template/regex literals (exact for today's calls, verified at review). Naming a limit is
+    the whole habit this file exists to build; the alternative was a comment that quietly implied
+    coverage it did not have, which is the round-2 finding all over again.
+
 ## Final state
 
 Battery **1058/1058** green, `tsc` clean, `env:health` 9,406/9,420 with 14 spare and the unenforced
-count unchanged. Of the eleven findings, six were `RECURRENCE: yes`; four bought a structural change
-(a throw, a single settle function, a source scan, a single state declaration), one bought a law
-declaration, and one was answered `UNENFORCEABLE` with its reason stated.
+count unchanged. Of the fourteen findings across four rounds, six were `RECURRENCE: yes`; four
+bought a structural change (a throw, a single settle function, a source scan, a single state
+declaration), one bought a law declaration, and one was answered `UNENFORCEABLE` with its reason
+stated. Two Standards/Spec findings were **not accepted**, each with the evidence that refuted it.
+
+**The round that mattered was round 2**, and it is worth saying why in the record rather than only
+in the commit: it did not find a new defect. It found that the round-1 FIX had described itself as
+stronger than it was — the test guarded against a field being deleted, not against the two-writer
+shape that caused the bug. That is M1 arriving one level up, inside the machinery built to answer
+M1, and it is the reason the guard is now a source scan that fails when the original hole is
+reopened.
