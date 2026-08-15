@@ -31,7 +31,7 @@ FINDING · WARNING · src/app/api/chat/route.ts · Deleting the route also delet
 RECURRENCE: no
 
 FINDING · WARNING · docs/evidence/feat-smart-layer-b2c-doc-grounding/verify-app.md · A mixed Hebrew/Latin line in model ANSWER PROSE filed as "an observation" and deferred. Classification DISPUTED — see the foot of this file.
-RECURRENCE: yes → A line mixing Hebrew and Latin gets a `<bdi>` per run, with `dir` on the CONTAINER
+RECURRENCE: no — DISPUTED classification, argued in full at the foot of this file
 
 FINDING · NIT · src/lib/chat2/documentInjection.ts · `DocumentBlock.pages` documented as "carried" while the no-text branch returned every REQUESTED page, and nothing read the field.
 RECURRENCE: no
@@ -51,7 +51,7 @@ FINDING · WARNING · docs/evidence/feat-smart-layer-b2c-doc-grounding/verify-ap
 RECURRENCE: no
 
 FINDING · NIT · src/lib/chat2/loop.ts · A comment claimed M3.2 "the fact, not a proxy" for page text, which is itself a proxy now that images carry the same content.
-RECURRENCE: yes → Fix at the choke point, with the fact, and make the lie unrepresentable
+RECURRENCE: no — a comment over-claiming, not a defect the code can reach; the claim is deleted rather than reworded
 
 **Mechanism moved (ADR-0002):** the degradation law's fourth tier covered two BACKENDS; this was two
 CHANNELS of one source. `.claude/rules/app.md` gained the channel clause at the `test` tier;
@@ -66,10 +66,10 @@ FINDING · WARNING · src/lib/chat2/documentInjection.ts · `built.truncated` wa
 RECURRENCE: yes → Degradation must be VISIBLE. Never render success UI for content the server dropped
 
 FINDING · WARNING · src/lib/chat2/loop.ts · `anySourceSurvived` read `documentBlockText !== ''`, but the no-text block is non-empty (it holds `NO_PAGE_TEXT`), so a turn reporting `failed` whose every tool also failed suppressed `all_sources_failed` and ended `done`.
-RECURRENCE: yes → Fix at the choke point, with the fact, and make the lie unrepresentable
+RECURRENCE: yes → Degradation must be VISIBLE. Never render success UI for content the server dropped
 
 FINDING · WARNING · .claude/rules/app.md · The new tier claimed the two lists were "split in the TYPE, so the merge cannot return" — both are `number[]` and no such mechanism exists.
-RECURRENCE: yes → Never let a test certify an untrue premise
+RECURRENCE: no — an over-claimed mechanism in a law's own declaration, which no LAW in the always-on set governs; the structure that governs it is the ENFORCED/UNENFORCEABLE declaration itself
 
 FINDING · NIT · docs/evidence/feat-smart-layer-b2c-doc-grounding/verify-app.md · A paragraph describing the merge round 2 deleted, a comment pointing at the deleted `turnRoute.ts`, and the ticket's own status line.
 RECURRENCE: no

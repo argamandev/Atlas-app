@@ -39,6 +39,16 @@ console clean + tests green.
 6. Interact (click/scroll/type) through the feature's main path.
 7. Broken → fix → repeat. Only a clean pass counts as verified.
 8. `npm test` + `npx tsc --noEmit` green.
+8c. **A DRIVE EXPIRES WHEN THE CODE UNDER IT CHANGES — RE-CHECK THE TABLE AT MERGE, NOT AT THE
+   DRIVE.** Added 2026-08-15 (ticket 08c-3), which failed this twice on ONE branch: five review
+   rounds edited the surface after the table was written, and the table went on claiming ticks it
+   had earned against code that no longer existed — including a row asserting a drive of copy a
+   later round had rewritten. **Before merging, diff the branch since each row was driven and give
+   every touched row one of three marks: re-driven ✅, or ⚠ with what changed and why re-driving is
+   or is not owed, or ❌.** A stale ✅ is worse than a ❌: the ❌ is a gap anyone can see, and the
+   stale ✅ is a claim nobody will re-check. This is the same "a gap reads as coverage" failure that
+   bought 8b, one time-axis over — 8b makes the omission visible when the table is WRITTEN, and this
+   makes it visible when the table has ROTTED.
 8b. **ENUMERATE THE STATES FIRST, THEN MARK EACH DRIVEN OR NOT-DRIVEN.** Before writing the
    evidence, list every state the changed surface can reach — loading, empty, error, degraded,
    truncated, each fallback path — and put that list IN the evidence file with a verdict per
