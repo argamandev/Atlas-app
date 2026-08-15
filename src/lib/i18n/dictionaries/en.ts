@@ -125,6 +125,10 @@ export const en = {
       "I couldn't reach MAYA just now, so this only covers what Atlas already holds. Worth trying again in a moment.",
     intakeUnknownCompany:
       "I don't have a TASE issuer under that name. I can only find companies that have announced a reporting date.",
+    // Picking a company with @ — the name is chosen, not spelled, so it cannot
+    // be got wrong. EN is the type source, so these two land here first.
+    intakeMention: 'Pick a company',
+    intakeUnpinCompany: 'Remove the company',
     intakeRequestNotUnderstood:
       "I couldn't work out which company you meant well enough to search MAYA, so this covers only what Atlas already holds. Try naming the company and the period?",
     intakeFetching: 'Fetching from MAYA — downloading and reading the file…',

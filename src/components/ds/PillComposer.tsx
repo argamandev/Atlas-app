@@ -27,6 +27,7 @@ export function PillComposer({
   disabled = false,
   disabledReason,
   autoFocus = false,
+  inputRef,
 }: {
   value: string
   onChange: (v: string) => void
@@ -39,6 +40,8 @@ export function PillComposer({
   disabled?: boolean
   disabledReason?: string
   autoFocus?: boolean
+  /** so a caller can put focus back after its own overlay took it */
+  inputRef?: React.RefObject<HTMLInputElement>
 }) {
   return (
     <div
@@ -55,6 +58,7 @@ export function PillComposer({
       </button>
 
       <input
+        ref={inputRef}
         autoFocus={autoFocus}
         value={value}
         disabled={disabled}

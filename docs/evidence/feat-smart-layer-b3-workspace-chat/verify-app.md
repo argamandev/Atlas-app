@@ -58,14 +58,52 @@ row above is stale on its account, and intake gets its own row:
 
 | row | mark | why |
 | --- | --- | --- |
-| 10 | ❌ **not driven** | Intake (`selectSources.ts`, `intake/route.ts`) — sanitising covered by the scan and `tsc`, not by a browser. Driving it means running the intake conversation to a file-fetch, a different surface from the honesty states this drive is about. |
+| 10 | ✅ **DRIVEN 2026-08-15** (was ❌) | Intake (`selectSources.ts`, `intake/route.ts`) — closed by 09b's drive below, which runs the intake conversation all the way to a file-fetch in both locales. |
 | 11 | ❌ **not driven** | Compose with a clip (`compose/route.ts`'s caption). Round 3 changed how that caption is built; the change is enforced by the type checker (`captions: FenceSafe[]`, mutation-verified) and alters what the MODEL is sent, not what the screen says. |
 
 **What rows 10 and 11 mean for a merge:** two surfaces of this feature have had prompt-construction
 changed on this branch without a browser drive. Neither changes rendered text, and both are held by
 `tsc` or the scan — but that is an argument, not a drive, and it is stated here rather than left as
 a silent gap. A founder clicking through an intake conversation and a clip-to-compose once would
-close both.
+close both. **Row 10 is now closed by the 09b drive; row 11 still stands.**
+
+---
+
+## 09b — the `@` company mention in the intake (2026-08-15)
+
+Ticket `.scratch/smart-layer-build/issues/09b-intake-company-mention.md`. Driven on `localhost:3000`
+against live MAYA and the live company directory. **This is also the drive row 10 was asking for**,
+since it runs the intake conversation to an actual file-fetch.
+
+**The founder's own failing case, end to end.** `בז"א` resolves to NOTHING by name (measured — see
+the ticket), so the old surface answered "I don't have their documents" about a company holding 12
+filings. Typing `@בז` now lists both refineries with logos; picking בית זיקוק אשדוד and asking for
+the latest reports returned MAYA's real Q1-2026 report and May-2026 deck, and `כן` pulled both onto
+the shelf (the 38-page PDF rendered).
+
+| # | state | locale | mark |
+| --- | --- | --- | --- |
+| 1 | `@` BUTTON on the tall intro composer opens the picker | EN | ✅ driven |
+| 2 | picker filtered by a typed fragment (`בז` → בזק · בית זיקוק אשדוד · בתי זיקוק) | EN | ✅ driven |
+| 3 | picked → chip `@בית זיקוק אשדוד` + "Remove the company", `@` LEFT of the Hebrew run (zoomed) | EN | ✅ driven |
+| 4 | sent WITH a pin → MAYA's real filings offered, `כן` → both attached and rendered | EN | ✅ driven |
+| 5 | typed `@` (no button) opens the picker on the PILL composer, in the panel variant | HE | ✅ driven |
+| 6 | picker MIRRORS in RTL (logos right, header right) | HE | ✅ driven |
+| 7 | **Enter picks and does NOT send** | HE | ✅ driven — **failed first, see below** |
+| 8 | Enter with NO matching rows (`@zzzqq`) still SENDS — no dead key | HE | ✅ driven |
+| 9 | pin outranks the sentence: a turn reading `@בית זיקוק אשדוד @zzzqq` still answered about בז"א | HE | ✅ driven |
+| 10 | unpin → chip gone | HE | ✅ driven |
+| 11 | no pin at all → typed `תביא לי את הדוחות של תיגבור` behaves exactly as before | HE | ✅ driven |
+| 12 | console | both | ✅ clean |
+| 13 | a pinned company with NO `tase_issuer_id` | — | ❌ **not driven** — 233 of 234 companies have one, and the odd row is not identified; covered by `companyPin.test.ts` only. |
+
+**Row 7 is why this drive existed.** The first implementation guarded Enter with
+`onKeyDownCapture` + `stopPropagation` on the composer, reasoned from how `ChatComposer` is wired.
+In the browser one Enter BOTH picked בית זיקוק אשדוד and sent `@בז` as a question: a React capture
+handler cannot stop a bubble handler on the SAME element. `tsc` and 1160 green tests said nothing —
+M1, exactly. The guard now sits in `send()`, the one function every composer, key and button passes
+through, and asks whether the picker is SHOWING ROWS rather than whether an `@` is being typed
+(M3.2 — row 8 is the case that proxy would have broken).
 
 **Re-check before merge if any further commit touches `src/lib/workspace/`,
 `src/lib/chat/attachments.ts` or `src/components/workspace/`.**
