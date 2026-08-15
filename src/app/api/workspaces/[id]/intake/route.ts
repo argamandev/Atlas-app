@@ -210,6 +210,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     let remote: AttachableSource[] = []
     let sourceError: IntakeResponse['sourceError'] = null
     let unknownCompany: string | null = null
+    let unknownCompanyFrom: IntakeResponse['unknownCompanyFrom'] = null
 
     // THE PINNED ROW, READ FROM THE DATABASE. `companies` is shared corpus and
     // is read through the USER's client, so this adds no reach: an id that
@@ -251,6 +252,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // ONE DECISION, MADE ONCE, from both facts — see `companyPin.ts`.
     const company = resolveIntakeCompany(pin, request.interpreted ? request.company : null, issuerRows)
     unknownCompany = company.unknownCompany
+    unknownCompanyFrom = company.unknownCompanyFrom
 
     // A DEGRADED INTERPRET CALL TAKES MAYA OUT OF THE SEARCH SILENTLY.
     //
@@ -368,6 +370,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         fallback: findSources(request, corpus),
         sourceError,
         unknownCompany,
+        unknownCompanyFrom,
       })
     }
 
@@ -446,6 +449,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // sentence rather than leaving the gap invisible.
         sourceError,
         unknownCompany,
+        unknownCompanyFrom,
         // THE MODEL'S WORDS AND ITS IDS DISAGREED — said out loud, not settled
         // internally. The analyst asked for less, the prose agreed with them and
         // the id list did not, and nothing here can know which half was meant.
@@ -467,6 +471,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       fallback: findSources(degraded, corpus),
       sourceError,
       unknownCompany,
+      unknownCompanyFrom,
     })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })

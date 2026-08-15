@@ -38,7 +38,22 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   in `app.md`, and door seven is why its mechanism is a TYPE and not another scan: `askModel`'s
   `captions` takes a `FenceSafe` only the sanitisers produce, so a route cannot pass a raw string
   whether the scan names its file or not.
-- **Verified:** 1153/1153 green, `tsc` clean, and the workspace honesty states driven in a browser in
+- **09b: the intake takes a company by `@`, not by spelling.** The founder tested this branch and hit
+  a surface it had not touched: he asked for בית זיקוק אשדוד's filings and Atlas said it had none,
+  about a company holding **12** reachable MAYA filings. Measured — `בז"א`, `בית הזיקוק באשדוד` and one
+  typo all match NO MAYA registered name, and the resolver is right to refuse them, because a
+  near-match between בז"א and בז"ן is the other refinery's report under the name you typed. His call:
+  *"why not just allow the user to type @ … it will be accurate"*. It does not improve the matching,
+  it REMOVES it — the id travels and the spelling never does, which is the impossible tier rather
+  than a guard. Ask Atlas has had this since 07; the intake was the surface that never got it.
+  **Two things the review caught in my own fix are the lesson:** gating the "I couldn't understand
+  that" notice on "a company was settled" made a pinned request with a failed interpretation report
+  NOTHING — the same call carries the PERIOD — and the first Enter guard, reasoned from how
+  `ChatComposer` is wired, both picked a company and sent the half-written sentence, green through
+  `tsc` and the whole battery (M1). The notice decision now lives in `intake/notice.ts` as a pure
+  function, and the two dead ends have separate sentences: advising `@` to someone who just used `@`
+  names the action that failed.
+- **Verified:** 1168/1168 green, `tsc` clean, and the workspace honesty states driven in a browser in
   both locales — then **re-driven** after review changed the code under them, because a drive expires
   (8c). Evidence, review record and all three runs: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
 

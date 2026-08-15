@@ -18,6 +18,7 @@ const ALL_SOURCE_ERRORS: IntakeResponse['sourceError'][] = [
 function pick(o: Partial<Parameters<typeof chooseIntakeNotice>[0]>): IntakeNotice {
   return chooseIntakeNotice({
     unknownCompany: null,
+    unknownCompanyFrom: null,
     sourceError: null,
     hasUnresolvedLine: false,
     hasReply: false,
@@ -25,10 +26,29 @@ function pick(o: Partial<Parameters<typeof chooseIntakeNotice>[0]>): IntakeNotic
   })
 }
 
+/**
+ * THE TWO DEAD ENDS ARE NOT THE SAME SENTENCE.
+ *
+ * A typed name that matched nothing is answered with "pick it with @". A
+ * company they ALREADY picked with `@`, whose row has no MAYA issuer id, must
+ * NOT be — that advises the action that just failed. One state each, and the
+ * copy for them is asserted to be different at the component's map, not here.
+ */
+test('a PICKED company that cannot be searched gets its own line, never the "use @" one', () => {
+  assert.equal(
+    pick({ unknownCompany: 'חברה בלי מנפיק', unknownCompanyFrom: 'pin' }),
+    'pinned_company_unreachable'
+  )
+  assert.equal(pick({ unknownCompany: 'בז"א', unknownCompanyFrom: 'name' }), 'unknown_company')
+  // An unknown company with no recorded source is treated as typed — the older
+  // and safer of the two, since "@" is advice rather than a claim.
+  assert.equal(pick({ unknownCompany: 'בז"א', unknownCompanyFrom: null }), 'unknown_company')
+})
+
 test('a named-but-unreachable company outranks every other caveat', () => {
   for (const sourceError of ALL_SOURCE_ERRORS) {
     assert.equal(
-      pick({ unknownCompany: 'בז"א', sourceError, hasUnresolvedLine: true, hasReply: true }),
+      pick({ unknownCompany: 'בז"א', unknownCompanyFrom: 'name', sourceError, hasUnresolvedLine: true, hasReply: true }),
       'unknown_company',
       `sourceError=${sourceError} must not displace the company answer`
     )
@@ -37,7 +57,8 @@ test('a named-but-unreachable company outranks every other caveat', () => {
 
 test('an EMPTY company name is still a degradation, not silence', () => {
   // The falsy-value hole: `''` is a company that was named and not reached.
-  assert.equal(pick({ unknownCompany: '' }), 'unknown_company')
+  assert.equal(pick({ unknownCompany: '', unknownCompanyFrom: 'name' }), 'unknown_company')
+  assert.equal(pick({ unknownCompany: '', unknownCompanyFrom: 'pin' }), 'pinned_company_unreachable')
 })
 
 test('each source error maps to its own line', () => {

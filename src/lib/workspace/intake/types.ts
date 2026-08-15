@@ -173,6 +173,12 @@ export type IntakeResponse = {
    */
   unknownCompany?: string | null
   /**
+   * Whether that company was PICKED or TYPED — two different dead ends, and
+   * the panel must not answer one with the other's advice: telling someone who
+   * used `@` to use `@` names the action that just failed (round-5 review).
+   */
+  unknownCompanyFrom?: 'pin' | 'name' | null
+  /**
    * ATLAS COULD NOT WORK OUT WHICH FILES, SO IT ATTACHED NONE — and says which
    * of the two ways it failed.
    *

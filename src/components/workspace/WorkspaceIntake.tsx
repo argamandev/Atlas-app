@@ -221,6 +221,7 @@ export function WorkspaceIntake({
       // case got appended in a place no test could see (`notice.ts` header).
       const NOTICE_COPY = {
         unknown_company: dict.workspace.intakeUnknownCompany,
+        pinned_company_unreachable: dict.workspace.intakePinnedCompanyUnreachable,
         maya_unreachable: dict.workspace.intakeMayaUnreachable,
         request_not_understood: dict.workspace.intakeRequestNotUnderstood,
         request_partly_understood: dict.workspace.intakeRequestPartlyUnderstood,
@@ -228,6 +229,7 @@ export function WorkspaceIntake({
       }
       const notice = chooseIntakeNotice({
         unknownCompany: result.unknownCompany,
+        unknownCompanyFrom: result.unknownCompanyFrom,
         sourceError: result.sourceError,
         hasUnresolvedLine: unresolvedLine !== null,
         hasReply: result.reply !== null,
@@ -450,8 +452,9 @@ export function WorkspaceIntake({
                     autoFocus
                     value={draft}
                     onChange={(e) => onDraftChange(e.target.value)}
-                    // No mention guard HERE — `send` owns that decision for
-                    // every composer, so this stays the plain key it always was.
+                    // `true` = this is the KEY, which the picker may claim.
+                    // WHETHER it claims it is `send`'s decision, not this
+                    // handler's — one place answers that for both composers.
                     onKeyDown={(e) => e.key === 'Enter' && void send(draft, true)}
                     placeholder={dict.workspace.intakePlaceholder}
                     // Hebrew must read RTL as it is typed, without the user

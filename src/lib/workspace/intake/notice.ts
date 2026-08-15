@@ -15,8 +15,17 @@
 import type { IntakeResponse } from './types'
 
 export type IntakeNotice =
-  /** a company was NAMED — picked or typed — and could not be reached on MAYA */
+  /** they TYPED a name no issuer matches — the useful answer is "pick it with @" */
   | 'unknown_company'
+  /**
+   * They already PICKED it with `@` and the row has no MAYA issuer id.
+   *
+   * Its own state because the sentence must not be the one above: advising `@`
+   * to someone who just used `@` answers a dead end with the action that
+   * produced it (round-5 review, pass B — the same law one layer down from
+   * where this commit had already broken it once).
+   */
+  | 'pinned_company_unreachable'
   /** the company resolved, MAYA did not answer */
   | 'maya_unreachable'
   /** no company survived, so MAYA was never asked */
@@ -29,6 +38,8 @@ export type IntakeNotice =
 
 export function chooseIntakeNotice(r: {
   unknownCompany: IntakeResponse['unknownCompany']
+  /** how that company was named — see `pinned_company_unreachable` */
+  unknownCompanyFrom: IntakeResponse['unknownCompanyFrom']
   sourceError: IntakeResponse['sourceError']
   /** whether there is an unresolved-selection line worth saying at all */
   hasUnresolvedLine: boolean
@@ -41,7 +52,9 @@ export function chooseIntakeNotice(r: {
   //
   // `!= null` and NOT truthiness: a pinned row with an empty name arrives as
   // `''`, which is a real degradation wearing a falsy value (09b review).
-  if (r.unknownCompany != null) return 'unknown_company'
+  if (r.unknownCompany != null) {
+    return r.unknownCompanyFrom === 'pin' ? 'pinned_company_unreachable' : 'unknown_company'
+  }
 
   if (r.sourceError === 'maya_unreachable') return 'maya_unreachable'
   if (r.sourceError === 'request_not_understood') return 'request_not_understood'

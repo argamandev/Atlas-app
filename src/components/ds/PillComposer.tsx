@@ -90,9 +90,9 @@ export function PillComposer({
 
       <button
         type="button"
-        // wrapper, not a bare `onSend`: today's callers take no argument, but a
-        // bare handler feeds React's MouseEvent to whatever this becomes later —
-        // the exact defect that killed mouse-send in the chat composer
+        // `false` = the BUTTON sent, not the key. Written out rather than a bare
+        // `onSend`, which would feed React's MouseEvent in as `fromKey` — the
+        // same shape as the defect that once killed mouse-send in the chat composer
         onClick={() => onSend(false)}
         disabled={disabled}
         aria-label={sendLabel}

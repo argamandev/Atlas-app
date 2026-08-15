@@ -125,11 +125,28 @@ rows 15 and the earlier rows cover.
 
 | notice | how it is held |
 | --- | --- |
-| `unknown_company` | ✅ driven (row 15) + test |
+| `unknown_company` | ✅ driven (rows 15, 17) + test |
+| `pinned_company_unreachable` (new, round 5 pass B) | ✅ **driven** (row 18) + test |
 | `request_partly_understood` (new) | ❌ not driven — needs the filter model to time out mid-turn, which cannot be forced from a browser. Held by `notice.test.ts`, which pins that it is never silent and never the same line as `request_not_understood`. |
 | `maya_unreachable` | ❌ not driven — needs MAYA down. Pre-existing, untouched by this commit, held by the test. |
 | `request_not_understood` | ❌ not driven — same reason as the pinned variant. Pre-existing. |
 | `unresolved` | ❌ not driven — pre-existing, untouched. |
+
+### Round 5, pass B — the two dead ends split
+
+The review found the new copy true of one cause and false of the other: `unknown_company` was
+reached BOTH by a typed name that matched nothing AND by a company the analyst had **picked with
+`@`** whose row has no `tase_issuer_id` — and the sentence told the second to use the `@` that had
+just failed. Split into two states with two sentences.
+
+**It is drivable, and it was driven** — the earlier table's guess that this state needed a row
+nobody has was wrong: `select … where tase_issuer_id is null` returns exactly one live company,
+**תמיס / Tamis**.
+
+| # | state | locale | mark |
+| --- | --- | --- | --- |
+| 18 | `@Tamis` picked → sent → *"That company has no TASE issuer I can search filings under, so this covers only what Atlas already holds."* — and NOT the "pick it with @" line | EN | ✅ driven |
+| 19 | the same `@` pick by Enter, in the panel's pill composer, EN | EN | ✅ driven (same run) |
 
 **Row 7 is why this drive existed.** The first implementation guarded Enter with
 `onKeyDownCapture` + `stopPropagation` on the composer, reasoned from how `ChatComposer` is wired.

@@ -43,6 +43,18 @@ export type IntakeCompany = {
   /** A company that was NAMED and could not be reached. Drives the panel's notice. */
   unknownCompany: string | null
   /**
+   * WHICH way that company was named, because the two are different dead ends
+   * and one sentence cannot serve both (round-5 review, pass B).
+   *
+   * `name` — they typed something no issuer matches, so the useful answer is
+   * "pick it from the list with @".
+   * `pin`  — they ALREADY picked it from the list and the row carries no MAYA
+   * issuer id. Telling them to use `@` would advise the action that just
+   * failed; the honest sentence is that Atlas cannot look this company up at
+   * all.
+   */
+  unknownCompanyFrom: 'pin' | 'name' | null
+  /**
    * Whether a company was settled at all — by either route.
    *
    * The route raises `request_not_understood` when the filter model fails, and
@@ -73,17 +85,21 @@ export function resolveIntakeCompany(
     // would answer for somebody.
     const issuerId = Number(pin.taseIssuerId)
     if (pin.taseIssuerId && Number.isInteger(issuerId) && issuerId > 0) {
-      return { issuerId, unknownCompany: null, settled: true }
+      return { issuerId, unknownCompany: null, unknownCompanyFrom: null, settled: true }
     }
-    return { issuerId: null, unknownCompany: pin.name, settled: true }
+    return { issuerId: null, unknownCompany: pin.name, unknownCompanyFrom: 'pin', settled: true }
   }
 
-  if (!modelCompany) return { issuerId: null, unknownCompany: null, settled: false }
+  if (!modelCompany) {
+    return { issuerId: null, unknownCompany: null, unknownCompanyFrom: null, settled: false }
+  }
 
   const issuer = resolveIssuer(modelCompany, issuerRows)
   // SAID, NOT GUESSED — the resolver returns null for an unknown name AND for
   // an ambiguous one, and both mean the same thing here: do not present local
   // results as an answer to a question about a company we never identified.
-  if (!issuer) return { issuerId: null, unknownCompany: modelCompany, settled: false }
-  return { issuerId: issuer.issuerId, unknownCompany: null, settled: true }
+  if (!issuer) {
+    return { issuerId: null, unknownCompany: modelCompany, unknownCompanyFrom: 'name', settled: false }
+  }
+  return { issuerId: issuer.issuerId, unknownCompany: null, unknownCompanyFrom: null, settled: true }
 }

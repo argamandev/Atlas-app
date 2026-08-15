@@ -3,9 +3,11 @@
 Branch: `feat/smart-layer-b3-workspace-chat` · `atlas-reviewer` plus a two-axis (standards / spec)
 pass, cold context each.
 
-REVIEWED: 58d2a4b
-
-VERDICT: CHANGES
+**Rounds 1–4 reviewed `58d2a4b` and earlier; verdict CHANGES each time, every finding answered
+below.** Their sha and verdict are stated here as prose ON PURPOSE: `parseReviewRecord` takes the
+FIRST `REVIEWED:`/`VERDICT:` pair in the file, so a second pair would hand the ship gate the OLDEST
+sha and let a stale approval stand for the tip. The live pair is round 5's, in its own section at
+the end of this file.
 
 Nine findings, every one answered below — fixes in `ed225c3` (the prompt boundaries) and `288435c`
 (the harness and the claims it supported). **Two of them changed what this branch says about
@@ -241,3 +243,65 @@ mechanism, and narrowing this one entry while ten others share the shape would s
 the list does not have. The entries are claims a reader must re-check, which is what the comment
 above them says.
 RECURRENCE: no
+
+## Round 5 — ticket 09b, the `@` company mention
+
+Two passes, cold context each: `37704cc` (four findings, all fixed in `48bcfa8`) and `48bcfa8`
+itself (three more). The reviewer verified `tsc` clean and the battery green at each pass, and
+checked the `companyId` path itself: UUID-shape-checked, read through the USER's RLS client on
+`companies` (shared corpus, `FOR SELECT TO authenticated`), only `tase_issuer_id` taken from the
+row, nothing about the issuer trusted from the body. `MentionDropdown`'s new `onRowsChange` is
+optional and `ChatView` does not pass it, so its existing caller is unaffected.
+
+REVIEWED: 48bcfa8
+
+VERDICT: CHANGES
+
+### Pass A — at `37704cc`, all four FIXED in `48bcfa8`
+
+FINDING · BLOCKER · src/app/api/workspaces/[id]/intake/route.ts:272 · With a pin, a filter model that returned nothing parseable was reported nowhere at all — the year window silently defaulted and the requested kinds were dropped, so "@בז\"א the 2019 annual report" got a confident answer built from 2025–2026 filings with no notice on screen, because `settled` is a fact about the COMPANY being used to suppress a signal that also carries the REQUEST clause.
+RECURRENCE: yes → Degradation must be VISIBLE
+
+FINDING · WARNING · src/components/workspace/WorkspaceIntake.tsx:178 · The `mentionRows > 0` guard sat in `send()`, which is also the click path, so tapping the send arrow while the picker was showing rows did nothing at all — no send, no state change, no feedback.
+RECURRENCE: no
+
+FINDING · WARNING · docs/evidence/feat-smart-layer-b3-workspace-chat/verify-app.md:84 · The state table enumerated the picker and chip but not the thing the commit changed server-side — which notice the panel shows — and row 10 was flipped to DRIVEN in the same commit that changed that decision.
+RECURRENCE: yes → Anything that decides what a screen SAYS gets every one of its states driven in a browser
+
+FINDING · NIT · src/lib/workspace/intake/companyPin.ts:79 · A pinned row with an empty name left as `unknownCompany: ''`, which the component read as "no unknown company", so the pinned-but-unreachable company was silently dropped.
+RECURRENCE: yes → Degradation must be VISIBLE
+
+### Pass B — new at `48bcfa8`, all three FIXED in this round's follow-up
+
+FINDING · WARNING · src/lib/i18n/dictionaries/he.ts:106 · The new `intakeUnknownCompany` copy ("אפשר לבחור אותה מהרשימה עם @") is true for a typed name that did not resolve and FALSE for the other cause routed into the same state — a company the analyst DID pick with `@` that has no `tase_issuer_id` — where it answers a dead end by advising the action that just failed.
+RECURRENCE: yes → Degradation must be VISIBLE
+
+FINDING · WARNING · ARCHITECTURE.md:347 · The header claimed "1153 tests across 107 files" while the branch registers 109 and the battery measures 1168, and the same commit edited that table without regenerating the pair — so `ship:gate` refuses the merge on it, and on PROGRESS.md's "1153/1153".
+RECURRENCE: no
+
+FINDING · NIT · src/components/ds/PillComposer.tsx:93 · The comment still said "today's callers take no argument", which the same diff made untrue.
+RECURRENCE: no
+
+### What the three `RECURRENCE: yes` answers bought
+
+ADR-0002: a recurrence must buy a stronger mechanism in the same commit, not a restatement.
+
+- **Degradation must be VISIBLE** (three of them). The tier bought is `intake/notice.ts` — WHICH of
+  the five caveats a panel shows is now one pure function of the server's facts, swept by
+  `notice.test.ts`, rather than a nested ternary in the component. Folded into that law's existing
+  "decide it in ONE function" VERIFY line rather than opening a sixth tier that would restate it.
+  **The limit is declared with it**, because pass B is precisely the hole the tier does not close:
+  the STATE can be chosen correctly and its COPY still be false of the cause that produced it. Split
+  the state; rewording is how two dead ends merge back into one sentence.
+- **Every state driven in a browser.** Stays ritual — no battery sees whether a human looked — but
+  `/verify-app` step 8b now says that a state a browser CANNOT reach is enumerated too: marked
+  not-driven, with why it cannot be forced and which test holds it. That clause lives in the skill,
+  not in `app.md`, because it is procedure; the law keeps one pointer to it. 09b's own table is the
+  worked example, and driving it found the earlier table's own guess to be wrong — the
+  pinned-unreachable state IS reachable, because exactly one live company (תמיס) has no issuer id.
+
+### Still owed before merge
+
+**No round has yet read the tip.** This record's `REVIEWED:` is `48bcfa8`; the pass-B fixes, the law
+edit and the budget raise land after it. A round 6 must read the tip and set this pair to APPROVED —
+`npm run ship:gate` refuses the merge until it does, and it is right to.

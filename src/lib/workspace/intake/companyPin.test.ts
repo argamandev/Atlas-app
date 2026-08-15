@@ -19,7 +19,7 @@ const ROWS: IssuerRow[] = [
 
 test('a pin with an issuer id is the answer, whatever the sentence said', () => {
   const out = resolveIntakeCompany({ taseIssuerId: '1361', name: 'בית זיקוק אשדוד' }, 'תיגבור', ROWS)
-  assert.deepEqual(out, { issuerId: 1361, unknownCompany: null, settled: true })
+  assert.deepEqual(out, { issuerId: 1361, unknownCompany: null, unknownCompanyFrom: null, settled: true })
 })
 
 test("a pin answers where the typed name cannot — the founder's own case", () => {
@@ -27,6 +27,7 @@ test("a pin answers where the typed name cannot — the founder's own case", () 
   assert.deepEqual(resolveIntakeCompany(null, 'בז"א', ROWS), {
     issuerId: null,
     unknownCompany: 'בז"א',
+    unknownCompanyFrom: 'name',
     settled: false,
   })
   // …and to 1361 the moment it is a pin instead of a spelling.
@@ -40,7 +41,7 @@ test('a pinned company with no issuer id is NAMED as unreachable, not silently d
   for (const taseIssuerId of [null, '', 'abc', '0', '-4']) {
     assert.deepEqual(
       resolveIntakeCompany({ taseIssuerId, name: 'חברה בלי מנפיק' }, null, ROWS),
-      { issuerId: null, unknownCompany: 'חברה בלי מנפיק', settled: true },
+      { issuerId: null, unknownCompany: 'חברה בלי מנפיק', unknownCompanyFrom: 'pin', settled: true },
       `taseIssuerId=${JSON.stringify(taseIssuerId)} must not search, and must say which company`
     )
   }
@@ -67,6 +68,7 @@ test('no pin, a name that resolves', () => {
   assert.deepEqual(resolveIntakeCompany(null, 'בית זיקוק אשדוד', ROWS), {
     issuerId: 1361,
     unknownCompany: null,
+    unknownCompanyFrom: null,
     settled: true,
   })
 })
@@ -81,6 +83,7 @@ test('no pin and no company named: nothing to search, and nothing to complain ab
   assert.deepEqual(resolveIntakeCompany(null, null, ROWS), {
     issuerId: null,
     unknownCompany: null,
+    unknownCompanyFrom: null,
     settled: false,
   })
 })

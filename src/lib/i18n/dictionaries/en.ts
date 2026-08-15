@@ -128,6 +128,10 @@ export const en = {
     // differently" — pick it with @, where the name is chosen rather than typed.
     intakeUnknownCompany:
       "I couldn't identify a company by that name. You can pick it from the list with @ — that always lands on the right one.",
+    // NOT the line above, deliberately: this one is shown to someone who ALREADY
+    // used @. Advising @ here would name the action that just failed.
+    intakePinnedCompanyUnreachable:
+      'That company has no TASE issuer I can search filings under, so this covers only what Atlas already holds.',
     // Picking a company with @ — the name is chosen, not spelled, so it cannot
     // be got wrong. EN is the type source, so these two land here first.
     intakeMention: 'Pick a company',

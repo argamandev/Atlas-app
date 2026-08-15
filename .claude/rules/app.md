@@ -207,7 +207,10 @@ route — a report as page TEXT and as snipped IMAGES — the state naming one r
 against what THAT route was asked to carry and what the SCREEN promised, never against everything
 fetched. **ENFORCED test** — `documentInjection.test.ts` sweeps `documentContextState`,
 `loop.test.ts` pins the MARKED list reaching it. **VERIFY** Decide it in ONE function, never per
-branch: four fixes in branches each shipped the next round's defect. → `#two-channel-degradation`
+branch: four fixes in branches each shipped the next round's defect. `intake/notice.ts` is that
+shape for a panel's caveats — ⚠ it pins the STATE, not that the copy fits the CAUSE, and two dead
+ends sharing one sentence told the second to use the `@` that had just failed (09b). Split, never
+reword. → `#two-channel-degradation`
 And a degradation you can REFRESH AWAY is not visible, so an honesty fact is PERSISTED with the
 message, never held in view state: `chat/messageFlags.test.ts` covers each stored flag and asserts
 they stay INDEPENDENT (08b). A new stored flag gets a case there, or it is prose.
@@ -236,6 +239,7 @@ ENUMERATE every state, each marked driven or not-driven; **step 8c re-checks the
 because a drive expires when the code under it changes** (08c-3's rounds edited the surface five
 times and the table kept its ticks). A battery cannot see whether a human looked, so this is the
 ritual tier, never test. **VERIFY** Enumerate; look at each; re-check what later commits touched.
+Unreachable states are enumerated too — 8b owns how (09b).
 → `#choke-point-inputs`
 
 **LAW · A Server Component may not pass a FUNCTION to a Client Component.** Create the closure on

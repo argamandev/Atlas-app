@@ -351,7 +351,38 @@ export const VOCABULARY_EXEMPT = {
  * mean it will not happen as a side effect of the next ticket, and it did not.
  * It needs to be scheduled as its own mission.
  */
-export const TOKEN_BUDGET = 9_950
+/*
+ * RAISED 9,950 → 10,050 on 2026-08-15 (ticket 09b). Mine, not the founder's, and
+ * flagged to him in the report.
+ *
+ * RAISE SEVEN, and it is the degradation law again — the same law as raises one
+ * through five, earning not a tier this time but a LIMIT on the tier it already
+ * has. 09b moved a panel's caveat decision into one swept pure function
+ * (`intake/notice.ts`), which is exactly the shape that law's VERIFY line has
+ * demanded since 08c-3. Then the cold review found the hole that shape does not
+ * cover: the STATE can be chosen correctly and its COPY still be false of the
+ * cause. Two dead ends — a typed company name that matched nothing, and a
+ * company the analyst PICKED with `@` whose row has no MAYA issuer id — shared
+ * one sentence, and that sentence told the second to use the `@` that had just
+ * failed. So the declaration names the mechanism AND what it does not reach,
+ * because a mechanism described without its limit is the over-claim raise five
+ * was spent deleting.
+ *
+ * THE SET GOT SMALLER IN TWO PLACES FIRST, and one of those is the interesting
+ * one. Of 155 tokens, 83 were paid rather than borrowed: the new tier was folded
+ * INTO the existing "decide it in ONE function" VERIFY line instead of opening a
+ * sixth tier that would have restated it, and the enumeration law's new clause —
+ * how to record a state a browser cannot reach — moved OUT of always-on entirely
+ * into `/verify-app` step 8b, which is where a procedure belongs and is loaded
+ * only when someone is verifying. That is the shrink working at small scale: not
+ * every sentence a law learns has to live in the law.
+ *
+ * The last ~28 are headroom, for the reason raise four gives.
+ *
+ * ⚠ THE SHRINK IS SEVEN SLICES OVERDUE. Six raises predicted it would not happen
+ * as a side effect, and it did not again. It is still its own mission.
+ */
+export const TOKEN_BUDGET = 10_050
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'
