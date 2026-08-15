@@ -127,3 +127,33 @@ merged. The law they would have named is about what merges. Answering "yes" woul
 defect reached the product, bought a mechanism for a failure that did not happen, and made the
 recurrence signal itself less trustworthy — the same overclaim as a green test asserting a wrong
 outcome (M2), pointing the other way.
+
+## Round 3 — the verdict this branch merges on
+
+REVIEWED: 0bdb196
+VERDICT: APPROVED
+
+Round 3 ran at the frozen tip `21d83b07`, verified every round-1 and round-2 fix in the diff rather
+than taking the record's word for it, and re-checked the branch's own claims independently
+(`parseGrounding` refuses rather than downgrades; `asTranscriptId` is a stated shape gate and the
+consumption test derives its id list from the union; the `supabaseAdmin` call read is legitimate
+shared-corpus per migration `20260801_014`; the panel's new error rendering reuses the shipped
+`ErrorLine`/`<bdi>` shape, opening no new bidi surface). It raised one WARNING and one NIT; the NIT
+was fixed in `0bdb196` and re-read at that tip, which is the sha recorded above.
+
+FINDING · NIT · src/components/live/TranscriptChatPanel.tsx:213 · the v2 refusal guard throws an
+untranslated English developer string into a Hebrew-first panel, where `ErrorLine` renders it in
+the place a Hebrew answer belongs.
+RECURRENCE: no
+FIX: `dict.chat.groundingUnsupported`, in both locales, in `0bdb196`.
+
+FINDING · WARNING · scripts/lib/env-manifest.mjs:227 · TOKEN_BUDGET is raised a third time in three
+slices by the same comment that declared at raise two that app.md's shrink "has stopped being
+optional", and the only thing now scheduling that shrink is a prose note in the constant.
+RECURRENCE: no
+NOT FIXED HERE, DELIBERATELY: the reviewer's own disposition, and the author agrees. The raise
+itself was not avoidable — ADR-0002 required a stronger mechanism in the same commit as the
+BLOCKER's fix, and the branch paid 89 of the 143 tokens before asking. What is unmechanised is the
+SHRINK, which is its own mission: folding app.md's rewrite into 08b would be exactly the
+separate-concern mixing this repo forbids elsewhere. Carried to the founder in the handoff and in
+`PROGRESS.md` so the fourth raise is not the first time anyone counts.
