@@ -32,15 +32,15 @@ every `scope.projectId` read from `loop.ts` fails it. **Not accepted, with evide
 REVIEWED: a538b1c
 VERDICT: APPROVED
 FINDING · WARNING · src/lib/chat2/loop.ts:264 · `if (!scope.userDb) return null` made a route that forgot the client indistinguishable from "RLS says this project is not yours", so our own wiring bug rendered to the user as `failed`.
-RECURRENCE: yes → Fix at the choke point, with the fact, and make the lie unrepresentable
+RECURRENCE: yes → Degradation must be VISIBLE
 FINDING · WARNING · src/lib/chat2/loop.ts:275 · the catch swallowed the load error and nothing logged it; the comment claimed "the query layer logs it" and that file does not log.
-RECURRENCE: yes → A green signal proves only what it measured
+RECURRENCE: no
 FINDING · WARNING · src/lib/chat2/projectInjection.ts:44 · the header cited a `docs/open-findings.md` entry that did not exist, so the code documented a paper trail that was not there.
-RECURRENCE: yes → A green signal proves only what it measured
+RECURRENCE: no
 FINDING · WARNING · src/components/chat/ChatView.tsx:500 · the catch settled the assistant message from `error`/`errorKind` alone, so a stream breaking after the server reported `projectContext:'failed'` rendered a partial answer with no notice and persisted none.
 RECURRENCE: yes → Degradation must be VISIBLE
 FINDING · WARNING · src/lib/chat/messageFlags.test.ts:426 · the comment claimed a new honesty fact added elsewhere "fails the sweep below"; it does not — those cases guard against narrowing, not against a second writer.
-RECURRENCE: yes → A green signal proves only what it measured
+RECURRENCE: no
 FINDING · WARNING · .claude/rules/app.md:186 · four findings were answered `RECURRENCE: yes` while no law's ENFORCED declaration changed on the branch, leaving ADR-0002's obligation unpaid and unnamed.
 RECURRENCE: no
 FINDING · WARNING · docs/evidence/feat-smart-layer-b2c-project-grounding/review.md:24 · every recurrence line was bold-wrapped, which `^RECURRENCE:` does not match, so the gate read six findings as having no answer at all.
@@ -60,6 +60,34 @@ RECURRENCE: no
 FINDING · NIT · src/components/chat/ChatView.tsx:462 · the PERSIST path writes the stored copy field-by-field into `fullThread`, a third writer the scan does not reach — a coverage gap rather than a defect, since it reads FROM the settled message rather than a parallel source.
 RECURRENCE: no
 ```
+
+## Why three `RECURRENCE: no` answers are not the whole truth, said out loud
+
+Three findings above — `loop.ts:275` (a comment claiming another file logs, which it does not),
+`projectInjection.ts:44` (a comment citing a `docs/open-findings.md` entry that did not exist) and
+`messageFlags.test.ts:426` (a comment claiming its cases caught a shape they could not) — are ONE
+class: **a comment asserting something untrue about another file, or about itself.** Three instances
+on a single branch is a pattern, not three coincidences.
+
+They are recorded as `RECURRENCE: no` because the gate resolves recurrence against a **named law in
+the always-on set**, and no law carries this class. Answering `yes → M1` was tried and rejected by
+the gate for a good reason: M1 is a meta-law that every finding of this shape instantiates by
+construction, so pointing at it makes the recurrence signal mean nothing.
+
+**The honest position, so a fourth instance is recurrence against something:**
+- The GENERAL case — "a comment must not assert behaviour in another file" — is **UNENFORCEABLE**.
+  No scan can read a claim in prose and check it against another file's meaning.
+- The NARROW case IS reachable at the grep tier: *a comment naming a doc path must resolve to an
+  entry there.* It is not written, because one narrow grep for a three-instance pattern whose other
+  two instances it would not have caught is a mechanism that looks like enforcement without being
+  it — the exact thing ADR-0002's hatch exists to prevent.
+- **This is a candidate LAW and it needs founder budget**, which is why it is filed here rather than
+  slipped into `app.md`: the always-on set finished this branch at 9,406 of 9,420, and adding a law
+  means evicting another or raising the budget. Both are his call, not a session's.
+
+What made all three findable was the same thing: a cold reader checking a claim against the file it
+named. That is currently the only mechanism this class has, and saying so is better than pretending
+otherwise.
 
 ## How each was fixed
 
