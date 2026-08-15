@@ -1,9 +1,9 @@
 # Cold review record — ticket 08c-3 (`feat/smart-layer-b2c-doc-grounding`)
 
-NINE rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
+TEN rounds, `atlas-reviewer`, cold context each time. The narrative, the states each round added
 and the mutation results are in `verify-app.md`; this file is the tracked verdict record.
 
-REVIEWED: e357cf3
+REVIEWED: 92321b7
 
 VERDICT: APPROVED
 
@@ -269,3 +269,17 @@ any file whose SHAPE another file is compiled against — `en.ts` defines `Dicti
 `he.ts` to it, so they are one.
 
 Battery 1138/1138, `tsc` clean, `build` completes, no secrets, no DB change on this branch.
+
+## Round 10 — at `92321b7` — VERDICT: APPROVED, no findings — final sign-off
+
+Round 9's NIT closed. The only change since is the appended COLLISIONS correction naming the i18n
+dictionaries and the record of round 9 itself; round 10 confirmed the dictionaries really do gain
+keys on this branch (`en` +14, `he` +11) and that the stated definition is sound rather than
+overbroad — `he.ts` is declared `: Dictionary`, inferred from `en.ts`, so tsc structurally couples
+them. Battery 1138/1138, tsc clean. Nothing stops the merge.
+
+**Ten rounds is the honest count and worth reading as a whole**: rounds 1–5 found real defects in
+code, three of them blockers caused by the previous round's fix; rounds 6–8 confirmed the
+structural repair; rounds 9–10 covered the ship ritual, where the last two findings lived. The
+review did not become ceremonial at the end — the COLLISIONS omission and the stale security notes
+were both caught after the code was already approved.
