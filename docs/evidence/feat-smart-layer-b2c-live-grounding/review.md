@@ -7,8 +7,13 @@ the branch had merged on round 1's verdict. The single `VERDICT:`/`REVIEWED:` pa
 LAST round's, because `parseReviewRecord` takes the first match and an older pair sitting on top
 would clear a merge at a commit nobody read.
 
-VERDICT: CHANGES
-REVIEWED: 412942a
+VERDICT: APPROVED
+REVIEWED: b9ff226
+
+FINDINGS: none in round 5 — it confirmed round 4's fix behaviourally identical to the local
+version it replaced, the mutation genuinely failing in BOTH directions (drop the notice, or add
+one when nothing was cut), scope clean, 1094/1094, `tsc` clean. Rounds 1–4 and their answers are
+below, in prose.
 
 ## Round 4 — at `412942a`
 
