@@ -26,10 +26,12 @@ by the next test — while claiming to prove the ROUTE reports its cut. `liveCon
 non-exported local, so nothing measured it: reverting the route to `keepRecent(...).text` would
 have reproduced round 3's defect with this test green.
 
-RECURRENCE: yes → app.md, "M2 · Never let a test certify an untrue premise"
+RECURRENCE: yes → Degradation must be VISIBLE
 
-A green test asserting the wrong outcome is worse than none: the mechanism that would catch
-recurrence now points the wrong way.
+Cited against the degradation law rather than M2, because that is the law whose MECHANISM this
+weakened — the test existed to guard it and was aimed at the wrong object. The shape is M2's
+("never let a test certify an untrue premise"): a green test asserting the wrong outcome is worse
+than none, because the mechanism that would catch recurrence now points the wrong way.
 
 ANSWERED: `liveContextBlock` is exported from `liveInjection.ts` and the test measures IT, plus a
 case pinning that an untruncated block carries no notice (a notice is a claim, not decoration).
@@ -48,7 +50,7 @@ dropped the earlier half of a long live call and said nothing, while v2 announce
 cut. Round 2 shared which half survives and stopped there; whether the model is told was still
 decided per-route.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE"
+RECURRENCE: yes → Degradation must be VISIBLE
 
 
 ANSWERED: `LIVE_TRUNCATION_NOTICE` is one declaration both routes use, and the legacy route now
@@ -77,7 +79,7 @@ keeping the FRONT with no notice. A snip attached during a >40k-char live call w
 the OPENING of the call underneath a panel promising the live edge. A load-bearing comment
 asserting an agreement that did not exist.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE"
+RECURRENCE: yes → Degradation must be VISIBLE
 
 
 ANSWERED at the tier above prose, per ADR-0002: `keepRecent()` is now the ONE function that
@@ -94,7 +96,7 @@ It named the truncation notice, the fallback and cost — and omitted "no captio
 three states round 1's BLOCKER had explicitly named. The gap read as coverage, which is worse
 than an admitted gap.
 
-RECURRENCE: yes → app.md, "Anything that decides what a screen SAYS gets every one of its states driven in a browser"
+RECURRENCE: yes → Anything that decides what a screen SAYS gets every one of its states driven in a browser
 
 
 ANSWERED twice over. **The state was then actually driven** (`REPLAY_OFFSET=-120`, zero caption
@@ -154,7 +156,7 @@ On the legacy fallback `legacyLiveContext` returns `''`, and the old route read
 to a **company lookup**, while the panel's caption still said "Atlas is following this call
 live". A grounding the screen promises and the backend silently swaps.
 
-RECURRENCE: yes → app.md, "Degradation must be VISIBLE"
+RECURRENCE: yes → Degradation must be VISIBLE
 
 
 ANSWERED at the choke point rather than in the branch (M3.1): the old route now TYPE-checks that
