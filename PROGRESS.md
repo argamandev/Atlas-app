@@ -5,6 +5,36 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-15 — The gate says don't build it (`feat/smart-layer-b3-workspace-chat`, ticket 09 — CLOSED)
+
+- **The ticket's deliverable turned out to be a MEASUREMENT, and the measurement said no.** B3 gates
+  the retrieval swap on "measurably beats the planner on the eval set" — a comparison nobody had ever
+  run. Run on a workspace-shaped shelf under the route's own 18,000-token budget, at shelf sizes
+  3/6/12: planner **12/8/8**, the swap **11/9/8**. They trade the lead by ONE case in each direction,
+  which is not "measurably beats", so **workspace chat is unchanged** — the outcome the ticket names
+  in advance as COMPLETED, not blocked. Retrieval's own chunk shape loses at every size.
+  Harness `scripts/retrieval-eval/workspace-gate.mjs` is standing, beside `run.mjs`.
+- **The first run said the planner won outright, and that was a harness artifact.** Arm E — the arm
+  the ticket DEFINES as the swap — was embedding raw window text while production and arm R embed a
+  deterministic metadata prefix. Given the same recipe it went 6/14 → 9/14. Four harness bugs in
+  total, three of which moved a number that was about to be reported; all four are written down in
+  the evidence, because a gate that hides its own repairs is not a gate. **The verdict survived
+  every repair** — which is the only reason it can be trusted.
+- **The real lead is UNION, not replacement.** P and E miss *different* cases at every shelf size
+  with stable membership — the planner keeps the W4 garble case (the source says «הרווח הטיפולי»
+  and the user's own words still find it), the swap keeps the headline numbers. ⚠ Recorded as an
+  ORACLE BOUND: a real union sends both selections through the one shared budget every arm was held
+  to, so it is not an achieved score. Its own ticket, its own gate.
+- **The ungated half was a prompt-injection hole, and it took four passes to close.** Only the source
+  BODY was defanged; the fence marker LINE interpolated a title, kind and id, and so did the shelf
+  listing, the partial list, the `"""` quote blocks, the conversation turns and the clip caption —
+  all outside any fence. Each fix landed where the bug was noticed, which is exactly what M3.1
+  forbids, so the fourth pass bought a mechanism instead of a fifth patch:
+  `promptInjectionDiscipline.test.ts` fails for a NEW interpolation that skips the sanitisers.
+- **Verified:** 1149/1149 green, `tsc` clean, and the workspace honesty states driven in a browser in
+  both locales — then **re-driven** after review changed the code under them, because a drive expires
+  (8c). Evidence, review record and all three runs: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
+
 ## 2026-08-15 — The loop learns images, and the old `/api/chat` dies (`feat/smart-layer-b2c-doc-grounding`, ticket 08c-3 — CLOSES ticket 08)
 
 - **The tool loop carries IMAGE content blocks.** Up to four snipped report-page PNGs ride the user

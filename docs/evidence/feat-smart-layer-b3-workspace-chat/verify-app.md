@@ -32,8 +32,24 @@ in. Rows 2/3/8 are the ones that could have regressed, and they did not.
 
 ## 8c — has the table rotted?
 
-Written and driven at `4b728b3`. Nothing has been committed to `src/` since. **Re-check this table
-before merge if any further commit touches `src/lib/workspace/` or `src/components/workspace/`.**
+**Yes, once — and it was RE-DRIVEN rather than re-ticked.** The table was first driven at `4b728b3`.
+Cold review then found three more prompt boundaries, and fixing them (`ed225c3`) rewrote the marked-
+passage block, the conversation region and the clip caption — all inside the code the drive covered.
+A stale ✅ there would be worse than a ❌, so every row above was re-driven at `288435c`:
+
+| row | mark | why |
+| --- | --- | --- |
+| 2, 3 (`truncated`, both locales) | ✅ **re-driven** | Same question, same workspace, after the changes: same grounded answer, same citation (`ביאור 10, סעיף ג׳`), same caveat box, same three titles. No regression. |
+| 8 (bidi) | ✅ re-driven | Unchanged in both locales. |
+| 9 (console) | ✅ re-driven | Clean. |
+| 4, 5 (`omitted`, `unreadable`) | ⚠ unchanged | Same render as rows 2/3, which were re-driven. |
+| 1, 6, 7 | ❌ still not driven | Still untouched by the diff. |
+
+The three new fixes changed what the MODEL is sent, not what the screen says — but that is a claim
+about the code, and 8c exists because such claims are what rot. Hence the re-drive.
+
+**Re-check again before merge if any further commit touches `src/lib/workspace/`,
+`src/lib/chat/attachments.ts` or `src/components/workspace/`.**
 
 ## Not evidence of
 
