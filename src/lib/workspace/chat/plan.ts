@@ -206,11 +206,29 @@ export type Plan = {
  * than answer as though it were not there. That is the difference between a
  * short answer and a wrong one, and it costs a line per file.
  */
+/**
+ * How well one window answers the question — the ONE part vectors replace.
+ *
+ * Founder decision D8, *"seam now, vectors next"*: the windows, the budget and
+ * the honesty about what was skipped are the parts that had to exist first, and
+ * none of them is model-specific. Making the scorer an argument is what lets the
+ * B3 gate run term overlap and embedding similarity through THIS module instead
+ * of a copy — a harness that scores a copy certifies a fiction, the same reason
+ * there is exactly one chunker (ingestion standard §5).
+ *
+ * It stays SYNCHRONOUS on purpose. An async scorer would make this function a
+ * round trip, and a selection step that costs a completion hands back most of
+ * what it saves. A vector scorer embeds the question ONCE, before calling in.
+ */
+export type WindowScorer = (window: Window, source: SourceText) => number
+
 export function planContext(opts: {
   question: string
   sources: SourceText[]
   /** tokens available for SOURCE TEXT — the caller subtracts prompt and history first */
   budgetTokens: number
+  /** defaults to the Hebrew-aware term overlap below */
+  scoreWindow?: WindowScorer
 }): Plan {
   const usable = opts.sources.filter((s) => s.text.trim().length > 0)
   if (usable.length === 0) {
@@ -218,6 +236,7 @@ export function planContext(opts: {
   }
 
   const qterms = terms(opts.question)
+  const score = opts.scoreWindow ?? ((w: Window) => scoreWindow(qterms, w))
   const cut = usable.map((s) => ({ source: s, windows: windowsOf(s.text) }))
 
   // The outline is not optional and is charged for first.
@@ -237,9 +256,7 @@ export function planContext(opts: {
     .join('\n')
 
   const scored = cut
-    .flatMap(({ source, windows }) =>
-      windows.map((w) => ({ source, window: w, score: scoreWindow(qterms, w) }))
-    )
+    .flatMap(({ source, windows }) => windows.map((w) => ({ source, window: w, score: score(w, source) })))
     .sort((a, b) => b.score - a.score || a.window.index - b.window.index)
 
   // FAIRNESS FIRST, THEN RELEVANCE. One window from each file before a second

@@ -262,6 +262,27 @@ into the same Tigbur lead and must not surface as a fifth company.
 
 ---
 
+## The workspace-shaped run (ticket 09, 2026-08-15)
+
+**This set is scored two ways now, and the second one is not market-wide.** Ticket 09's gate
+asks a different question of the same cases: with the scope already narrowed to a **shelf** an
+analyst chose, does the anchored passage reach the prompt under the workspace route's real
+token budget? Harness: `scripts/retrieval-eval/workspace-gate.mjs` (a sibling of `run.mjs`, and
+like it, it scores the PRODUCTION modules rather than copies).
+
+**Result: the term-overlap planner held.** Planner 8/14, the literal scorer swap 6/14,
+retrieval's own chunk shape 8/14 — and the same ordering at shelf size 3. Workspace chat was
+therefore left as it is. Evidence and the full reasoning:
+`docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`.
+
+Two things about this set that the run makes concrete:
+
+- **Cases 13, 14, 15 and 17 carry no anchor to retrieve** (resolver, adversarial and negative
+  cases) and class G is market-wide by definition, so the workspace gate scores 14 of the 20.
+- **The scorers fail on DIFFERENT cases** — planner-only 02/09/11, retrieval-only 01/06/08,
+  neither 04/10/18. Any future change proposing to replace one with the other is answering a
+  question this measurement says is the wrong one.
+
 ## Founder validation — what is asked of Sagi (ticket 05, HITL)
 
 1. **Realism pass:** are these the questions a fund analyst actually asks? Rephrase freely —

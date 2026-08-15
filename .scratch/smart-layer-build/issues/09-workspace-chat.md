@@ -1,5 +1,17 @@
 # B3 · Workspace chat on the new retrieval
 
+Status: CLOSED 2026-08-15 — **the gate was run and the planner won. Workspace chat is left
+alone**, which this ticket names in advance as a completed outcome. Ticket 10 is not blocked.
+Measured: planner 8/14, the literal swap 6/14, retrieval's own shape 8/14, same verdict at two
+shelf sizes — `docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`, harness
+`scripts/retrieval-eval/workspace-gate.mjs`. The two ungated items DID ship: the fence-line
+defang (the slice-2 BLOCKER) and the D8 scorer seam in `planContext`. **The lead for a later
+ticket is UNION, not replacement** — the two scorers miss different cases and P ∪ R is 11/14.
+
+Original ticket below.
+
+---
+
 Status: ready-for-agent — third in the V1 order, and **the one slice that may honestly fail its own
 gate**. A measured "the planner won, workspace left alone" is a COMPLETED ticket, not a blocker: it
 must not stall ticket 10 and the agents chain behind it.

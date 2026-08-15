@@ -1,0 +1,241 @@
+{
+  "rows": [
+    {
+      "id": "01",
+      "class": "A",
+      "wart": "",
+      "query": "מה היו ההכנסות של קבוצת תיגבור בשנת 2025 ובכמה הן צמחו?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0008"
+      ],
+      "P": false,
+      "E": true,
+      "R": false,
+      "tokensP": 12988,
+      "tokensE": 13031
+    },
+    {
+      "id": "02",
+      "class": "A",
+      "wart": "W4",
+      "query": "מה היה הרווח התפעולי, הרווח הנקי וה-EBITDA של תיגבור ב-2025?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0009"
+      ],
+      "P": true,
+      "E": false,
+      "R": false,
+      "tokensP": 12994,
+      "tokensE": 13042
+    },
+    {
+      "id": "03",
+      "class": "A",
+      "wart": "",
+      "query": "מה מדיניות הדיבידנד של תיגבור?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0040"
+      ],
+      "P": true,
+      "E": true,
+      "R": false,
+      "tokensP": 13001,
+      "tokensE": 13028
+    },
+    {
+      "id": "04",
+      "class": "A",
+      "wart": "",
+      "query": "מה היו התוצאות של תיגבור ברבעון הראשון של 2026?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0010"
+      ],
+      "P": false,
+      "E": false,
+      "R": false,
+      "tokensP": 12989,
+      "tokensE": 13016
+    },
+    {
+      "id": "05",
+      "class": "A",
+      "wart": "",
+      "query": "כמה גייסה תיגבור לאחרונה ולאיזו מטרה?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0030–L0031"
+      ],
+      "P": true,
+      "E": true,
+      "R": false,
+      "tokensP": 12992,
+      "tokensE": 12986
+    },
+    {
+      "id": "06",
+      "class": "A",
+      "wart": "",
+      "query": "כמה עובדים מעסיקה קבוצת תיגבור?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0051"
+      ],
+      "P": false,
+      "E": true,
+      "R": false,
+      "tokensP": 12999,
+      "tokensE": 12992
+    },
+    {
+      "id": "07",
+      "class": "B",
+      "wart": "",
+      "query": "כמה מגה-וואט בהפעלה מסחרית יש לדוראל אנרגיה?",
+      "shelf": 6,
+      "anchors": [
+        "דוח רבעון 1 לשנת 2026 · p.5"
+      ],
+      "P": true,
+      "E": false,
+      "R": true,
+      "tokensP": 12964,
+      "tokensE": 13015
+    },
+    {
+      "id": "08",
+      "class": "B",
+      "wart": "",
+      "query": "מה היה הרווח הנקי של יעקב פיננסים במחצית הראשונה של 2026?",
+      "shelf": 6,
+      "anchors": [
+        "מצגת משקיעים רבעון שני לשנת 2026 · p.8"
+      ],
+      "P": false,
+      "E": false,
+      "R": true,
+      "tokensP": 12973,
+      "tokensE": 12979
+    },
+    {
+      "id": "09",
+      "class": "B",
+      "wart": "",
+      "query": "מה כושר הזיקוק השנתי של בז\"ן?",
+      "shelf": 6,
+      "anchors": [
+        "מצגת משקיעים לדוחות רבעון שלישי 2025 · p.3"
+      ],
+      "P": true,
+      "E": false,
+      "R": false,
+      "tokensP": 12976,
+      "tokensE": 12976
+    },
+    {
+      "id": "10",
+      "class": "C",
+      "wart": "",
+      "query": "האם ההכנסות שהציגה תיגבור בשיחת הרבעון הראשון 2026 תואמות את הדוח הרבעוני?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0010",
+        "דוח רבעון 1 לשנת 2026 · p.29"
+      ],
+      "P": false,
+      "E": false,
+      "R": false,
+      "tokensP": 12962,
+      "tokensE": 13027
+    },
+    {
+      "id": "11",
+      "class": "D",
+      "wart": "",
+      "query": "כמה עובדים של תיגבור נמצאים במילואים ואיך זה השתנה?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0066"
+      ],
+      "P": true,
+      "E": false,
+      "R": false,
+      "tokensP": 13029,
+      "tokensE": 12994
+    },
+    {
+      "id": "12",
+      "class": "D",
+      "wart": "W4",
+      "query": "באילו מכרזי אבטחה חדשים זכתה תיגבור ולכמה זמן?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0021"
+      ],
+      "P": true,
+      "E": true,
+      "R": false,
+      "tokensP": 13020,
+      "tokensE": 12990
+    },
+    {
+      "id": "16",
+      "class": "F",
+      "wart": "",
+      "query": "כמה אוניות של צים יישארו בבעלות ישראלית לפי הדיון בכנסת?",
+      "shelf": 6,
+      "anchors": [
+        "דיון במכירת צים לידיים זרות - ועדת הכלכלה של הכנסת 15.6.26 (צילום: ערוץ הכנסת) · L0253–L0254–L0255–L0256"
+      ],
+      "P": true,
+      "E": true,
+      "R": false,
+      "tokensP": 13034,
+      "tokensE": 13032
+    },
+    {
+      "id": "18",
+      "class": "F",
+      "wart": "",
+      "query": "מה היו התוצאות של תיגבור ברבעון הראשון של 2026?",
+      "shelf": 6,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0010"
+      ],
+      "P": false,
+      "E": false,
+      "R": false,
+      "tokensP": 12989,
+      "tokensE": 13016
+    }
+  ],
+  "skipped": [
+    [
+      "13",
+      "no anchor to retrieve (resolver or negative case)"
+    ],
+    [
+      "14",
+      "no anchor to retrieve (resolver or negative case)"
+    ],
+    [
+      "15",
+      "no anchor to retrieve (resolver or negative case)"
+    ],
+    [
+      "17",
+      "no anchor to retrieve (resolver or negative case)"
+    ],
+    [
+      "19",
+      "class G — market-wide by definition; a shelf is not the market"
+    ],
+    [
+      "20",
+      "class G — market-wide by definition; a shelf is not the market"
+    ]
+  ]
+}

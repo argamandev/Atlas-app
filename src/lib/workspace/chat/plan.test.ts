@@ -200,6 +200,23 @@ test('a source cannot forge the fence from a section LABEL it named itself', () 
   assert.equal(plan.text.indexOf('<<<ATLAS-SOURCE evil'), -1)
 })
 
+// STEP 2 IS THE ONLY PART VECTORS REPLACE (founder decision D8, "seam now,
+// vectors next"). Making the scorer an argument is what lets the B3 gate compare
+// term overlap against embedding similarity through THIS module rather than a
+// copy of it — a harness that measures a copy certifies a fiction.
+test('the scorer is an argument, and the selection follows it', () => {
+  const long = 'aaa '.repeat(200)
+  const plan = planContext({
+    question: 'irrelevant to both',
+    sources: [src({ itemId: 'a', title: 'A', text: `## first\n${long}\n\n## second\n${long}` })],
+    budgetTokens: 300,
+    // Term overlap would tie these two and break toward the earlier window.
+    scoreWindow: (w) => (w.label === 'second' ? 1 : 0),
+  })
+  assert.ok(plan.text.includes('[second]'), plan.text.slice(0, 300))
+  assert.ok(!plan.text.includes('[first]'))
+})
+
 // ── the budget ───────────────────────────────────────────────────────────────
 
 // Both halves used to be capped independently, so each was inside its own limit

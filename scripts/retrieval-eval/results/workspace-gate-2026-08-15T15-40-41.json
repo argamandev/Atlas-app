@@ -1,0 +1,703 @@
+{
+  "rows": [
+    {
+      "id": "01",
+      "class": "A",
+      "wart": "",
+      "query": "מה היו ההכנסות של קבוצת תיגבור בשנת 2025 ובכמה הן צמחו?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0008"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12914,
+      "tokensE": 12907,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 12,
+          "chunks": 21,
+          "readP": 10,
+          "readE": 5,
+          "readR": 46
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 4,
+          "readE": 14,
+          "readR": 475
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 8,
+          "readE": 15,
+          "readR": 290
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "class": "A",
+      "wart": "W4",
+      "query": "מה היה הרווח התפעולי, הרווח הנקי וה-EBITDA של תיגבור ב-2025?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0009"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12969,
+      "tokensE": 12927,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 12,
+          "chunks": 21,
+          "readP": 12,
+          "readE": 4,
+          "readR": 19
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 3,
+          "readE": 17,
+          "readR": 667
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 11,
+          "readE": 7,
+          "readR": 276
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "class": "A",
+      "wart": "",
+      "query": "מה מדיניות הדיבידנד של תיגבור?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0040"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12947,
+      "tokensE": 12953,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 12,
+          "chunks": 21,
+          "readP": 1,
+          "readE": 3,
+          "readR": 23
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 16,
+          "readE": 18,
+          "readR": 640
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 8,
+          "readE": 9,
+          "readR": 167
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "class": "A",
+      "wart": "",
+      "query": "מה היו התוצאות של תיגבור ברבעון הראשון של 2026?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0010"
+      ],
+      "P": true,
+      "E": false,
+      "R": false,
+      "F": false,
+      "tokensP": 12955,
+      "tokensE": 12915,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 10,
+          "chunks": 21,
+          "readP": 7,
+          "readE": 3,
+          "readR": 10
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 8,
+          "readE": 19,
+          "readR": 727
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 5,
+          "readE": 14,
+          "readR": 179
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "class": "A",
+      "wart": "",
+      "query": "כמה גייסה תיגבור לאחרונה ולאיזו מטרה?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0030–L0031"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12936,
+      "tokensE": 12951,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 10,
+          "chunks": 21,
+          "readP": 4,
+          "readE": 3,
+          "readR": 20
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 13,
+          "readE": 19,
+          "readR": 512
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 9,
+          "readE": 9,
+          "readR": 247
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "class": "A",
+      "wart": "",
+      "query": "כמה עובדים מעסיקה קבוצת תיגבור?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0051"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12995,
+      "tokensE": 12946,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 12,
+          "chunks": 21,
+          "readP": 10,
+          "readE": 5,
+          "readR": 57
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 7,
+          "readE": 16,
+          "readR": 276
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 12,
+          "readE": 9,
+          "readR": 256
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "class": "B",
+      "wart": "",
+      "query": "כמה מגה-וואט בהפעלה מסחרית יש לדוראל אנרגיה?",
+      "shelf": 3,
+      "anchors": [
+        "דוח רבעון 1 לשנת 2026 · p.5"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12894,
+      "tokensE": 12879,
+      "spread": [
+        {
+          "title": "דוח רבעון 1 לשנת 2026",
+          "kind": "document",
+          "anchored": true,
+          "windows": 229,
+          "chunks": 235,
+          "readP": 9,
+          "readE": 13,
+          "readR": 477
+        },
+        {
+          "title": "מצגת משקיעים לשנת 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 38,
+          "chunks": 39,
+          "readP": 2,
+          "readE": 9,
+          "readR": 219
+        },
+        {
+          "title": "מצגת משקיעים רבעון 2 לשנת 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 36,
+          "chunks": 38,
+          "readP": 2,
+          "readE": 11,
+          "readR": 180
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "class": "B",
+      "wart": "",
+      "query": "מה היה הרווח הנקי של יעקב פיננסים במחצית הראשונה של 2026?",
+      "shelf": 3,
+      "anchors": [
+        "מצגת משקיעים רבעון שני לשנת 2026 · p.8"
+      ],
+      "P": false,
+      "E": false,
+      "R": true,
+      "F": true,
+      "tokensP": 12893,
+      "tokensE": 12892,
+      "spread": [
+        {
+          "title": "מצגת משקיעים רבעון שני לשנת 2026",
+          "kind": "document",
+          "anchored": true,
+          "windows": 18,
+          "chunks": 18,
+          "readP": 2,
+          "readE": 8,
+          "readR": 199
+        },
+        {
+          "title": "מצגת לשוק ההון לשנת 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 18,
+          "chunks": 18,
+          "readP": 2,
+          "readE": 5,
+          "readR": 113
+        },
+        {
+          "title": "דוח תקופתי ושנתי לשנת 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 169,
+          "chunks": 172,
+          "readP": 11,
+          "readE": 22,
+          "readR": 596
+        }
+      ]
+    },
+    {
+      "id": "09",
+      "class": "B",
+      "wart": "",
+      "query": "מה כושר הזיקוק השנתי של בז\"ן?",
+      "shelf": 3,
+      "anchors": [
+        "מצגת משקיעים לדוחות רבעון שלישי 2025 · p.3"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12949,
+      "tokensE": 12701,
+      "spread": [
+        {
+          "title": "מצגת משקיעים לדוחות רבעון שלישי 2025",
+          "kind": "document",
+          "anchored": true,
+          "windows": 25,
+          "chunks": 25,
+          "readP": 16,
+          "readE": 10,
+          "readR": 454
+        },
+        {
+          "title": "מצגת משקיעים - רבעון שני 2026",
+          "kind": "document",
+          "anchored": false,
+          "windows": 28,
+          "chunks": 28,
+          "readP": 15,
+          "readE": 14,
+          "readR": 546
+        },
+        {
+          "title": "מצגת משקיעים - דוחות רבעון ראשון 2026",
+          "kind": "document",
+          "anchored": false,
+          "windows": 28,
+          "chunks": 28,
+          "readP": 15,
+          "readE": 13,
+          "readR": 552
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "class": "C",
+      "wart": "",
+      "query": "האם ההכנסות שהציגה תיגבור בשיחת הרבעון הראשון 2026 תואמות את הדוח הרבעוני?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0010",
+        "דוח רבעון 1 לשנת 2026 · p.29"
+      ],
+      "P": false,
+      "E": false,
+      "R": false,
+      "F": false,
+      "tokensP": 12904,
+      "tokensE": 12881,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 10,
+          "chunks": 21,
+          "readP": 3,
+          "readE": 2,
+          "readR": 8
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2026",
+          "kind": "document",
+          "anchored": true,
+          "windows": 31,
+          "chunks": 31,
+          "readP": 6,
+          "readE": 15,
+          "readR": 625
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 5,
+          "readE": 9,
+          "readR": 323
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "class": "D",
+      "wart": "",
+      "query": "כמה עובדים של תיגבור נמצאים במילואים ואיך זה השתנה?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון רביעי ושנת 2025 · L0066"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12981,
+      "tokensE": 12938,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון רביע",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 12,
+          "chunks": 21,
+          "readP": 10,
+          "readE": 5,
+          "readR": 40
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 5,
+          "readE": 16,
+          "readR": 404
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 5,
+          "readE": 9,
+          "readR": 136
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "class": "D",
+      "wart": "W4",
+      "query": "באילו מכרזי אבטחה חדשים זכתה תיגבור ולכמה זמן?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0021"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 12938,
+      "tokensE": 12950,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 10,
+          "chunks": 21,
+          "readP": 6,
+          "readE": 5,
+          "readR": 44
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 11,
+          "readE": 14,
+          "readR": 325
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 7,
+          "readE": 10,
+          "readR": 190
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "class": "F",
+      "wart": "",
+      "query": "כמה אוניות של צים יישארו בבעלות ישראלית לפי הדיון בכנסת?",
+      "shelf": 3,
+      "anchors": [
+        "דיון במכירת צים לידיים זרות - ועדת הכלכלה של הכנסת 15.6.26 (צילום: ערוץ הכנסת) · L0253–L0254–L0255–L0256"
+      ],
+      "P": true,
+      "E": true,
+      "R": true,
+      "F": true,
+      "tokensP": 13007,
+      "tokensE": 12952,
+      "spread": [
+        {
+          "title": "דיון במכירת צים לידיים זרות - ועדת הכלכל",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 26,
+          "chunks": 50,
+          "readP": 13,
+          "readE": 14,
+          "readR": 223
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 3,
+          "readE": 1,
+          "readR": 0
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 5,
+          "readE": 8,
+          "readR": 14
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "class": "F",
+      "wart": "",
+      "query": "מה היו התוצאות של תיגבור ברבעון הראשון של 2026?",
+      "shelf": 3,
+      "anchors": [
+        "קבוצת תיגבור - שיחת משקיעים - רבעון ראשון לשנת 2026 · L0010"
+      ],
+      "P": true,
+      "E": false,
+      "R": false,
+      "F": false,
+      "tokensP": 12955,
+      "tokensE": 12915,
+      "spread": [
+        {
+          "title": "קבוצת תיגבור - שיחת משקיעים - רבעון ראשו",
+          "kind": "transcript",
+          "anchored": true,
+          "windows": 10,
+          "chunks": 21,
+          "readP": 7,
+          "readE": 3,
+          "readR": 10
+        },
+        {
+          "title": "דוח רבעון 1 לשנת 2024",
+          "kind": "document",
+          "anchored": false,
+          "windows": 33,
+          "chunks": 33,
+          "readP": 8,
+          "readE": 19,
+          "readR": 727
+        },
+        {
+          "title": "מצגת משקיעים לרבעון שני 2025",
+          "kind": "document",
+          "anchored": false,
+          "windows": 35,
+          "chunks": 35,
+          "readP": 5,
+          "readE": 14,
+          "readR": 179
+        }
+      ]
+    }
+  ],
+  "skipped": [
+    [
+      "13",
+      "no anchor to retrieve (resolver or negative case)"
+    ],
+    [
+      "14",
+      "no anchor to retrieve (resolver or negative case)"
+    ],
+    [
+      "15",
+      "no anchor to retrieve (resolver or negative case)"
+    ],
+    [
+      "17",
+      "no anchor to retrieve (resolver or negative case)"
+    ],
+    [
+      "19",
+      "class G — market-wide by definition; a shelf is not the market"
+    ],
+    [
+      "20",
+      "class G — market-wide by definition; a shelf is not the market"
+    ]
+  ]
+}
