@@ -3,7 +3,7 @@
 **Rewritten, never appended. Intent and next move only.** Dated entries go in `PROGRESS.md`; what
 has landed is removed, not struck through.
 
-_Last rewritten: 2026-08-15 (ticket 08c-1)_
+_Last rewritten: 2026-08-15 (ticket 08c-2)_
 
 ## Where the product is
 
@@ -13,7 +13,7 @@ Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 | --- | --- |
 | Live calls | Works. Two engines (Recall/IVRIT) share `:8788`.|
 | Companies | Works. MAYA connected; 234/234 have sector. |
-| Chat / Ask Atlas | **On `/api/chat/v2`.** Pinpoint, whole-call and project grounding work; market-wide search down. |
+| Chat / Ask Atlas | **On `/api/chat/v2`.** Pinpoint, whole-call, project and LIVE-caption grounding work; market-wide search down. |
 | Workspace | Works — intake, tables, chat over the docs. |
 | Agents | **Stub.** Page + `lib/agents/data.ts`; no machinery. |
 
@@ -22,13 +22,16 @@ Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`. Lowest unblocked
 one, branch per slice. **STRICT ORDER: 08 → 09 → 10 → 11 → 12 → 13 → 14** (founder, final).
 
-**Phase A done; 06, 07, 08a, 08b, 08c-1 merged.** `ChatView` is ENTIRELY on v2 — chat,
-`?transcript=`, the company page and project chats — and the `useV2` fork is deleted.
+**Phase A done; 06, 07, 08a, 08b, 08c-1, 08c-2 merged.** `ChatView` and the LIVE panel are both
+ENTIRELY on v2; the `useV2` fork is deleted.
 
-**08c is sliced three ways** (founder — "Project grounding only"): 08c-1 done; **08c-2** live
-captions; **08c-3** doc pages + snips, which needs IMAGE content blocks in the loop. **The old
-`/api/chat` is still alive for those two and dies at the end of 08c-3, not before.** The "stuffed
-FIRST turn" call is CLOSED — §5 reads "any turn", re-injection stays, $0.13 unchanged.
+**08c: 08c-1 and 08c-2 done; 08c-3** (doc pages + snips) remains and needs IMAGE content blocks
+in the loop. **The old `/api/chat` dies at the end of 08c-3** — a live turn carrying a snip still
+falls back to it, per turn (`lib/chat/turnRoute.ts`). The "stuffed FIRST turn" call is CLOSED —
+§5 reads "any turn", re-injection stays, $0.13 unchanged.
+
+**Two live-caption states shipped UNSEEN**, unit-tested but never rendered: the `liveTruncated`
+notice (needs >60,000 chars of captions) and the snip fallback.
 
 **Two reds, filed with numbers, not re-scored** (M2) — numbers in that branch's `docs/evidence/`:
 (1) **market-wide search does not complete** — unscoped scan over 98,042 chunks hits `statement
@@ -36,11 +39,10 @@ timeout` (~8.6s), so class-G discovery is RED; scoped search works. (2) **the $0
 did not hold** — re-confirmed at 08c-1: a company-scoped turn is $0.1010 with no project at all.
 Both are eval-gated retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
 `scripts/measure-chat-answer.mjs` (`--call`, `--project`). **Railway's `ANTHROPIC_API_KEY` is
-unproven** — **a 401 on the first deploy of `/api/chat/v2` is the first thing to check**; absent
-returns 503.
+unproven** — on any v2 chat failing in production, check for a 401 first; absent returns 503.
 
-**Next: 08c-2, then 08c-3** — finish 08 before 09 starts, so workspace chat is never built on a
-route that is about to die. Then 09, smaller than it was: its `shelf` variant is already in the
-union and `read_workspace` already reads `workspaceId`.
+**Next: 08c-3** — finish 08 before 09, so workspace chat is never built on a route about to die.
+Then 09, smaller than it was: `shelf` is already in the union and `read_workspace` reads
+`workspaceId`.
 
 Also open: **ticket 13** holds the cleanup list; poller/sweep deferred past V1.
