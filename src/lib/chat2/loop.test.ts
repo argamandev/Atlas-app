@@ -1170,3 +1170,505 @@ test('the projectContext event is emitted BEFORE any delta', async () => {
   assert.ok(pc >= 0 && firstDelta >= 0)
   assert.ok(pc < firstDelta, 'the notice arrived after the answer had started')
 })
+
+// ─── REPORT PAGES AND SNIPPED IMAGES (ticket 08c-3) ──────────────────────────
+//
+// THIS IS THE "ACCEPTED ⇒ CONSUMED" MECHANISM FOR THE ATTACHED DOCUMENT, and it
+// has to be behavioural for the same reason the live one is: the file scan at
+// the foot of `requestScope.test.ts` looks for scope IDS read off a scope-shaped
+// object, and neither the page text nor the images are that — they are content,
+// handed to the loop as an argument. A gate that accepts a snip the loop then
+// drops would be invisible to that scan and would render the ticket-07 lie in
+// its most literal form: the image is IN THE USER'S OWN BUBBLE on screen, and
+// the answer was written without it.
+
+const SNIP_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=='
+const PNG_PREFIX_LEN = 'data:image/png;base64,'.length
+
+function docSender() {
+  const sent: { messages: { role: string; content: unknown }[]; system: string }[] = []
+  const client = {
+    messages: {
+      async create(args: { messages: { role: string; content: unknown }[]; system: string }) {
+        sent.push(args)
+        return { content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }
+      },
+    },
+  } as never
+  const lastUser = () => sent[0].messages[sent[0].messages.length - 1].content
+  return {
+    client,
+    sent,
+    /** The user turn's content blocks, whatever shape it took. */
+    blocks: (): Array<Record<string, unknown>> => {
+      const c = lastUser()
+      return Array.isArray(c) ? (c as Array<Record<string, unknown>>) : [{ type: 'text', text: String(c) }]
+    },
+    /** Every bit of TEXT the user turn carried, joined. */
+    text: (): string => {
+      const c = lastUser()
+      if (!Array.isArray(c)) return String(c)
+      return (c as Array<Record<string, unknown>>)
+        .filter((b) => b.type === 'text')
+        .map((b) => String(b.text))
+        .join('\n')
+    },
+  }
+}
+
+function loadedDoc(
+  over: {
+    meta?: { title: string; quarter: string } | null
+    pages?: { pageNo: number; text: string }[]
+  } = {}
+) {
+  return {
+    meta: over.meta === undefined ? { title: 'דוח דירקטוריון', quarter: 'Q2 2026' } : over.meta,
+    pages: over.pages ?? [{ pageNo: 4, text: 'הרווח הנקי הסתכם ב-5 מיליון ש"ח.' }],
+  }
+}
+
+test('a snipped image reaches the model AS AN IMAGE BLOCK — the whole point of 08c-3', async () => {
+  // The capability that kept `/api/chat` alive for three slices. Before this the
+  // loop could only send text, so a turn holding a snip had to fall back to the
+  // old route (`lib/chat/turnRoute.ts`, deleted with it).
+  const s = docSender()
+  await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה המספר בטבלה?',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4], snips: [{ dataUrl: SNIP_PNG, page: 4 }] },
+      loadDocument: async () => loadedDoc(),
+    })
+  )
+  const image = s.blocks().find((b) => b.type === 'image')
+  assert.ok(image, 'the snip never reached the model')
+  const source = image!.source as Record<string, unknown>
+  assert.equal(source.type, 'base64')
+  assert.equal(source.media_type, 'image/png')
+  // The data-url PREFIX is stripped — sending it would make the base64 invalid.
+  assert.equal(source.data, SNIP_PNG.slice(PNG_PREFIX_LEN))
+})
+
+test('every image carries a CAPTION naming its page, taken from the real document', async () => {
+  const s = docSender()
+  await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: {
+        documentId: 'doc-1',
+        pages: [4, 9],
+        snips: [
+          { dataUrl: SNIP_PNG, page: 4 },
+          { dataUrl: SNIP_PNG, page: 9 },
+        ],
+      },
+      loadDocument: async () => loadedDoc({ pages: [{ pageNo: 4, text: 'a' }] }),
+    })
+  )
+  const text = s.text()
+  assert.ok(text.includes('תצלום מעמוד 4'), 'page 4 image had no caption')
+  assert.ok(text.includes('תצלום מעמוד 9'), 'page 9 image had no caption')
+  assert.ok(text.includes('דוח דירקטוריון'), 'the caption did not name the loaded document')
+})
+
+test('the marked page TEXT rides the user turn, fenced, before the question', async () => {
+  const s = docSender()
+  await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'מה זה אומר?',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4], snips: [] },
+      loadDocument: async () => loadedDoc(),
+    })
+  )
+  const text = s.text()
+  assert.ok(text.includes('kind=filing'), 'the page text reached the model unfenced')
+  assert.ok(text.includes('הרווח הנקי'), 'the page text is missing')
+  assert.ok(
+    text.indexOf('<<<END-ATLAS-SOURCE>>>') < text.indexOf('מה זה אומר?'),
+    'the question fell inside the fence'
+  )
+  // NEVER the cache-stable prefix — a per-request document there destroys the one
+  // property the system block's ordering exists to preserve.
+  assert.ok(!s.sent[0].system.includes('הרווח הנקי'))
+})
+
+test('a report page COMPOSES with the call it is being read beside', async () => {
+  // The turn multiview exists for: grounded in the call, pointing at the report.
+  // If either could displace the other, the layout would be a lie.
+  const s = docSender()
+  await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1', transcriptId: CALL_UUID },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      loadCall: async () => fakeCall(),
+      documents: { documentId: 'doc-1', pages: [4], snips: [] },
+      loadDocument: async () => loadedDoc(),
+    })
+  )
+  const text = s.text()
+  assert.ok(text.includes('kind=transcript'), 'the call was displaced by the report')
+  assert.ok(text.includes('kind=filing'), 'the report was displaced by the call')
+})
+
+test('the surface is TOLD the pages were cut — a report read in part is not a report', async () => {
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4], snips: [] },
+      loadDocument: async () => loadedDoc({ pages: [{ pageNo: 4, text: 'x'.repeat(60_000) }] }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'truncated' }
+  )
+})
+
+test('a whole report says so too — silence and "ok" must not look alike', async () => {
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4], snips: [{ dataUrl: SNIP_PNG, page: 4 }] },
+      loadDocument: async () => loadedDoc(),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'ok' }
+  )
+})
+
+test('a FAILED page load does NOT end the turn — the passage is already in the message', async () => {
+  // The one place this deliberately differs from the call block. A call that
+  // cannot be loaded ends the turn, because the chip on screen promises it and
+  // there is nothing else. Here the marked passage is composed into the user's
+  // own text by the panel before it reaches the wire, and the snip arrived WITH
+  // the request. What is lost is the prose AROUND the passage.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4], snips: [{ dataUrl: SNIP_PNG, page: 4 }] },
+      loadDocument: async () => {
+        throw new Error('supabase blinked')
+      },
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'failed' }
+  )
+  assert.equal(events[events.length - 1].type, 'done', 'a lost page block killed a turn it should not have')
+  // The image still went — it never needed loading.
+  assert.ok(s.blocks().some((b) => b.type === 'image'))
+})
+
+test('REGRESSION: a report with NO extracted text reports failed, not ok', async () => {
+  // FOUND BY DRIVING REAL DATA, not by this suite (M1). The read SUCCEEDS for a
+  // scanned PDF and for a documentId naming no row — `getPageText` simply returns
+  // nothing — so the first version took the `ok` branch on the strength of the
+  // read having worked. The model was correctly told the pages were unreadable
+  // and the SCREEN said nothing at all: success UI over content the server never
+  // had. The state is decided on whether any page text reached the model.
+  for (const loaded of [
+    { meta: { title: 'סרוק', quarter: 'Q2' }, pages: [] },
+    { meta: { title: 'סרוק', quarter: 'Q2' }, pages: [{ pageNo: 4, text: '   ' }] },
+    { meta: null, pages: [] },
+  ]) {
+    const s = docSender()
+    const events = await collect(
+      runChatLoop({
+        client: s.client,
+        scope: { userId: 'u1' },
+        history: [],
+        message: 'q',
+        todayIsrael: '2026-08-15',
+        documents: { documentId: 'doc-1', pages: [4], snips: [] },
+        loadDocument: async () => loaded,
+      })
+    )
+    assert.deepEqual(
+      events.find((e) => e.type === 'documentContext'),
+      { type: 'documentContext', state: 'failed' },
+      `an unreadable report reported ok: ${JSON.stringify(loaded)}`
+    )
+  }
+})
+
+test('BLOCKER: pages PARTLY readable is not ok — the answer is on a subset of what was marked', async () => {
+  // Cold review, 08c-3. The state was decided with `some()` — "did ANY page
+  // survive" — which is the wrong question when a marked passage spans a text
+  // page and a scanned one. One page arrives, `some()` says yes, the state reads
+  // `ok`, and the answer is built on a strict SUBSET of the pages the reference
+  // block on screen names, with nothing saying so. Decided by SET DIFFERENCE now:
+  // what the model was given versus what the user marked.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4, 5], snips: [] },
+      // Page 5 is scanned: a row exists with no text. Page 4 is fine.
+      loadDocument: async () => ({
+        meta: { title: 'דוח', quarter: 'Q2' },
+        pages: [
+          { pageNo: 4, text: 'alpha' },
+          { pageNo: 5, text: '' },
+        ],
+      }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'truncated' },
+    'a half-read passage reported as whole'
+  )
+})
+
+test('a page with NO ROW AT ALL counts as missing, not as never asked for', async () => {
+  // `getPageText` returns only the rows it finds, so a page the user marked can
+  // simply be absent from the result. Absent and blank are the same loss.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4, 9], snips: [] },
+      loadDocument: async () => ({
+        meta: { title: 'דוח', quarter: 'Q2' },
+        pages: [{ pageNo: 4, text: 'a' }],
+      }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'truncated' }
+  )
+})
+
+test('BLOCKER: a SNIP on a page with no text is not a report failure — the image arrived', async () => {
+  // Round 2, and the round-1 fix introduced it. `pagesToLoad` adds every snipped
+  // page to the FETCH; the first version measured the state against that union,
+  // so a snip of a scanned page had no text row, the difference was non-empty,
+  // and the surface said "the report text could not be loaded" on the exact turn
+  // the IMAGE grounding had worked. Two channels carry report content here, and a
+  // state describing one of them may only be measured against what that one was
+  // asked to carry.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      // Marked page 4 (readable); snipped page 77, which has no text row at all.
+      documents: { documentId: 'doc-1', pages: [4], snips: [{ dataUrl: SNIP_PNG, page: 77 }] },
+      loadDocument: async () => ({
+        meta: { title: 'דוח', quarter: 'Q2' },
+        pages: [{ pageNo: 4, text: 'a' }],
+      }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'ok' },
+    'a snipped page with no prose was reported as lost report text'
+  )
+  assert.ok(s.blocks().some((b) => b.type === 'image'))
+})
+
+test('a SNIP-ONLY turn promises no report text, so it cannot lose any', async () => {
+  // No reference block on screen — only thumbnails, and those always arrive.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [], snips: [{ dataUrl: SNIP_PNG, page: 77 }] },
+      loadDocument: async () => ({ meta: null, pages: [] }),
+    })
+  )
+  assert.deepEqual(
+    events.find((e) => e.type === 'documentContext'),
+    { type: 'documentContext', state: 'ok' }
+  )
+})
+
+test('the loader is asked for the MARKED pages AND the snipped ones', async () => {
+  // The two lists are separate now; this is the one that must still be the union,
+  // or a snipped page silently loses the prose that says what its number is about.
+  let asked: number[] = []
+  const s = docSender()
+  await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4], snips: [{ dataUrl: SNIP_PNG, page: 77 }] },
+      loadDocument: async (_id, pages) => {
+        asked = pages
+        return { meta: null, pages: [{ pageNo: 4, text: 'a' }] }
+      },
+    })
+  )
+  assert.deepEqual(asked, [4, 77])
+})
+
+// ─── THE ATTACHED REPORT IS A SOURCE THAT SURVIVED ──────────────────────────
+//
+// `anySourceSurvived` decides `all_sources_failed` versus `done` when a tool ran
+// and failed. Round 3 corrected it to count CARRIED PAGES rather than the
+// presence of a block (the no-text block is non-empty — it holds `NO_PAGE_TEXT`),
+// and round 5 found the correction had shipped with NO test: both new clauses
+// could be deleted with the battery green. A law refiled at the same tier. These
+// two cases are the tier.
+
+function failingToolTurn() {
+  // The model calls a tool, the tool fails, then the model answers anyway.
+  return fakeClient([
+    { content: [{ type: 'tool_use', id: 't1', name: 'search_corpus', input: {} }], stop_reason: 'tool_use' },
+    { content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' },
+  ])
+}
+const alwaysFails = {
+  async search_corpus() {
+    return { content: 'nope', isError: true }
+  },
+}
+
+test('CARRIED REPORT PAGES are a source: a failing tool beside them is not "all sources failed"', async () => {
+  const events = await collect(
+    runChatLoop({
+      client: failingToolTurn(),
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      handlers: alwaysFails,
+      documents: { documentId: 'doc-1', pages: [4], snips: [] },
+      loadDocument: async () => ({ meta: null, pages: [{ pageNo: 4, text: 'alpha' }] }),
+    })
+  )
+  assert.equal(events[events.length - 1].type, 'done', 'a carried report page did not count as a source')
+})
+
+test('A SNIPPED IMAGE is a source too — it arrived with the request and cannot fail', async () => {
+  // And this turn's page text is EMPTY, so the block exists but carries nothing.
+  // If the image did not count, a turn whose only grounding is a picture would
+  // end `all_sources_failed` the moment a tool failed beside it.
+  const events = await collect(
+    runChatLoop({
+      client: failingToolTurn(),
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      handlers: alwaysFails,
+      documents: { documentId: 'doc-1', pages: [], snips: [{ dataUrl: SNIP_PNG, page: 4 }] },
+      loadDocument: async () => ({ meta: null, pages: [] }),
+    })
+  )
+  assert.equal(events[events.length - 1].type, 'done', 'a snipped image did not count as a source')
+})
+
+test('AND A BLOCK THAT CARRIES NOTHING IS NOT A SOURCE — the round-3 correction, pinned', async () => {
+  // `buildDocumentBlock` returns a NON-EMPTY fence for a report with no text: it
+  // holds `NO_PAGE_TEXT`, the sentence saying nothing could be extracted. Reading
+  // the block instead of the pages made that count as a surviving source, so a
+  // turn with no grounding at all and every tool failing ended `done`.
+  const events = await collect(
+    runChatLoop({
+      client: failingToolTurn(),
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      handlers: alwaysFails,
+      documents: { documentId: 'doc-1', pages: [4], snips: [] },
+      loadDocument: async () => ({ meta: null, pages: [] }),
+    })
+  )
+  const last = events[events.length - 1]
+  assert.equal(last.type, 'incomplete')
+  assert.equal((last as { code: string }).code, 'all_sources_failed')
+})
+
+test('the documentContext event lands BEFORE the answer starts, never after it', async () => {
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'q',
+      todayIsrael: '2026-08-15',
+      documents: { documentId: 'doc-1', pages: [4], snips: [] },
+      loadDocument: async () => loadedDoc(),
+    })
+  )
+  const dc = events.findIndex((e) => e.type === 'documentContext')
+  const firstDelta = events.findIndex((e) => e.type === 'delta')
+  assert.ok(dc >= 0 && firstDelta >= 0)
+  assert.ok(dc < firstDelta, 'the notice arrived after the answer had started')
+})
+
+test('NO attached document means NO documentContext event and a plain string turn', async () => {
+  // The overwhelmingly common turn. Wrapping it in a one-element block array
+  // would change the shape of every request in the repo to buy nothing.
+  const s = docSender()
+  const events = await collect(
+    runChatLoop({
+      client: s.client,
+      scope: { userId: 'u1' },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+    })
+  )
+  assert.equal(
+    events.some((e) => e.type === 'documentContext'),
+    false
+  )
+  assert.equal(typeof s.sent[0].messages[s.sent[0].messages.length - 1].content, 'string')
+})

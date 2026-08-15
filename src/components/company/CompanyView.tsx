@@ -278,7 +278,6 @@ export function CompanyView({
       {chatOpen && (
         <div className="flex min-h-0">
           <TranscriptChatPanel
-            companyId={company.id}
             transcriptId={undefined}
             // ON THE NEW BACKEND (ticket 08b). The company page displays exactly
             // one grounding — "connected to this company" — and v2 honours it in

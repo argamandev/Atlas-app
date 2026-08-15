@@ -522,6 +522,20 @@ export const en = {
     // would name the one stretch the model did NOT see.
     liveTruncated:
       'This call has run long — the answer is based on its most recent part, not everything said so far.',
+    // Ticket 08c-3, the attached report. TWO strings, not one, because the two
+    // states are different facts: PART of the marked passage reached the answer,
+    // versus NONE of the report text did. A shared sentence would make the second
+    // read as the first.
+    //
+    // AND BOTH ARE CAUSE-NEUTRAL, which they were not at first — the paragraph
+    // that stood here said a CUT passage means "ask about a narrower passage".
+    // The code never establishes that: `truncated` is also returned when one
+    // marked page was unreadable or had no stored text, so naming length as the
+    // cause sends the user to re-mark a shorter passage that would change
+    // nothing. What is always true, and is the fact they can act on, is HOW MUCH
+    // of what they marked is in the answer.
+    reportTruncated: 'Only part of the marked report passage reached this answer.',
+    reportFailed: 'The report text could not be loaded, so the answer was written without it.',
     pageShort: 'p.',
     // ─── Ticket 07: the new backend's grounding mode, said out loud ──────────
     // Search mode is VISIBLE by design (spec §2.3). It is decided from the scope

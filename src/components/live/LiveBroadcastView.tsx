@@ -22,7 +22,7 @@ import { PaneHeader, PaneCard, SlidesPane, ReportPane, useFacetColumns, type Fac
 import { TranscriptBody } from './TranscriptBody'
 import { AnimCanvas } from '@/components/ds/AnimCanvas'
 import { TranscriptChatPanel } from './TranscriptChatPanel'
-import { clientCaptionPayload } from '@/lib/chat/turnRoute'
+import { clientCaptionPayload } from '@/lib/chat/captionPayload'
 import { LIVE_CAPTIONS_MAX_CHARS, LIVE_LABEL_MAX_CHARS } from '@/lib/chat2/requestScope'
 import type { ChatSnip } from '@/lib/chat/grounding'
 import { MediaPlayer } from './MediaPlayer'
@@ -263,7 +263,7 @@ export function LiveBroadcastView({
   // 400'd every question on exactly the long calls the server's truncation exists
   // to serve. The cut keeps the END, the same direction the server cuts, and
   // stays above the injection budget so the server still sees more than it can
-  // carry and still says so on screen (`lib/chat/turnRoute.ts`).
+  // carry and still says so on screen (`lib/chat/captionPayload.ts`).
   const liveCaptionsText = useMemo(
     () =>
       words.length
@@ -803,7 +803,6 @@ export function LiveBroadcastView({
       </div>
       {chat.open && (
         <TranscriptChatPanel
-          companyId={companyId}
           transcriptId={undefined}
           // ON THE NEW BACKEND (ticket 08c-2). The live view displays exactly one
           // grounding — "Atlas is following this call live" — and v2 now honours
@@ -817,9 +816,11 @@ export function LiveBroadcastView({
           // silently answer as an ordinary company question underneath a caption
           // promising the live call.
           //
-          // A turn that also carries a snip or a marked report page still goes to
-          // the old route, per turn, until 08c-3 teaches the loop image content
-          // blocks — `lib/chat/turnRoute.ts`.
+          // A turn that also carries a snip or a marked report page STAYS HERE
+          // (08c-3). It used to fall back to the old `/api/chat` per turn, via
+          // `lib/chat/captionPayload.ts`; the loop carries image content blocks now,
+          // that route and that module are deleted, and there is no second wire
+          // left for this panel to fall back to.
           grounding={{ kind: 'live', captions: liveCaptionsText ?? '', label: liveCallLabel }}
           quote={chat.seed}
           seedNonce={chat.nonce}

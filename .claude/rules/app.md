@@ -185,6 +185,12 @@ terminal event means both — `done`/`incomplete` are distinct types, so no call
 facts, swept exhaustively. Claiming `impossible` for both was rejected at review → `#settled-facts`.
 Fourth tier (08c-2): content served by TWO backends is cut the same way by both and each SAYS it
 cut — `chat2/liveInjection.ts` owns both, tested down both paths. Mutate such a guard, never read it.
+**Same law, two CHANNELS (08c-3, two rounds):** when one source reaches the model by more than one
+route — a report as page TEXT and as snipped IMAGES — the state naming one route is measured
+against what THAT route was asked to carry and what the SCREEN promised, never against everything
+fetched. **ENFORCED test** — `documentInjection.test.ts` sweeps `documentContextState`,
+`loop.test.ts` pins the MARKED list reaching it. **VERIFY** Decide it in ONE function, never per
+branch: four fixes in branches each shipped the next round's defect. → `#two-channel-degradation`
 And a degradation you can REFRESH AWAY is not visible, so an honesty fact is PERSISTED with the
 message, never held in view state: `chat/messageFlags.test.ts` covers each stored flag and asserts
 they stay INDEPENDENT (08b). A new stored flag gets a case there, or it is prose.
@@ -208,11 +214,12 @@ about a design, not a property any file scan can see. Its natural tier is a ritu
 **LAW · Anything that decides what a screen SAYS gets every one of its states driven in a browser,
 in both locales, before it merges** (M4). A four-round defect lived in a state nobody had ever
 rendered and was invisible to a fully green battery.
-**ENFORCED** ritual gate (08c-2) — `/verify-app` step 8b makes the evidence ENUMERATE every state
-the surface can reach, each marked driven or not-driven. A battery cannot see whether a human
-looked, so this is the ritual tier, never test. Bought when 08c-2's evidence prose silently omitted
-one of three new states: a gap reads as coverage, a missing table row does not.
-**VERIFY** Enumerate the states; go and look at each. → `#choke-point-inputs`
+**ENFORCED** ritual gate (08c-2, strengthened 08c-3) — `/verify-app` step 8b makes the evidence
+ENUMERATE every state, each marked driven or not-driven; **step 8c re-checks the table AT MERGE,
+because a drive expires when the code under it changes** (08c-3's rounds edited the surface five
+times and the table kept its ticks). A battery cannot see whether a human looked, so this is the
+ritual tier, never test. **VERIFY** Enumerate; look at each; re-check what later commits touched.
+→ `#choke-point-inputs`
 
 **LAW · A Server Component may not pass a FUNCTION to a Client Component.** Create the closure on
 the client side of the boundary (`components/projects/ProjectChat.tsx` is the shape).

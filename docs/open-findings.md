@@ -98,3 +98,54 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   the old route and the UI's capacity meter together, and that shared budget function being ONE
   function is its own law.
   **Not a law and not a blocker.** Whoever splits that block should do it as its own small mission.
+- **The chat stack has NO model-availability fallback since `/api/chat` was deleted** (recorded
+  2026-08-15, ticket 08c-3, found at cold review). The retired route ran Gemini 3.5 Flash with a
+  **GPT-4.1 streaming fallback** that fired on a 503 or a network blip, so a vendor wobble did not
+  kill a chat mid-call. `/api/chat/v2` has one engine — Anthropic Sonnet 5 — and no second one.
+  **This is a real capability LOSS, not a code cleanup**, and it is recorded here because the
+  retirement commit did not say so. It matters more than it looks: `STATUS.md` still says
+  Railway's `ANTHROPIC_API_KEY` is UNPROVEN, so today a missing or rotated key takes the whole of
+  Ask Atlas down on every surface at once, where before the live-call chat would have kept
+  answering.
+  **What IS true, and is why this is not filed as a blocker:** the failure is VISIBLE rather than
+  silent — an absent key returns 503 and a provider error ends the turn in an `error` event, which
+  the surface renders as a failure beside the answer, never as an answer. The degradation law is
+  satisfied; the availability is not.
+  **Not a law and not a blocker.** Restoring a second engine means a provider-agnostic tool loop
+  (the fallback has to carry tool use and image content blocks now, which the old text-only
+  fallback never did), so it is its own mission, not a patch.
+- **A Hebrew answer that quotes an English prompt constant renders its punctuation on the wrong
+  side** (recorded 2026-08-15, ticket 08c-3, seen while driving the unreadable-report state).
+  The model repeated the English `NO_PAGE_TEXT` instruction verbatim inside an otherwise-Hebrew
+  answer, and that mixed run rendered with its quote mark and full stop misplaced.
+  **This is NOT a recurrence of the `<bdi>` law, and the distinction is the point.** All eight of
+  that law's occurrences are lines **we** compose from data — a company name joined to a quarter, a
+  `dir="ltr"` wrapper, a citation. This is MODEL PROSE inside `Markdown`, and no `<bdi>`-per-run
+  rule reaches it without a bidi segmenter; filing it as a recurrence would move a mechanism onto a
+  surface the mechanism cannot see. The cold reviewer classified it as one and the classification
+  was disputed on those grounds — recorded here so the argument survives the branch rather than
+  only its conclusion.
+  **What was done:** `NO_PAGE_TEXT` now asks for the user's own language and says not to repeat the
+  note. Named in the code as a **mitigation, not a mechanism**.
+  **What is still open:** every OTHER English prompt constant the model may quote — `NO_CAPTIONS_YET`
+  (08c-2), the truncation notices, the citation-retry sentence — has the same exposure and has not
+  been given the same clause. **Not a law and not a blocker.** The real fix is upstream of all of
+  them: answers that carry their citations structurally, which is its own ticket.
+- **A CALL-grounded turn is no longer company-scoped for its tools** (recorded 2026-08-15, ticket
+  08c-3, found at review round 5 behind a dead prop). On the retired `/api/chat`, the multiview
+  panel sent `companyId` AND `transcriptId` together, so a follow-up question that reached past the
+  call still searched inside that company. On `/api/chat/v2` the `Grounding` union carries ONE id
+  per recipe by construction, so a `{kind:'call'}` turn puts `transcriptId` on the scope and no
+  company — and a tool call beyond the call runs market-wide until `resolve_company` pins it. **And market-wide search is RED today** (unscoped scan hits `statement timeout` — see STATUS's two reds), so the live consequence is a FAILING tool, not a wider answer. Loud rather than silent, which is why this is a finding and not a defect — but it is worse than "unscoped" reads.
+  **This is not a bug in the union, which exists precisely to make "grounded in a call AND a
+  workspace" unrepresentable.** It is a question the union does not currently answer: a call
+  BELONGS to a company, so the company is derivable from the call rather than being a second
+  grounding — which is a different fix from adding a field, and a different one again from letting
+  the client send both.
+  **Why it is not silent:** the loop announces the mode on every turn (`{type:'mode'}`), which is
+  what "search mode is VISIBLE" was built for. `TranscriptChatPanel` currently DISCARDS that event
+  (`case 'mode': break`), so the fact reaches the surface and is dropped there — `ChatView` renders
+  it. That drop is the actionable half.
+  **Not a law and not a blocker.** Whoever picks it up should decide whether the company is
+  derived server-side from `transcriptId` (my reading of the right answer) and should render the
+  mode chip in this panel either way.

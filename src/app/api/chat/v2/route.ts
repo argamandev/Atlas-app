@@ -6,9 +6,10 @@ import { createServerSupabase } from '@/lib/supabase'
 import { israelDayKey } from '@/lib/i18n/format'
 import { runChatLoop, type ChatEvent, type ChatTurn } from '@/lib/chat2/loop'
 import type { ChatScope } from '@/lib/chat2/toolDefs'
-import { parseTurnScope, scopeIdsFor } from '@/lib/chat2/requestScope'
+import { parseTurnDocuments, parseTurnScope, scopeIdsFor } from '@/lib/chat2/requestScope'
 import { CALL_SCOPE_SUMMARY } from '@/lib/chat2/callInjection'
 import { LIVE_SCOPE_SUMMARY } from '@/lib/chat2/liveInjection'
+import { DOCUMENT_SCOPE_SUMMARY } from '@/lib/chat2/documentInjection'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE UNIFIED CHAT BACKEND (spec §3, ticket 06/B1a). Replaces `/api/chat` for
@@ -81,7 +82,19 @@ export async function POST(req: NextRequest) {
   // recipe. `parseTurnScope` reads both and refuses a malformed either.
   const turn = parseTurnScope(body)
   if (!turn) {
-    return NextResponse.json({ error: 'this grounding cannot be honoured' }, { status: 400 })
+    // WHICH GATE REFUSED, said accurately. `parseTurnScope` folds three
+    // questions — the grounding, the project, the attachments — into one null,
+    // and the single sentence this used to return called all three "a
+    // grounding". Attachments are not one; that is the whole point of their
+    // being a field beside the union, and a 400 that names the wrong noun sends
+    // whoever reads the log looking at the wrong half of the request. Re-parsed
+    // only on the failure path, where the cost is a pure function on a body that
+    // is already going nowhere.
+    const message =
+      parseTurnDocuments(body) === null
+        ? 'the attached report pages or images cannot be honoured'
+        : 'this grounding cannot be honoured'
+    return NextResponse.json({ error: message }, { status: 400 })
   }
   const { grounding } = turn
 
@@ -113,19 +126,37 @@ export async function POST(req: NextRequest) {
           // `buildLiveBlock`, and never interpolated into the system prompt.
           live:
             grounding.kind === 'live' ? { captions: grounding.captions, label: grounding.label } : undefined,
+          // THE ATTACHED REPORT PAGES AND SNIPPED IMAGES (08c-3). Like `live`,
+          // they do not go through `scopeIdsFor` — a document the user is
+          // pointing at is content for one turn, not a filter the tool handlers
+          // query with. Gated at `parseTurnDocuments`; fenced (text) and sent as
+          // image content blocks (snips) in the loop.
+          documents: turn.documents,
           // Built from the GROUNDING union, so there is one answer per recipe
           // rather than a chain of `if (someField)` that two recipes could both
           // satisfy. Every value interpolated here is a uuid — `parseGrounding`
           // refused anything else, which is what keeps an untrusted body out of
           // the system prompt (round 1 of ticket 06).
+          //
+          // AND THE DOCUMENT SENTENCE IS APPENDED, not substituted: a multiview
+          // turn is grounded in a call AND carrying a report page, so a scope
+          // summary that could only say one of them would drop whichever it did
+          // not choose — the same "two orthogonal facts, one field" mistake the
+          // `Grounding` union refuses one layer down. `DOCUMENT_SCOPE_SUMMARY` is
+          // a constant like the other two; nothing from the body is interpolated.
           scopeSummary:
-            grounding.kind === 'company'
-              ? `company: ${grounding.companyId} (resolved)`
-              : grounding.kind === 'call'
-                ? CALL_SCOPE_SUMMARY
-                : grounding.kind === 'live'
-                  ? LIVE_SCOPE_SUMMARY
-                  : undefined,
+            [
+              grounding.kind === 'company'
+                ? `company: ${grounding.companyId} (resolved)`
+                : grounding.kind === 'call'
+                  ? CALL_SCOPE_SUMMARY
+                  : grounding.kind === 'live'
+                    ? LIVE_SCOPE_SUMMARY
+                    : undefined,
+              turn.documents ? DOCUMENT_SCOPE_SUMMARY : undefined,
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined,
         })) {
           controller.enqueue(encoder.encode(ndjsonLine(event)))
         }

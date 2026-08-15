@@ -499,3 +499,60 @@ way three times).
   pinned a 0-byte PDF past the server-side fix; hard refresh does NOT purge fetch()-cached
   entries (purge needs `fetch(url,{cache:'reload'})`). Storage paths are stable per
   company+quarter, so re-ingests must not be cacheable.
+
+
+## two-channel-degradation
+
+**LAW in `rules/app.md`** (degradation must be VISIBLE, fifth tier). STORY here.
+
+Ticket 08c-3 taught the chat loop to carry a marked report passage two ways at once: the extracted
+page **TEXT**, fenced and budgeted, and up to four snipped page **IMAGES** as Anthropic content
+blocks. One event, `documentContext`, told the surface how the report had reached the model. It
+was wrong twice, in successive commits, and the second time the fix for the first caused it.
+
+**Round 0 — found by driving real data, not by the battery.** The state was `ok` whenever the
+Supabase read had SUCCEEDED. A scanned PDF and a `documentId` naming no row both return "no rows"
+rather than an error, so the model was correctly handed `NO_PAGE_TEXT` — *(no text could be
+extracted…)* — while the screen said nothing at all. Success UI over content the server never had.
+Fixed by deciding on whether any page text arrived.
+
+**Round 1 — `some()` asks the wrong question.** "Did ANY page survive" is not the question when a
+marked passage spans a text page and a scanned one: one page arrives, `some()` says yes, the state
+reads `ok`, and the answer is built on a strict SUBSET of the pages the reference block on screen
+names. Fixed with a set difference — what the model was GIVEN against what the user MARKED.
+
+**Round 2 — the fix reported a failure on a turn that worked.** `parseTurnDocuments` merged every
+SNIPPED page into the same `pages` list, because a snipped page's prose is genuinely worth
+fetching. Round 1 then measured against that merged list. A snip of a scanned page has no text
+row, so the difference was non-empty and the surface said *"the report text could not be loaded"*
+on the exact turn whose IMAGE grounding had worked perfectly — and a snip beside a readable marked
+page said *"too long to read in full"* about a page that was never long. That case had been `ok`
+before round 1 touched it.
+
+**What the three rounds are actually about.** Every one of them measured the state against
+something ADJACENT to the question — "did the read succeed", "did any page survive", "was
+everything we fetched present" — instead of against the question itself: *did the channel this
+state names deliver what the SCREEN promised through it*. Two lists were doing one job, so the
+final fix is a type split rather than a better condition: `TurnDocuments.pages` is what the screen
+promised as text (marked pages only), `pagesToLoad()` is what is worth fetching (marked ∪
+snipped). A snip-only turn promises no text at all and therefore cannot lose any.
+
+**Round 3 — two more, in the branch nobody had touched.** A snip-only turn whose page-text load
+THREW fell into the unconditional `failed` branch — the sibling of the `if` every previous fix had
+edited — and announced that report text nobody had asked for was missing. And `built.truncated` was
+a bare boolean over ALL loaded pages, so a snipped page running long told the user their marked
+passage "was too long to read in full" about a passage that was short. A third finding, one layer
+away: `anySourceSurvived` was set from `documentBlockText !== ''`, but the no-text block is
+non-empty — it contains `NO_PAGE_TEXT` — so the presence of a block stood in for the survival of a
+source and suppressed `all_sources_failed`.
+
+**What finally stopped it.** Not a better condition — the fourth better condition. The decision
+moved OUT of the branches into `documentContextState()`, a pure function of four named facts, swept
+as a table where a new combination is a row rather than a new `if` in a branch nobody re-reads.
+`buildDocumentBlock` now reports WHICH pages it cut instead of that it cut. Both mutations of the
+new guard were driven and both go red.
+
+**The generalisation, and why it earned a tier:** a state that names one channel must never be
+measured against the union of every channel — and a decision that has been wrong once in a branch
+will be wrong again in its sibling. Multi-modal grounding makes both shapes common; the second is
+invisible to a type checker, because every list involved is `number[]`.

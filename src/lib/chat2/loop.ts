@@ -48,6 +48,11 @@ import { chatMode, modeChanged, type ChatMode } from './mode'
 import { defang } from './fence'
 import { buildCallBlock, type CallForInjection } from './callInjection'
 import { buildLiveBlock, type LiveCaptions } from './liveInjection'
+import { buildDocumentBlock, documentContextState, snipCaption } from './documentInjection'
+import type { LoadedDocument } from './documentSource'
+import { pagesToLoad, type TurnDocuments } from './requestScope'
+import { PNG_DATA_URL_PREFIX } from '@/lib/chat/attachments'
+import type { DocumentContextState } from './protocol'
 import {
   buildProjectBlock,
   PROJECT_UNAVAILABLE_SUMMARY,
@@ -184,6 +189,23 @@ export interface RunChatLoopArgs {
    * answered around, while a missing SOURCE is not.
    */
   loadProject?: (projectId: string) => Promise<ProjectForInjection | null>
+  /**
+   * THE REPORT PAGES AND SNIPPED IMAGES ON THIS TURN (08c-3).
+   *
+   * An ARGUMENT, not a field on `ChatScope`, for the same reason `live` is: the
+   * scope is what the tool handlers FILTER on, and a document the user is
+   * pointing at is content for one turn, not a filter. Gated at
+   * `parseTurnDocuments`.
+   */
+  documents?: TurnDocuments
+  /**
+   * Loads the meta and page text for `documents`. Injectable for the same reason
+   * `loadCall` is — the real one reaches Supabase.
+   *
+   * Unlike `loadCall`, a failure does NOT end the turn. See the injection block
+   * below for why a marked page is a modifier and a call is a source.
+   */
+  loadDocument?: (documentId: string, pages: number[]) => Promise<LoadedDocument>
 }
 
 /**
@@ -266,6 +288,100 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
 
   const groundingBlock = callBlock ?? liveBlock
 
+  // ─── ATTACHED REPORT PAGES AND SNIPPED IMAGES (spec §2.3, ticket 08c-3) ────
+  //
+  // The turn the multiview layout exists to make possible: the user is grounded
+  // in a call (or a live one) AND pointing at a page of the quarterly report
+  // beside it. So this composes with the grounding above rather than replacing
+  // it, which is why `documents` is a field beside the `Grounding` union — the
+  // same correction 08c-1 made for `projectId`.
+  //
+  // TWO CHANNELS, AND THEIR AUTHORITY ORDER IS NOT SYMMETRIC. The extracted page
+  // TEXT is fenced like every other untrusted source. The snipped IMAGES are
+  // Anthropic image content blocks — the capability this ticket adds, and the
+  // reason `/api/chat` outlived three previous slices — and they are the
+  // authority on anything numeric, because extraction routinely mangles a
+  // financial table that the image renders exactly as the user sees it.
+  //
+  // A FAILURE HERE DOES NOT END THE TURN, which is the one place this
+  // deliberately differs from the call block above. The passage the surface
+  // promises is ALREADY in the user's message — the panel composes `Regarding
+  // this passage… "…"` into the text before it reaches the wire — and the images
+  // arrived WITH the request and cannot fail to load. What can fail is the prose
+  // AROUND the marked passage. Losing it degrades the answer without falsifying
+  // anything on screen, so it is reported (`documentContext`) and answered
+  // around, the `projectContext` shape rather than the `grounding` one.
+  let documentBlockText = ''
+  /** How many pages of report TEXT actually reached the model. The fact, not the block. */
+  let documentPagesCarried = 0
+  let documentState: DocumentContextState | null = null
+  /** The report's own title, for the snip captions. `null` when the row is gone. */
+  let documentMeta: LoadedDocument['meta'] = null
+  const snips = args.documents?.snips ?? []
+  if (args.documents) {
+    let loaded: LoadedDocument | null = null
+    try {
+      const load = args.loadDocument ?? (await import('./documentSource')).loadDocumentForInjection
+      // The UNION — the marked pages plus every snipped page, because a snipped
+      // page's prose is worth having. What the state is measured against is a
+      // different list; see below.
+      loaded = await load(args.documents.documentId, pagesToLoad(args.documents))
+    } catch (err) {
+      // Logged rather than only counted, for the reason the project load is: the
+      // user-visible state is one word and the causes are not, and the one that
+      // is OUR defect would otherwise be invisible in production.
+      console.error('[chat2/loop] report page load failed', (err as Error).message)
+      loaded = null
+    }
+    // ONE DECISION, ONE PLACE, and this shape is what three review rounds bought.
+    // The state used to be computed inline here, in TWO branches of this `if`, and
+    // it was wrong four times: once per round, and twice in the sibling branch the
+    // previous fix had not touched — a snip-only turn whose load threw fell
+    // straight to `failed` and announced that report text nobody had asked for was
+    // missing. A condition in a branch is only as good as the cases someone
+    // thought to write; a pure function is swept. `documentContextState` owns the
+    // question now and `documentInjection.test.ts` sweeps it exhaustively (M3.1).
+    const built = loaded ? buildDocumentBlock(loaded.meta, loaded.pages) : null
+    documentMeta = loaded?.meta ?? null
+    documentBlockText = built?.text ?? ''
+    documentPagesCarried = built?.pages.length ?? 0
+    const state = documentContextState({
+      markedPages: args.documents.pages,
+      carriedPages: built?.pages ?? [],
+      truncatedPages: built?.truncatedPages ?? [],
+      loadFailed: !loaded,
+    })
+    documentState = state
+    // AFTER the load, never optimistically — the same rule as `grounding` and
+    // `projectContext`. An event sent before the thing it describes is evidence
+    // of nothing.
+    yield { type: 'documentContext', state }
+  }
+
+  // The user turn, as CONTENT BLOCKS when images ride it and as a plain string
+  // otherwise. The string form is kept for every other turn on purpose: it is
+  // what every existing test and the cost measurement were written against, and
+  // wrapping an ordinary question in a one-element array would change the shape
+  // of every request in the repo to buy nothing.
+  const turnText = [groundingBlock?.text, documentBlockText, message].filter(Boolean).join('\n\n')
+  const imageBlocks: Anthropic.ContentBlockParam[] = snips.flatMap((s) => [
+    {
+      type: 'image' as const,
+      source: {
+        type: 'base64' as const,
+        media_type: 'image/png' as const,
+        // The prefix is stripped, not searched for: `parseTurnDocuments` already
+        // refused anything that does not start with it, so this cannot silently
+        // send a JPEG's bytes under a `image/png` media type.
+        data: s.dataUrl.slice(PNG_DATA_URL_PREFIX.length),
+      },
+    },
+    // The caption goes AFTER its image, so "the picture, then what it is" reads
+    // in the order the model receives it, and a page number is attached to every
+    // image rather than left to be inferred from position.
+    { type: 'text' as const, text: snipCaption(documentMeta, s.page) },
+  ])
+
   const messages: Anthropic.MessageParam[] = [
     ...history.map((t) => ({ role: t.role, content: t.content }) as Anthropic.MessageParam),
     {
@@ -274,7 +390,10 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
       // prompt. The system block is the cache-stable prefix (`systemPrompt.ts`),
       // and a 60,000-char call pushed in front of it would vary per request —
       // destroying the one property that block's ordering exists to preserve.
-      content: groundingBlock ? `${groundingBlock.text}\n\n${message}` : message,
+      // The images ride here for the same reason, and there is no other place
+      // they COULD ride: the system block takes text only.
+      content:
+        imageBlocks.length > 0 ? [...imageBlocks, { type: 'text' as const, text: turnText }] : turnText,
     },
   ]
 
@@ -375,7 +494,13 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // call — a turn can legitimately answer from them without calling a tool, which
   // is the point of injecting them — so they seed the pool through the same
   // variable rather than through a second branch that could be forgotten.
-  let sourcePool = groundingBlock ? '\n' + groundingBlock.text : ''
+  // Injected REPORT PAGES are a source on the same terms, and for the same
+  // reason: a snip-bearing turn can legitimately answer without calling a tool —
+  // that is the point of attaching the page — so leaving it out of the pool would
+  // run citation checking against a document the answer is built on. (The images
+  // themselves cannot be in a TEXT pool; a quote read off a picture is not
+  // verifiable this way, and that limit is real rather than papered over.)
+  let sourcePool = [groundingBlock?.text, documentBlockText].filter(Boolean).join('\n')
   let citationRetried = false
   // Two facts the terminal decision needs, and they are NOT the same question as
   // "is sourcePool empty" — round 2's hole. A turn whose every tool failed has an
@@ -387,7 +512,18 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // source that survived. It does not change any branch today (`anySourceSurvived`
   // is only consulted when a tool ran) — it is set so the fact stays true rather
   // than accidentally true.
-  let anySourceSurvived = groundingBlock !== null
+  // An attached report page — or a snipped image — is a source that survived, on
+  // the same terms as the injected call. A turn that carries only a snip and
+  // whose every tool then failed has genuinely still been given something.
+  //
+  // AND IT IS THE PAGE TEXT, NOT THE BLOCK — round 3's WARNING, and M3.2 exactly.
+  // `documentBlockText !== ''` reads as "a report reached the model", but
+  // `buildDocumentBlock` returns a NON-EMPTY fence in the no-text case too: it
+  // contains `NO_PAGE_TEXT`, the sentence saying nothing could be extracted. So a
+  // turn reporting `documentContext: failed` whose every tool then also failed
+  // suppressed `all_sources_failed` and ended `done` — the presence of a block
+  // standing in for the survival of a source.
+  let anySourceSurvived = groundingBlock !== null || documentPagesCarried > 0 || snips.length > 0
   // EVERY delta this turn sends, accumulated at the one point they are yielded, so
   // `anyTextEmitted` describes what the USER SAW rather than what the last API
   // response happened to contain. It does NOT mean every delta is quote-checked:
