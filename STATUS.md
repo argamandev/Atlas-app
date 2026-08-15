@@ -3,7 +3,7 @@
 **Rewritten, never appended. Intent and next move only.** Dated entries go in `PROGRESS.md`; what
 has landed is removed, not struck through.
 
-_Last rewritten: 2026-08-15 (ticket 08c-3)_
+_Last rewritten: 2026-08-15 (ticket 09)_
 
 ## Where the product is
 
@@ -22,24 +22,25 @@ Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`. Lowest unblocked
 one, branch per slice. **STRICT ORDER: 08 → 09 → 10 → 11 → 12 → 13 → 14** (founder, final).
 
-**Phase A done; TICKET 08 IS CLOSED — 06 → 08c-3 merged.** `/api/chat/v2` is the ONLY chat route;
-the old `/api/chat` and its four dead modules are deleted. The loop carries IMAGE content blocks, so
-a marked report passage and up to four snipped page images ride the turn. "Stuffed FIRST turn" is
-CLOSED — §5 reads "any turn", $0.13 unchanged.
+**Phase A done. TICKETS 08 AND 09 ARE CLOSED.** `/api/chat/v2` is the ONLY chat route; 08c-3's
+residues are filed in `docs/open-findings.md`, plus one founder glance owed (`reportTruncated`'s
+wording changed after its browser drive).
 
-**08c-3 leaves three, all filed:** no model-availability fallback, and a call-grounded turn is not
-company-scoped for its tools (`docs/open-findings.md`); and `reportTruncated`'s wording changed in
-both locales after its browser drive and was NOT re-rendered — a founder glance closes it.
-
-**Two reds, filed with numbers, not re-scored** (M2) — numbers in that branch's `docs/evidence/`:
-(1) **market-wide search does not complete** — unscoped scan over 98,042 chunks hits `statement
+**Two reds, filed with numbers, not re-scored** (M2) — numbers in 08c's `docs/evidence/`:
+(1) **market-wide search does not complete** — an unscoped scan over 98,042 chunks hits `statement
 timeout` (~8.6s), so class-G discovery is RED; scoped search works. (2) **the $0.06/answer budget
-did not hold** — re-confirmed at 08c-1: a company-scoped turn is $0.1010 with no project at all.
-Both are eval-gated retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
-`scripts/measure-chat-answer.mjs` (`--call`, `--project`). **Railway's `ANTHROPIC_API_KEY` is
-unproven** — on any v2 chat failing in production, check for a 401 first; absent returns 503.
+did not hold** — a company-scoped turn is $0.1010 with no project at all. Both are eval-gated
+retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
+`scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on any v2 chat
+failing in production check for a 401 first; absent returns 503.
 
-**Next: 09** — workspace chat, smaller than it was and no longer built over a dying route: `shelf`
-is already in the union and `read_workspace` reads `workspaceId`.
+**09 closed by MEASURING, not building.** Its gate reads **planner 8/14, the literal swap 6/14,
+retrieval's own chunks 8/14** on a workspace shelf, so **workspace chat is unchanged** — the outcome
+the ticket names in advance. `scripts/retrieval-eval/workspace-gate.mjs` is standing; re-run it
+before any workspace-retrieval change. The lead is UNION, not replacement, but P ∪ R = 11/14 is an
+ORACLE BOUND that breaks the shared budget: its own ticket, its own gate. Ungated work that shipped:
+the fence line is defanged. Evidence: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
+
+**Next: 10** — agent tables + create flow.
 
 Also open: **ticket 13** holds the cleanup list; poller/sweep deferred past V1.

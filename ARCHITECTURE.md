@@ -398,7 +398,8 @@ run a file cannot tell you it is missing.
 · `transcriptDate.test.ts` · `transcription.test.ts`
 · `workspace/blocks.test.ts` · `workspace/chat/compose.test.ts`
 · `workspace/chat/context.test.ts` · `workspace/chat/plan.test.ts`
-· `workspace/chat/prompt.test.ts` · `workspace/clip.test.ts`
+· `workspace/chat/prompt.test.ts` · `workspace/chat/promptInjectionDiscipline.test.ts`
+· `workspace/clip.test.ts`
 · `workspace/data.test.ts` · `workspace/intake/agreement.test.ts`
 · `workspace/intake/findSources.test.ts` · `workspace/intake/json.test.ts`
 · `workspace/intake/parseRequest.test.ts`

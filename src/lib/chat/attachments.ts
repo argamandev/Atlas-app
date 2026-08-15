@@ -1,3 +1,5 @@
+import { fencePart } from '@/lib/workspace/chat/context'
+
 // Pinge chat attachments (spec 2026-07-17): validation of the wire shape + the
 // provider-specific message parts. PURE on purpose (no server-only imports) so the
 // whole attachment contract is unit-tested; /api/chat does the DB lookups.
@@ -49,9 +51,18 @@ export function attachmentOversized(dataUrl: string): boolean {
   return payload > ATTACHMENT_MAX_B64
 }
 
-/** Hebrew caption placed beside each image so answers can cite the page naturally. */
+/**
+ * Hebrew caption placed beside each image so answers can cite the page naturally.
+ *
+ * THE TITLE IS UNTRUSTED AND THIS IS A SECOND ROUTE INTO THE PROMPT. It comes
+ * from `workspace_items.name`, and the caption is handed to the model as a text
+ * part beside the image — so the defang applied to the prompt BUILDERS never
+ * reached it, and a title could print the marker that separates quoted material
+ * from instructions. `fencePart` is the same one door those builders use: it
+ * defangs the marker, neutralises `>>>`, and keeps a caption to one line.
+ */
 export function snipCaption(meta: { title: string } | null, page: number): string {
-  return meta ? `תצלום מעמוד ${page} של ${meta.title}` : `תצלום מעמוד ${page} מהדוח`
+  return meta ? `תצלום מעמוד ${page} של ${fencePart(meta.title)}` : `תצלום מעמוד ${page} מהדוח`
 }
 
 /** Gemini REST parts: inline_data image + caption text, in order, before the user text. */

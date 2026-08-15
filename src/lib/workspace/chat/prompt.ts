@@ -1,5 +1,5 @@
 import { modelObject } from '../intake/json'
-import { defang, fencePart } from './context'
+import { defang, fencePart, quoted } from './context'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE WORKSPACE CHAT — talking about the shelf, and asking for more of it.
@@ -74,9 +74,7 @@ read the whole of one of these.
   // user's question, so "what does this mean?" has an unambiguous "this".
   const marked = input.selection
     ? `\nTHE ANALYST HAS MARKED THIS PASSAGE, from "${fencePart(input.selection.title)}":
-"""
-${defang(input.selection.text)}
-"""
+${quoted(input.selection.text)}
 Their message is about this passage unless they clearly change the subject.
 `
     : ''
@@ -94,7 +92,12 @@ Read the ${input.snipCount === 1 ? 'image' : 'images'} — ${input.snipCount ===
 `
 
   const talk = input.conversation
-    .map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${t.content}`)
+    // The turns are untrusted like everything else: a user turn is request body,
+    // and an assistant turn is whatever was stored last time — which may be a
+    // reply that quoted a document's own words back. Only ANALYST turns may
+    // instruct, and that promise is worth nothing if a turn can print the marker
+    // that decides which region is which.
+    .map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${defang(t.content)}`)
     .join('\n')
 
   return `You are Atlas, working alongside an equity analyst inside their research workspace "${fencePart(input.workspaceName)}".

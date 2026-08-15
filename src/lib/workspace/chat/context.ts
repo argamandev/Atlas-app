@@ -182,6 +182,26 @@ export const fencePart = (value: string) =>
     .split('>>>')
     .join('»')
 
+/**
+ * The OTHER boundary in these prompts, and it was forgeable for the same reason.
+ *
+ * A marked passage, the document being written and compose's instruction all
+ * arrive inside a `"""` block rather than behind the fence — and `defang` only
+ * ever knew about `<<<ATLAS-SOURCE`. A passage containing a line of `"""` closes
+ * its own block, and everything after it reads as instruction, which is the
+ * exact defect the fence fix was for, one delimiter over. Fixing the marker and
+ * leaving this would be the guard-in-the-branch M3.1 forbids: the invariant
+ * belongs at every boundary, not at the one where the bug was noticed.
+ *
+ * The delimiter is replaced rather than escaped, because there is no escape a
+ * model is guaranteed to honour — `'''` reads as what it is and cannot close
+ * anything.
+ */
+export const quoted = (text: string) =>
+  `"""\n${defang(String(text ?? ''))
+    .split('"""')
+    .join("'''")}\n"""`
+
 /** The opening marker of one source, every interpolated part defanged. */
 export const fenceLine = (title: string, kind: string, itemId: string, note = '') =>
   `\n${FENCE} ${fencePart(title)} (${fencePart(kind)}, id: ${fencePart(itemId)})${note ? ` — ${fencePart(note)}` : ''} >>>\n`

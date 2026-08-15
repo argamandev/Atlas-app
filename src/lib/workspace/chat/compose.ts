@@ -1,5 +1,5 @@
 import { modelObject } from '../intake/json'
-import { defang, fencePart } from './context'
+import { defang, fencePart, quoted } from './context'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ATLAS WRITING INTO THE ANALYST'S DOCUMENT.
@@ -84,9 +84,7 @@ const ALLOWED = [
 export function buildComposePrompt(input: ComposeInput): string {
   const marked = input.passage
     ? `\nTHE ANALYST MARKED THIS PASSAGE, from "${fencePart(input.passage.title)}", and wants it worked into the document:
-"""
-${defang(input.passage.text)}
-"""
+${quoted(input.passage.text)}
 Their instruction below says where it should go and how it should read. Quote it
 where quoting is right, or work it into your own sentence — but do not change
 what it says, and attribute it to "${fencePart(input.passage.title)}".
@@ -106,9 +104,7 @@ including their units, signs and thousands separators.
     input.document.trim().length === 0
       ? '\nTHE DOCUMENT IS EMPTY. You are writing its opening.\n'
       : `\nTHE DOCUMENT SO FAR:
-"""
-${defang(input.document.slice(0, 20_000))}
-"""
+${quoted(input.document.slice(0, 20_000))}
 `
 
   const places =

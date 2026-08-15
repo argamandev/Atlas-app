@@ -193,6 +193,9 @@ test('no name compose interpolates can print the fence marker', () => {
     headings: [forge],
   })
   assert.equal(p.indexOf('<<<ATLAS-SOURCE evil'), -1)
+  // The `"""` blocks are the other boundary, and compose has two of them: the
+  // marked passage and the document as it stands. Four delimiters, no more.
+  assert.equal(p.split('"""').length - 1, 4, p.slice(0, 400))
 })
 
 test('the model is told never to restate what the document already says', () => {
