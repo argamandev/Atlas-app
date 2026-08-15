@@ -85,3 +85,44 @@ test('the synthesised ending is terminal and carries a client-only code', () => 
   assert.equal(STREAM_ENDED.type === 'incomplete' ? STREAM_ENDED.code : null, 'stream_ended')
   assert.equal(isIncompleteCode('stream_ended'), false)
 })
+
+// ─── THE `grounding` FRAME (ticket 08b) ──────────────────────────────────────
+
+test('a grounding frame parses with its source', () => {
+  const e = parseChatEvent(
+    JSON.stringify({
+      type: 'grounding',
+      state: 'truncated',
+      source: { company: 'תיגבור', quarter: 'Q3 2025', transcriptId: 'abc' },
+    })
+  )
+  assert.deepEqual(e, {
+    type: 'grounding',
+    state: 'truncated',
+    source: { company: 'תיגבור', quarter: 'Q3 2025', transcriptId: 'abc' },
+  })
+})
+
+test('an UNKNOWN state is dropped, never defaulted to "whole"', () => {
+  // Defaulting would assert the flattering half of the only question this event
+  // answers: the surface would say the call reached the model whole because the
+  // wire said something this build cannot read. No claim beats a false one.
+  for (const state of ['partial', undefined, 7, null]) {
+    assert.equal(parseChatEvent(JSON.stringify({ type: 'grounding', state, source: null })), null, String(state))
+  }
+})
+
+test('a grounding frame without a usable source still parses, with source null', () => {
+  // The state is the honesty fact; the source is the citation chip. Losing the
+  // chip must not cost the truncation notice.
+  for (const source of [null, undefined, {}, 'nope', { company: 'x' }]) {
+    const e = parseChatEvent(JSON.stringify({ type: 'grounding', state: 'whole', source })) as {
+      source: unknown
+    } | null
+    assert.deepEqual(e?.source, null, JSON.stringify(source))
+  }
+})
+
+test('the grounding frame is NOT terminal — it cannot end a turn', () => {
+  assert.equal(isTerminal({ type: 'grounding' }), false)
+})

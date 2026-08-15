@@ -1281,3 +1281,42 @@ the live hole fixed in the same session.
   message and re-download forever), with a new regression test.
 - **Verified:** all four cleared findings' tests pass; `syncFilings.test.ts` 17/17 including the new
   race-recovery case; `tsc` clean on every file this branch touched.
+
+## 2026-08-15 — Ticket 08b: Ask Atlas gets whole-call injection, and two surfaces move to v2 (`feat/smart-layer-b2b-ask-atlas-surfaces`)
+
+- **The scope was renegotiated on day one, and that is the headline.** 08b was written as "retire
+  the old `/api/chat`, both callers onto v2". The old route turned out to carry SIX groundings, not
+  two — company, call, live captions, marked PDF pages, snipped images, project context — and v2
+  had code for one. The law the `useV2` fork exists to keep is *a surface goes to v2 only when v2
+  can honour every grounding that surface displays*, so taking the whole ticket meant porting three
+  more groundings with the both-locales verification landing last: the exact failure the 08a/08b
+  split was created to avoid. **Founder chose the honest slice.** The old route still serves project
+  chats, live captions and multiview doc/snips, each named in the ticket as what 08c owes.
+- **Spec §2.3's four grounding recipes are now ONE union** at the request gate, and it REFUSES
+  rather than downgrades: a malformed `call` grounding is a 400, not a quiet fall back to
+  market-wide search under a chip still naming the call. `transcriptId` is back on `ChatScope` for
+  the first time since ticket 07's cold review took it off — together with the code that reads it,
+  which is the only order in which accepting it is honest.
+- **Whole-call injection.** The call goes into the first user message FENCED like every other
+  untrusted source (it is a transcription of a public webcast — the one non-tool door into the
+  prompt), line-id-anchored so the model can cite it, budgeted at 60,000 chars ≈ 15–17K tokens, and
+  it reports whether it FIT. If the call cannot be loaded the turn ends in `error` before any model
+  call — answering from the general corpus under a chip naming a call is the ticket-07 defect.
+- **Citation chips are back** for call-grounded answers, carried on a new non-terminal `grounding`
+  event alongside the whole/truncated state — the same fact the old route sent on `x-chat-source`,
+  so migrating a surface no longer costs it the chip.
+- **Two defects that only real data could find.** `transcripts.id` is `text`, not `uuid` — the gate
+  as first written would have 400'd every "open in chat" from a call while the whole battery stayed
+  green, because every test id was an invented uuid. It survived a full ticket only because the
+  field was consumed by nothing: *a field no code reads is a field whose validator can be wrong
+  forever.* And `import 'server-only'` made `callSource.ts` unloadable outside Next, which the cost
+  harness found by failing on it.
+- **Verified:** both surfaces driven by hand in EN and HE with real ids; the truncated state driven
+  in both locales (no corpus call is long enough, so the budget was temporarily lowered and
+  reverted) and confirmed to survive a reload; the old route's own panel re-driven for the shared
+  error-rendering change. `npm test` 1027/1027, `tsc` clean, console and dev log clean. Cost:
+  $0.0164 company-scoped, $0.0537 / $0.0805 stuffed against §5's $0.06 / $0.13.
+  Evidence + four-round review record in `docs/evidence/feat-smart-layer-b2b-ask-atlas-surfaces/`.
+- **Founder decision owed:** §5 says "stuffed FIRST turn", but the call is re-injected on every turn
+  — a turn-2 question would otherwise be answered without the call its chip still names. Every
+  measured turn is inside the stuffed budget; what is not true is the implied "first".

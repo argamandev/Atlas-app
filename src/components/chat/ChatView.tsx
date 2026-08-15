@@ -16,6 +16,7 @@ import { PencilIcon, ProjectsIcon, WorkspacesIcon, AgentsIcon } from '@/componen
 import { streamChat } from '@/lib/api/chat'
 import type { ChatSource } from '@/lib/chat/grounding'
 import {
+  sanitizeCallTruncated,
   sanitizeContextStatus,
   sanitizeTruncated,
   truncatedForPersist,
@@ -85,6 +86,25 @@ interface Msg {
    * "this answer is partial" AND "it was not stored", because both are true.
    */
   incomplete?: ClientIncompleteCode | null
+  /**
+   * The CALL this answer is grounded in did not fit in one turn (ticket 08b).
+   *
+   * A third distinct fact, deliberately not folded into `incomplete` or
+   * `truncated`: those two describe the ANSWER — it stopped early, or the stream
+   * broke. This one describes the INPUT. An answer can be complete, whole and
+   * saved, and still have been written from the first two thirds of the call the
+   * chip above it names. Merging it into either neighbour would tell the user
+   * their answer was cut off, which is a different and untrue statement.
+   *
+   * PERSISTED, and the first draft of this branch had it session-only with a
+   * comment arguing that a reopened thread should stay silent because "nothing
+   * re-derives it". Cold review called that a BLOCKER and it was right: the
+   * server MEASURED this and said so on its `grounding` event, so storing it
+   * records a measurement rather than inventing one — and the version being
+   * defended was one refresh away from showing a partly-grounded answer as a
+   * whole one, which is exactly what `truncated` above exists to prevent.
+   */
+  callTruncated?: boolean
 }
 
 export function ChatView({
@@ -166,18 +186,22 @@ export function ChatView({
   // clients until B2"). This is a temporary fork with a named owner, not a
   // permanent branch. B2 removes it along with `streamChat`.
   //
-  // TRANSCRIPT CHATS ARE THE SECOND HALF OF THE SAME RULE, and the cold review
-  // found this one the hard way. `/app/chat?transcript=…` ("open in chat" from a
-  // call) renders a chip naming that call, and the old route genuinely grounds on
-  // it (`getChatContext(companyId, transcriptId)`). v2 has no tool that reads a
-  // transcript id — whole-call injection is ticket 08 — so sending those turns to
-  // v2 answered from the general corpus while the chip on screen still promised
-  // the call. Success UI for content the server dropped, which is the exact law
-  // this ticket's degradation work exists to serve.
+  // TRANSCRIPT CHATS WERE THE SECOND HALF OF THIS FORK, AND ARE NOW ON V2
+  // (ticket 08b). `/app/chat?transcript=…` ("open in chat" from a call) renders a
+  // chip naming that call; until whole-call injection existed, v2 had no code that
+  // read a transcript id, so sending those turns to it answered from the general
+  // corpus while the chip still promised the call. `chat2/callInjection.ts` is
+  // that code, and the turn now ends visibly when the call cannot be loaded.
   //
-  // ONE RULE, stated once: a surface goes to v2 only when v2 can honour every
-  // grounding that surface displays. Ticket 08 removes both arms of this fork.
-  const useV2 = !projectId && !transcript
+  // ONE RULE, unchanged: a surface goes to v2 only when v2 can honour every
+  // grounding that surface displays. That is still what this line says — it now
+  // has one arm instead of two, because a project chat's instructions, memory and
+  // notes are injected by the OLD route and by nothing else. Sending those turns
+  // to v2 would answer without them silently, which is the invisible degradation
+  // this migration exists to end. The old route therefore stays alive for project
+  // chats, for the live-captions panel and for the multiview document/snip
+  // grounding — named in ticket 08 as what the next slice owes.
+  const useV2 = !projectId
 
   /**
    * The grounding mode of the CURRENT turn, as the server reported it.
@@ -289,9 +313,16 @@ export function ChatView({
     // null` back to `null` when every assignment lives in a closure — so the
     // checks below would be flagged as unintentional comparisons and, worse,
     // could be "simplified" away by someone trusting the narrowing.
-    const outcome: { incomplete: ClientIncompleteCode | null; error: string | null } = {
+    const outcome: {
+      incomplete: ClientIncompleteCode | null
+      error: string | null
+      callTruncated: boolean
+      source: ChatSource | null
+    } = {
       incomplete: null,
       error: null,
+      callTruncated: false,
+      source: null,
     }
     // Did the model's stream finish? Distinguishes a mid-stream break from a
     // failure that happened AFTER a complete answer arrived. `full.length > 0`
@@ -301,17 +332,29 @@ export function ChatView({
     // exists to remove rather than relocate.
     let streamFinished = false
     try {
-      let source: ChatSource | null = null
+      // `source` lives on `outcome` for the reason stated at its declaration: it
+      // is now written inside the v2 event closure (the `grounding` case), so as
+      // a plain `let … = null` TypeScript narrows it back to `null` and the read
+      // below looks like a constant. `projectContext` is NOT — it is assigned
+      // synchronously from `streamChat`'s return on the old-route branch, where
+      // that narrowing does not apply.
       let projectContext: ProjectContextStatus | null = null
 
       if (useV2) {
         await streamChatV2(
           {
             message: apiMessage,
-            companyId: companyId ?? undefined,
-            // No `transcriptId`: v2 does not accept one, because nothing in it
-            // reads one (see `useV2` above and `chat2/requestScope.ts`). A
-            // transcript-scoped chat never reaches this branch.
+            // ONE recipe, and the CALL WINS when this view has both. A chat opened
+            // from a call carries that call's company too, and the two are not
+            // alternatives at the same altitude: the chip on screen names the
+            // call, so the call is what the answer owes its grounding to. Sending
+            // the company instead would search that company's whole corpus and
+            // answer under a chip promising one specific call.
+            grounding: transcript
+              ? { kind: 'call', transcriptId: transcript.id }
+              : companyId
+                ? { kind: 'company', companyId }
+                : { kind: 'none' },
             history,
           },
           (e) => {
@@ -328,6 +371,18 @@ export function ChatView({
                 // on screen and the scope of the NEXT turn agree with what
                 // actually grounded this answer.
                 if (e.companyId && e.companyId !== companyId) void adoptResolvedCompany(e.companyId)
+                break
+              case 'grounding':
+                // The two facts v2 could not express until 08b. `source` is the
+                // citation chip the old route carried on `x-chat-source` — the
+                // same fact, from the same row, so migrating this surface does
+                // not cost it the chip it already had. `state` is the honesty
+                // half: a call too long to read in full produces an answer built
+                // on part of it, and that must not look like an answer built on
+                // the call. Recorded, not rendered mid-stream, exactly like
+                // `incomplete` below.
+                outcome.source = e.source
+                outcome.callTruncated = e.state === 'truncated'
                 break
               case 'incomplete':
                 // The text already on screen is REAL — it just is not all of it.
@@ -364,15 +419,16 @@ export function ChatView({
             scrollToEnd()
           }
         )
-        source = res.source
+        outcome.source = res.source
         projectContext = res.projectContext
       }
       streamFinished = true
       setLastAssistant({
         content: full,
-        source,
+        source: outcome.source,
         projectContext,
         incomplete: outcome.incomplete,
+        callTruncated: outcome.callTruncated,
         streaming: false,
       })
 
@@ -401,6 +457,10 @@ export function ChatView({
             // partial text persists as an ordinary complete answer, because it
             // has content and therefore survives the filter above.
             truncated: truncatedForPersist(m),
+            // The INPUT-partial fact, carried through unchanged like
+            // `projectContext`. Prior turns keep whatever they were saved with,
+            // whether they were written this session or read back from storage.
+            callTruncated: m.callTruncated ?? null,
           })),
         { role: 'user' as const, content: text },
         // The stream RESOLVED — which under v2 is no longer the same question as
@@ -420,6 +480,10 @@ export function ChatView({
           // history mapper, where the identical inline guess had just been
           // removed for missing a field. One function decides "is this partial".
           truncated: truncatedForPersist({ incomplete: outcome.incomplete }),
+          // Taken from the server's `grounding` event, which is a measurement —
+          // so this survives a reload instead of dying with the session and
+          // leaving a partly-grounded answer looking whole.
+          callTruncated: outcome.callTruncated,
         },
       ]
       let cid = conversationId
@@ -485,6 +549,7 @@ export function ChatView({
         content: m.content,
         projectContext: sanitizeContextStatus(m.projectContext),
         truncated: sanitizeTruncated(m.truncated),
+        callTruncated: sanitizeCallTruncated(m.callTruncated),
       }))
     )
     // Last, and only on success: a rejected fetch must leave the surface where
@@ -531,7 +596,22 @@ export function ChatView({
    * nothing in the render should want a mode that is only "what the server last
    * reported". Every JSX branch reads `shownMode`.
    */
-  const shownMode: ChatMode | null = companyId ? chatMode({ companyId }) : reportedMode
+  /**
+   * A CALL-GROUNDED CHAT HAS NO MODE TO SHOW (ticket 08b).
+   *
+   * `mode` answers "is this pinned to a company, or searching the market", and
+   * `chatMode` decides it from the one fact it rests on: a resolved company. A
+   * call grounding resolves no company, so the server honestly reports `search`
+   * — and rendering that produces "Search mode · pin a company" sitting directly
+   * beside a chip naming one specific call, which is the same two-controls-
+   * contradicting-each-other defect this file already fixed once for the pin
+   * button. The answer IS grounded in the call; the market is not being searched.
+   *
+   * So the mode is not shown here at all, rather than shown as something else:
+   * the transcript chip already says what this chat is grounded in, and a second
+   * chip could only agree with it (noise) or disagree with it (a lie).
+   */
+  const shownMode: ChatMode | null = transcript ? null : companyId ? chatMode({ companyId }) : reportedMode
 
   // Composer block — shared between the empty (centered) and active (pinned-bottom) states.
   const composer = (
@@ -560,7 +640,14 @@ export function ChatView({
               nothing, and the chat sat silently pinned to a company the user
               could neither see nor undo. A scope that exists must be visible; an
               unnamed one says "a company" rather than disappearing. */}
-          {companyId && (
+          {/* AND NOT WHEN A CALL IS THE GROUNDING (ticket 08b). "Open in chat"
+              from a call seeds both the call and its company, but only one of
+              them can be the recipe — the call wins, and it is the call that is
+              sent. A company chip beside it would promise a company-wide scope
+              the request does not carry: the surface claiming a grounding the
+              backend never received, which is ticket 07's defect pointing the
+              other way. One chip, naming what the answer is actually built on. */}
+          {companyId && !transcript && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
               {initialCompany?.logoUrl && companyName && (
                 <Logo src={initialCompany.logoUrl} name={companyName} size={16} />
@@ -780,6 +867,17 @@ export function ChatView({
                     degradation. This sits ABOVE the {error} line because a turn
                     can honestly carry both — a partial answer that then failed to
                     save is two true statements, not a choice between them. */}
+                {/* THE INPUT WAS PARTIAL, WHICH IS NOT THE SAME CLAIM AS "the
+                    answer was cut off" (ticket 08b). The call was longer than one
+                    turn can carry, so the model read its opening. The answer
+                    below may be complete and correct AND built on part of the
+                    call — both true at once, which is why this renders alongside
+                    the notices below rather than instead of one of them. */}
+                {m.callTruncated && !m.streaming && (
+                  <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
+                    {dict.chat.callTruncated}
+                  </p>
+                )}
                 {m.incomplete && !m.streaming && (
                   <p role="status" dir="auto" className="mt-2 text-[12.5px] leading-[1.5] text-[#B0533E]">
                     {incompleteMessage(dict.chat.incomplete, m.incomplete)}

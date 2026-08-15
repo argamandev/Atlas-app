@@ -46,6 +46,7 @@ import { verifyCitation } from './citations'
 import { decideTerminal, type IncompleteCode } from './terminal'
 import { chatMode, modeChanged, type ChatMode } from './mode'
 import { defang } from './fence'
+import { buildCallBlock, type CallForInjection } from './callInjection'
 
 export const MODEL = 'claude-sonnet-5'
 export const MAX_ROUND_TRIPS = 4
@@ -141,6 +142,16 @@ export interface RunChatLoopArgs {
   scopeSummary?: string
   /** Injectable for tests; defaults to the real registry. */
   handlers?: Record<string, (input: Record<string, unknown>) => Promise<ToolResult>>
+  /**
+   * Loads the call named by `scope.transcriptId`. Injectable for the same reason
+   * `handlers` is: the real one reaches Supabase at module load.
+   *
+   * `null` means the call is not there (deleted, or never existed). It is
+   * DISTINCT from a thrown error only in the message the user gets — both end the
+   * turn, because both mean the chip on screen is promising a grounding that did
+   * not happen.
+   */
+  loadCall?: (transcriptId: string) => Promise<CallForInjection | null>
 }
 
 /**
@@ -163,9 +174,51 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
     return handlers
   }
 
+  // ─── WHOLE-CALL INJECTION (spec §2.3, ticket 08b) ──────────────────────────
+  //
+  // A call-grounded turn gets that call in the prompt, whole, BEFORE the first
+  // model call — not through a tool, because the user is looking at the call and
+  // the surface has already named it. Retrieval over a document the user is
+  // pointing at would answer from the best-matching window instead of from the
+  // thing on screen.
+  //
+  // THE FAILURE PATH IS THE POINT. If the call cannot be loaded, this returns
+  // `error` and no model call happens. Answering anyway would produce a fluent,
+  // corpus-grounded reply underneath a chip naming a call that reached nothing —
+  // success UI for content the server dropped, which is the exact defect that
+  // took `transcriptId` off this scope in ticket 07. It is cheaper AND more
+  // honest to end here.
+  let callBlock: ReturnType<typeof buildCallBlock> | null = null
+  if (scope.transcriptId) {
+    let loaded: CallForInjection | null
+    try {
+      const load = args.loadCall ?? (await import('./callSource')).loadCallForInjection
+      loaded = await load(scope.transcriptId)
+    } catch (err) {
+      yield { type: 'error', message: `the call could not be loaded: ${(err as Error).message}` }
+      return
+    }
+    if (!loaded) {
+      yield { type: 'error', message: 'this call is no longer available' }
+      return
+    }
+    callBlock = buildCallBlock(loaded)
+    // AFTER the load, never before: this event is the surface's evidence that the
+    // grounding actually happened, so emitting it optimistically would make it
+    // evidence of nothing.
+    yield { type: 'grounding', state: callBlock.truncated ? 'truncated' : 'whole', source: callBlock.source }
+  }
+
   const messages: Anthropic.MessageParam[] = [
     ...history.map((t) => ({ role: t.role, content: t.content }) as Anthropic.MessageParam),
-    { role: 'user', content: message },
+    {
+      role: 'user',
+      // The call rides on THIS turn's user message rather than in the system
+      // prompt. The system block is the cache-stable prefix (`systemPrompt.ts`),
+      // and a 60,000-char call pushed in front of it would vary per request —
+      // destroying the one property that block's ordering exists to preserve.
+      content: callBlock ? `${callBlock.text}\n\n${message}` : message,
+    },
   ]
 
   const system = buildSystemPrompt({ todayIsrael, scopeSummary })
@@ -173,7 +226,15 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // The pool every citation this turn is checked against — the raw content every
   // tool actually returned, not a summary of it. Grows across round-trips; a claim
   // grounded in round-1's search result is still verifiable after round-3's lookup.
-  let sourcePool = ''
+  // AN INJECTED CALL IS A SOURCE, and seeding the pool with it is not tidiness.
+  // The verification guard downstream is `sourcePool ? verify : skip`, so a
+  // call-grounded turn — which can legitimately answer without calling a single
+  // tool, that being the entire point of injecting the call — would run with
+  // citation checking switched OFF while holding the one document the answer is
+  // built on. That is the round-2 hole in `terminal.ts` arriving through a new
+  // door. (Verification itself is off today; this makes the pool correct for when
+  // it returns, rather than leaving a hole for it to return into.)
+  let sourcePool = callBlock ? '\n' + callBlock.text : ''
   let citationRetried = false
   // Two facts the terminal decision needs, and they are NOT the same question as
   // "is sourcePool empty" — round 2's hole. A turn whose every tool failed has an
@@ -181,7 +242,11 @@ export async function* runChatLoop(args: RunChatLoopArgs): AsyncGenerator<ChatEv
   // did not. The first must end `incomplete` (nothing could be grounded OR verified);
   // the second is an ordinary ungrounded answer, which is the prompt's problem.
   let anyToolRan = false
-  let anySourceSurvived = false
+  // The injected call counts, for the same reason it seeds the pool: it is a
+  // source that survived. It does not change any branch today (`anySourceSurvived`
+  // is only consulted when a tool ran) — it is set so the fact stays true rather
+  // than accidentally true.
+  let anySourceSurvived = callBlock !== null
   // EVERY delta this turn sends, accumulated at the one point they are yielded, so
   // `anyTextEmitted` describes what the USER SAW rather than what the last API
   // response happened to contain. It does NOT mean every delta is quote-checked:

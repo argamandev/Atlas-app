@@ -12,9 +12,16 @@ export interface ChatScope {
   userId: string
   /** Set once resolve_company (or the caller's own grounding) has picked a company. */
   companyId?: string | null
-  // NO `transcriptId` — ticket 07's cold review found it declared, gated and read
-  // by nothing, while the surface showed a transcript chip claiming the answer was
-  // grounded in it. Ticket 08 adds it back with the tool that consumes it.
+  /**
+   * The call this chat is grounded in, injected WHOLE before the first model
+   * call (`callInjection.ts`, spec §2.3) — not searched, not retrieved over.
+   *
+   * It was removed in ticket 07: declared, uuid-gated and read by NOTHING, while
+   * the surface showed a transcript chip claiming the answer was grounded in it.
+   * It is back only because `loop.ts` now reads it, and ends the turn visibly
+   * when the call cannot be loaded.
+   */
+  transcriptId?: string | null
   workspaceId?: string | null
   /**
    * The CALLER'S OWN supabase client (RLS-bearing), required only for

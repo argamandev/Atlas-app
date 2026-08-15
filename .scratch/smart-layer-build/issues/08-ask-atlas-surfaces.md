@@ -1,6 +1,6 @@
 # B2 · Ask Atlas surfaces
 
-Status: in-progress — SPLIT INTO 08a / 08b
+Status: in-progress — SPLIT THREE WAYS: 08a done · 08b done · 08c OPEN
 Blocked by: 07
 
 Spec §2.3 + §6 B2. `TranscriptChatPanel` (live calls, transcripts, multiview) +
@@ -17,16 +17,17 @@ tokens. Split the same way B1 was split into 06/07, and for the same reason — 
 verification lands last, which is the worst place to run out of room**, because that is the
 phase where skipping a locale is tempting.
 
-**The ticket is NOT closed by 08a.** Its acceptance line is the surfaces verified in both
-locales; only 08b can close it. A merged 08a must not be read as a finished 08.
+**The ticket is NOT closed by 08a — and it is not closed by 08b either.** Its acceptance line is
+the surfaces verified in both locales, and 08b verified only the two v2 can honour. A merged 08a
+or 08b must not be read as a finished 08; **08c closes it.**
 
 - **08a — plumbing. DONE** (slices 1–2; slice 3 moved to 08b, see below). Changes NO
   user-visible behaviour: the old route keeps serving every surface and `ChatView` behaves
   exactly as before. Verified by typecheck + the battery; `/verify-app` is deliberately not
   owed, because nothing a user can see moved.
-- **08b — surfaces.** Everything above: both callers onto v2, whole-call injection, delete
-  the old route and the `useV2` fork, restore citation chips (v2 carries none), then
-  `/verify-app` both locales, the three measurements, `/ship`.
+- **08b — surfaces. DONE**, against a NARROWED scope the founder approved on 2026-08-15 when
+  the sizing above turned out to be wrong a second time. See "what 08b actually cut" below.
+- **08c — the remaining groundings.** What 08b could not honestly take. Still open.
 
 These are SEQUENTIAL, not parallel worktrees — they touch the same files. 08a merges first;
 08b branches clean off `main`.
@@ -71,6 +72,48 @@ These are SEQUENTIAL, not parallel worktrees — they touch the same files. 08a 
      | { kind: 'call'; transcriptId: string }  // live call / transcript → inject whole
      | { kind: 'shelf'; workspaceId: string }  // workspace chat
    ```
+
+## What 08b actually cut, and why (founder, 2026-08-15)
+
+**"Retire the old `/api/chat`, both callers onto v2" was sized wrong.** The old route does not
+carry two groundings, it carries SIX, and v2 had code for one:
+
+| Grounding | Surface | v2 before 08b | after |
+| --- | --- | --- | --- |
+| `companyId` | company page, `@mention` | ✅ | ✅ |
+| `transcriptId` | `/app/chat?transcript=` | ❌ | ✅ **whole-call injection** |
+| `liveContext` (captions) | live broadcast panel | ❌ | ❌ — 08c |
+| `documentRef` (PDF pages) | multiview panel | ❌ | ❌ — 08c |
+| `attachments` (snips) | multiview panel | ❌ | ❌ — 08c |
+| `projectId` | project chats | ❌ | ❌ — 08c |
+
+The law that decides this is the one `useV2` was built around: *a surface goes to v2 only when v2
+can honour every grounding that surface displays.* `TranscriptChatPanel` displays a reference
+block, snip thumbnails and a "connected to…" caption, so moving it wholesale would have meant
+porting three more groundings — roughly three missions — with the both-locales verification landing
+last, which is the exact failure the 08a/08b split was created to avoid.
+
+**So 08b took the two surfaces v2 can fully honour** — `/app/chat?transcript=` and the company
+page — and left the old route serving the other four, each named above. `useV2` is now one arm
+(`!projectId`) instead of two.
+
+### 08c owes
+1. Project-context injection on v2, then delete the `useV2` fork and the old route.
+2. Live captions as a grounding recipe (probably `{kind:'live'}` carrying the caption text).
+3. `documentRef` + snips — needs image content blocks in the loop, not just text.
+4. **A founder call the measurements surfaced:** §5 says "stuffed FIRST turn ≤ $0.13", but the
+   call is re-injected on EVERY turn — a turn-2 question would otherwise be answered without the
+   call its chip still names. Measured $0.05–0.08 per turn, so nothing exceeds a stated budget;
+   what is not true is the implied "first". Evidence file has the numbers.
+
+### Landed in 08b
+The `Grounding` union at the request gate (refuses rather than downgrades); `chat2/callInjection.ts`
+(fenced, line-id-anchored, budgeted, reports truncation) + `callSource.ts`; a non-terminal
+`grounding` event carrying the citation source and the whole/truncated state; the error terminal
+when a call cannot be loaded, before any model call; citation chips restored for call-grounded
+answers; `callTruncated` persisted so a reload cannot turn a partly-grounded answer into a whole
+one. Two real-data defects caught at verification: `transcripts.id` is `text` not `uuid` (the gate
+would have 400'd every real call), and `server-only` made `callSource.ts` unloadable outside Next.
 
 Provenance: the three slices come from an architecture review of the chat stack
 (2026-08-15). Two further candidates from that review — a partial-result union for

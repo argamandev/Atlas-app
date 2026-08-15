@@ -580,3 +580,181 @@ test('the mode is announced on CHANGE only — an unchanged mode does not repeat
   )
   assert.equal(events.filter((e) => e.type === 'mode').length, 1)
 })
+
+// ─── WHOLE-CALL INJECTION (ticket 08b, spec §2.3) ────────────────────────────
+//
+// The property under test is NOT "the call text appears in the prompt". It is the
+// pair that took `transcriptId` off this scope in ticket 07 and let it back on:
+// a turn the surface calls call-grounded either IS grounded in that call, or ends
+// visibly. There is no third outcome, and in particular no fluent corpus-grounded
+// answer under a chip naming a call the backend never opened.
+
+const CALL_UUID = 'a1b2c3d4-1111-2222-3333-444455556666'
+
+function fakeCall(lines = [{ id: 'L0001', speakerId: 's1', text: 'ההכנסות עלו ב-12%.' }]) {
+  return {
+    id: CALL_UUID,
+    company: 'תיגבור',
+    quarter: 'Q3 2025',
+    date: '2025-11-12',
+    speakers: [{ id: 's1', name: 'דנה כהן' }],
+    sections: [{ lines }],
+  }
+}
+
+test('a call-grounded turn puts the call in the prompt, fenced, before the question', async () => {
+  let sent: { messages: { role: string; content: unknown }[] } | null = null
+  const client = {
+    messages: {
+      async create(args: { messages: { role: string; content: unknown }[] }) {
+        sent = args
+        return { content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }
+      },
+    },
+  } as never
+  await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', transcriptId: CALL_UUID },
+      history: [],
+      message: 'מה אמרו על השוליים?',
+      todayIsrael: '2026-08-15',
+      loadCall: async () => fakeCall(),
+    })
+  )
+  const last = sent!.messages[sent!.messages.length - 1]
+  const content = String(last.content)
+  assert.equal(last.role, 'user')
+  assert.ok(content.includes('<<<ATLAS-SOURCE>>>'), 'the call reached the model unfenced')
+  assert.ok(content.includes('ההכנסות עלו ב-12%.'), 'the call text is missing')
+  assert.ok(
+    content.indexOf('<<<END-ATLAS-SOURCE>>>') < content.indexOf('מה אמרו על השוליים?'),
+    'the question must come after the call, not inside its fence'
+  )
+})
+
+test('the call rides the USER turn, never the system prompt', async () => {
+  // The system block is the cache-stable prefix (`systemPrompt.ts`). A 60,000-char
+  // call in front of it varies per request and destroys the one property that
+  // block's ordering exists to preserve.
+  let sent: { system: string } | null = null
+  const client = {
+    messages: {
+      async create(args: { system: string }) {
+        sent = args
+        return { content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }
+      },
+    },
+  } as never
+  await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', transcriptId: CALL_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadCall: async () => fakeCall(),
+    })
+  )
+  assert.ok(!sent!.system.includes('ההכנסות עלו ב-12%.'), 'the call was put in the cacheable prefix')
+})
+
+test('a loaded call announces its grounding, with the source for the citation chip', async () => {
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', transcriptId: CALL_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadCall: async () => fakeCall(),
+    })
+  )
+  assert.deepEqual(events.find((e) => e.type === 'grounding'), {
+    type: 'grounding',
+    state: 'whole',
+    source: { company: 'תיגבור', quarter: 'Q3 2025', transcriptId: CALL_UUID },
+  })
+})
+
+test('a MISSING call ends the turn in error, and never reaches the model', async () => {
+  // The ticket-07 defect, in the one place it could return: answering from the
+  // general corpus under a chip that names a call. Cheaper and more honest to stop.
+  let modelCalled = false
+  const client = {
+    messages: {
+      async create() {
+        modelCalled = true
+        return { content: [{ type: 'text', text: 'here is an answer' }], stop_reason: 'end_turn' }
+      },
+    },
+  } as never
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', transcriptId: CALL_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadCall: async () => null,
+    })
+  )
+  assert.equal(modelCalled, false, 'an ungrounded answer was generated under a call-grounded chip')
+  assert.equal(events[events.length - 1].type, 'error')
+  assert.equal(
+    events.some((e) => e.type === 'delta'),
+    false
+  )
+})
+
+test('a FAILING call load ends the turn in error, not in a silent search-mode answer', async () => {
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', transcriptId: CALL_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadCall: async () => {
+        throw new Error('connection reset')
+      },
+    })
+  )
+  const last = events[events.length - 1]
+  assert.equal(last.type, 'error')
+  assert.equal(events.filter((e) => (TERMINAL_EVENTS as readonly string[]).includes(e.type)).length, 1)
+})
+
+test('a truncated call is ANNOUNCED truncated — a prefix is not the call', async () => {
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const many = Array.from({ length: 4000 }, (_, i) => ({
+    id: `L${String(i + 1).padStart(4, '0')}`,
+    speakerId: 's1',
+    text: 'א'.repeat(40),
+  }))
+  const events = await collect(
+    runChatLoop({
+      client,
+      scope: { userId: 'u1', transcriptId: CALL_UUID },
+      history: [],
+      message: 'hi',
+      todayIsrael: '2026-08-15',
+      loadCall: async () => fakeCall(many),
+    })
+  )
+  const g = events.find((e) => e.type === 'grounding') as { state: string } | undefined
+  assert.equal(g?.state, 'truncated')
+})
+
+test('an ungrounded turn emits NO grounding event — absence is a claim too', async () => {
+  const client = fakeClient([{ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }])
+  const events = await collect(
+    runChatLoop({ client, scope: { userId: 'u1' }, history: [], message: 'hi', todayIsrael: '2026-08-15' })
+  )
+  assert.equal(
+    events.some((e) => e.type === 'grounding'),
+    false
+  )
+})

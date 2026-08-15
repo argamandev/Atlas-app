@@ -6,7 +6,8 @@ import { createServerSupabase } from '@/lib/supabase'
 import { israelDayKey } from '@/lib/i18n/format'
 import { runChatLoop, type ChatEvent, type ChatTurn } from '@/lib/chat2/loop'
 import type { ChatScope } from '@/lib/chat2/toolDefs'
-import { clientScopeIds } from '@/lib/chat2/requestScope'
+import { parseGrounding, scopeIdsFor } from '@/lib/chat2/requestScope'
+import { CALL_SCOPE_SUMMARY } from '@/lib/chat2/callInjection'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE UNIFIED CHAT BACKEND (spec §3, ticket 06/B1a). Replaces `/api/chat` for
@@ -64,12 +65,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'chat is not configured (missing ANTHROPIC_API_KEY)' }, { status: 503 })
   }
 
-  // The client-supplied ids are uuid-gated at ONE point, in `requestScope.ts`
-  // (which is where the reasoning and its tests live) — not inline here, so the
-  // guard between an untrusted body and the system prompt is testable.
+  // WHAT THIS TURN IS GROUNDED IN — one union, one recipe, uuid-gated at ONE
+  // point in `requestScope.ts` (which is where the reasoning and its tests live)
+  // rather than inline here, so the guard between an untrusted body and the
+  // system prompt is testable.
+  //
+  // A REFUSED GROUNDING IS A 400, not a quiet downgrade to market-wide search.
+  // The surface that sent `{kind:'call'}` is showing a chip naming that call; an
+  // answer from the general corpus underneath it is the ticket-07 defect, and a
+  // 400 is the only reading of a malformed grounding that the screen cannot
+  // contradict.
+  const grounding = parseGrounding(body)
+  if (!grounding) {
+    return NextResponse.json({ error: 'this grounding cannot be honoured' }, { status: 400 })
+  }
+
   const scope: ChatScope = {
     userId,
-    ...clientScopeIds(body),
+    ...scopeIdsFor(grounding),
     userDb: createServerSupabase(cookies()),
   }
 
@@ -85,7 +98,17 @@ export async function POST(req: NextRequest) {
           history,
           message,
           todayIsrael: israelDayKey(new Date()),
-          scopeSummary: scope.companyId ? `company: ${scope.companyId} (resolved)` : undefined,
+          // Built from the GROUNDING union, so there is one answer per recipe
+          // rather than a chain of `if (someField)` that two recipes could both
+          // satisfy. Every value interpolated here is a uuid — `parseGrounding`
+          // refused anything else, which is what keeps an untrusted body out of
+          // the system prompt (round 1 of ticket 06).
+          scopeSummary:
+            grounding.kind === 'company'
+              ? `company: ${grounding.companyId} (resolved)`
+              : grounding.kind === 'call'
+                ? CALL_SCOPE_SUMMARY
+                : undefined,
         })) {
           controller.enqueue(encoder.encode(ndjsonLine(event)))
         }

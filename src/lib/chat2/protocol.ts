@@ -31,6 +31,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { ChatMode } from './mode'
+// Domain vocabulary, not transport — `lib/chat/grounding.ts` is pure and carries
+// no `lib/api` import, so this stays a client-safe module (see the header).
+import type { ChatSource } from '@/lib/chat/grounding'
 
 /**
  * WHY an `incomplete` ended the turn, as a CODE and not only English prose.
@@ -111,6 +114,23 @@ export type ChatEvent =
    * scope, not an inference from the question — see `mode.ts`.
    */
   | { type: 'mode'; mode: ChatMode; companyId: string | null }
+  /**
+   * NON-TERMINAL. What this turn was GROUNDED IN, once the grounding has actually
+   * been loaded (ticket 08b, whole-call injection).
+   *
+   * Two facts, and both are owed to the surface for the same reason. `source` is
+   * the call the answer is built on — the citation chip, which the old
+   * `/api/chat` carried on an `x-chat-source` header and which v2 had no way to
+   * express, so migrating a surface used to cost it that chip. `state` says
+   * whether the call reached the model WHOLE: a two-hour call does not fit one
+   * turn, and an answer built on the first two thirds of a call must not look
+   * identical to one built on all of it.
+   *
+   * Emitted only after the load SUCCEEDED. A grounding that could not be loaded
+   * does not send this event with a hedged state — it ends the turn in `error`,
+   * because the surface is already showing a chip promising that call.
+   */
+  | { type: 'grounding'; state: 'whole' | 'truncated'; source: ChatSource | null }
   /** TERMINAL. The model finished cleanly. The ONLY event that means complete. */
   | { type: 'done' }
   /**
@@ -179,6 +199,24 @@ export function parseChatEvent(line: string): ClientChatEvent | null {
         mode: e.mode,
         companyId: typeof e.companyId === 'string' ? e.companyId : null,
       }
+    case 'grounding': {
+      // `state` is NOT defaulted to 'whole'. A frame whose state this build does
+      // not recognise would then assert the flattering half of the only question
+      // this event exists to answer — the surface would say the call reached the
+      // model whole because the wire said something unparseable. Dropped instead,
+      // which leaves the surface with no claim rather than a false one.
+      if (e.state !== 'whole' && e.state !== 'truncated') return null
+      const s = e.source as Record<string, unknown> | null | undefined
+      const source =
+        s && typeof s === 'object' && typeof s.transcriptId === 'string'
+          ? {
+              company: typeof s.company === 'string' ? s.company : '',
+              quarter: typeof s.quarter === 'string' ? s.quarter : '',
+              transcriptId: s.transcriptId,
+            }
+          : null
+      return { type: 'grounding', state: e.state, source }
+    }
     case 'done':
       return { type: 'done' }
     case 'incomplete':

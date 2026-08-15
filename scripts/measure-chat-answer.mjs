@@ -13,7 +13,9 @@
 // over the real Supabase corpus, so what is measured is the thing that ships.
 //
 // USAGE: node --import tsx scripts/measure-chat-answer.mjs "your question here"
-//        (add --company <uuid> to measure the pinpoint path)
+//        --company <uuid>         the pinpoint path
+//        --call <transcriptId>    the STUFFED turn (ticket 08b), judged against
+//                                 §5's $0.13 rather than the $0.06 answer budget
 //
 // It prints token counts, a price, and the event trace. It never prints a key.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,27 +36,60 @@ if (fs.existsSync(envPath)) {
 
 const { runChatLoop } = await import('../src/lib/chat2/loop.ts')
 const { israelDayKey } = await import('../src/lib/i18n/format.ts')
+const { CALL_SCOPE_SUMMARY } = await import('../src/lib/chat2/callInjection.ts')
 
 // Sonnet 5 list price, USD per million tokens. Stated here rather than imported
 // so a pricing change is a visible edit to the thing that computes the number.
 const USD_PER_MTOK_IN = 3
 const USD_PER_MTOK_OUT = 15
 const USD_PER_MTOK_CACHE_READ = 0.3
-const BUDGET_USD = 0.06
+// §5 sets TWO budgets, and judging a stuffed turn against the ordinary one is a
+// test certifying an untrue premise (M2): a call-grounded turn carries ~12K extra
+// input tokens BY DESIGN, so measuring it against $0.06 would report a failure
+// the spec does not claim — or, the direction that actually bites, print a
+// reassuring "WITHIN $0.06" line beside a number nobody checked the right budget for.
+const BUDGET_ANSWER_USD = 0.06
+const BUDGET_STUFFED_USD = 0.13
 
 const args = process.argv.slice(2)
 const companyFlag = args.indexOf('--company')
 const companyId = companyFlag !== -1 ? args[companyFlag + 1] : undefined
+// `--call <transcriptId>` measures the STUFFED turn (ticket 08b). §5 budgets it
+// separately (≤ $0.13) precisely because it is a different shape of turn: the
+// whole call goes into the first user message, so the input side dominates and
+// the tool loop often does no work at all. Measuring it with `--company` would
+// price the wrong path and report a comfortable number for a question nobody asked.
+const callFlag = args.indexOf('--call')
+const transcriptId = callFlag !== -1 ? args[callFlag + 1] : undefined
+const flagIdx = new Set([
+  ...(companyFlag !== -1 ? [companyFlag, companyFlag + 1] : []),
+  ...(callFlag !== -1 ? [callFlag, callFlag + 1] : []),
+])
 const question = args
-  // `companyFlag + 1` is 0 when the flag is ABSENT, so this ate the first word of
-  // every unscoped question and then reported only "usage" — the arg parser
-  // dropping the one argument it exists to keep.
-  .filter((_, i) => companyFlag === -1 || (i !== companyFlag && i !== companyFlag + 1))
+  // Indices are collected per PRESENT flag rather than computed inline: the
+  // earlier version wrote `companyFlag + 1`, which is 0 when the flag is absent,
+  // so it ate the first word of every unscoped question — the arg parser dropping
+  // the one argument it exists to keep. Two flags make that trap twice as easy.
+  .filter((_, i) => !flagIdx.has(i))
   .join(' ')
   .trim()
 
 if (!question) {
-  console.error('usage: node --import tsx scripts/measure-chat-answer.mjs "question" [--company <uuid>]')
+  console.error(
+    'usage: node --import tsx scripts/measure-chat-answer.mjs "question" [--company <uuid>] [--call <transcriptId>]'
+  )
+  process.exit(2)
+}
+if ((companyFlag !== -1 && !companyId) || (callFlag !== -1 && !transcriptId)) {
+  // A flag with no value used to fall through to an UNSCOPED run, priced against
+  // the answer budget — a number for a question nobody asked, printed as a pass.
+  console.error('--company and --call each need a value.')
+  process.exit(2)
+}
+if (companyId && transcriptId) {
+  // One grounding per turn — the union `requestScope.ts` enforces on the wire.
+  // Accepting both here would measure a request the route cannot receive.
+  console.error('--company and --call are different recipes; pass one.')
   process.exit(2)
 }
 
@@ -85,11 +120,19 @@ const t0 = Date.now()
 
 for await (const e of runChatLoop({
   client,
-  scope: { userId: 'measurement', companyId: companyId ?? null },
+  scope: { userId: 'measurement', companyId: companyId ?? null, transcriptId: transcriptId ?? null },
   history: [],
   message: question,
   todayIsrael: israelDayKey(new Date()),
-  scopeSummary: companyId ? `company: ${companyId} (resolved)` : undefined,
+  // Mirrors the route's own switch, and the call sentence is now the SAME
+  // exported constant the route uses rather than a copy kept in step by comment
+  // — a measurement run against a different system prompt prices something that
+  // does not ship, and a duplicated string is how that happens silently.
+  scopeSummary: companyId
+    ? `company: ${companyId} (resolved)`
+    : transcriptId
+      ? CALL_SCOPE_SUMMARY
+      : undefined,
 })) {
   events.push(e)
   if (e.type === 'delta') answer += e.text
@@ -110,7 +153,14 @@ const cost =
 const terminal = events.at(-1)
 
 console.log('\n─── QUESTION ───')
-console.log(question, companyId ? `\n(scoped to ${companyId})` : '\n(unscoped — search mode)')
+console.log(
+  question,
+  companyId
+    ? `\n(scoped to ${companyId})`
+    : transcriptId
+      ? `\n(call ${transcriptId} injected whole — the stuffed turn, §5 budget $0.13)`
+      : '\n(unscoped — search mode)'
+)
 
 console.log('\n─── EVENT TRACE ───')
 for (const e of events) {
@@ -130,7 +180,12 @@ console.log(`  cache read      ${cacheRead}`)
 console.log(`  cache write     ${cacheWrite}`)
 console.log(`  wall clock      ${(wallMs / 1000).toFixed(1)}s`)
 console.log(`  COST            $${cost.toFixed(4)}`)
-console.log(`  BUDGET          $${BUDGET_USD.toFixed(2)} — ${cost <= BUDGET_USD ? 'WITHIN' : 'OVER'}`)
+const budget = transcriptId ? BUDGET_STUFFED_USD : BUDGET_ANSWER_USD
+console.log(
+  `  BUDGET          $${budget.toFixed(2)} (${transcriptId ? 'stuffed turn' : 'answer'}) — ${
+    cost <= budget ? 'WITHIN' : 'OVER'
+  }`
+)
 console.log(`  terminal        ${terminal?.type}${terminal?.code ? ` (${terminal.code})` : ''}`)
 
 // A cost measurement whose turn ended incomplete priced a DIFFERENT thing than
