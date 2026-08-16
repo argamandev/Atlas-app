@@ -34,7 +34,6 @@ call fails without it.
 08c's evidence; agents ride the scoped channel. **Railway's `ANTHROPIC_API_KEY` is unproven:
 suspect a 401** on a v2 chat failing in production.
 
-**The ship gate is blocked by the PREVIOUS merge:** 09b merged under `ATLAS_SHIP_OVERRIDE` with four
-recurrence declarations unanswered, so every merge after it hits the same gate — a second
-consecutive override is a founder call. Its residue is in `docs/open-findings.md`, the 81 displaced
-decks the most visible.
+**09b's override does NOT carry forward** — measured, after this file said otherwise: the gate reads
+only the CURRENT branch's `docs/evidence/<branch>/review.md`, so no later merge inherits it. Its
+residue is in `docs/open-findings.md`, the 81 displaced decks the most visible.

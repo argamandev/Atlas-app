@@ -438,7 +438,57 @@ export const VOCABULARY_EXEMPT = {
  * this tree — and shrinking it to pointers at its tests (`DECISIONS.md` 2026-08-12)
  * is still its own mission and still unscheduled.
  */
-export const TOKEN_BUDGET = 10_410
+/*
+ * RAISED 10,410 → 10,430 on 2026-08-16 (ticket agents-1, plan 1, final fix wave).
+ * NOT a founder decision — mine, flagged in the handoff for him to reverse, same as
+ * five of the eight raises above.
+ *
+ * RAISE NINE, AND IT BUYS NO LAW AND NO TIER. Say that first, because every raise
+ * above bought something: raises one through five and seven were `Degradation must
+ * be VISIBLE` earning a tier or a limit, six filed the fence law, eight filed the
+ * composite-child-FK law. This one buys HEADROOM and nothing else. It is 20 tokens
+ * on top of a set measured at 10,400, restoring the 24-32 the four previous raises
+ * each allowed for and each stated the reason for.
+ *
+ * WHY IT IS A RAISE AND NOT MORE SHAVING. The same branch's blocker fix — restating
+ * db.md's law from "never single-column" to "keyed through user_id", so the
+ * declaration measures what the mechanism measures — cost tokens the set did not
+ * have, and it landed the set at 10,409 against 10,410: ONE token of spare. That is
+ * not a healthy margin, it is a tripwire, and this file has already ruled on that
+ * exact state twice (raise four's reason, restated at eight): landing on the ceiling
+ * "turns the budget from a drift alarm into a tripwire on the very next always-on
+ * edit of any size."
+ *
+ * WHAT MAKES IT URGENT RATHER THAN TIDY: `STATUS.md` is in this set, and REWRITING
+ * `STATUS.md` is a MANDATORY step of the ship ritual that `scripts/ship-gate.mjs`
+ * refuses a merge without. So at one token of spare, the next session meets a red
+ * battery during a step it is not allowed to skip, and its only exit is the raise
+ * that is available right now — taken under merge pressure, unargued, by whoever is
+ * unlucky. Merging on the ceiling has to be a STATED CHOICE. This block is the
+ * statement; taking it now is what stops it being a residue someone inherits.
+ *
+ * THE BRANCH PAID FIRST, same discipline as every raise above, and paid twice.
+ * `STATUS.md` went 560 → 514 by REMOVING what had landed — 08c-3 and 09b material
+ * that "rewritten, never appended" required to come out anyway, so this is the rule
+ * working rather than a concession bought with it. And db.md's new law absorbed the
+ * lead-in sentence it subsumes rather than sitting beside it. Both were done before
+ * this raise was considered, which is the order raise five fixed and raise seven
+ * repeated: shave what is genuinely spent, then argue for what is genuinely needed.
+ * What was NOT done is trimming an unrelated law to make room — raise five's ruling,
+ * that trimming a law to hit a number is how a law loses the sentence that made it
+ * obeyable.
+ *
+ * THE FIGURE IS MEASURED, NOT ADDED UP. `npm run env:health` on this tree reports
+ * 10,400 (CLAUDE.md 1,592 · CONTEXT.md 777 · STATUS.md 514 · app.md 5,727 · db.md
+ * 1,790). 10,430 leaves 30, inside the 24-32 band. M1: the number comes from the
+ * command, never from arithmetic over two branches' ceilings.
+ *
+ * ⚠ THE SHRINK IS NINE SLICES OVERDUE, and this raise is the clearest evidence yet
+ * that it will not arrive as a side effect: this is the first raise that bought
+ * nothing but room to keep working. `app.md` is 5,727 of these 10,400 tokens, still
+ * more than half the set. Its own mission, still unscheduled.
+ */
+export const TOKEN_BUDGET = 10_430
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

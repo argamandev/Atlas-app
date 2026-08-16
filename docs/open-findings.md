@@ -231,3 +231,35 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   `askHeroSub`") rather than asserting two enum members map to `true`, which is what let this pass.
   **Not a law and not a blocker.** Merged knowingly on the founder's instruction, recorded here so
   it is not rediscovered as new.
+- **`RECURRENCE: yes` cannot name a meta-law or a TRAP, so this repo's most-repeated failure classes
+  are structurally always answered `no`** (recorded 2026-08-16, agents-1 plan 1). `scripts/ship-gate.mjs`
+  resolves a recurrence answer through `parseLaws`, which only sees `**LAW ·**` blocks — so M1-M4 and
+  every `TRAP ·` in `rules/app.md` match nothing, `hits.length !== 1` fires, and the gate refuses the
+  answer. The author's only legal move is `RECURRENCE: no`.
+  **What that costs, measured on this branch:** three findings were genuine repeats — the migration's
+  single-column child FKs repeated `docs/SMART-LAYER-SPEC.md:165`, the guard's CRLF blanker repeated
+  the "a scripted edit can silently match nothing" TRAP, and the guard deciding on FK ARITY repeated
+  M3 clause 2 — and all three were filed `no` with the reason written out. Each paid its promotion
+  anyway (a new `mechanism`-tier law in `db.md`, a canary, and the law restated to match its
+  mechanism), so nothing was skipped. But **the gate's own ledger now reads "no recurrences on this
+  branch" when three occurred**, which is the gate certifying an untrue premise about itself — M2, on
+  the mechanism whose whole job is to catch that shape.
+  **Not a law and not a blocker.** Closing it means deciding whether meta-laws and TRAPs get
+  parseable titles and `ENFORCED` declarations of their own — an always-on change, on a set with
+  ~30 tokens of headroom, that would also move `env:health`'s unenforced count by construction. Its
+  own mission, and a founder call on the budget before it starts.
+- **The `reportTruncated` founder glance is still owed, and its evidence contradicts itself**
+  (recorded 2026-08-16, agents-1 plan 1). Ticket 08c-3 left a founder glance owed on
+  `reportTruncated`'s wording, which changed in BOTH locales after that state's browser drive.
+  `STATUS.md` carried it until this branch's rewrite, where it was removed as landed — **it was not
+  landed, it evaporated**, which is the one thing "what has landed is removed" must not be used for.
+  Filed here so removing it from STATUS is honest.
+  **Its only surviving trace disagrees with itself.**
+  `docs/evidence/feat-smart-layer-b2c-doc-grounding/verify-app.md:19` marks the truncated-notice row
+  `✅ RE-driven at round 6` in both locales; `:297` of the same file says the round-4 rewrite of
+  `reportTruncated` was **NOT re-driven**, arguing the render path is byte-identical and only the
+  string differs. Both cannot be true, and the state-table tick is the one a merge-time re-check
+  reads. Do not resolve this by picking the more convenient line.
+  **Not a law and not a blocker**, and cheap: it is one person looking at one notice in two locales.
+  Whoever closes it should fix the evidence file's contradiction in the same motion — a drive record
+  that disagrees with itself is worse than one that admits a gap. → `#choke-point-inputs`

@@ -120,10 +120,36 @@ import { join, resolve } from 'node:path'
 //     public.<owner-scoped>(user_id)`, which binds no child id and which no
 //     migration in this repo writes; it would have to be allowlisted, not
 //     silently accepted, if anyone ever wanted it.
-//   - The referencing column list is read TEXTUALLY: a `user_id` reached through
-//     a quoted identifier of different case (`"USER_ID"`) or through anything
-//     other than a plain (optionally double-quoted) `user_id` token is not
-//     recognised. Nothing in this repo writes either.
+//   - The referencing column list is read TEXTUALLY, and here is exactly what
+//     that does: each entry is trimmed, its surrounding double quotes removed,
+//     and the result LOWERCASED before comparison. So `user_id`, `USER_ID` and
+//     `"USER_ID"` all read as `user_id` and all pass. The lowercasing is right
+//     for the UNQUOTED forms — Postgres folds an unquoted identifier to lower
+//     case, so `USER_ID` genuinely IS the `user_id` column — and it is a
+//     deliberate over-acceptance for the quoted one, where Postgres would treat
+//     `"USER_ID"` as a DIFFERENT column that could not satisfy this FK at all.
+//     Over-accepting an unwritable shape is harmless; under-accepting `USER_ID`
+//     would red-line a correct migration. Comparison is by WHOLE TOKEN, so a
+//     differently NAMED owner column is correctly refused: `foreign key
+//     (agent_id, owner_user_id)` fails, probed rather than assumed.
+//     ⚠ THIS PARAGRAPH WAS FALSE WHEN FIRST WRITTEN (round 6) — it claimed
+//     `"USER_ID"` was "not recognised", in the same commit that fixed a false
+//     stated-limits paragraph one bullet up. The reviewer probed it and it
+//     passed green. This whole header's authority rests on being checkable, so
+//     every claim in this bullet was re-probed before being written down.
+//   - TWO SHAPES PASS THAT A READER MIGHT EXPECT TO FAIL, both probed, neither a
+//     live hole — named here so they are not discovered instead:
+//     (1) POSITIONS SWAPPED — `foreign key (user_id, agent_id) references
+//         public.agents (id, user_id)` passes, because the scan asks whether
+//         `user_id` is IN the list, never where. It is not a hole: Postgres pairs
+//         referencing to referenced BY POSITION, so this key means "my user_id
+//         must equal some agent's id", and it breaks loudly on the first INSERT
+//         rather than validating anything false.
+//     (2) NO FK AT ALL — a child carrying a bare `agent_id uuid` with no
+//         constraint anywhere passes, because a scan for foreign keys cannot see
+//         an absent one. Outside this law's own text (it governs how a child FK
+//         is KEYED, not whether one exists), and a different law from the one
+//         `rules/db.md` states. Nothing here would catch it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ROOT = resolve(process.cwd())
