@@ -36,6 +36,24 @@ and additive-only, so retrofitting ownership means a backfill dance on a live DB
 Child rows (a project's messages, an agent's runs) either carry their own `user_id` under the
 same rule or reach the owner through a `NOT NULL` FK to the parent. Never "the app will filter it".
 
+**LAW · A child row's FK into an owner-scoped parent is COMPOSITE, keyed through `user_id`,
+never single-column.** PostgreSQL RI checks bypass RLS, so a single-column FK validates a row
+pointed at a parent the caller cannot see. Key it `foreign key (child_id, user_id) references
+parent (id, user_id)`, which requires the parent to carry `unique (id, user_id)`. A
+single-column FK into genuine shared corpus (no owner policy — `companies`, `transcripts` reads)
+is not this law; the line is the parent's own RLS shape, not its column names. Copy
+`20260802_015_projects.sql`, `20260803_016_workspaces.sql`, and the three-column shape in
+`20260803_017_workspace_integrity.sql` rather than re-deriving it.
+**ENFORCED** `src/lib/db/compositeChildFk.test.ts` scans every migration for a single-column FK
+into a table carrying an owner RLS policy; one pre-existing violation is allowlisted by exact
+file+table.
+**VERIFY** A text scan, not a catalog walk — a policy authored some way other than this repo's
+two known shapes needs a look by eye. → #composite-child-fk (`docs/case-history/db.md`).
+**Recurrence:** this exact hole shipped in migration 032's first draft — all four of its new
+tables keyed single-column throughout — after `docs/SMART-LAYER-SPEC.md:165-166` had already told
+the build to copy migrations 015/016 verbatim. Caught by cold review, not by any mechanism, which
+is why this law now has one (ADR-0002).
+
 **Why the FK is spelled out: the existing schema is INCONSISTENT and half of it is the bad half.**
 Verified 2026-08-01 — WITH a real FK to `auth.users`: `transcripts`, `watchlist`,
 `notification_prefs`, `sent_alerts`, `profiles`, `access_requests.reviewed_by`. `user_id NOT NULL`

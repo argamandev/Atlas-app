@@ -341,11 +341,12 @@ the deploy, which comes after this chapter.
 | `components/projects/ErrorLine.tsx` | The shared error line. Owns its own block wrapper (so a caller's flex layout cannot blockify the `<bdi>` and split one message across two rows) and, given an `auth` prop, renders expired-session copy plus a sign-in route via `loginRedirectTarget` when the thrown value is a 401 — which is why it takes the thrown value and not its message. |
 | `api/errorShape.test.ts` | Build-enforced guard: any fetch layer reachable from an error banner that offers a sign-in route must throw `ApiError`, not a plain `Error`. Blanks comments before scanning, with a canary — its first version matched the word `ApiError` inside a comment and failed to bite when the bug was reintroduced to test it. **States its own limits in its header** (direct `@/…` imports only; the comment blanker is not a JS parser), because claiming "reachable" without them would repeat the counting failure it exists for. |
 | `testRegistry.test.ts` | Build-enforced guard: every `*.test.ts` on disk is registered in `package.json`'s test script, and every registered path exists. Added after three test files were found to have never run. |
+| `db/compositeChildFk.test.ts` | Build-enforced guard, `rules/db.md`'s ownership law one level deeper: text-scans `supabase/migrations/*.sql` for a table with an owner RLS policy (`using (auth.uid() = user_id)`, matched in both the per-table and 016's loop-generated shape) and fails for any single-column child FK into it — PostgreSQL referential-integrity checks bypass RLS, so a plain `agent_id → agents(id)` validates a row pointed at a stranger's parent row. Added after migration 032's first draft shipped exactly that shape across four new tables despite the spec already naming 015/016 as the pattern to copy. One grandfathered pre-existing violation (`quotes.folder_id → quote_folders`, migration 010, predates the law) is allowlisted by exact (file, table) pair. States its own limits: a text scan, not a catalog walk; a third policy-authoring shape (neither per-table nor array-loop) would be invisible to it. |
 | `supabaseWriteDiscipline.test.ts` | Build-enforced guard, sibling of `apiFetchDiscipline.test.ts` (same law, same ratchet shape): an awaited supabase **write** in statement position — result discarded — fails the battery, because the supabase client never throws; the error rides the result object. Bought by the law's third occurrence (finishLiveCall's stub upserts, slice-A1 review). Skips whole comment lines when judging statement position — a comment ending in a period hid a real site from its first version. |
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **1142 tests across 107 files** as of 2026-08-16; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
+### Tests (run via `npm test` — **1144 tests across 108 files** as of 2026-08-16; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -375,7 +376,7 @@ run a file cannot tell you it is missing.
 · `corpus/embed.test.ts` · `corpus/indexHealth.test.ts`
 · `corpus/reindex.test.ts` · `corpus/retrieve.test.ts`
 · `correction.test.ts` · `curationAuthz.test.ts`
-· `db/conversationScope.test.ts` · `db/transcripts.test.ts`
+· `db/compositeChildFk.test.ts` · `db/conversationScope.test.ts` · `db/transcripts.test.ts`
 · `demo/demoState.test.ts` · `design/anim.test.ts`
 · `documents/extract.test.ts` · `documents/openFiling.test.ts`
 · `documents/snip.test.ts` · `environment.test.ts` · `i18n/format.test.ts`

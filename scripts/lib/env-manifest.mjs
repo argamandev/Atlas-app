@@ -304,7 +304,47 @@ export const VOCABULARY_EXEMPT = {
  * consecutive raises is that it will not happen as a side effect of the next
  * ticket either. It needs to be scheduled.
  */
-export const TOKEN_BUDGET = 9_680
+/*
+ * RAISE SIX, AND THE FIRST NOT BOUGHT BY "DEGRADATION MUST BE VISIBLE" (2026-08-16,
+ * ticket agents-1): 9,680 → 10,060. NOT a founder decision — mine, flagged in the
+ * handoff for him to reverse, same as three of the five raises above.
+ *
+ * SAY THIS PLAINLY BECAUSE IT CHANGES WHAT THE PATTERN MEANS: every one of the five
+ * raises above was the SAME law, `Degradation must be VISIBLE`, earning a new tier.
+ * This one is not. `.claude/rules/db.md` gained a law of its own — a child row's FK
+ * into an owner-scoped parent must be COMPOSITE, keyed through user_id, never
+ * single-column, because PostgreSQL's referential-integrity checks bypass RLS —
+ * after migration 032's first draft shipped exactly that hole across four new
+ * tables despite two separate documents (`docs/SMART-LAYER-SPEC.md:165-166` and the
+ * 2026-08-13 foundation review, `docs/archive/scratch/2026-08-13-smart-layer/
+ * research/03-foundation-review.md:115`) already naming these tables and saying
+ * "copy 015/016's composite child FKs" before the migration was drafted. The
+ * always-on set is now growing for a SECOND independent reason, not a deeper tier
+ * of the first — say so here rather than leave the next reader to notice it alone.
+ *
+ * ADR-0002's shape held exactly as designed: a lesson told twice in PROSE and
+ * broken anyway is not a lesson the codebase has learned, only a mechanism that
+ * fails a battery is. So this recurrence bought a `test`
+ * (`src/lib/db/compositeChildFk.test.ts`) — verified by reintroducing the original
+ * single-column shape and watching it fail before it was trusted, not another
+ * paragraph telling the next session to remember harder.
+ *
+ * The branch paid first, same discipline as every raise above: the law's full
+ * story — why RI bypasses RLS, what the stranger's-agent insert actually validates
+ * as, both prior warnings that named these tables and still weren't enough, and the
+ * test's own verification — moved to `docs/case-history/db.md` (following
+ * `app.md`'s split), leaving a tight LAW/ENFORCED/VERIFY triple in `db.md` pointing
+ * at it with `→ #composite-child-fk`. That recovered 281 of the law's first 635
+ * tokens (`db.md`: 2,011 → 1,730 estimated tokens). The remaining 348 is this raise,
+ * plus 32 tokens of headroom for the same reason raise four gave 30: landing exactly
+ * on the ceiling turns the budget from a drift alarm into a tripwire on the very
+ * next always-on edit of any size.
+ *
+ * The set was already sitting at 9,674/9,680 — six tokens of headroom — before this
+ * law arrived, so even a much smaller addition would likely have busted it. That is
+ * a separate fact from the `app.md` shrink above and does not change its urgency.
+ */
+export const TOKEN_BUDGET = 10_060
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'
@@ -322,9 +362,18 @@ export const LAW_FORM_EXEMPT = {
     'a glossary. It DEFINES what a law is; it states none. Its entries are definitions, and a definition cannot be violated by code.',
   'STATUS.md':
     'status, which by CONTEXT.md is the one thing that is explicitly NOT a law: it describes now, it is rewritten every merge, and nothing in it constrains how Atlas is built.',
-  '.claude/rules/db.md':
-    'states its rules as prose sections rather than LAW/ENFORCED blocks, so every rule in it is invisible to this scan and to the health metric. That is a real gap and not a claim of enforcement. Converting it is deliberate follow-up work: each prose rule has to be split into LAW plus an honest enforcement declaration, and doing it inside the retirement ticket would have raised the unenforced count while that ticket was required not to move it.',
 }
+
+// `.claude/rules/db.md` was exempted here until 2026-08-16 (ticket agents-1, round 4)
+// for "states its rules as prose sections rather than LAW/ENFORCED blocks, so every
+// rule in it is invisible to this scan" — a reason the SAME commit that added db.md's
+// first `**LAW ·` block made false, and a whole-file exemption cannot be narrowed to
+// "the prose sections that remain" because the mechanism has no per-section grain:
+// `lawBlocks()` already only extracts text starting at a `**LAW ·` marker, so db.md's
+// other prose sections were always going to stay invisible to `allLaws()` on their own
+// — that is what the marker form IS, not a gap the exemption was covering. The
+// exemption removed itself the moment it started claiming something untrue; nothing
+// replaces it, because nothing needs to.
 
 /**
  * Where a reference may legitimately resolve from — the roots a reader would try.
