@@ -204,6 +204,14 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   including דנאל's `מצגת שוק ההון- מאי 2026`, which the founder could open yesterday as `שנתי 2026`
   and cannot open today. They remain in the corpus (chat can still cite them) and on MAYA; what is
   gone is the way to click one.
+  **And at least three of the 81 are results decks that lose a quarter they were entitled to** —
+  ישראכרט `מצגת משקיעים-רבעון 2 שנת 2025`, סולאיר `מצגת שוק הון- רבעון 2 2024`, both `[101,270]`.
+  Their TITLES name the period; only their event codes say annual. The rule reaches for the next code
+  the filing carries, and a `[101,270]` deck carries only the annual one, so it falls to a date rather
+  than to `Q2`. Reading a deck's quarter out of its title would fix that — `workspace/tabLabel.quarterOf`
+  already does exactly this for tab chips — and is not attempted here because it makes the title a
+  third source of truth on one label and wants its own sweep first. (Note `quarterOf` currently reads
+  `חצי שנתי` as annual, which would have to be fixed with it.)
   **Stated rather than quietly accepted**, because the alternative was leaving a deck at the top of
   2026 calling itself the annual report, which is the defect that was reported. The real answer is
   to build the bucket — a year's decks listed under it by publication date — and that is a founder

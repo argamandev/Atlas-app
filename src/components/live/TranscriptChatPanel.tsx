@@ -72,7 +72,6 @@ export function TranscriptChatPanel({
   docRef,
   snip,
   onClose,
-  heroLine2,
   snipAvailable,
 }: {
   /**
@@ -107,7 +106,6 @@ export function TranscriptChatPanel({
   snip?: ChatSnip | null
   onClose: () => void
   /** hero second line override — "about this call" (default) vs "about this company" */
-  heroLine2?: string
   /** design round 2: a snippable document pane is open → show the composer scissors */
   snipAvailable?: boolean
 }) {
@@ -348,16 +346,37 @@ export function TranscriptChatPanel({
               <span className="aa-w" style={{ animationDelay: '.06s' }}>
                 {dict.live.askHeroLine1}
               </span>{' '}
+              {/*
+                THE HERO NAMES THE SAME THING THE CAPTION DOES, off the same input.
+                It used to take a `heroLine2` prop that defaulted to "about this
+                call", and `LiveTranscriptView` never passed one — so the period
+                screen promised a call in 29px type directly above a caption saying
+                it was connected to the company. Cold review found it on the exact
+                screen this branch fixed, after the caption had been corrected: the
+                same lie, in a second input, one line up.
+              */}
               <span className="aa-w block" style={{ animationDelay: '.24s' }}>
-                {heroLine2 ?? dict.live.askHeroLine2}
+                {grounding.kind === 'call' || grounding.kind === 'live'
+                  ? dict.live.askHeroLine2
+                  : grounding.kind === 'none'
+                    ? dict.live.askHeroMarket
+                    : dict.live.askHeroCompany}
               </span>
             </h1>
-            <p
-              className="aa-w call-muted mt-3.5 max-w-[28ch] text-[13px] leading-[1.55]"
-              style={{ animationDelay: '.4s' }}
-            >
-              {dict.live.askHeroSub}
-            </p>
+            {/*
+              AND THE SUB-LINE IS A PROMISE ABOUT AUDIO — "the audio keeps playing
+              while you ask" — which is false wherever there is no recording. It is
+              shown for a call and a live session, and omitted otherwise. A missing
+              line is not a lie; that one was.
+            */}
+            {(grounding.kind === 'call' || grounding.kind === 'live') && (
+              <p
+                className="aa-w call-muted mt-3.5 max-w-[28ch] text-[13px] leading-[1.55]"
+                style={{ animationDelay: '.4s' }}
+              >
+                {dict.live.askHeroSub}
+              </p>
+            )}
           </div>
         )}
         {messages.map((m, i) =>

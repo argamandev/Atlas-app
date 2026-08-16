@@ -278,10 +278,13 @@ test('a year we INFERRED buys no refusal — only a year the issuer stated does'
 
 test('no REPORT that had a place on the tab loses it to this rule', () => {
   // The property in the founder's terms: the rule may only refuse a label, never a
-  // document a reader could open. Measured across all 233 issuers and 8,804
-  // document-eligible filings: 99 labels change, and every one is a deck.
-  // `parsePeriod` accepts `FY|Q1|Q2|Q3 <year>` and nothing else, so anything that
-  // stops matching leaves the documents tab.
+  // REPORT a reader could open. Measured at this tip across all 233 issuers and
+  // 8,804 document-eligible filings — `node --import tsx
+  // scripts/measure-period-labels.ts` — **81 labels change and every one is a deck**.
+  // (99 was the PRE-NARROWING figure, and 18 of those were reports; it is quoted
+  // here only so the two numbers are never confused again.) `parsePeriod` accepts
+  // `FY|Q1|Q2|Q3 <year>` and nothing else, so anything that stops matching leaves
+  // the documents tab.
   const isPeriod = (s: string) => /^(FY|Q1|Q2|Q3) (?:19|20)\d{2}$/.test(s)
   const reports: [number[], string | null, string][] = [
     [[101], 'דוח תקופתי ושנתי לשנת 2024', '2025-03-24T11:33:03.103'],

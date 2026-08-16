@@ -289,7 +289,6 @@ export function CompanyView({
             quote=""
             seedNonce={0}
             onClose={() => setChatOpen(false)}
-            heroLine2={dict.live.askHeroCompany}
           />
         </div>
       )}

@@ -728,6 +728,8 @@ export const en = {
     askHeroLine1: 'Ask anything',
     askHeroLine2: 'about this call',
     askHeroCompany: 'about this company',
+    /** `{kind:'none'}` — blank chat searches the market, so the hero may not name a call. */
+    askHeroMarket: 'about the market',
     askHeroSub: 'The audio keeps playing while you ask.',
     // composer captions (design round 2): what Atlas is connected to, per context
     askFollowLive: "Atlas is following this call live. Ask about anything that's been said.",

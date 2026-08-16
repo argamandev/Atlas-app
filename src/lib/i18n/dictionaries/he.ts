@@ -596,6 +596,8 @@ export const he: Dictionary = {
     askHeroLine1: 'שאלו כל דבר',
     askHeroLine2: 'על השיחה הזאת',
     askHeroCompany: 'על החברה הזאת',
+    /** `{kind:'none'}` — צ'אט ריק מחפש בכל השוק, אז הכותרת לא רשאית להבטיח שיחה. */
+    askHeroMarket: 'על השוק',
     askHeroSub: 'האודיו ממשיך להתנגן בזמן שאתם שואלים.',
     // composer captions (design round 2): what Atlas is connected to, per context
     askFollowLive: 'אטלס עוקב אחרי השיחה בשידור חי. שאלו על כל מה שנאמר.',

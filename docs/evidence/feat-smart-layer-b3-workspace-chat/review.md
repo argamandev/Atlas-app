@@ -6,8 +6,9 @@ pass, cold context each.
 **Rounds 1–4 reviewed `58d2a4b` and earlier; verdict CHANGES each time, every finding answered
 below.** Their sha and verdict are stated here as prose ON PURPOSE: `parseReviewRecord` takes the
 FIRST `REVIEWED:`/`VERDICT:` pair in the file, so a second pair would hand the ship gate the OLDEST
-sha and let a stale approval stand for the tip. The live pair is round 5's, in its own section at
-the end of this file.
+sha and let a stale approval stand for the tip. **The live pair is the LAST round's, at the very end
+of this file** — rounds 5 and 6 have had theirs turned into prose as later rounds superseded them,
+so exactly one pair parses and it always names the tip.
 
 Nine findings, every one answered below — fixes in `ed225c3` (the prompt boundaries) and `288435c`
 (the harness and the claims it supported). **Two of them changed what this branch says about

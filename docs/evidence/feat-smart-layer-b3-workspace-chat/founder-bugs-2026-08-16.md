@@ -40,8 +40,23 @@ I had reasoned that class was rare rather than counting it. Counting it is what 
 The 18 reports the first version threw out are why the rule is narrowed: פרוספקט's results are a
 **real, closed** fiscal Q3 that only a calendar-quarter assumption calls impossible, and most of the
 rest were forecasts wearing the annual code (בזק's `תחזית לשנת 2025`) — a separate defect, now in
-`docs/open-findings.md`. The 81 decks are the founder's class exactly: `מצגת שוק ההון - מרץ YYYY`,
-named by month, carrying the annual code of the report they accompany.
+`docs/open-findings.md`.
+
+**WHAT THE 81 ARE, CORRECTED.** An earlier draft of this file said they are the founder's class
+exactly — `מצגת שוק ההון - מרץ YYYY`, named by the month the deck was made. **Round 7 enumerated all
+81 and that is true of most but not all of them.** At least three name the period they COVER rather
+than the month they were made: ישראכרט `מצגת משקיעים-רבעון 2 שנת 2025` `[101,270]`, סולאיר
+`מצגת שוק הון- רבעון 2 2024` `[101,270]`, אלמוגים `…נכון לדוחות 30.9.21` `[106,270]`. Those are
+**genuine results decks that lose a quarter they were entitled to** — the rule reaches for the next
+code the filing carries, and a `[101,270]` deck carries only the annual one, so it falls to a date.
+It stops them claiming to be the annual report, which was the defect; it does not give them the Q2
+slot they deserve. Reading the quarter out of a deck's TITLE would (`workspace/tabLabel.quarterOf`
+already does this for tab chips) and is deliberately not attempted here — it is a third source of
+truth on the same label and wants its own measurement. Folded into the open finding below.
+
+⚠ The committed instrument prints only the NON-presentation losses (`measure-period-labels.ts:115`),
+which is why the first draft's claim went unchecked. The count it reports is right; the
+characterisation of the set was mine, and it was not measured.
 
 ### States enumerated, then driven
 
@@ -85,17 +100,18 @@ grounding itself, so every caption row was earned twice.
 | --- | --- | --- | --- |
 | 1 | Period **without** a transcript — דנאל Q1 2026, HE | ✅ re-driven | Answers. `POST /api/chat/v2` → **200** (was 400). First drive: revenue ₪729,576k from XBRL. After review: net profit ₪42.15M vs ₪32.9M in Q1 2025. |
 | 2 | Its caption | ✅ re-driven | `אטלס מחובר להקשר של החברה הזאת` — the company. Previously promised the call. |
-| 3 | Period **with** a transcript — תיגבור Q1 2026, HE | ✅ re-driven | `אטלס מחובר להקשר של השיחה הזאת` — the call. **Call grounding is preserved; only the lying case changed.** |
+| 2b | Its **hero and sub-line**, HE + EN | ✅ driven at round 7 | "Ask anything **about this company**", and the "the audio keeps playing while you ask" line is **absent**. Round 7 found both were still promising a call in 29px type directly above the corrected caption — the same lie in a second and third input, on the screen this branch fixed. I had verified the caption and read past the headline; that is the M4 failure this row now records. |
+| 3 | Period **with** a transcript — תיגבור Q1 2026, HE + EN | ✅ re-driven | Caption `…של השיחה הזאת` / "connected to this call's context"; hero "about this call"; the audio line **present**, because there is audio. **All three inputs agree in both directions — that A/B is the proof the fix did not simply blanket-rename the screen.** |
 | 4 | Slides pane with no document for the period | ✅ | `אין מסמך לתקופה זו` — honest empty state, no stub. |
 | 5 | Console during both | ✅ | Zero errors. |
 | 6 | `{kind:'none'}` — the caption's third state | ❌ not driven | Reachable only on the demo call when `getCompanyByTicker` fails, which needs the ticker missing from the database. It is the state cold review found the old caption lying in; it now has its own string (`askConnectedMarket`) and its own case in `askGrounding.test.ts`. **Not driven, and the test is what holds it.** |
 | 7 | The demo call (`/app/live/demo`) | ❌ not driven | Unchanged by construction: `id === 'demo'` and `storedTranscriptId === null` are the same answer for that screen. Held by `askGrounding.test.ts`. |
 | 8 | Admin speaker editing / diarization / print on a period page | ❌ not driven | Needs admin edit mode on a screen that now correctly refuses it. Three more sites that read the same proxy; each is now `storedTranscriptId`, and `canEdit` is false without one. No test drives the UI path. **This is the thinnest row in the table.** |
 | 9 | Quote saved from a period page | ❌ not driven | Would have written the synthetic id into `quotes`; now writes `null`. Not driven because it is a production write. |
-| 10 | EN locale for states 1–3 | ❌ not driven | The strings are dictionary keys already exercised in HE, and the panel is the same component. Called out rather than claimed. |
+| 10 | EN locale, both directions | ✅ driven at round 7 | Company side and call side both read correctly in English. Previously this row was ❌; the hero fix forced the drive and it is now earned. |
 
-**Rows 8 and 10 are the honest gaps.** Row 8 covers behaviour that is now more restrictive than
-before, so the risk is a feature refusing where it should allow — visible, not silent.
+**Row 8 is the honest gap.** It covers behaviour that is now more restrictive than before, so the
+risk is a feature refusing where it should allow — visible, not silent.
 
 ---
 
