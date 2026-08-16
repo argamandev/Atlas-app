@@ -149,3 +149,85 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   **Not a law and not a blocker.** Whoever picks it up should decide whether the company is
   derived server-side from `transcriptId` (my reading of the right answer) and should render the
   mode chip in this panel either way.
+- **The model sometimes echoes the `<<<ATLAS-SOURCE>>>` fence markers into its visible answer**
+  (recorded 2026-08-16, found while verifying the period-page grounding fix). Asking דנאל's Q1 2026
+  period page "מה ההכנסות" returned a correct, well-grounded figure — and printed
+  `<<<ATLAS-SOURCE>>> ifrs-full:Revenue: 729576000 ILS [2026-01-01..2026-03-31] <<<END-ATLAS-SOURCE>>>`
+  into the answer body, twice more on the follow-up question. The fence is the prompt's
+  quoted-material boundary (`chat2/fence.ts`, `systemPrompt.ts:40`); `defang` neutralises fences
+  found in UNTRUSTED INPUT, and nothing filters them out of model OUTPUT on any surface.
+  **NOT surface-specific as far as the evidence goes.** The same question on `/app/chat` came back
+  clean, with the same facts rendered as ordinary quotes — but that is ONE sample of a model that
+  phrases each turn differently, not a structural difference: no code on either surface removes
+  these markers, so `ChatView` is unprotected too and happened not to trigger it.
+  **Not caused by the grounding fix** — that fix only changed WHICH recipe is sent. The period page
+  used to 400 on every question, so this surface had never rendered an answer before and the leak
+  had nowhere to be seen.
+  **Not a law and not a blocker**, and deliberately not fixed in the same mission: chat answer
+  quality is eval-gated (`docs/eval/retrieval-eval-set.md`) and STATUS gives a dedicated parallel
+  session the chat work. Whoever takes it should decide between a prompt clause and stripping the
+  markers at the one place an answer is rendered — and note that stripping output is the kind of
+  filter that can hide real content, so it wants a test before it wants a regex.
+- **A `מצבת התחייבויות` filing can take a period's REPORT slot away from the actual statements**
+  (recorded 2026-08-16, found while fixing the period-label defect, not fixed with it). MAYA tags
+  the liabilities schedule with the period's own event id plus `114`: דנאל filed
+  `מצבת התחייבות החברה ליום 31.12.24` as `[101, 114]` two minutes AFTER
+  `דוח תקופתי ושנתי לשנת 2024` as `[101]`. `114` carries no period code, so `docTypeFor` sees the
+  `101` and types it `report`, both land on `FY 2024`, and `pickArtifact` breaks the tie by Hebrew
+  first then NEWEST — which is the schedule. Same shape on `[106,114]` for Q3 2025 and `[104,114]`
+  for Q1 2026, so it is systematic rather than one issuer's quirk.
+  **Not fixed here on purpose:** the period fix refuses labels that cannot be true, and this is a
+  different question — WHICH of two truthfully-labelled filings is "the report". The candidate fix
+  is to treat `114` the way `113` is already treated (a filing that is not a document on a shelf),
+  which is a change to what the corpus CONTAINS and deserves its own mission and its own measurement
+  across issuers. **Not a law and not a blocker.**
+- **A FORECAST tagged with the annual code can occupy a company's annual report slot**
+  (recorded 2026-08-16, measured across all 233 issuers, 8,804 document-eligible filings). MAYA tags
+  guidance and preliminary-results announcements with `101` plus a forecast code: בזק filed
+  `תחזית לשנת 2025 ויעדים לטווח הבינוני` as `[101, 220]`, נקסט ויז'ן filed a preliminary revenue
+  estimate as `[101, 278]`, גילת טלקום and פריון נטוורק filed Q2 profit forecasts as `[105, 220]`.
+  `docTypeFor` sees the period code, types them `report`, and they compete for the period's report
+  slot against the actual statements.
+  **This is the shape `isAnnouncement` already solves for `113`** — a notice that carries the event
+  id of the thing it is announcing. `220` (תחזית) and `278` look like the same class and are not
+  excluded. **Not fixed here** because it changes what the corpus CONTAINS for every issuer and
+  wants its own measurement of each code before anything is excluded — the `113` rule was bought
+  with a 20-issuer/814-filing probe. **Not a law and not a blocker.**
+  Command that produced the list: `node --import tsx scripts/measure-period-labels.ts`.
+- **A deck with a publication-date period is reachable from NOWHERE on the company page** (recorded
+  2026-08-16). `documentCatalog.ts` says a standalone company deck belongs "in the same later bucket
+  as announcements and webinars" and `parsePeriod` duly refuses its date label — but the Webinars tab
+  is a hardcoded empty state (`CompanyView.tsx:262-271`, `dict.company.noWebinars`), so that bucket
+  does not exist. The prose describes an intent, not a shipped surface.
+  **This predates the period-label fix and is widened by it.** Code-less `[270]` decks have been
+  dropped this way since 2026-08-14, founder-approved. The fix adds the 81 decks measured above —
+  including דנאל's `מצגת שוק ההון- מאי 2026`, which the founder could open yesterday as `שנתי 2026`
+  and cannot open today. They remain in the corpus (chat can still cite them) and on MAYA; what is
+  gone is the way to click one.
+  **And at least three of the 81 are results decks that lose a quarter they were entitled to** —
+  ישראכרט `מצגת משקיעים-רבעון 2 שנת 2025`, סולאיר `מצגת שוק הון- רבעון 2 2024`, both `[101,270]`.
+  Their TITLES name the period; only their event codes say annual. The rule reaches for the next code
+  the filing carries, and a `[101,270]` deck carries only the annual one, so it falls to a date rather
+  than to `Q2`. Reading a deck's quarter out of its title would fix that — `workspace/tabLabel.quarterOf`
+  already does exactly this for tab chips — and is not attempted here because it makes the title a
+  third source of truth on one label and wants its own sweep first. (Note `quarterOf` currently reads
+  `חצי שנתי` as annual, which would have to be fixed with it.)
+  **Stated rather than quietly accepted**, because the alternative was leaving a deck at the top of
+  2026 calling itself the annual report, which is the defect that was reported. The real answer is
+  to build the bucket — a year's decks listed under it by publication date — and that is a founder
+  decision about a surface, not a bug fix. **Not a law and not a blocker.**
+- **A stored call with no audio still promises "the audio keeps playing while you ask"** (round 9,
+  2026-08-16). `subjectHasAudio` decides that line from the grounding KIND — a proxy for "there is a
+  recording" (M3.2) — so a transcript row whose `audio_url` is null takes the `call` branch and shows
+  it beside a disabled play control. Live today: of five rows in production `transcripts`, exactly
+  one has a null `audio_url` — `PyuMxe88e8g`, Tigbur Q1 2026.
+  **NOT a regression, which is why it merged.** On `main` that sentence is UNCONDITIONAL
+  (`TranscriptChatPanel.tsx:361` at `463b588`) — every screen showed it, including the period pages
+  with no recording at all. This branch made it conditional and fixed the large majority of the
+  cases; this is the remainder, and it is strictly better than what shipped before.
+  **The fix is small and named:** the panel should take the audio FACT (`call.audioUrl`, already read
+  twice in `LiveTranscriptView`) rather than infer it, so the promise cannot be rendered without one
+  — and the test should state the property in the user's terms ("no screen without audio shows
+  `askHeroSub`") rather than asserting two enum members map to `true`, which is what let this pass.
+  **Not a law and not a blocker.** Merged knowingly on the founder's instruction, recorded here so
+  it is not rediscovered as new.

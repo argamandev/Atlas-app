@@ -5,6 +5,99 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-15 — The gate says don't build it (`feat/smart-layer-b3-workspace-chat`, ticket 09 — CLOSED)
+
+- **The ticket's deliverable turned out to be a MEASUREMENT, and the measurement said no.** B3 gates
+  the retrieval swap on "measurably beats the planner on the eval set" — a comparison nobody had ever
+  run. Run on a workspace-shaped shelf under the route's own 18,000-token budget, at shelf sizes
+  3/6/12: planner **12/8/8**, the swap **11/9/8**. They trade the lead by ONE case in each direction,
+  which is not "measurably beats", so **workspace chat is unchanged** — the outcome the ticket names
+  in advance as COMPLETED, not blocked. Retrieval's own chunk shape loses at every size.
+  Harness `scripts/retrieval-eval/workspace-gate.mjs` is standing, beside `run.mjs`.
+- **The first run said the planner won outright, and that was a harness artifact.** Arm E — the arm
+  the ticket DEFINES as the swap — was embedding raw window text while production and arm R embed a
+  deterministic metadata prefix. Given the same recipe it went 6/14 → 9/14. Six harness bugs in
+  total, three of which moved a number that was about to be reported; all six are written down in
+  the evidence, because a gate that hides its own repairs is not a gate. **The verdict survived
+  every repair** — which is the only reason it can be trusted.
+- **The real lead is UNION, not replacement.** P and E miss *different* cases at every shelf size
+  with stable membership — the planner keeps the W4 garble case (the source says «הרווח הטיפולי»
+  and the user's own words still find it), the swap keeps the headline numbers. ⚠ Recorded as an
+  ORACLE BOUND: a real union sends both selections through the one shared budget every arm was held
+  to, so it is not an achieved score. Its own ticket, its own gate.
+- **The ungated half was a prompt-injection hole, and it took EIGHT passes to close.** Only the source
+  BODY was defanged; then the fence marker LINE (a title, a kind, an id), then the shelf listing and
+  partial list, then the `"""` quote blocks, then the conversation turns, then the clip caption,
+  then `intake/selectSources.ts` (the builder that decides which FILES get fetched), and finally the
+  compose route's own inline caption and the intake route's inline prompt. Each fix
+  landed where the bug was noticed, which is what M3.1 forbids. **Two are the instructive ones: door
+  six was the SCAN — bought to end the sequence — repeating the mistake by naming two builders when
+  the defect spanned three; and door seven was a site review had ALREADY named, a fix had cited, and
+  this branch's own review record recorded as FIXED while it stayed open for two more rounds.** Six
+  of the eight were found by fresh eyes after the boundary had been declared closed. A law is filed
+  in `app.md`, and door seven is why its mechanism is a TYPE and not another scan: `askModel`'s
+  `captions` takes a `FenceSafe` only the sanitisers produce, so a route cannot pass a raw string
+  whether the scan names its file or not.
+- **09b: the intake takes a company by `@`, not by spelling.** The founder tested this branch and hit
+  a surface it had not touched: he asked for בית זיקוק אשדוד's filings and Atlas said it had none,
+  about a company holding **12** reachable MAYA filings. Measured — `בז"א`, `בית הזיקוק באשדוד` and one
+  typo all match NO MAYA registered name, and the resolver is right to refuse them, because a
+  near-match between בז"א and בז"ן is the other refinery's report under the name you typed. His call:
+  *"why not just allow the user to type @ … it will be accurate"*. It does not improve the matching,
+  it REMOVES it — the id travels and the spelling never does, which is the impossible tier rather
+  than a guard. Ask Atlas has had this since 07; the intake was the surface that never got it.
+  **Two things the review caught in my own fix are the lesson:** gating the "I couldn't understand
+  that" notice on "a company was settled" made a pinned request with a failed interpretation report
+  NOTHING — the same call carries the PERIOD — and the first Enter guard, reasoned from how
+  `ChatComposer` is wired, both picked a company and sent the half-written sentence, green through
+  `tsc` and the whole battery (M1). The notice decision now lives in `intake/notice.ts` as a pure
+  function, and the two dead ends have separate sentences: advising `@` to someone who just used `@`
+  names the action that failed.
+- **Two founder-reported bugs, fixed the same day (2026-08-16).** **(1)** The documents tab offered
+  an ANNUAL row for a year still in progress. `periodFor` builds a label from two independent
+  sources — a period CODE off the MAYA event ids and a YEAR off a regex on the title — and nothing
+  made them agree: a capital-markets deck tagged with the annual code met the year of a MONTH NAME.
+  A deck is now refused a period that had not ended when it was published. **The first version of
+  that rule was a BLOCKER at review, and the catch is the lesson:** it also checked reports, and
+  against a year it had INFERRED when the title stated none — which for an annual can never pass, so
+  every annual with a year-less title would have left the catalog to fix two rows. I had reasoned
+  that class was rare instead of counting it. Counting it settled the design: **8,804
+  document-eligible filings across all 233 issuers, 81 labels changed, every one a deck, zero
+  reports** (`node --import tsx scripts/measure-period-labels.ts`, committed so the number can be
+  re-derived rather than quoted). The sweep also found real reports the naive rule threw away — a
+  foreign-track issuer whose FISCAL quarter is not a calendar one — and one more class, filed as an
+  open finding: forecasts carrying the annual code, competing with the statements for a period's
+  report slot.
+  **(2)** Ask Atlas answered "this grounding cannot be honoured" to every question asked from a
+  period page with no transcript. That screen fabricates `period:<companyId>:<period>` as a routing
+  key, and the view chose its chat grounding with `call.id !== 'demo'` — a PROXY that named one of
+  the two screens without a stored row and could not see the other — so it offered the chat route a
+  call id that is not even shaped like one, and the turn died at the shape gate before any lookup.
+  `LiveCall` now carries a REQUIRED `storedTranscriptId`, which made `tsc` name every producer, and
+  the recipe is chosen by `lib/live/askGrounding.ts`, a pure function whose sweep includes the
+  property binding the two sides: every `{kind:'call'}` it produces passes the same shape test the
+  route applies. Seven sites read that proxy — the caption among them, so the screen also PROMISED a
+  call it did not have. The panel now reads the grounding itself and the second input is deleted:
+  one input cannot disagree with itself.
+  **Scope, stated plainly:** the period-label half is company-catalog work riding a workspace-chat
+  branch, at the founder's explicit request, and it changes the documents tab for all 233 issuers.
+  **And the consequence a reader must not have to infer:** those 81 decks LEAVE the documents tab.
+  They were on it before, labelled wrongly. The bucket `documentCatalog` says they belong in —
+  beside announcements and webinars — is a hardcoded empty state that was never built, so today they
+  are reachable from nowhere on the company page, including the one the founder could click
+  yesterday. They remain in the corpus and on MAYA. Filed in `docs/open-findings.md`, and repeated
+  here because a permanent log that records only the count reads as though nothing was lost.
+- **Verified:** **1182/1183**, `tsc` clean. The one red is environmental and predates this work —
+  `environment.test.ts` counts a second `CLAUDE.md` inside a registered git worktree under
+  `.claude/worktrees/`; any registered worktree turns it red for whoever has one. Both fixes driven
+  in a browser in both locales, including the A/B that matters: a period WITH a transcript still
+  grounds in the call, and a period without one grounds in the company and answers 200 where it used
+  to 400. Evidence: `docs/evidence/feat-smart-layer-b3-workspace-chat/founder-bugs-2026-08-16.md`.
+  The workspace honesty states were driven in a browser in both locales at 09b, then **re-driven**
+  after review changed the code under them, because a drive expires (8c); that battery measured
+  1168/1168 at the time, and the line above is the same tree re-measured after these two fixes.
+  Evidence, review record and all runs: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
+
 ## 2026-08-15 — The loop learns images, and the old `/api/chat` dies (`feat/smart-layer-b2c-doc-grounding`, ticket 08c-3 — CLOSES ticket 08)
 
 - **The tool loop carries IMAGE content blocks.** Up to four snipped report-page PNGs ride the user

@@ -127,6 +127,23 @@ Never invent a cause: a "model unavailable" banner for an expired session retrie
 **ENFORCED** none — no test feeds a legacy `role: "unknown"` row through that schema, so tightening
 it to an enum would land green and break only in production.
 
+**LAW · Every untrusted string reaching a MODEL passes a sanitiser — the fence LINE, not just the
+body it opens.** A title, kind, id, label, conversation turn, image caption and `"""` block are all
+someone else's text, and anything that can print a boundary owns the region the model obeys. One
+door per surface: `workspace/chat/context.ts` (`fencePart`/`quoted`/`defang`), `chat2/fence.ts`.
+**ENFORCED** two tiers, and their REACH differs — read both. **Impossible** for the WORKSPACE caption
+channel: it rides beside the image where no builder reaches it, so `askModel`'s `captions` takes
+`FenceSafe`, which only `fencePart`/`fenceSafeLine` produce. **Test** for the workspace builders and
+routes (`promptInjectionDiscipline.test.ts`). Everything else is per-site tests, not either tier:
+`chat2/` (its own fence vocabulary and its own caption test) and `lib/transcription.ts`, which
+interpolates transcript text into a Gemini prompt and is UNCOVERED here.
+⚠ The scan reads a route only at its `askModel` ARGUMENTS: hoisting the prompt into a local evades
+it (known, unfixed).
+**VERIFY** Fix at the boundary, never at the site (M3.1). **EIGHT occurrences on one branch**, and
+two are instructive: the SCAN was door six, scoped narrower than the defect, and door seven was a
+site review had already named and a fix had already claimed. Grep every OTHER route into that
+prompt before fixing the one in front of you. → `#prompt-boundaries`
+
 ## Bidi & localization
 
 **LAW · A line mixing Hebrew and Latin gets a `<bdi>` per run, with `dir` on the CONTAINER — never
@@ -190,7 +207,10 @@ route — a report as page TEXT and as snipped IMAGES — the state naming one r
 against what THAT route was asked to carry and what the SCREEN promised, never against everything
 fetched. **ENFORCED test** — `documentInjection.test.ts` sweeps `documentContextState`,
 `loop.test.ts` pins the MARKED list reaching it. **VERIFY** Decide it in ONE function, never per
-branch: four fixes in branches each shipped the next round's defect. → `#two-channel-degradation`
+branch: four fixes in branches each shipped the next round's defect. `intake/notice.ts` is that
+shape for a panel's caveats — ⚠ it pins the STATE, not that the copy fits the CAUSE, and two dead
+ends sharing one sentence told the second to use the `@` that had just failed (09b). Split, never
+reword. → `#two-channel-degradation`
 And a degradation you can REFRESH AWAY is not visible, so an honesty fact is PERSISTED with the
 message, never held in view state: `chat/messageFlags.test.ts` covers each stored flag and asserts
 they stay INDEPENDENT (08b). A new stored flag gets a case there, or it is prose.
@@ -219,6 +239,7 @@ ENUMERATE every state, each marked driven or not-driven; **step 8c re-checks the
 because a drive expires when the code under it changes** (08c-3's rounds edited the surface five
 times and the table kept its ticks). A battery cannot see whether a human looked, so this is the
 ritual tier, never test. **VERIFY** Enumerate; look at each; re-check what later commits touched.
+Unreachable states are enumerated too — 8b owns how (09b).
 → `#choke-point-inputs`
 
 **LAW · A Server Component may not pass a FUNCTION to a Client Component.** Create the closure on

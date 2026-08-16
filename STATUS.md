@@ -3,43 +3,42 @@
 **Rewritten, never appended. Intent and next move only.** Dated entries go in `PROGRESS.md`; what
 has landed is removed, not struck through.
 
-_Last rewritten: 2026-08-15 (ticket 08c-3)_
+_Last rewritten: 2026-08-16 (09b + two founder bugs)_
 
 ## Where the product is
-
-Live on Railway at `www.timlul-ai.com`. A mistake on `main` is no longer local.
 
 | Surface | State |
 | --- | --- |
 | Live calls | Works. Two engines (Recall/IVRIT) share `:8788`.|
 | Companies | Works. MAYA connected; 234/234 have sector. |
-| Chat / Ask Atlas | **`/api/chat/v2`, the only route.** Every grounding works — company, call, live captions, project, report page + snip; market-wide search down. |
-| Workspace | Works — intake, tables, chat over the docs. |
+| Chat / Ask Atlas | **`/api/chat/v2`, the only route.** Every grounding works; market-wide search down. |
+| Workspace | Intake, tables, chat over docs. The founder's reported problem was the INTAKE, fixed in 09b. |
 | Agents | **Stub.** Page + `lib/agents/data.ts`; no machinery. |
 
 ## Building the smart layer
 
 Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`. Lowest unblocked
-one, branch per slice. **STRICT ORDER: 08 → 09 → 10 → 11 → 12 → 13 → 14** (founder, final).
+one, branch per slice. **STRICT ORDER: 10 → 11 → 12 → 13 → 14** (founder, final).
 
-**Phase A done; TICKET 08 IS CLOSED — 06 → 08c-3 merged.** `/api/chat/v2` is the ONLY chat route;
-the old `/api/chat` and its four dead modules are deleted. The loop carries IMAGE content blocks, so
-a marked report passage and up to four snipped page images ride the turn. "Stuffed FIRST turn" is
-CLOSED — §5 reads "any turn", $0.13 unchanged.
+**Phase A done, 08 CLOSED**; residues in `docs/open-findings.md`, plus a founder glance owed on
+`reportTruncated`'s wording.
 
-**08c-3 leaves three, all filed:** no model-availability fallback, and a call-grounded turn is not
-company-scoped for its tools (`docs/open-findings.md`); and `reportTruncated`'s wording changed in
-both locales after its browser drive and was NOT re-rendered — a founder glance closes it.
+**Two reds, filed with numbers, not re-scored** (M2; numbers in 08c's evidence): market-wide search
+times out, so class-G discovery is RED and only scoped works; and $0.06/answer did not hold
+($0.1010). Both eval-gated, **a PARALLEL SESSION owns them**; re-measure with
+`scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on a v2 chat
+failing in production, check for a 401 first.
 
-**Two reds, filed with numbers, not re-scored** (M2) — numbers in that branch's `docs/evidence/`:
-(1) **market-wide search does not complete** — unscoped scan over 98,042 chunks hits `statement
-timeout` (~8.6s), so class-G discovery is RED; scoped search works. (2) **the $0.06/answer budget
-did not hold** — re-confirmed at 08c-1: a company-scoped turn is $0.1010 with no project at all.
-Both are eval-gated retrieval parameters; **a DEDICATED PARALLEL SESSION owns the fix**. Re-measure:
-`scripts/measure-chat-answer.mjs` (`--call`, `--project`). **Railway's `ANTHROPIC_API_KEY` is
-unproven** — on any v2 chat failing in production, check for a 401 first; absent returns 503.
+**09 + 09b MERGED 2026-08-16** (`6447f4b`), with two founder-reported bugs. Workspace chat is
+deliberately unchanged — its gate says the swap does not beat the planner. Story in PROGRESS.
 
-**Next: 09** — workspace chat, smaller than it was and no longer built over a dying route: `shelf`
-is already in the union and `read_workspace` reads `workspaceId`.
+**Merged with `ATLAS_SHIP_OVERRIDE`, so three things are OPEN** (all in `docs/open-findings.md`):
+round 9's verdict was CHANGES, its BLOCKER a non-regression `main` did worse before; 09b's four
+recurrence declarations are unanswered, so the next merge hits the same gate; and **81 decks now
+leave the documents tab**, the bucket meant to hold them never having been built — founder's call,
+and the most visible.
 
-Also open: **ticket 13** holds the cleanup list; poller/sweep deferred past V1.
+**Battery 1182/1183 on main; the red is a stray `CLAUDE.md` in a worktree, not the code.**
+
+**Next: close 09, then 10** (agent tables + create flow). **13** holds the cleanup list;
+poller/sweep deferred past V1.

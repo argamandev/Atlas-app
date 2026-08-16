@@ -10,6 +10,7 @@ import type { ChatSource, ChatSnip } from '@/lib/chat/grounding'
 import { sanitizeHistory } from '@/lib/chat/history'
 import { appendSnip } from '@/lib/documents/snip'
 import { armSnip, getSnipTarget, subscribeSnipTarget } from '@/lib/live/snipBridge'
+import { askSubject, subjectHasAudio, type AskSubject } from '@/lib/live/askGrounding'
 import { CitationChip } from '@/components/chat/CitationPopover'
 import { ThinkingDots } from '@/components/chat/ThinkingDots'
 import { Markdown } from '@/components/chat/Markdown'
@@ -66,17 +67,14 @@ interface Msg {
 }
 
 export function TranscriptChatPanel({
-  transcriptId,
   grounding,
   quote,
   seedNonce,
   docRef,
   snip,
   onClose,
-  heroLine2,
   snipAvailable,
 }: {
-  transcriptId: string | undefined
   /**
    * WHAT THIS PANEL'S ANSWERS ARE GROUNDED IN. **Required** since 08c-3.
    *
@@ -108,12 +106,30 @@ export function TranscriptChatPanel({
   /** Pinge: a fresh snip to attach (rides seedNonce like docRef) */
   snip?: ChatSnip | null
   onClose: () => void
-  /** hero second line override — "about this call" (default) vs "about this company" */
-  heroLine2?: string
   /** design round 2: a snippable document pane is open → show the composer scissors */
   snipAvailable?: boolean
 }) {
   const { dict } = useI18n()
+
+  // WHO THIS PANEL'S COPY IS ABOUT — decided once, over the whole Grounding union,
+  // in `lib/live/askGrounding.ts`. The hero, the audio promise and the caption all
+  // read it, so they cannot disagree with each other or with the request. Three
+  // separate inline conditions here is what made this a three-round review series.
+  const subject = askSubject(grounding)
+  const HERO_LINE2: Record<AskSubject, string> = {
+    call: dict.live.askHeroLine2,
+    live: dict.live.askHeroLine2,
+    company: dict.live.askHeroCompany,
+    workspace: dict.live.askHeroWorkspace,
+    market: dict.live.askHeroMarket,
+  }
+  const CAPTION: Record<AskSubject, string> = {
+    call: dict.live.askConnectedCall,
+    live: dict.live.askFollowLive,
+    company: dict.live.askConnectedCompany,
+    workspace: dict.live.askConnectedWorkspace,
+    market: dict.live.askConnectedMarket,
+  }
   // a real, snippable document pane is mounted (ReportPane publishes via the snip bridge)
   const snipTarget = useSyncExternalStore(subscribeSnipTarget, getSnipTarget, () => false)
   const [messages, setMessages] = useState<Msg[]>([])
@@ -350,16 +366,31 @@ export function TranscriptChatPanel({
               <span className="aa-w" style={{ animationDelay: '.06s' }}>
                 {dict.live.askHeroLine1}
               </span>{' '}
+              {/*
+                THE HERO, THE SUB-LINE AND THE CAPTION ALL NAME `subject`, which
+                `askSubject` decides once over the whole Grounding union. Three
+                separate inline conditions here is what made this a three-round
+                series: each round fixed the one that had just been caught and left
+                the others, and every one of them ended in a catch-all that said
+                "this company" for anything unrecognised.
+              */}
               <span className="aa-w block" style={{ animationDelay: '.24s' }}>
-                {heroLine2 ?? dict.live.askHeroLine2}
+                {HERO_LINE2[subject]}
               </span>
             </h1>
-            <p
-              className="aa-w call-muted mt-3.5 max-w-[28ch] text-[13px] leading-[1.55]"
-              style={{ animationDelay: '.4s' }}
-            >
-              {dict.live.askHeroSub}
-            </p>
+            {/*
+              THE SUB-LINE IS A PROMISE ABOUT AUDIO — "the audio keeps playing while
+              you ask" — false wherever there is no recording. A missing line is not
+              a lie; that one was.
+            */}
+            {subjectHasAudio(subject) && (
+              <p
+                className="aa-w call-muted mt-3.5 max-w-[28ch] text-[13px] leading-[1.55]"
+                style={{ animationDelay: '.4s' }}
+              >
+                {dict.live.askHeroSub}
+              </p>
+            )}
           </div>
         )}
         {messages.map((m, i) =>
@@ -599,14 +630,12 @@ export function TranscriptChatPanel({
             </span>
           </div>
         </div>
-        {/* what Atlas is connected to, per context (design round 2 captions) */}
-        <p className="call-muted mt-2 px-1 text-center text-[11.5px] leading-[1.5]">
-          {grounding.kind === 'live'
-            ? dict.live.askFollowLive
-            : transcriptId
-              ? dict.live.askConnectedCall
-              : dict.live.askConnectedCompany}
-        </p>
+        {/*
+          WHAT ATLAS IS CONNECTED TO — the same `subject` the hero names, so the two
+          cannot disagree. It used to read a separate `transcriptId` prop; two inputs
+          for one sentence is two chances to be wrong, and this one was.
+        */}
+        <p className="call-muted mt-2 px-1 text-center text-[11.5px] leading-[1.5]">{CAPTION[subject]}</p>
       </div>
     </aside>
   )

@@ -1,4 +1,5 @@
 import type { AttachableSource } from '../data'
+import { defang, fencePart } from '../chat/context'
 import type { IntakeSelection, IntakeTurn } from './types'
 import { modelObject } from './json'
 
@@ -70,9 +71,9 @@ export function buildSelectionPrompt(
   const here = new Set(onShelf)
   const lines = corpus.map(
     (s) =>
-      `- id: ${s.sourceId} | type: ${kindLabel(s.kind)} | company: ${s.company ?? 'unknown'} | ${
+      `- id: ${fencePart(s.sourceId)} | type: ${kindLabel(s.kind)} | company: ${fencePart(s.company ?? 'unknown')} | ${
         s.remote ? 'published' : 'added to Atlas'
-      }: ${s.when ? s.when.slice(0, 10) : 'unknown'} | title: ${s.title}${
+      }: ${s.when ? s.when.slice(0, 10) : 'unknown'} | title: ${fencePart(s.title)}${
         here.has(s.sourceId) ? ' | ALREADY ON THE SHELF' : ''
       }${s.remote ? ' | FROM MAYA — NOT YET IN ATLAS' : s.fromMaya ? ' | FROM MAYA — ALREADY IN ATLAS' : ''}`
   )
@@ -132,7 +133,7 @@ two different ways:
   const shelfRule = anyOnShelf
     ? `\nON THE SHELF RIGHT NOW — this list is COMPLETE, and appearing on it is the
 ONLY thing that makes a file "already here":
-${shelfHere.map((s) => `- ${s.title}`).join('\n')}
+${shelfHere.map((s) => `- ${fencePart(s.title)}`).join('\n')}
 A file not named in that list is NOT on the shelf, however familiar it looks and
 wherever else Atlas may hold a copy of it. Never tell the analyst a file is
 already here, or already theirs, unless its title is in that list. Never offer to
@@ -155,7 +156,7 @@ reason. Whatever they ask for, you have to select it.
     ? `\n- FIRST, before anything else: check each file they asked for against the ON THE SHELF list, BY TITLE. Only a file named in that list is already here — the analyst has those open in front of them, so offering to pull one is offering to do something already done. Name those in one clause ("the Q1 call is already on your shelf") and confirm only the REST. EVERY OTHER FILE MUST STILL BE SELECTED, even one Atlas already holds a copy of elsewhere: a copy in Atlas's library is not a file on this shelf. If ALL of what they asked for is in that list, say so and set "selected" to [] with status "clarifying". If NONE of it is, do not mention the shelf at all.`
     : ''
 
-  const talk = conversation.map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${t.content}`).join('\n')
+  const talk = conversation.map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${defang(t.content)}`).join('\n')
 
   // THE SET, STATED. Without this the model had to re-read its own prose every
   // turn to work out what it had already proposed — which is exactly how it
@@ -168,7 +169,7 @@ reason. Whatever they ask for, you have to select it.
 ${proposal
   .map((id) => {
     const s = byId.get(id)
-    return `- id: ${id}${s ? ` | ${s.title}` : ''}`
+    return `- id: ${fencePart(id)}${s ? ` | ${fencePart(s.title)}` : ''}`
   })
   .join('\n')}
 Carry every one of them forward unless the analyst asks to take it out. If they

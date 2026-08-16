@@ -35,7 +35,7 @@
 // on two round trips instead of one.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { SourceText } from './context'
+import { defang, fenceLine, fencePart, type SourceText } from './context'
 
 /**
  * Characters per token, measured on this corpus rather than assumed.
@@ -206,11 +206,29 @@ export type Plan = {
  * than answer as though it were not there. That is the difference between a
  * short answer and a wrong one, and it costs a line per file.
  */
+/**
+ * How well one window answers the question — the ONE part vectors replace.
+ *
+ * Founder decision D8, *"seam now, vectors next"*: the windows, the budget and
+ * the honesty about what was skipped are the parts that had to exist first, and
+ * none of them is model-specific. Making the scorer an argument is what lets the
+ * B3 gate run term overlap and embedding similarity through THIS module instead
+ * of a copy — a harness that scores a copy certifies a fiction, the same reason
+ * there is exactly one chunker (ingestion standard §5).
+ *
+ * It stays SYNCHRONOUS on purpose. An async scorer would make this function a
+ * round trip, and a selection step that costs a completion hands back most of
+ * what it saves. A vector scorer embeds the question ONCE, before calling in.
+ */
+export type WindowScorer = (window: Window, source: SourceText) => number
+
 export function planContext(opts: {
   question: string
   sources: SourceText[]
   /** tokens available for SOURCE TEXT — the caller subtracts prompt and history first */
   budgetTokens: number
+  /** defaults to the Hebrew-aware term overlap below */
+  scoreWindow?: WindowScorer
 }): Plan {
   const usable = opts.sources.filter((s) => s.text.trim().length > 0)
   if (usable.length === 0) {
@@ -218,23 +236,27 @@ export function planContext(opts: {
   }
 
   const qterms = terms(opts.question)
+  const score = opts.scoreWindow ?? ((w: Window) => scoreWindow(qterms, w))
   const cut = usable.map((s) => ({ source: s, windows: windowsOf(s.text) }))
 
   // The outline is not optional and is charged for first.
   const outline = cut
     .map(
       ({ source, windows }) =>
-        `- ${source.title} (${source.kind}, id: ${source.itemId}) — ${windows.length} sections: ${windows
-          .map((w) => w.label)
+        // The outline names every file whether or not its text is read, so it
+        // carries the same three untrusted strings the marker line does — plus
+        // the labels, which a transcript writes itself by printing `## …`.
+        `- ${fencePart(source.title)} (${fencePart(source.kind)}, id: ${fencePart(source.itemId)}) — ${
+          windows.length
+        } sections: ${windows
+          .map((w) => fencePart(w.label))
           .slice(0, 24)
           .join(' · ')}`
     )
     .join('\n')
 
   const scored = cut
-    .flatMap(({ source, windows }) =>
-      windows.map((w) => ({ source, window: w, score: scoreWindow(qterms, w) }))
-    )
+    .flatMap(({ source, windows }) => windows.map((w) => ({ source, window: w, score: score(w, source) })))
     .sort((a, b) => b.score - a.score || a.window.index - b.window.index)
 
   // FAIRNESS FIRST, THEN RELEVANCE. One window from each file before a second
@@ -324,11 +346,15 @@ export function planContext(opts: {
     const skipped = windows.length - picked.length
     // The header states the read/unread split IN THE PROMPT, so the model knows
     // the shape of its own ignorance rather than assuming it saw the file.
-    const head =
-      `\n${FENCE} ${source.title} (${source.kind}, id: ${source.itemId})` +
-      (skipped > 0 ? ` — ${picked.length} of ${windows.length} sections shown` : '') +
-      ' >>>\n'
-    parts.push(head + picked.map((w) => `[${w.label}]\n${defang(w.text)}`).join('\n\n'))
+    const head = fenceLine(
+      source.title,
+      source.kind,
+      source.itemId,
+      skipped > 0 ? `${picked.length} of ${windows.length} sections shown` : ''
+    )
+    // The label is the source's own words too — `windowsOf` read it off a `## …`
+    // line the file printed — so it is defanged like the marker, not like a body.
+    parts.push(head + picked.map((w) => `[${fencePart(w.label)}]\n${defang(w.text)}`).join('\n\n'))
   }
 
   const text =
@@ -337,8 +363,9 @@ export function planContext(opts: {
   return { text, sources, truncated, omitted, tokens: estimateTokens(text) }
 }
 
-const FENCE = '<<<ATLAS-SOURCE'
-const defang = (text: string) => text.split(FENCE).join('<<<source')
+// The fence, its defanger and the marker line all live in `context.ts` — ONE
+// door, because the two copies that used to exist here are how the header below
+// stayed unsanitised while the body was fenced.
 
 /**
  * One budget for the WHOLE prompt, split between its parts.

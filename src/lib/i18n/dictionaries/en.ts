@@ -123,10 +123,26 @@ export const en = {
     // is not.
     intakeMayaUnreachable:
       "I couldn't reach MAYA just now, so this only covers what Atlas already holds. Worth trying again in a moment.",
+    // The founder's first ask on 2026-08-15: say you don't understand the name
+    // and ask for the official one. There is now a better answer than "spell it
+    // differently" — pick it with @, where the name is chosen rather than typed.
     intakeUnknownCompany:
-      "I don't have a TASE issuer under that name. I can only find companies that have announced a reporting date.",
+      "I couldn't identify a company by that name. You can pick it from the list with @ — that always lands on the right one.",
+    // NOT the line above, deliberately: this one is shown to someone who ALREADY
+    // used @. Advising @ here would name the action that just failed.
+    intakePinnedCompanyUnreachable:
+      'That company has no TASE issuer I can search filings under, so this covers only what Atlas already holds.',
+    // Picking a company with @ — the name is chosen, not spelled, so it cannot
+    // be got wrong. EN is the type source, so these two land here first.
+    intakeMention: 'Pick a company',
+    intakeUnpinCompany: 'Remove the company',
     intakeRequestNotUnderstood:
       "I couldn't work out which company you meant well enough to search MAYA, so this covers only what Atlas already holds. Try naming the company and the period?",
+    // The pinned half of the line above: the company came from an @ mention, so
+    // only the period and the document kind were unreadable. Never says the
+    // company was the problem — it was not.
+    intakeRequestPartlyUnderstood:
+      "I've got the company, but I couldn't work out which period or kind of document you meant — so this is its most recent filings. Say a year or a report type and I'll narrow it.",
     intakeFetching: 'Fetching from MAYA — downloading and reading the file…',
     intakeSearchFailed: 'That did not go through: {error}',
     buildingTitle: 'Setting up the workspace…',
@@ -712,11 +728,19 @@ export const en = {
     askHeroLine1: 'Ask anything',
     askHeroLine2: 'about this call',
     askHeroCompany: 'about this company',
+    /** `{kind:'none'}` — blank chat searches the market, so the hero may not name a call. */
+    askHeroMarket: 'about the market',
+    /** `{kind:'shelf'}` — the workspace. Borrowing the company's copy is how the last three lies started. */
+    askHeroWorkspace: 'about this workspace',
     askHeroSub: 'The audio keeps playing while you ask.',
     // composer captions (design round 2): what Atlas is connected to, per context
     askFollowLive: "Atlas is following this call live. Ask about anything that's been said.",
     askConnectedCall: "Atlas is connected to this call's context. Ask whatever you'd like.",
     askConnectedCompany: "Atlas is connected to this company's context. Ask whatever you'd like.",
+    /** `{kind:'none'}` — a real recipe (market-wide search), not an absence to paper over. */
+    askConnectedMarket: "Atlas is searching the whole market. Ask whatever you'd like.",
+    /** `{kind:'shelf'}` — the workspace's own files. */
+    askConnectedWorkspace: "Atlas is connected to this workspace's files. Ask whatever you'd like.",
     voiceSoon: 'Voice ask — coming soon',
     slideLabel: 'Slide',
   },

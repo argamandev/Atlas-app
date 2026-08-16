@@ -262,6 +262,30 @@ into the same Tigbur lead and must not surface as a fifth company.
 
 ---
 
+## The workspace-shaped run (ticket 09, 2026-08-15)
+
+**This set is scored two ways now, and the second one is not market-wide.** Ticket 09's gate
+asks a different question of the same cases: with the scope already narrowed to a **shelf** an
+analyst chose, does the anchored passage reach the prompt under the workspace route's real
+token budget? Harness: `scripts/retrieval-eval/workspace-gate.mjs` (a sibling of `run.mjs`, and
+like it, it scores the PRODUCTION modules rather than copies).
+
+**Result: the swap did not clear the bar — but it is indistinguishable from the planner, not
+worse.** Across shelf sizes 3/6/12 the planner reads 12/8/8 and the scorer swap 11/9/8: they
+trade the lead by one case in both directions. Retrieval's own chunk shape (6–11) loses at every
+size. Workspace chat was therefore left as it is. Evidence, including the six harness bugs found
+— one of which handicapped the swap by three cases and would have produced a false verdict:
+`docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`.
+
+Two things about this set that the run makes concrete:
+
+- **Cases 13, 14, 15 and 17 carry no anchor to retrieve** (resolver, adversarial and negative
+  cases) and class G is market-wide by definition, so the workspace gate scores 14 of the 20.
+- **The scorers fail on DIFFERENT cases, stably** — planner-only 02/09, swap-only 01/06/08,
+  neither 04/10/18 (at shelf 6; the membership barely moves at 3 and 12). Any future change
+  proposing to REPLACE one with the other is answering a question this measurement says is the
+  wrong one; the open question is fusion, and it needs its own gate.
+
 ## Founder validation — what is asked of Sagi (ticket 05, HITL)
 
 1. **Realism pass:** are these the questions a fund analyst actually asks? Rephrase freely —

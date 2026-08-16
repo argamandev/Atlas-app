@@ -305,46 +305,140 @@ export const VOCABULARY_EXEMPT = {
  * ticket either. It needs to be scheduled.
  */
 /*
- * RAISE SIX, AND THE FIRST NOT BOUGHT BY "DEGRADATION MUST BE VISIBLE" (2026-08-16,
- * ticket agents-1): 9,680 → 10,060. NOT a founder decision — mine, flagged in the
- * handoff for him to reverse, same as three of the five raises above.
+ * RAISED 9,680 → 9,900 on 2026-08-15 (ticket 09). Mine, not the founder's, and
+ * flagged to him in the handoff.
  *
- * SAY THIS PLAINLY BECAUSE IT CHANGES WHAT THE PATTERN MEANS: every one of the five
- * raises above was the SAME law, `Degradation must be VISIBLE`, earning a new tier.
- * This one is not. `.claude/rules/db.md` gained a law of its own — a child row's FK
- * into an owner-scoped parent must be COMPOSITE, keyed through user_id, never
+ * RAISE SIX — AND THE FIRST ONE THAT IS NOT THE DEGRADATION LAW EARNING ANOTHER
+ * TIER. Every raise above bought a new tier for `Degradation must be VISIBLE`.
+ * This one files a NEW law: `Every untrusted string reaching a MODEL passes a
+ * sanitiser — the fence LINE, not just the body it opens`, with a test mechanism
+ * (`workspace/chat/promptInjectionDiscipline.test.ts`).
+ *
+ * It is filed because the defect recurred SIX TIMES ON ONE BRANCH, each fix
+ * landing where the bug was noticed and each leaving the next door open: the
+ * source body, the fence marker line, the shelf listing, the `"""` blocks, the
+ * conversation turns, the clip caption — and then the SCAN bought to end the
+ * sequence, which named two builders while the defect spanned three. Two cold
+ * review rounds found doors four through six. A defect that recurs six times in
+ * one branch and has no law is precisely what ADR-0002 says to file, and prose
+ * would not have caught door six — the scan did, once it was widened.
+ *
+ * So `npm run env:health`'s mechanism count goes UP by one here (13 → 14), which
+ * is the trade ADR-0002 asks for: more enforcement per token, not more prose.
+ *
+ * The branch paid before asking, as the notes above require: STATUS.md's 08 block
+ * was cut to three lines now that 08 has landed, its two-reds block condensed, and
+ * the 09 entry written at a third of its first draft. The law itself was cut from
+ * fourteen lines to eleven, with its story sent to `case-history`. The last ~24
+ * are headroom, for the reason raise four gives.
+ *
+ * AMENDED 9,900 → 9,950 later the same day, before the branch merged. Review
+ * round 3 found doors SEVEN and EIGHT — a caption built inline in
+ * `compose/route.ts` that never called `snipCaption` (the site round 1 had named
+ * and a fix had claimed), and the intake route concatenating the analyst's turn
+ * onto a system prompt. ADR-0002 does not let a recurrence buy prose, and it had
+ * already bought the test tier, so the law gained an **impossible** tier:
+ * `askModel`'s `captions` takes `FenceSafe`, a type only the sanitisers produce,
+ * which a route cannot satisfy with a raw string in any file — named by the scan
+ * or not. That declaration is ~50 tokens and it is the difference between a
+ * mechanism that reads three files and one that holds everywhere.
+ *
+ * Shaving the law's wording to land on 9,900 was the alternative and was rejected
+ * for the reason raise five gives: trimming a law to hit a number is how a law
+ * gets quietly weakened by arithmetic. STATUS.md paid what it could first.
+ *
+ * ⚠ THE SHRINK IS SIX SLICES OVERDUE. The note above said five consecutive raises
+ * mean it will not happen as a side effect of the next ticket, and it did not.
+ * It needs to be scheduled as its own mission.
+ */
+/*
+ * RAISED 9,950 → 10,050 on 2026-08-15 (ticket 09b). Mine, not the founder's, and
+ * flagged to him in the report.
+ *
+ * RAISE SEVEN, and it is the degradation law again — the same law as raises one
+ * through five, earning not a tier this time but a LIMIT on the tier it already
+ * has. 09b moved a panel's caveat decision into one swept pure function
+ * (`intake/notice.ts`), which is exactly the shape that law's VERIFY line has
+ * demanded since 08c-3. Then the cold review found the hole that shape does not
+ * cover: the STATE can be chosen correctly and its COPY still be false of the
+ * cause. Two dead ends — a typed company name that matched nothing, and a
+ * company the analyst PICKED with `@` whose row has no MAYA issuer id — shared
+ * one sentence, and that sentence told the second to use the `@` that had just
+ * failed. So the declaration names the mechanism AND what it does not reach,
+ * because a mechanism described without its limit is the over-claim raise five
+ * was spent deleting.
+ *
+ * THE SET GOT SMALLER IN TWO PLACES FIRST, and one of those is the interesting
+ * one. Of 155 tokens, 83 were paid rather than borrowed: the new tier was folded
+ * INTO the existing "decide it in ONE function" VERIFY line instead of opening a
+ * sixth tier that would have restated it, and the enumeration law's new clause —
+ * how to record a state a browser cannot reach — moved OUT of always-on entirely
+ * into `/verify-app` step 8b, which is where a procedure belongs and is loaded
+ * only when someone is verifying. That is the shrink working at small scale: not
+ * every sentence a law learns has to live in the law.
+ *
+ * The last ~28 are headroom, for the reason raise four gives.
+ *
+ * ⚠ THE SHRINK IS SEVEN SLICES OVERDUE. Six raises predicted it would not happen
+ * as a side effect, and it did not again. It is still its own mission.
+ */
+/*
+ * RAISED 10,050 → 10,410 on 2026-08-16 (ticket agents-1, plan 1). NOT a founder
+ * decision — mine, flagged in the handoff for him to reverse, same as four of the
+ * seven raises above.
+ *
+ * RAISE EIGHT, AND THE THIRD INDEPENDENT REASON THIS SET HAS EVER GROWN. Say that
+ * plainly, because reading eight raises as one pattern is the mistake available
+ * here: raises one through five, and seven, were all `Degradation must be VISIBLE`
+ * earning a tier or a limit on one; raise six filed the prompt-injection fence law.
+ * This one is neither. `.claude/rules/db.md` gained a law of its own — a child row's
+ * FK into an owner-scoped parent must be COMPOSITE, keyed through user_id, never
  * single-column, because PostgreSQL's referential-integrity checks bypass RLS —
- * after migration 032's first draft shipped exactly that hole across four new
- * tables despite two separate documents (`docs/SMART-LAYER-SPEC.md:165-166` and the
+ * after migration 032's first draft shipped exactly that hole across four new tables
+ * despite two separate documents (`docs/SMART-LAYER-SPEC.md:165-166` and the
  * 2026-08-13 foundation review, `docs/archive/scratch/2026-08-13-smart-layer/
  * research/03-foundation-review.md:115`) already naming these tables and saying
- * "copy 015/016's composite child FKs" before the migration was drafted. The
- * always-on set is now growing for a SECOND independent reason, not a deeper tier
- * of the first — say so here rather than leave the next reader to notice it alone.
+ * "copy 015/016's composite child FKs" before the migration was drafted.
  *
- * ADR-0002's shape held exactly as designed: a lesson told twice in PROSE and
- * broken anyway is not a lesson the codebase has learned, only a mechanism that
- * fails a battery is. So this recurrence bought a `test`
- * (`src/lib/db/compositeChildFk.test.ts`) — verified by reintroducing the original
- * single-column shape and watching it fail before it was trusted, not another
- * paragraph telling the next session to remember harder.
+ * ADR-0002's shape held exactly as designed: a lesson told twice in PROSE and broken
+ * anyway is not a lesson the codebase has learned — only a mechanism that fails a
+ * battery is, and the recurrence has to buy it IN THE COMMIT that hit it. So this
+ * one bought a `test` (`src/lib/db/compositeChildFk.test.ts`), verified by
+ * reintroducing the original single-column shape and watching it fail before it was
+ * trusted, rather than another paragraph telling the next session to remember
+ * harder. The law therefore arrives carrying a mechanism, so the count
+ * `npm run env:health` exists to drive down does not move here.
  *
- * The branch paid first, same discipline as every raise above: the law's full
- * story — why RI bypasses RLS, what the stranger's-agent insert actually validates
- * as, both prior warnings that named these tables and still weren't enough, and the
- * test's own verification — moved to `docs/case-history/db.md` (following
- * `app.md`'s split), leaving a tight LAW/ENFORCED/VERIFY triple in `db.md` pointing
- * at it with `→ #composite-child-fk`. That recovered 281 of the law's first 635
- * tokens (`db.md`: 2,011 → 1,730 estimated tokens). The remaining 348 is this raise,
- * plus 32 tokens of headroom for the same reason raise four gave 30: landing exactly
- * on the ceiling turns the budget from a drift alarm into a tripwire on the very
- * next always-on edit of any size.
+ * The branch paid first, same discipline as every raise above: the law's full story
+ * — why RI bypasses RLS, what the stranger's-agent insert actually validates as,
+ * both prior warnings that named these tables and still weren't enough, and the
+ * test's own verification — moved to `docs/case-history/db.md` (following `app.md`'s
+ * split), leaving a tight LAW/ENFORCED/VERIFY triple in `db.md` pointing at it with
+ * `→ #composite-child-fk`. That recovered 281 of the law's first 635 estimated
+ * tokens (`db.md`: 2,011 → 1,730). The rest is this raise.
  *
- * The set was already sitting at 9,674/9,680 — six tokens of headroom — before this
- * law arrived, so even a much smaller addition would likely have busted it. That is
- * a separate fact from the `app.md` shrink above and does not change its urgency.
+ * THE FIGURE IS MEASURED ON THE MERGED TREE, NOT ADDED UP — and that distinction is
+ * why this block exists at all. This branch and tickets 09/09b raised the SAME base
+ * independently, to 10,060 here and 10,050 on `main`, and neither number describes
+ * the set that exists after the merge, which carries both sides' additions.
+ * `npm run env:health` on the merged tree reports 10,386. That measurement sets the
+ * figure below; summing two branches' ceilings would have been a hand-carried count,
+ * which `rules/app.md` (M1) records as wrong every time this repo has tried it.
+ * An earlier draft of this block cited "9,674/9,680 — six tokens of headroom" as the
+ * pre-existing pressure; that described a tree that no longer exists, so it is
+ * deleted rather than restated.
+ *
+ * The last 24 are HEADROOM, the same allowance raises four, six and seven each gave
+ * and for the same reason: landing exactly on the ceiling turns the budget from a
+ * drift alarm into a tripwire on the very next always-on edit of any size.
+ *
+ * ⚠ THE SHRINK IS EIGHT SLICES OVERDUE. Every note above predicted it would not
+ * happen as a side effect of the next ticket, and it has not, eight times running.
+ * `app.md` is 5,727 of these 10,386 tokens — more than half the set, measured on
+ * this tree — and shrinking it to pointers at its tests (`DECISIONS.md` 2026-08-12)
+ * is still its own mission and still unscheduled.
  */
-export const TOKEN_BUDGET = 10_060
+export const TOKEN_BUDGET = 10_410
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

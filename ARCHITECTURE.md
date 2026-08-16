@@ -283,7 +283,8 @@ the deploy, which comes after this chapter.
 | `syncEngine.ts` | Karaoke sync — maps audio time → current word. Unit-tested. |
 | `recallAdapter.ts` | Normalizes Recall.ai data into our shape. |
 | `finishLiveCall.ts` | Live → finished hand-off (raw text → Gemini, words, PCM→MP3 → a normal transcript row). Unit-tested. |
-| `loadCall.ts` | Loads a call (live or finished) for the viewer. |
+| `loadCall.ts` | Loads a call (live or finished) for the viewer. `LiveCall.storedTranscriptId` is the fact every "is there a transcript here" decision reads — `id` is a routing key and two producers key on something that is not a transcript. |
+| `askGrounding.ts` | What Ask Atlas is grounded in on a transcript-shaped screen — the call, else the company, else market-wide. Pure; swept in `askGrounding.test.ts`. |
 | `search.ts` | In-transcript search. Unit-tested. |
 | `ivritParse.ts` | Parses IVRIT/RunPod JSON chunk responses into our segment shape. |
 | `ivritStitcher.ts` | Stitches overlapping IVRIT chunks into a clean transcript stream. Unit-tested. |
@@ -305,7 +306,7 @@ the deploy, which comes after this chapter.
 | `design/tokens.ts` | Design tokens in code — ONE light theme ("Harvey", 2026-08-01); the theme cycle and the dark-call token family are gone. `railText` `#85817A` is a DELIBERATE deviation from the design import (WCAG AA 5.109:1 vs the design's ~3.6:1) — do not let a parity probe revert it. |
 | `design/anim.ts` | Animation helpers (keyframe curves, spring config) for `AnimCanvas`. Unit-tested. |
 | `workspace/` | **Workspace V1 (2026-08-08) — the real thing, ~19 modules.** Pure rules that need no database: `validate` (every write shape), `present`/`derive`, `blocks`, `panes` (the pane cap), `thread`, `clip`, `tabLabel`. `data.ts` is now the ATTACHABLE-SOURCE feed, not a demo stub — the only demo constants left feed `/app/agents`, and `data.test.ts` fails if anything re-exports them. |
-| `workspace/intake/` | **The conversational intake, 14 modules** — `parseRequest` → `findSources` → `selectSources` (the model picks from a list it was given; it can never invent a file) → `agreement` (bare-yes recognised in CODE, not asked of a model) → `respond` (`intakeResult`: `ready` + empty selection is downgraded to an honest question). Three review rounds live in `agreement.ts`'s header comments — read them before changing a word list. |
+| `workspace/intake/` | **The conversational intake, 16 modules** — `companyPin` (which company this turn is about: an `@`-picked ROW outranks any reading of the sentence, and a picked company with no MAYA issuer id is named as unreachable rather than searched) → `parseRequest` → `findSources` → `selectSources` (the model picks from a list it was given; it can never invent a file) → `agreement` (bare-yes recognised in CODE, not asked of a model) → `respond` (`intakeResult`: `ready` + empty selection is downgraded to an honest question) → `notice` (WHICH single caveat the panel shows; the order between the five IS the meaning, and the component keeps only the wording). Three review rounds live in `agreement.ts`'s header comments — read them before changing a word list. |
 | `workspace/chat/` | Workspace chat: `context`, `compose`, `prompt`, `plan`. |
 | `maya/` | **The MAYA platform layer (2026-08-06), 20 modules — knows nothing about workspaces** (four future consumers). `client` (typed `MayaResult`, never throws into a route; every request awaits the GLOBAL `limiter` — 10 req/2s is ONE budget for the whole key, standard §7), `disclosures`, `filings` (now carries `xbrlUrl` + `publishedISO` through), `issuers` (`resolveIssuer`), `dates`/`events`/`layering`, `files`, `xbrl` (ת930 parser + `downloadXbrl` XML-magic guard + `persistFilingFacts`), `ingestFiling` (facts + `publication_date` + visible `facts_status` at the filing birth door). **Slice A5 adds three:** `latestOfEach` (the founder-approved backfill depth as a pure function — latest quarterly + latest annual + 12 months of decks, `now` passed in so a dry run and the real run cannot disagree), `syncFilings` (the ONE door the backfill, the poller and the nightly sweep all reconcile through — what is held, what to spend, the 23505 race, and the (period, type) collision resolved BEFORE any download), and `disclosures.latestDisclosures` (the live market feed — MAYA product 1.0.0, which spells attachments `attachedfiles` where v2 spells them `attachedFiles`, so it is NORMALISED at the door or every row silently loses its PDF). |
 | `corpus/` | **The ingestion birth machinery (slice A3, `docs/INGESTION-STANDARD.md`).** `chunker.ts` — THE one chunker (the eval harness imports it; line-windows 700/1,100 on speaker seams, page-as-chunk >3,500 split ~2,200; verbatim `content` separate from prefixed `embeddingInput`). `align.ts` — per-line timestamp alignment (proportional map + exact-word refinement), run once at finalize and PERSISTED; untimed lines keep the visible `00:00:00` sentinel. `embed.ts` — gemini-embedding-001 @1536 MRL re-normalized, injectable fetch. `reindex.ts` — atomic chunk swap per source via `atlas_replace_chunks` (028) with embedding carry-forward, visible `index_status` transitions, demo rows `excluded`. All unit-tested. `retrieve.ts` — the one READ door, dense-only by default (founder 2026-08-14), calling `atlas_search_chunks_v2` (031); its `ChannelReport` reports `saw` against a scope count capped at pool+1, so `truncated` means CUT SHORT rather than "filled the pool". `indexHealth.ts` — the pure arithmetic behind `/app/admin/corpus`: an unrecognised `index_status` counts as `other` and un-settles the corpus rather than being folded into a familiar bucket. |
@@ -346,7 +347,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **1144 tests across 108 files** as of 2026-08-16; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
+### Tests (run via `npm test` — **1189 tests across 112 files** as of 2026-08-16; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -380,7 +381,8 @@ run a file cannot tell you it is missing.
 · `demo/demoState.test.ts` · `design/anim.test.ts`
 · `documents/extract.test.ts` · `documents/openFiling.test.ts`
 · `documents/snip.test.ts` · `environment.test.ts` · `i18n/format.test.ts`
-· `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
+· `legacyBoundary.test.ts` · `live/askGrounding.test.ts`
+· `live/finishLiveCall.test.ts`
 · `live/ivritStitcher.test.ts` · `live/liveTiming.test.ts`
 · `live/pcmChunker.test.ts` · `live/search.test.ts`
 · `live/snipBridge.test.ts` · `live/syncEngine.test.ts`
@@ -400,9 +402,10 @@ run a file cannot tell you it is missing.
 · `transcriptDate.test.ts` · `transcription.test.ts`
 · `workspace/blocks.test.ts` · `workspace/chat/compose.test.ts`
 · `workspace/chat/context.test.ts` · `workspace/chat/plan.test.ts`
-· `workspace/chat/prompt.test.ts` · `workspace/clip.test.ts`
+· `workspace/chat/prompt.test.ts` · `workspace/chat/promptInjectionDiscipline.test.ts`
+· `workspace/clip.test.ts`
 · `workspace/data.test.ts` · `workspace/intake/agreement.test.ts`
-· `workspace/intake/findSources.test.ts` · `workspace/intake/json.test.ts`
+· `workspace/intake/companyPin.test.ts` · `workspace/intake/notice.test.ts` · `workspace/intake/findSources.test.ts` · `workspace/intake/json.test.ts`
 · `workspace/intake/parseRequest.test.ts`
 · `workspace/intake/respond.test.ts`
 · `workspace/intake/selectSources.test.ts` · `workspace/panes.test.ts`

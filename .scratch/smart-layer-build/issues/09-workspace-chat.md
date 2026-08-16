@@ -1,5 +1,24 @@
 # B3 · Workspace chat on the new retrieval
 
+Status: CLOSED 2026-08-15 — **the gate was run, the swap did not clear the bar, and workspace chat
+is left alone**, which this ticket names in advance as a completed outcome. Ticket 10 is not
+blocked. Measured across shelf sizes 3/6/12: planner **12/8/8**, the swap **11/9/8** — they trade
+the lead by ONE case in each direction, which is not "measurably beats"; retrieval's own chunk
+shape loses at every size. **The swap is not worse, it is indistinguishable** — the first run said
+otherwise and was wrong, because it handicapped the swap by embedding raw window text without
+production's metadata prefix (cold review caught it; worth 3 cases). Evidence, including all six
+harness bugs: `docs/evidence/feat-smart-layer-b3-workspace-chat/gate.md`; harness
+`scripts/retrieval-eval/workspace-gate.mjs`. Ungated items DID ship: EIGHT prompt-injection doors are
+closed (fence line, `"""` blocks, conversation turns, clip caption, and intake's own builder — the
+one that decides which FILES get fetched), held by a discipline scan and a new law in `app.md`, plus
+the D8 scorer seam in `planContext`. **The lead for a later ticket is UNION, not
+replacement** — the two miss different cases at every shelf size, though P ∪ E is an oracle bound,
+not an achieved score.
+
+Original ticket below.
+
+---
+
 Status: ready-for-agent — third in the V1 order, and **the one slice that may honestly fail its own
 gate**. A measured "the planner won, workspace left alone" is a COMPLETED ticket, not a blocker: it
 must not stall ticket 10 and the agents chain behind it.

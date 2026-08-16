@@ -156,7 +156,15 @@ export type IntakeResponse = {
    * untrue sentence fixed on 2026-08-06, arriving through a different door. The
    * panel states this itself, in the user's language.
    */
-  sourceError?: 'maya_unreachable' | 'request_not_understood' | null
+  /**
+   * `request_partly_understood` is the PINNED half of `request_not_understood`
+   * (09b): the company is known because the analyst picked it, and only the
+   * period and document kind were unreadable. Two names because one sentence
+   * cannot be true of both — "I couldn't work out which company you meant" is
+   * false when they pointed at the row, and saying nothing at all would hide
+   * that the years fell back to a default.
+   */
+  sourceError?: 'maya_unreachable' | 'request_not_understood' | 'request_partly_understood' | null
   /**
    * A company was named and could not be resolved to a TASE issuer. Said
    * plainly, rather than presenting local results as though the search
@@ -164,6 +172,12 @@ export type IntakeResponse = {
    * date, so this is a real and expected outcome, not only a typo.
    */
   unknownCompany?: string | null
+  /**
+   * Whether that company was PICKED or TYPED — two different dead ends, and
+   * the panel must not answer one with the other's advice: telling someone who
+   * used `@` to use `@` names the action that just failed (round-5 review).
+   */
+  unknownCompanyFrom?: 'pin' | 'name' | null
   /**
    * ATLAS COULD NOT WORK OUT WHICH FILES, SO IT ATTACHED NONE — and says which
    * of the two ways it failed.
