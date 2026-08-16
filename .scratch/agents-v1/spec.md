@@ -1,7 +1,14 @@
 # Agents V1 — the thin Managed Agents wrapper
 
-Status: awaiting-founder-review — supersedes tickets 10, 11, 12, 14 outright, and ticket 13 in
-part (scheduling is IN, §4.1; the Note Taker is not).
+Status: **APPROVED — BUILDING. Plan 1 (foundations) shipped.** Supersedes tickets 10, 11, 12, 14
+outright, and ticket 13 in part (scheduling is IN, §4.1; the Note Taker is not). Every ruling this
+spec was waiting on is filed in `DECISIONS.md` (2026-08-16): the slice itself replacing 10–14,
+memory at Anthropic, the $1.00 run cap, scheduling back in, "bring agent to life" plus assignment-
+as-context, agents as scoped work rather than market-wide research, and the real cascading delete
+taken at migration 032's own review gate. **Plan 1 landed against it** — SDK bump + run budget,
+the mechanism smoke check, migration `20260816_032_agents.sql` applied to production and verified,
+and the owner-scoped data layer. **Nothing user-visible ships yet:** no agent can be created or
+run — that is Plan 2 (create flow + run engine) and Plan 3.
 Branch: `claude/new-worktree-setup-35b4ef`
 Decided with the founder: 2026-08-16 (brainstorm session).
 

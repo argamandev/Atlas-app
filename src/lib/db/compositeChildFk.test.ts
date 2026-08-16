@@ -17,6 +17,13 @@ import { join, resolve } from 'node:path'
 // so the parent must carry a `unique (id, user_id)` constraint whose columns
 // are precisely those two, no more and no fewer.
 //
+// WHAT THIS SCAN DECIDES ON: whether `user_id` appears in the child's
+// REFERENCING column list — never on how many columns that list has. Those are
+// not the same question, and the difference is the whole law: `foreign key
+// (agent_id, created_at) references public.agents (id, created_at)` is composite
+// and protects nothing. Round 6 found this guard deciding on arity and fixed it;
+// the story is in `findFkCandidates` below, which is where the fact now lives.
+//
 // RECURRENCE THIS GUARDS. Migration 032's first draft shipped four owner-scoped
 // tables (agents, agent_runs, agent_findings, agent_run_files) keyed
 // single-column throughout, after docs/SMART-LAYER-SPEC.md:165-166 had already
@@ -99,10 +106,24 @@ import { join, resolve } from 'node:path'
 //     as a quiet, correct-looking migration; there is no mechanism here that
 //     would catch it, only this note.
 //   - The FK scan recognises `references [public.]<table>` with or without a
-//     trailing column list, and with or without the `public.` schema prefix
-//     (both forms were themselves once a gap here, closed 2026-08-16 round 4).
-//     It does not recognise a schema alias or a search_path-relative reference
-//     to a table outside `public`/unqualified — none exists in this repo today.
+//     trailing column list, and with or without the `public.` schema prefix, in
+//     BOTH the inline and the table-level `foreign key (...)` branch. The inline
+//     branch learned both forms at round 4; the table-level branch still
+//     required the `public.` qualifier until round 6, which meant an unqualified
+//     table-level FK fell through to the inline regex and was reported as
+//     single-column — this paragraph claimed otherwise for two rounds. It does
+//     not recognise a schema alias or a search_path-relative reference to a
+//     table outside `public`/unqualified — none exists in this repo today.
+//   - An INLINE constraint is treated as never keyed through user_id, because a
+//     single referencing column cannot carry both the child id and user_id. The
+//     one shape this over-reports is a deliberate inline `user_id ... references
+//     public.<owner-scoped>(user_id)`, which binds no child id and which no
+//     migration in this repo writes; it would have to be allowlisted, not
+//     silently accepted, if anyone ever wanted it.
+//   - The referencing column list is read TEXTUALLY: a `user_id` reached through
+//     a quoted identifier of different case (`"USER_ID"`) or through anything
+//     other than a plain (optionally double-quoted) `user_id` token is not
+//     recognised. Nothing in this repo writes either.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ROOT = resolve(process.cwd())
@@ -181,22 +202,54 @@ function findOwnerScopedTables(sql: string): Set<string> {
   return owners
 }
 
-type FkCandidate = { table: string; columnCount: number; snippet: string }
+type FkCandidate = { table: string; keyedThroughUserId: boolean; snippet: string }
 
-/** Every `references [public.]<table>[(...)]` in the file, inline or table-level. */
+/**
+ * Every `references [public.]<table>[(...)]` in the file, inline or table-level,
+ * each carrying THE FACT THE LAW DECIDES ON: is `user_id` in the REFERENCING
+ * column list?
+ *
+ * FIXED 2026-08-16 (round 6). This used to report `columnCount` and the test
+ * used to pass anything with `columnCount > 1` — FK ARITY, which is a PROXY for
+ * the fact, not the fact (rules/app.md M3 clause 2). Proven by probe against a
+ * copy of this migration tree: `foreign key (agent_id, created_at) references
+ * public.agents (id, created_at)` — two columns, zero ownership binding, a run
+ * still free to attach itself to a stranger's agent — PASSED the guard green.
+ * Arity is not what makes the key safe; carrying `user_id` into it is. The
+ * candidate now reports that directly and the test asks for it directly.
+ */
 function findFkCandidates(sql: string): FkCandidate[] {
   const candidates: FkCandidate[] = []
   const consumedSpans: Array<[number, number]> = []
 
-  // Table-level: [constraint x] foreign key (a, b) references public.table (c, d)
-  const fkRe = /foreign\s+key\s*\(([^)]*)\)\s*references\s+public\.(\w+)\s*\(([^)]*)\)/gi
+  // Table-level: [constraint x] foreign key (a, b) references [public.]table (c, d).
+  //
+  // The `public.` prefix is OPTIONAL here, and captured rather than assumed —
+  // closed 2026-08-16 (round 6) alongside the arity fix, because the two are
+  // the same defect twice. The inline branch below had already been taught both
+  // forms (round 4) while this branch still demanded the qualifier, so an
+  // UNQUALIFIED table-level FK fell through to the inline regex, which reports
+  // every match as single-column by construction. Probed: a correct
+  // `foreign key (agent_id, user_id) references agents (id, user_id)` was
+  // reported as a single-column violation — the guard red-lining a migration
+  // that obeys the law, while the STATED LIMITS paragraph claimed both forms
+  // were handled. A non-`public` schema (`auth.users`) is excluded here exactly
+  // as it is inline; the span is consumed either way so the inline regex cannot
+  // re-read the same text with less information.
+  const fkRe = /foreign\s+key\s*\(([^)]*)\)\s*references\s+(?:(\w+)\.)?(\w+)\s*\(([^)]*)\)/gi
   for (const m of sql.matchAll(fkRe)) {
+    consumedSpans.push([m.index!, m.index! + m[0].length])
+    const schema = m[2]
+    if (schema && schema.toLowerCase() !== 'public') continue
     const cols = m[1]
       .split(',')
-      .map((s) => s.trim())
+      .map((s) => s.trim().replace(/^"|"$/g, '').toLowerCase())
       .filter(Boolean)
-    candidates.push({ table: m[2], columnCount: cols.length, snippet: m[0] })
-    consumedSpans.push([m.index!, m.index! + m[0].length])
+    candidates.push({
+      table: m[3],
+      keyedThroughUserId: cols.length > 1 && cols.includes('user_id'),
+      snippet: m[0],
+    })
   }
 
   // Inline column definition: `<col> ... references [public.]table[(col2, ...)]`.
@@ -224,7 +277,10 @@ function findFkCandidates(sql: string): FkCandidate[] {
     if (insideConsumed) continue
     const schema = m[1]
     if (schema && schema.toLowerCase() !== 'public') continue
-    candidates.push({ table: m[2], columnCount: 1, snippet: m[0] })
+    // A single referencing column cannot be a composite key, so it cannot carry
+    // `user_id` INTO the key alongside the child id — whatever that one column
+    // happens to be named. Reported as the fact (`false`), not as an arity.
+    candidates.push({ table: m[2], keyedThroughUserId: false, snippet: m[0] })
   }
 
   return candidates
@@ -257,20 +313,24 @@ test('every child FK into an owner-scoped table is composite, keyed through user
   const violations: string[] = []
   for (const { file, sql } of parsed) {
     for (const c of findFkCandidates(sql)) {
-      if (c.columnCount > 1) continue
+      if (c.keyedThroughUserId) continue
       if (!ownerScoped.has(c.table)) continue
       const key = `${file}::${c.table}`
       if (GRANDFATHERED.has(key)) continue
-      violations.push(`${file}: single-column FK into owner-scoped "${c.table}" — ${c.snippet.trim()}`)
+      violations.push(
+        `${file}: child FK into owner-scoped "${c.table}" is not keyed through user_id — ${c.snippet.trim()}`
+      )
     }
   }
 
   assert.deepEqual(
     violations,
     [],
-    'PostgreSQL referential-integrity checks bypass RLS: a single-column FK into an owner-scoped ' +
-      "table validates a row pointed at a STRANGER's parent row. Key it (child_col, user_id) " +
-      'references parent(id, user_id) instead — see rules/db.md and 20260802_015_projects.sql.\n' +
+    'PostgreSQL referential-integrity checks bypass RLS: a child FK that does not carry user_id ' +
+      "into the key validates a row pointed at a STRANGER's parent row — and a second column " +
+      'that is not user_id (e.g. `(agent_id, created_at)`) buys nothing at all. Key it ' +
+      '(child_col, user_id) references parent(id, user_id) instead — see rules/db.md and ' +
+      '20260802_015_projects.sql.\n' +
       violations.join('\n')
   )
 })

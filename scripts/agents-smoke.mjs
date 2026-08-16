@@ -20,13 +20,36 @@ import path from 'node:path'
 // .env.local is not loaded outside Next, so read it the way the other scripts do —
 // except that this repo uses `git worktree` as a normal part of its workflow
 // (CONTEXT.md), and a worktree never carries its own .env.local; only the primary
-// checkout does. So walk UP from cwd and load the first one found, instead of
-// looking at cwd alone. Values already in process.env still win.
+// checkout does. Worktrees live at `<primary>/.claude/worktrees/<name>`, so walking
+// UP from cwd is what reaches the real file. Values already in process.env still win.
+//
+// THE BOUNDARY, and why it is not just "the first .env.local found" (fixed
+// 2026-08-16): an unbounded walk climbs all the way to the filesystem root, so a
+// run from an unexpected cwd would happily import EVERY key out of some unrelated
+// project's — or the desktop's — .env.local into this process, and then hand
+// whatever ANTHROPIC_API_KEY it found to a real, billable API. The walk therefore
+// only ACCEPTS a file that sits beside a package.json belonging to THIS repo; it
+// may pass through intermediate directories (`.claude/worktrees`, `.claude`) but
+// can never adopt a stranger's environment. Identifying the repo by package name
+// rather than by `.git` is deliberate: a worktree's `.git` is a FILE pointing at
+// the primary checkout, so `.git`-presence is true in both places and would stop
+// the walk at the worktree, which is the one directory guaranteed not to have the
+// file we are looking for.
+const REPO_PACKAGE_NAME = 'investor-transcription'
+
+function isThisRepoRoot(dir) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).name === REPO_PACKAGE_NAME
+  } catch {
+    return false
+  }
+}
+
 function loadLocalEnv() {
   let dir = process.cwd()
   for (;;) {
     const candidate = path.join(dir, '.env.local')
-    if (fs.existsSync(candidate)) {
+    if (fs.existsSync(candidate) && isThisRepoRoot(dir)) {
       for (const line of fs.readFileSync(candidate, 'utf8').split(/\r?\n/)) {
         const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/)
         if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '')
