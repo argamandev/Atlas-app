@@ -87,7 +87,7 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   are reachable from nowhere on the company page, including the one the founder could click
   yesterday. They remain in the corpus and on MAYA. Filed in `docs/open-findings.md`, and repeated
   here because a permanent log that records only the count reads as though nothing was lost.
-- **Verified:** **1179/1180**, `tsc` clean. The one red is environmental and predates this work —
+- **Verified:** **1182/1183**, `tsc` clean. The one red is environmental and predates this work —
   `environment.test.ts` counts a second `CLAUDE.md` inside a registered git worktree under
   `.claude/worktrees/`; any registered worktree turns it red for whoever has one. Both fixes driven
   in a browser in both locales, including the A/B that matters: a period WITH a transcript still

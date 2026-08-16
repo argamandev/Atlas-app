@@ -37,7 +37,7 @@ PICKED with `@`. **A merge owes a review verdict on the tip.**
 
 **Two founder bugs also fixed there, 2026-08-16** — an impossible ANNUAL row on the documents tab,
 and Ask Atlas 400ing on every period page with no transcript. Detail:
-`founder-bugs-2026-08-16.md`. **Battery 1179/1180; the red is a stray `CLAUDE.md` in a worktree.**
+`founder-bugs-2026-08-16.md`. **Battery 1182/1183; the red is a stray `CLAUDE.md` in a worktree.**
 
 **Next: close 09, then 10** (agent tables + create flow). **13** holds the cleanup list;
 poller/sweep deferred past V1.

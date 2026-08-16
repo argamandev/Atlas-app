@@ -139,6 +139,6 @@ risk is a feature refusing where it should allow — visible, not silent.
   `environment.test.ts` "the always-on set is exactly the declared set" finds a second `CLAUDE.md`
   inside `.claude/worktrees/new-worktree-setup-35b4ef/`, a registered git worktree created during
   this session and sitting at `main`'s tip with no commits of its own. Not touched — it may be the
-  parallel session's workspace. Everything else is green: **1179 pass, 1 fail** at this tip,
+  parallel session's workspace. Everything else is green: **1182 pass, 1 fail** at this tip,
   `tsc` clean. (An earlier draft said 1176 — a count carried across edits, which is M1's own
   example. Regenerated from a run of this tree.)
