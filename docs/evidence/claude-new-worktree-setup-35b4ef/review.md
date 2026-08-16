@@ -134,11 +134,44 @@ run engine, which is where the type check has to land.
 
 ---
 
-REVIEWED: c93a7c3
-VERDICT: CHANGES
+## Round history — three verdicts, each naming the commit it read
 
-**Read this pair honestly.** `c93a7c3` is the commit the final reviewer actually read, and its
-verdict was CHANGES on the arity BLOCKER above. That blocker and the six filed items are fixed in
-the two commits after it, so the branch tip is NOT the code this verdict is about — the gate will
-say so by name, and it is right to. A scoped re-review at the tip is dispatched by the controller,
-and this pair is updated by that round, not by the author claiming its outcome in advance.
+**`c93a7c3` — CHANGES.** The whole-branch review, on the FK-arity BLOCKER above: the guard decided
+on `columnCount > 1` rather than on whether `user_id` was in the key, so
+`foreign key (agent_id, created_at) references public.agents (id, created_at)` ran green. Fixed in
+`8728e7a` by deciding on `keyedThroughUserId`, and the law in `rules/db.md` was restated from "never
+single-column" to "keyed through `user_id`" so the declaration measures what the mechanism measures.
+
+**`1bf3d93` — CHANGES.** The tip re-review, on a **false sentence in `STATUS.md`**: it told every
+future session that the ship gate was blocked by the 09b merge and that "every merge after it hits
+the same gate — a second consecutive override is a founder call." Untrue. `recurrenceProblems`
+reads only the CURRENT branch's `docs/evidence/<branch>/review.md`; 09b's declarations are never
+re-opened. **The claim originated with the controller**, was reported as not firing by the
+implementer, and was then generalised in the STATUS rewrite without measurement — `rules/app.md` M1.
+It blocked because it sits in the always-on set, one command in the same tree refutes it, and its
+only operative effect was to pre-authorise a second consecutive `ATLAS_SHIP_OVERRIDE`.
+Same round: the stated limit added to `compositeChildFk.test.ts` was itself false (a quoted
+`"USER_ID"` passes, because the code strips quotes then lowercases) — a false limits paragraph
+written in the commit that fixed a false limits paragraph. And the set merged at one token of
+headroom. All answered in `035b572`.
+
+**`035b572` — APPROVED.** Re-probed rather than read. Ten probes against the rewritten limits
+paragraph, ten correct: unquoted `USER_ID` passes (Postgres folds), quoted `"USER_ID"` passes
+(deliberate over-acceptance, now stated), whitespace and newlines trimmed, and `owner_user_id`,
+`myuser_id` and `user_idx` all correctly red-lined by whole-token match. The two shapes that pass
+and look like holes — a positions-swapped key and a child pointer with no FK — are now named with
+the reason each is not one. `env:health` 10,400 / 10,430 with 30 spare, and the raise's per-file
+components match the command's output exactly rather than being arithmetic. Battery 1194/1194,
+`tsc` clean. The `STATUS.md` correction verified true by re-reading `scripts/ship-gate.mjs`, not by
+trusting the fix.
+
+Three notes recorded as **not findings**: the STATUS correction should evict at the next rewrite,
+having done its one cycle of refuting a belief this file itself planted; the limits paragraph stays
+beside the code it describes rather than moving to case-history, because being checkable only
+elsewhere is exactly why it stayed false for two rounds; and `app.md` remains 5,727 of 10,400 tokens
+with its shrink nine slices overdue — a founder-scheduled mission, not a merge condition.
+
+---
+
+REVIEWED: 035b572
+VERDICT: APPROVED
