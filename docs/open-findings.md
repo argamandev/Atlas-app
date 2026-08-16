@@ -263,3 +263,25 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   **Not a law and not a blocker**, and cheap: it is one person looking at one notice in two locales.
   Whoever closes it should fix the evidence file's contradiction in the same motion — a drive record
   that disagrees with itself is worse than one that admits a gap. → `#choke-point-inputs`
+- **Nothing mechanical can check whether a sentence ABOUT the code is true** (recorded 2026-08-16,
+  agents-1 plan 1). **Three of this branch's last four review rounds found a false statement in a
+  document, not a defect in code:** `STATUS.md` telling every future session that a previous ship's
+  override carried forward (it does not — the gate reads only the current branch's record); a
+  `STATED LIMITS` paragraph claiming a quoted `"USER_ID"` was not recognised (it passes — the code
+  strips quotes then lowercases); and `PROGRESS.md` + `STATUS.md` recording the SDK bump as
+  `0.102.0 → 0.106.0`, a version never in this tree, which made the founder's recorded "SDK bump on
+  a live product" decision read four minor versions wide instead of fifteen.
+  **The battery, `tsc` and the ship gate check counts, declarations, eviction and recurrence. None
+  of them can check a claim.** `environment.test.ts` measures how many tokens a law costs, never
+  whether it is true; the gate re-measures `Verified: N/M` and ARCHITECTURE's count header and has
+  no notion of a version claim at all.
+  **All three were caught the same way — a SECOND document stating the same fact independently, and
+  the two disagreeing.** The version came out because the handoff file stated it separately; the
+  limits paragraph because someone probed rather than read. That is duplication working as a
+  cross-check, which is luck rather than a mechanism, and the usual instinct — "state each fact in
+  exactly one place" — would have removed the very redundancy that caught all three.
+  **Not a law and not a blocker.** Worth deciding deliberately, because the cheap version is a
+  habit ("state load-bearing facts twice, in different files, and let a check compare them") and the
+  expensive version is a test that extracts claims and re-derives them. The two false claims that
+  reached the always-on set are the ones with real cost: every session reads them, and one of them
+  would have pre-authorised a founder decision that had no cause.
