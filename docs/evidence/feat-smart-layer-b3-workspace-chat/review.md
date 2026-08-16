@@ -446,3 +446,67 @@ been fixed. That is the signature of a per-branch fix (M3.1), and one function i
 
 **Round 8's verdict was CHANGES and its findings are answered above. The machine-readable pair
 belongs to a round that has READ those answers — round 9, below.**
+
+## Round 9 — at `f81e83a`. VERDICT **CHANGES**, and the branch is merged anyway, on the founder's call
+
+Round 9 re-derived the branch's central measurement independently (233 issuers, 8,804 filings, **81
+lost, all presentations, zero reports, 0 re-pointed**) and confirmed everything the previous rounds
+bought. It then found what the pattern predicted: **a fourth channel**, in the sub-line the round-7
+fix had just made conditional.
+
+### The BLOCKER, and why it merged
+
+`subjectHasAudio` decides "the audio keeps playing while you ask" from the grounding KIND — a proxy
+for "there is a recording" (M3.2, one round after M3.1). A stored transcript whose `audio_url` is
+null takes the `call` branch and still shows it. Live today: one of five production transcript rows,
+`PyuMxe88e8g`.
+
+**It is not a regression, and that is the whole reason it merged.** On `main` at `463b588` that
+sentence is UNCONDITIONAL (`TranscriptChatPanel.tsx:361`) — every screen showed it, including period
+pages with no recording at all. This branch made it conditional and fixed the large majority; this
+is the remainder, and it is strictly better than what `main` has today.
+
+**FOUNDER DECISION, 2026-08-16:** *"okay lets merge to main everything. it works good."* Asked after
+being shown the state, including this finding. Merged with `ATLAS_SHIP_OVERRIDE`, and the finding is
+filed in `docs/open-findings.md` with the fix named, so it is not rediscovered as new.
+
+### Round 9's other findings, and what happened to each
+
+- **WARNING · the audio test asserts the property in the CODE's terms, not the user's** — "two enum
+  members map to true" is green for the screen above. Correct, and it is M2: the mechanism that
+  should catch the recurrence now points the wrong way. Filed with the BLOCKER.
+- **WARNING · bug 2's state table not re-checked at this tip** (8c) — no row for `{kind:'shelf'}`,
+  and row 3 drove only the audio-present side of a stored call. Accurate.
+- **WARNING · round 5's four recurrence declarations remain unanswered**, so `ship:gate` still
+  refuses. Pre-existing, deferred by round 6, unmoved. **This is the main reason the merge needed an
+  override, and it is not this work's debt.**
+- **WARNING · the battery count was stale on arrival again** — the commit correcting 1176→1179 added
+  three tests, so the tip measures 1182/1183. **FOURTH hand-carried count on this branch.** Round 3
+  already named the mechanism worth having (a ship-gate check that a battery count matches the
+  battery's own output) and left it untaken; `ship:gate` sees PROGRESS and ARCHITECTURE but not
+  STATUS or the evidence file. Counts regenerated at merge.
+- **WARNING · `copyAll` on a period page copies an empty string and toasts "Transcript copied"** —
+  success UI for a transcript that does not exist. Predates this branch, same screen, same class.
+  Filed.
+- **NIT · the transcript rail still prints "Call sections"/"Speakers" over empty lists** on a period
+  page. Same class, filed.
+- **NIT · a passage marked in the SLIDES pane is labelled to the model as the quarterly report.**
+  Real and separate; filed.
+- **NIT · `LiveSession`'s two `as LiveCall` casts** mean `tsc` names nothing there, so the "every
+  producer states the fact" claim has one honest exception — correct today only because the route
+  serialises `loadCompletedCall` whole. Recorded rather than claimed away.
+- **NIT · the union-coverage test** stays green if the `never` default is replaced by a literal; the
+  real mechanism is the `never` binding plus the two `Record<AskSubject, string>` maps. Accurate —
+  the test documents the coverage, the compiler enforces it.
+
+### The honest summary of four rounds on one screen
+
+Rounds 6, 7, 8 and 9 each found a false statement in an input the previous fix had not touched: the
+caption, then the hero, then the catch-all, then the audio promise. Three of the four were the same
+law. The branch moved that law from prose to a single exhaustive function with a `never` default —
+which is the right tier — and round 9 shows the remaining gap is no longer *which* subject, but a
+FACT (`audioUrl`) the panel still infers instead of being given. That is the next tier and it is
+named in the finding.
+
+REVIEWED: f81e83a5398420b48fbfc3143ac9b5776f73999b
+VERDICT: CHANGES

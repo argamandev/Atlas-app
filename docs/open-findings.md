@@ -216,3 +216,18 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   2026 calling itself the annual report, which is the defect that was reported. The real answer is
   to build the bucket — a year's decks listed under it by publication date — and that is a founder
   decision about a surface, not a bug fix. **Not a law and not a blocker.**
+- **A stored call with no audio still promises "the audio keeps playing while you ask"** (round 9,
+  2026-08-16). `subjectHasAudio` decides that line from the grounding KIND — a proxy for "there is a
+  recording" (M3.2) — so a transcript row whose `audio_url` is null takes the `call` branch and shows
+  it beside a disabled play control. Live today: of five rows in production `transcripts`, exactly
+  one has a null `audio_url` — `PyuMxe88e8g`, Tigbur Q1 2026.
+  **NOT a regression, which is why it merged.** On `main` that sentence is UNCONDITIONAL
+  (`TranscriptChatPanel.tsx:361` at `463b588`) — every screen showed it, including the period pages
+  with no recording at all. This branch made it conditional and fixed the large majority of the
+  cases; this is the remainder, and it is strictly better than what shipped before.
+  **The fix is small and named:** the panel should take the audio FACT (`call.audioUrl`, already read
+  twice in `LiveTranscriptView`) rather than infer it, so the promise cannot be rendered without one
+  — and the test should state the property in the user's terms ("no screen without audio shows
+  `askHeroSub`") rather than asserting two enum members map to `true`, which is what let this pass.
+  **Not a law and not a blocker.** Merged knowingly on the founder's instruction, recorded here so
+  it is not rediscovered as new.
