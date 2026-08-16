@@ -178,5 +178,32 @@ with its shrink nine slices overdue — a founder-scheduled mission, not a merge
 
 ---
 
-REVIEWED: 035b572
+**`9af843e` — CHANGES.** The handoff file's review, and it found what four rounds of code review had
+not: `PROGRESS.md:10` and `STATUS.md:23` recorded the SDK bump as `0.102.0 → 0.106.0`, a version
+never in this tree. `package.json` pins `^0.117.1` and `git log -p main..HEAD -- package.json` shows
+one bump. It surfaced ONLY because the handoff stated the version independently and the two
+disagreed — the ship gate re-measures test counts and token counts and **has no notion of a version
+claim at all**. The figure also understated the only production dependency change on the branch:
+`DECISIONS.md` records the founder accepting "an SDK bump on a live product", and fifteen minor
+versions is a different risk statement from four. Same round corrected the record's account of the
+false `STATUS.md` claim: it was **inherited from `main`'s own STATUS** (verified present before
+merge-base `21b0615`), repeated here, then generalised in the rewrite — a sharper lesson than the
+one this file first recorded.
+
+**`1ee8654` — CHANGES.** One sentence, in the new `docs/open-findings.md` entry about unchecked
+claims: it asserted all three false statements were caught by a second document disagreeing, which
+the entry's own next line refuted. Two of the three were caught by **executing** the thing the
+sentence was about — probing the guard, running the gate — and only one by redundancy. The habit it
+proposed off that mis-generalisation, "state load-bearing facts twice", also cut against CLAUDE.md's
+own token discipline. Corrected at `d3b1b60`, with the error kept visible inside the entry rather
+than edited away — the house style (`env-manifest.mjs` keeps its stale "~8.8k", this test file keeps
+"THIS PARAGRAPH WAS FALSE WHEN FIRST WRITTEN", `rules/app.md` opens by admitting three wrong counts).
+
+**`d3b1b60` — APPROVED.** Re-measured at the tip rather than accepted: battery 1194/1194,
+`env:health` 10,400 / 10,430 with the unenforced count unmoved at 13, `docs/open-findings.md`
+confirmed outside the always-on set so the entry costs the budget nothing.
+
+---
+
+REVIEWED: d3b1b60
 VERDICT: APPROVED
