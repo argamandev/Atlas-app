@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { toRemoteSources } from './filings'
 import type { MayaFiling } from './types'
+import { buildPeriods } from '@/lib/company/documentCatalog'
 
 /** Shaped like the live rows read on 2026-08-06. */
 function filing(over: Partial<MayaFiling> = {}): MayaFiling {
@@ -162,4 +163,48 @@ test('every source that reaches the shelf carries the class the backfill selects
   )
   // and the deck is a deck by BOTH readings — never the Q1 report
   assert.equal(out.find((s) => s.mayaReportId === 3)?.docType, 'slides')
+})
+
+// ── the founder's דנאל sighting, end to end (2026-08-16) ─────────────────────
+//
+// STATED AS THE FOUNDER STATED IT: open a company's documents and 2026 must not
+// offer an ANNUAL report, because 2026 is not over. The three rows below are the
+// real document-eligible filings the live MAYA feed returned for issuer 314.
+test('a year still in progress offers no annual period — the דנאל rows, end to end', () => {
+  const danel2026 = [
+    filing({
+      mayaReportId: 1742284,
+      title: 'דוח רבעון 1 לשנת 2026',
+      publicationDate: '2026-05-19T16:22:05.31',
+      issuer: [{ issuerId: 314, issuerName: 'דנאל' }],
+      events: [{ eventId: 104, eventName: 'דוח רבעון 1' }],
+    }),
+    // The row that produced **שנתי 2026**: a capital-markets deck MAYA tagged with
+    // the ANNUAL event, whose title states a month, not a fiscal year.
+    filing({
+      mayaReportId: 1742288,
+      title: 'מצגת שוק ההון- מאי 2026',
+      publicationDate: '2026-05-19T16:47:08.093',
+      issuer: [{ issuerId: 314, issuerName: 'דנאל' }],
+      events: [
+        { eventId: 101, eventName: 'דוח תקופתי ושנתי' },
+        { eventId: 270, eventName: 'מצגת' },
+      ],
+    }),
+  ]
+
+  const sources = toRemoteSources(danel2026)
+  assert.equal(sources.length, 2, 'both filings are still offered — nothing was dropped')
+
+  const periods = buildPeriods(sources, []).map((p) => p.period)
+  assert.deepEqual(periods, ['Q1 2026'])
+  assert.ok(!periods.includes('FY 2026'), 'no annual period for a year that has not ended')
+
+  // The deck is still a deck and still reachable; it simply stops claiming to be
+  // the annual report. `documentCatalog` puts a standalone company deck in the
+  // later bucket — it names דנאל on exactly this point.
+  const deck = sources.find((s) => s.mayaReportId === 1742288)
+  assert.equal(deck?.docType, 'slides')
+  assert.equal(deck?.kind, 'presentation')
+  assert.equal(deck?.period, '19.05.2026')
 })
