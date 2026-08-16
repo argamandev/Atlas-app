@@ -733,6 +733,8 @@ export const en = {
     askFollowLive: "Atlas is following this call live. Ask about anything that's been said.",
     askConnectedCall: "Atlas is connected to this call's context. Ask whatever you'd like.",
     askConnectedCompany: "Atlas is connected to this company's context. Ask whatever you'd like.",
+    /** `{kind:'none'}` — a real recipe (market-wide search), not an absence to paper over. */
+    askConnectedMarket: "Atlas is searching the whole market. Ask whatever you'd like.",
     voiceSoon: 'Voice ask — coming soon',
     slideLabel: 'Slide',
   },

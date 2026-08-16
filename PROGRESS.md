@@ -53,9 +53,44 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   `tsc` and the whole battery (M1). The notice decision now lives in `intake/notice.ts` as a pure
   function, and the two dead ends have separate sentences: advising `@` to someone who just used `@`
   names the action that failed.
-- **Verified:** 1168/1168 green, `tsc` clean, and the workspace honesty states driven in a browser in
-  both locales — then **re-driven** after review changed the code under them, because a drive expires
-  (8c). Evidence, review record and all three runs: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
+- **Two founder-reported bugs, fixed the same day (2026-08-16).** **(1)** The documents tab offered
+  an ANNUAL row for a year still in progress. `periodFor` builds a label from two independent
+  sources — a period CODE off the MAYA event ids and a YEAR off a regex on the title — and nothing
+  made them agree: a capital-markets deck tagged with the annual code met the year of a MONTH NAME.
+  A deck is now refused a period that had not ended when it was published. **The first version of
+  that rule was a BLOCKER at review, and the catch is the lesson:** it also checked reports, and
+  against a year it had INFERRED when the title stated none — which for an annual can never pass, so
+  every annual with a year-less title would have left the catalog to fix two rows. I had reasoned
+  that class was rare instead of counting it. Counting it settled the design: **8,804
+  document-eligible filings across all 233 issuers, 81 labels changed, every one a deck, zero
+  reports** (`node --import tsx scripts/measure-period-labels.ts`, committed so the number can be
+  re-derived rather than quoted). The sweep also found real reports the naive rule threw away — a
+  foreign-track issuer whose FISCAL quarter is not a calendar one — and one more class, filed as an
+  open finding: forecasts carrying the annual code, competing with the statements for a period's
+  report slot.
+  **(2)** Ask Atlas answered "this grounding cannot be honoured" to every question asked from a
+  period page with no transcript. That screen fabricates `period:<companyId>:<period>` as a routing
+  key, and the view chose its chat grounding with `call.id !== 'demo'` — a PROXY that named one of
+  the two screens without a stored row and could not see the other — so it offered the chat route a
+  call id that is not even shaped like one, and the turn died at the shape gate before any lookup.
+  `LiveCall` now carries a REQUIRED `storedTranscriptId`, which made `tsc` name every producer, and
+  the recipe is chosen by `lib/live/askGrounding.ts`, a pure function whose sweep includes the
+  property binding the two sides: every `{kind:'call'}` it produces passes the same shape test the
+  route applies. Seven sites read that proxy — the caption among them, so the screen also PROMISED a
+  call it did not have. The panel now reads the grounding itself and the second input is deleted:
+  one input cannot disagree with itself.
+  **Scope, stated plainly:** the period-label half is company-catalog work riding a workspace-chat
+  branch, at the founder's explicit request, and it changes the documents tab for all 233 issuers.
+- **Verified:** **1179/1180**, `tsc` clean. The one red is environmental and predates this work —
+  `environment.test.ts` counts a second `CLAUDE.md` inside a registered git worktree under
+  `.claude/worktrees/`; any registered worktree turns it red for whoever has one. Both fixes driven
+  in a browser in both locales, including the A/B that matters: a period WITH a transcript still
+  grounds in the call, and a period without one grounds in the company and answers 200 where it used
+  to 400. Evidence: `docs/evidence/feat-smart-layer-b3-workspace-chat/founder-bugs-2026-08-16.md`.
+  The workspace honesty states were driven in a browser in both locales at 09b, then **re-driven**
+  after review changed the code under them, because a drive expires (8c); that battery measured
+  1168/1168 at the time, and the line above is the same tree re-measured after these two fixes.
+  Evidence, review record and all runs: `docs/evidence/feat-smart-layer-b3-workspace-chat/`.
 
 ## 2026-08-15 — The loop learns images, and the old `/api/chat` dies (`feat/smart-layer-b2c-doc-grounding`, ticket 08c-3 — CLOSES ticket 08)
 

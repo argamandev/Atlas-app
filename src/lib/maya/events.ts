@@ -49,15 +49,21 @@ const PERIOD_BY_EVENT: Record<number, string> = {
 }
 
 /**
- * WHICH CODE WINS when a filing carries more than one, in order.
+ * THE CODES A FILING CARRIES, in a fixed order rather than the feed's.
  *
- * A QUARTER BEATS THE ANNUAL CODE. `docTypeFor` and `filingKind` both resolve
- * their collisions with a stated precedence; this was the only one of the three
- * readers that took whatever MAYA happened to list FIRST (`.find(Boolean)` over
- * the raw array), so the same filing could be labelled `FY` or `Q2` depending on
- * feed order — a fact about the transport, not about the document.
+ * This reader used to take whatever MAYA happened to list FIRST (`.find(Boolean)`
+ * over the raw array), so a filing carrying two codes could be labelled `FY` or
+ * `Q2` depending on transport order — a fact about the feed, not the document.
+ * NO SUCH FILING WAS FOUND in the live data (issuer 314, 2025-2026, both years),
+ * so this closes a fragility rather than a sighting.
+ *
+ * THE ORDER IS `filingKind`'s, deliberately (events.ts, annual before quarters).
+ * An earlier pass here put quarters first and was caught at review: the catalog
+ * would have shelved a `[101,105]` filing under `Q2` while the backfill selected
+ * it as that company's ANNUAL, which is two readers of one field disagreeing.
+ * `periodFor` does not get to invent a third precedence.
  */
-const PERIOD_CODE_PRECEDENCE: readonly number[] = [EVENT_Q1, EVENT_Q2, EVENT_Q3, EVENT_ANNUAL]
+const PERIOD_CODE_ORDER: readonly number[] = [EVENT_ANNUAL, EVENT_Q1, EVENT_Q2, EVENT_Q3]
 
 /** The last day the period named by `code` covers, as an Israel day key. */
 function periodEndDay(code: string, year: string): string {
@@ -149,10 +155,8 @@ export function filingKind(eventIds: number[]): 'annual' | 'quarterly' | 'presen
  * year is a best effort, not a promise.
  */
 export function periodFor(eventIds: number[], title: string | null, publishedISO: string): string {
-  const period =
-    PERIOD_CODE_PRECEDENCE.filter((id) => eventIds.includes(id))
-      .map((id) => PERIOD_BY_EVENT[id])
-      .find(Boolean) ?? ''
+  const codes = PERIOD_CODE_ORDER.filter((id) => eventIds.includes(id)).map((id) => PERIOD_BY_EVENT[id]!)
+  const period = codes[0] ?? ''
   // Israel time, from the one file allowed to know what that means (app.md's Time
   // laws). This also closes a listed UTC leak: the previous `getUTCFullYear` put a
   // filing published in the first hours of 1 January into the wrong fiscal year.
@@ -182,19 +186,44 @@ export function periodFor(eventIds: number[], title: string | null, publishedISO
   // filing is already stored that way in `company_documents`.
   //
   // The honest test is a fact, not a vocabulary: a filing cannot report on a period
-  // that had not finished when it was published. A code failing that says the two
-  // sources were describing different things, so the code is dropped and the filing
-  // falls to the publication-date label below — which is exactly what a standalone
-  // `מצגת שוק ההון` is supposed to get (`documentCatalog.ts` names דנאל on that
-  // point), and which `parsePeriod` then keeps out of the period list entirely.
+  // that had not finished when it was published.
   //
-  // NOT A GUESS AT THE RIGHT PERIOD. Deciding this deck is "really" FY 2025 would
-  // invent a fact neither source states; refusing to claim a period does not.
+  // ⚠ IT IS ASKED OF DECKS ONLY, AND ONLY AGAINST A YEAR THE ISSUER STATED. Both
+  // restrictions were bought by measuring, after a cold review called the first
+  // version a BLOCKER for refusing far more than it fixed.
+  //
+  // WHY DECKS ONLY — the two titles say different KINDS of thing. `מצגת שוק ההון -
+  // מרץ 2026` names WHEN THE DECK WAS MADE; `דוח רבעון 1 לשנת 2026` names WHAT
+  // PERIOD IT COVERS. Only in the first does the title's year mean something other
+  // than a fiscal period, so only there can it disagree with the event code. Asking
+  // it of reports assumes fiscal quarters are calendar quarters, and they are not:
+  // measured across all 233 issuers and 8,804 filings, that assumption threw out
+  // פרוספקט's real results — a foreign-track issuer whose fiscal Q3 2026 genuinely
+  // ended 31.3.26 — while every other report it refused was a FORECAST wearing the
+  // annual code (בזק's `תחזית לשנת 2025`, filed in 2025). Those are a separate
+  // defect, filed in `docs/open-findings.md`, not this one.
+  //
+  // WHY A STATED YEAR ONLY — with no year in the title the year is INFERRED from the
+  // publication date, and the test would compare the label against its own input.
+  // For `FY` that can never pass: an annual filed in 2025 asked whether 2025 had
+  // ended by 2025. A guess is not evidence, so a guessed year buys no refusal.
+  // → M3.2: decide on the fact, never on a proxy for it.
+  //
+  // A deck carrying SEVERAL codes tries each, so an impossible one costs it a label
+  // rather than its place.
+  //
+  // NOT A GUESS AT THE RIGHT PERIOD. Deciding the דנאל deck is "really" FY 2025
+  // would invent a fact neither source states; declining to claim a period does not
+  // — it falls to the publication-date label below, which is what `documentCatalog`
+  // already wants for a standalone `מצגת שוק ההון` (it names דנאל on that point).
   if (period) {
-    // Undatable filing ⇒ the check cannot be run, so nothing changes for it.
-    if (!day) return `${period} ${titleYear ?? ''}`.trim()
-    const year = titleYear ?? day.slice(0, 4)
-    if (year && day > periodEndDay(period, year)) return `${period} ${year}`
+    // Undatable filing, or a year we inferred ⇒ the check cannot be run honestly,
+    // so the label is exactly what it was before this rule existed.
+    if (!day || !titleYear || !eventIds.includes(EVENT_PRESENTATION)) {
+      return `${period} ${titleYear ?? day.slice(0, 4)}`.trim()
+    }
+    const possible = codes.find((c) => day > periodEndDay(c, titleYear))
+    if (possible) return `${possible} ${titleYear}`
   }
 
   // ── NO PERIOD CODE: A DECK, AND ITS PUBLICATION DATE IS WHAT TELLS TWO APART ──

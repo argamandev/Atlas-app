@@ -181,3 +181,16 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   is to treat `114` the way `113` is already treated (a filing that is not a document on a shelf),
   which is a change to what the corpus CONTAINS and deserves its own mission and its own measurement
   across issuers. **Not a law and not a blocker.**
+- **A FORECAST tagged with the annual code can occupy a company's annual report slot**
+  (recorded 2026-08-16, measured across all 233 issuers, 8,804 document-eligible filings). MAYA tags
+  guidance and preliminary-results announcements with `101` plus a forecast code: בזק filed
+  `תחזית לשנת 2025 ויעדים לטווח הבינוני` as `[101, 220]`, נקסט ויז'ן filed a preliminary revenue
+  estimate as `[101, 278]`, גילת טלקום and פריון נטוורק filed Q2 profit forecasts as `[105, 220]`.
+  `docTypeFor` sees the period code, types them `report`, and they compete for the period's report
+  slot against the actual statements.
+  **This is the shape `isAnnouncement` already solves for `113`** — a notice that carries the event
+  id of the thing it is announcing. `220` (תחזית) and `278` look like the same class and are not
+  excluded. **Not fixed here** because it changes what the corpus CONTAINS for every issuer and
+  wants its own measurement of each code before anything is excluded — the `113` rule was bought
+  with a 20-issuer/814-filing probe. **Not a law and not a blocker.**
+  Command that produced the list: `node --import tsx scripts/measure-period-labels.ts`.

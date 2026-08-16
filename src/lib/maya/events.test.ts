@@ -157,17 +157,8 @@ test('a deck that DOES carry a period code is untouched — still Q1 2026', () =
 test('the fallback year is ISRAEL time, closing the listed UTC leak', () => {
   // 2026-01-01 00:30 Israel is 2025-12-31 22:30 UTC. `getUTCFullYear` labelled
   // this filing 2025 — one of the two UTC leaks in docs/open-findings.md.
-  //
-  // BOTH LABELS ARE BUILT FROM THE SAME `day`, so the deck — which prints the whole
-  // Israel day, not just its year — is the witness for this property.
+  assert.equal(periodFor([106], null, '2026-01-01T00:30:00'), 'Q3 2026')
   assert.equal(periodFor([270], null, '2026-01-01T00:30:00'), '01.01.2026')
-
-  // The period-code line that used to sit here asserted `Q3 2026` for a filing
-  // published on 1 January 2026 — a Q3 report three quarters before its quarter
-  // ended. It was a fixture certifying an impossible premise (M2), and the
-  // closed-period rule below is what now refuses it. The year is still read the
-  // same way; there is simply no period a 1-January filing can already report on.
-  assert.equal(periodFor([106], null, '2026-01-01T00:30:00'), '01.01.2026')
 })
 
 test('an unparseable publication date yields a weaker label, never an exception', () => {
@@ -194,7 +185,7 @@ test('an unparseable publication date yields a weaker label, never an exception'
 // Every fixture below is a REAL row from the live MAYA feed for issuer 314,
 // read on 2026-08-16, not a constructed shape.
 
-test('a filing is never labelled with a period that had not ended when it was published', () => {
+test('a DECK is never labelled with a period that had not ended when it was published', () => {
   // `מצגת שוק ההון- מאי 2026`, tagged [101 דוח תקופתי ושנתי, 270 מצגת], published
   // 2026-05-19. The annual code met the "2026" of a MONTH NAME and produced
   // `FY 2026` — which `parsePeriod` accepted, `FY` sorted to the top of 2026, and
@@ -204,12 +195,31 @@ test('a filing is never labelled with a period that had not ended when it was pu
   assert.notEqual(deck, 'FY 2026')
   assert.equal(deck, '19.05.2026')
 
-  // Same company, same shape, a year earlier: a conference-call RECORDING tagged
-  // [101, 233] published 2025-03-24, whose title carries "24/03/2025". It was
-  // labelled `FY 2025` and would have competed for that year's annual slot.
-  const recording = periodFor([101, 233], 'הקלטת שיחת ועידה מיום 24/03/2025', '2025-03-24T17:53:59.733')
-  assert.notEqual(recording, 'FY 2025')
-  assert.equal(recording, '24.03.2025')
+  // The same shape at nine other issuers, from the 233-issuer sweep: a March deck
+  // named by its month, carrying the annual code of the report it accompanies.
+  assert.equal(periodFor([101, 270], 'מצגת משקיעים - מרץ 2026', '2026-03-23T09:00:00'), '23.03.2026')
+  assert.equal(periodFor([101, 270], 'מצגת לשוק ההון - מרס 2025', '2025-03-27T09:00:00'), '27.03.2025')
+})
+
+test('a REPORT keeps its period even when the same test would refuse it', () => {
+  // THE RULE IS ASKED OF DECKS ONLY, and this is the case that bought that limit.
+  // פרוספקט is a foreign-track issuer whose FISCAL Q3 2026 ended 31.3.26, so its
+  // results published 2026-05-08 are a real, closed quarter that a calendar-quarter
+  // test calls impossible. Measured: refusing reports too threw out three of its
+  // filings. A report's title states the period it covers; only a deck's states a
+  // month, which is the whole reason the two can disagree.
+  assert.equal(
+    periodFor([106], 'תוצאות החברה לרבעון 3 לשנת 2026 פורסמו בחו"ל', '2026-05-08T09:00:00'),
+    'Q3 2026'
+  )
+
+  // And a conference-call RECORDING tagged [101, 233] — a report by docType, so it
+  // keeps `FY 2025` exactly as before. It carries no PDF and never reaches the
+  // catalog, which is why this is stated rather than fixed here.
+  assert.equal(
+    periodFor([101, 233], 'הקלטת שיחת ועידה מיום 24/03/2025', '2025-03-24T17:53:59.733'),
+    'FY 2025'
+  )
 })
 
 test('the periods that HAVE ended are untouched — the real דנאל rows, unchanged', () => {
@@ -225,12 +235,74 @@ test('the periods that HAVE ended are untouched — the real דנאל rows, unch
   assert.equal(periodFor([105, 270], 'מצגת שוק ההון- אוגוסט 2025', '2025-08-21T18:27:01.527'), 'Q2 2025')
 })
 
-test('the period code is chosen by precedence, never by the order MAYA listed it', () => {
+test('the period code is chosen in a fixed order, never by the order MAYA listed it', () => {
   // `.find(Boolean)` over the raw array made the label a fact about the TRANSPORT:
-  // the same filing was `FY` or `Q2` depending on which id the feed happened to
-  // put first. A quarter beats the annual code, and both orders now agree.
+  // the same filing was `FY` or `Q2` depending on which id the feed happened to put
+  // first. NOTE: unlike every fixture above, no filing carrying two period codes was
+  // found in the live feed — this pins a fragility, not a sighting.
   const a = periodFor([101, 105], 'דוח רבעון 2/חצי שנתי לשנת 2025', '2025-08-21T18:01:04.437')
   const b = periodFor([105, 101], 'דוח רבעון 2/חצי שנתי לשנת 2025', '2025-08-21T18:01:04.437')
   assert.equal(a, b)
-  assert.equal(a, 'Q2 2025')
+  // Annual first, because that is how `filingKind` settles the same collision. This
+  // reader does not get to invent a second precedence.
+  assert.equal(a, 'FY 2025')
+
+  // A DECK carrying both tries the next code when the first names a period that had
+  // not ended — an impossible label costs it a label, never its place.
+  assert.equal(
+    periodFor([101, 105, 270], 'מצגת תוצאות רבעון 2 לשנת 2025', '2025-08-21T18:27:01.527'),
+    'Q2 2025'
+  )
+})
+
+// ── THE CLASS COLD REVIEW CAUGHT: a rule that would have emptied the shelf ────
+//
+// The first version of the closed-period rule checked the code against the year it
+// had just INFERRED from the publication date when the title stated none. For `FY`
+// that comparison can never pass — an annual filed in 2025 was asked whether 2025
+// had ended by 2025 — so every annual-coded filing with a year-less title fell to a
+// date label, which `parsePeriod` refuses, which takes it off the documents tab.
+// 100% of that class, to fix two rows. These cases exist so it cannot come back.
+
+test('a year we INFERRED buys no refusal — only a year the issuer stated does', () => {
+  // A DECK with no year in its title: the year is our own inference, so there is
+  // nothing to check the code against and the label is what it always was.
+  assert.equal(periodFor([101, 270], 'מצגת שוק ההון', '2026-03-24T09:00:00'), 'FY 2026')
+  assert.equal(periodFor([101, 270], null, '2026-03-24T09:00:00'), 'FY 2026')
+  // Reports are outside the rule entirely, stated year or not.
+  assert.equal(periodFor([101], 'דוח תקופתי ושנתי', '2025-03-24T11:33:03.103'), 'FY 2025')
+  assert.equal(periodFor([101], 'Annual Report', '2026-03-24T09:00:00'), 'FY 2026')
+  assert.equal(periodFor([101], null, '2025-03-24T11:33:03.103'), 'FY 2025')
+  assert.equal(periodFor([106], null, '2026-02-10T09:00:00'), 'Q3 2026')
+})
+
+test('no REPORT that had a place on the tab loses it to this rule', () => {
+  // The property in the founder's terms: the rule may only refuse a label, never a
+  // document a reader could open. Measured across all 233 issuers and 8,804
+  // document-eligible filings: 99 labels change, and every one is a deck.
+  // `parsePeriod` accepts `FY|Q1|Q2|Q3 <year>` and nothing else, so anything that
+  // stops matching leaves the documents tab.
+  const isPeriod = (s: string) => /^(FY|Q1|Q2|Q3) (?:19|20)\d{2}$/.test(s)
+  const reports: [number[], string | null, string][] = [
+    [[101], 'דוח תקופתי ושנתי לשנת 2024', '2025-03-24T11:33:03.103'],
+    [[104], 'דוח רבעון 1 לשנת 2026', '2026-05-19T16:22:05.31'],
+    [[105], 'דוח רבעון 2/חצי שנתי לשנת 2025', '2025-08-21T18:01:04.437'],
+    [[106], 'דוח רבעון 3 לשנת 2025', '2025-11-24T13:46:03.91'],
+    // The classes the sweep found a naive rule would have thrown away:
+    [[106], 'תוצאות החברה לרבעון 3 לשנת 2026 פורסמו בחו"ל', '2026-05-08T09:00:00'], // non-calendar FY
+    [[101], 'Periodic Report For 2024', '2024-04-11T09:00:00'], // English title, same year
+    [[101], 'דוח תקופתי ושנתי', '2026-03-24T09:00:00'], // no year stated at all
+    [[101], null, '2026-03-24T09:00:00'],
+  ]
+  for (const [ids, t, iso] of reports) {
+    assert.ok(isPeriod(periodFor(ids, t, iso)), `lost its period: ${t}`)
+  }
+
+  // A RESULTS deck keeps its quarter too — `CatalogPeriod.slides` exists to hold it.
+  assert.ok(
+    isPeriod(
+      periodFor([104, 270], 'מצגת משקיעים - דוחות כספיים לרבעון הראשון של שנת 2026', '2026-05-27T00:00:00')
+    )
+  )
+  assert.ok(isPeriod(periodFor([105, 270], 'מצגת שוק ההון- אוגוסט 2025', '2025-08-21T18:27:01.527')))
 })

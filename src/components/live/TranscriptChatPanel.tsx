@@ -66,7 +66,6 @@ interface Msg {
 }
 
 export function TranscriptChatPanel({
-  transcriptId,
   grounding,
   quote,
   seedNonce,
@@ -76,7 +75,6 @@ export function TranscriptChatPanel({
   heroLine2,
   snipAvailable,
 }: {
-  transcriptId: string | undefined
   /**
    * WHAT THIS PANEL'S ANSWERS ARE GROUNDED IN. **Required** since 08c-3.
    *
@@ -599,13 +597,23 @@ export function TranscriptChatPanel({
             </span>
           </div>
         </div>
-        {/* what Atlas is connected to, per context (design round 2 captions) */}
+        {/*
+          WHAT ATLAS IS CONNECTED TO — read off the GROUNDING, which is the thing it
+          is describing. It used to be read off a separate `transcriptId` prop, and
+          two inputs for one sentence is two chances to disagree: a `{kind:'none'}`
+          turn (the demo call when its company cannot be resolved) carried no
+          transcript id, so the caption told the user Atlas was connected to the
+          company while the request named no company at all. The prop is gone rather
+          than corrected — one input cannot disagree with itself (M3.3).
+        */}
         <p className="call-muted mt-2 px-1 text-center text-[11.5px] leading-[1.5]">
           {grounding.kind === 'live'
             ? dict.live.askFollowLive
-            : transcriptId
+            : grounding.kind === 'call'
               ? dict.live.askConnectedCall
-              : dict.live.askConnectedCompany}
+              : grounding.kind === 'none'
+                ? dict.live.askConnectedMarket
+                : dict.live.askConnectedCompany}
         </p>
       </div>
     </aside>

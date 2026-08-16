@@ -283,7 +283,8 @@ the deploy, which comes after this chapter.
 | `syncEngine.ts` | Karaoke sync — maps audio time → current word. Unit-tested. |
 | `recallAdapter.ts` | Normalizes Recall.ai data into our shape. |
 | `finishLiveCall.ts` | Live → finished hand-off (raw text → Gemini, words, PCM→MP3 → a normal transcript row). Unit-tested. |
-| `loadCall.ts` | Loads a call (live or finished) for the viewer. |
+| `loadCall.ts` | Loads a call (live or finished) for the viewer. `LiveCall.storedTranscriptId` is the fact every "is there a transcript here" decision reads — `id` is a routing key and two producers key on something that is not a transcript. |
+| `askGrounding.ts` | What Ask Atlas is grounded in on a transcript-shaped screen — the call, else the company, else market-wide. Pure; swept in `askGrounding.test.ts`. |
 | `search.ts` | In-transcript search. Unit-tested. |
 | `ivritParse.ts` | Parses IVRIT/RunPod JSON chunk responses into our segment shape. |
 | `ivritStitcher.ts` | Stitches overlapping IVRIT chunks into a clean transcript stream. Unit-tested. |
@@ -344,7 +345,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **1168 tests across 109 files** as of 2026-08-15; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
+### Tests (run via `npm test` — **1180 tests across 110 files** as of 2026-08-16; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and

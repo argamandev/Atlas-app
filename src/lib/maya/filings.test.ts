@@ -194,15 +194,19 @@ test('a year still in progress offers no annual period — the דנאל rows, en
   ]
 
   const sources = toRemoteSources(danel2026)
-  assert.equal(sources.length, 2, 'both filings are still offered — nothing was dropped')
+  assert.equal(sources.length, 2, 'both filings still reach the corpus — neither was dropped')
 
   const periods = buildPeriods(sources, []).map((p) => p.period)
   assert.deepEqual(periods, ['Q1 2026'])
   assert.ok(!periods.includes('FY 2026'), 'no annual period for a year that has not ended')
 
-  // The deck is still a deck and still reachable; it simply stops claiming to be
-  // the annual report. `documentCatalog` puts a standalone company deck in the
-  // later bucket — it names דנאל on exactly this point.
+  // SAID PLAINLY, because the first version of this comment claimed the deck was
+  // "still reachable" and that is not true of the tab: `buildPeriods` refuses a
+  // date label, so the deck LEAVES the documents tab. That is the intended
+  // outcome, not a side effect — `documentCatalog` puts a standalone company deck
+  // in the same later bucket as announcements and webinars, and it names דנאל on
+  // exactly this point. What it stops doing is standing at the top of 2026 calling
+  // itself the annual report. It remains a `RemoteSource` for the corpus.
   const deck = sources.find((s) => s.mayaReportId === 1742288)
   assert.equal(deck?.docType, 'slides')
   assert.equal(deck?.kind, 'presentation')

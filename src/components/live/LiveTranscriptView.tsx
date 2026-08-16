@@ -426,6 +426,10 @@ export function LiveTranscriptView({
   // Reassign the selected run to a speaker → recompute + persist the overlay → reload (Feature 1).
   async function assignSpeaker(speakerId: string) {
     if (!selection || selection.fromWord == null || selection.toWord == null) return
+    // Guard the VALUE, not the branch — `canEdit` hiding the UI is why this is
+    // unreachable today, and "unreachable today" is what this commit exists to stop
+    // relying on. Its sibling `renameSpeaker` has always had this line.
+    if (!storedTranscriptId) return
     const { fromWord, toWord } = selection
     setSelection(null)
     try {
@@ -1011,11 +1015,6 @@ export function LiveTranscriptView({
       {/* in-transcript side chat (Feature 6) — opens beside the transcript; audio keeps playing */}
       {chat.open && (
         <TranscriptChatPanel
-          // ALSO THE FACT, and for the same reason: this prop is what the panel's
-          // caption reads to say whether Atlas is connected to the call or to the
-          // company. Passing the routing key made the period screen promise a call
-          // it does not have — the honesty law one layer above the 400.
-          transcriptId={storedTranscriptId ?? undefined}
           // ON THE NEW BACKEND (ticket 08c-3) — the last surface to move, and
           // the one that kept `/api/chat` alive. This screen displays a stored
           // call AND, in multiview, a report pane whose marked pages and snipped
