@@ -65,9 +65,9 @@ the first drive, so every row below was earned twice.
 
 | # | State | Driven | Result |
 | --- | --- | --- | --- |
-| 1 | 2026 expanded, EN | ✅ | Only `Q1 2026`. No `Annual` row. |
+| 1 | 2026 expanded, EN | ✅ re-driven | Only `Q1 2026`. No `Annual` row. |
 | 2 | 2026 expanded, HE | ✅ re-driven | Only `Q1 2026`. No `שנתי` row. RTL correct. |
-| 3 | A year whose annual legitimately exists, EN | ✅ | 2025 → `Annual 2025`, Q3, Q2, Q1. Intact. |
+| 3 | A year whose annual legitimately exists, EN | ✅ re-driven | 2025 → `Annual 2025`, Q3, Q2, Q1. Intact. |
 | 4 | A year whose annual legitimately exists, HE | ✅ re-driven | 2025 → `שנתי 2025`, Q3, Q2, Q1. Intact. |
 | 5 | Loading state on the year | ✅ | `טוען מסמכים מהבורסה…` while MAYA is fetched, then the periods. |
 | 6 | Results deck `[104,270]` keeps its quarter | ❌ not driven in a browser | דנאל files no such deck. Held by `events.test.ts` and by the untouched Tigbur case in `filings.test.ts`. |
@@ -139,4 +139,6 @@ risk is a feature refusing where it should allow — visible, not silent.
   `environment.test.ts` "the always-on set is exactly the declared set" finds a second `CLAUDE.md`
   inside `.claude/worktrees/new-worktree-setup-35b4ef/`, a registered git worktree created during
   this session and sitting at `main`'s tip with no commits of its own. Not touched — it may be the
-  parallel session's workspace. Everything else is green: **1176 pass, 1 fail**, `tsc` clean.
+  parallel session's workspace. Everything else is green: **1179 pass, 1 fail** at this tip,
+  `tsc` clean. (An earlier draft said 1176 — a count carried across edits, which is M1's own
+  example. Regenerated from a run of this tree.)

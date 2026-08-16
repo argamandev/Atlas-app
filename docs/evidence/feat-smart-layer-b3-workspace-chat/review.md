@@ -383,3 +383,66 @@ and only the first can disagree with the event code.
 - The battery is **1179/1180**; the red is `environment.test.ts` counting a second `CLAUDE.md`
   inside a registered git worktree under `.claude/worktrees/`. Environmental, not the branch — any
   registered worktree reproduces it.
+
+## Round 7 — at `d26f9d5`. VERDICT was CHANGES, one BLOCKER
+
+**The BLOCKER: the fix had corrected one input and left two.** Round 6's answer made the panel's
+CAPTION read the grounding. Round 7 opened the same screen and read the 29px headline above it:
+`askHeroLine2`, defaulting to "about this call", which `LiveTranscriptView` never overrode — so the
+period page promised a call directly above a caption saying it was connected to the company. The
+sub-line under it ("the audio keeps playing while you ask") was a third false promise on a screen
+with no recording.
+
+**This is the finding I should have made myself.** I screenshotted that hero twice while verifying
+the caption and read past it. `app.md` M4 says verify at the layer the USER experiences; I verified
+at the layer I had just edited.
+
+Answered in `1ae4264`: the `heroLine2` prop is deleted, hero and sub-line derive from the grounding,
+and the audio promise is omitted where there is no audio. Driven in both locales and both
+directions.
+
+Round 7 also **disproved a claim in the evidence file** — that the 81 changed labels are all decks
+"named by month". Enumerating all 81 found genuine results decks whose titles name the period they
+COVER (ישראכרט `מצגת משקיעים-רבעון 2 שנת 2025`). The evidence now says so, and the open finding
+gained that sub-class. Its other findings — a stale test-comment count, the review header, the EN
+ticks — were documentation accuracy and are fixed.
+
+## Round 8 — at `1ae4264`. VERDICT was CHANGES
+
+- **BLOCKER · this file had no machine-readable pair at all**, and round 7 had no section. I turned
+  rounds 5 and 6's pairs into prose to keep exactly one parseable and then never wrote the
+  replacement, so the ship gate had nothing to read. Fixed by this section and the pair below.
+- **WARNING · the panel still decided its subject in THREE inline expressions**, each ending in a
+  catch-all that rendered the COMPANY copy — so `{kind:'shelf'}`, a variant the type admits and the
+  next slice introduces, would have said "about this company" for a workspace. **And the round-6
+  record claimed the *impossible* tier for this channel on the strength of one deleted prop, which
+  overstated it.** See the recurrence answer below.
+- **WARNING · the bug-1 EN rows still carried ticks earned before the rule was narrowed.** They had
+  in fact been re-driven; the table had not been updated to say so. Marked.
+- **WARNING · "1176 pass, 1 fail"** in the evidence — a count carried across edits, M1's own
+  example. Regenerated: 1179/1180.
+- **WARNING · the sweep's re-pointing counter is never printed.** REFUTED, and recorded as refuted
+  rather than silently ignored: `scripts/measure-period-labels.ts:109` prints it, and both runs
+  reported **0**. So the `PERIOD_CODE_ORDER` precedence change — which does apply to reports — has a
+  measured blast radius across all 233 issuers, and it is zero.
+- **NIT · `sharePdf` has no caller.** Correct, and it means the "seven sites" this branch describes
+  includes one that is unreachable. Said plainly here rather than quietly rounded down; deleting
+  dead code is not this mission's business.
+- **NIT · a JSDoc for the deleted `heroLine2` prop survived it.** Removed.
+- **NIT · PROGRESS did not carry the user-visible consequence** of the 81 dropped decks. Added.
+
+### What round 8's `RECURRENCE: yes` bought (ADR-0002)
+
+**Degradation must be VISIBLE — one decision, over the whole union.** Tier: **impossible**, and this
+time the claim is earned rather than asserted. `lib/live/askGrounding.ts` gains `askSubject`, which
+maps every `Grounding` variant to a subject through a `switch` whose `default` binds `grounding` to
+`never` — **a new variant is a compile error, not a sentence about a company**. The hero, the audio
+promise and the caption all read that one value, so they cannot disagree with each other or with the
+request; `shelf` gains its own copy in both locales instead of borrowing the company's; and
+`askGrounding.test.ts` sweeps the whole union and asserts the five subjects are DISTINCT.
+
+Three consecutive rounds each found one of these three inputs lying while the other two had just
+been fixed. That is the signature of a per-branch fix (M3.1), and one function is the answer to it.
+
+**Round 8's verdict was CHANGES and its findings are answered above. The machine-readable pair
+belongs to a round that has READ those answers — round 9, below.**

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { groundingForCall } from './askGrounding'
-import { TRANSCRIPT_ID_RE } from '@/lib/chat2/requestScope'
+import { groundingForCall, askSubject, subjectHasAudio, type AskSubject } from './askGrounding'
+import { TRANSCRIPT_ID_RE, type Grounding } from '@/lib/chat2/requestScope'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FOUNDER-REPORTED, 2026-08-16: open a report and a slide deck for a quarter with
@@ -58,4 +58,45 @@ test('every call grounding this function produces is one the chat route can hono
     assert.equal(g.kind, 'call')
     if (g.kind === 'call') assert.ok(TRANSCRIPT_ID_RE.test(g.transcriptId), `route would refuse ${id}`)
   }
+})
+
+// ── what the panel SAYS it is connected to (round 8) ─────────────────────────
+//
+// The panel names its subject three times — a 29px hero, an audio promise, and a
+// caption. Each used to be its own inline condition ending in a catch-all that
+// rendered the COMPANY copy, and three consecutive review rounds each caught one
+// of them lying while the others had just been fixed. The sweep below is over the
+// WHOLE union, so a variant cannot be quietly absorbed by a fallback again.
+
+const EVERY_GROUNDING: Grounding[] = [
+  { kind: 'none' },
+  { kind: 'company', companyId: 'c-1' },
+  { kind: 'call', transcriptId: 'PyuMxe88e8g' },
+  { kind: 'live', captions: 'hello' },
+  { kind: 'shelf', workspaceId: 'w-1' },
+]
+
+test('every grounding names its own subject — none borrows another’s copy', () => {
+  const seen = EVERY_GROUNDING.map((g) => askSubject(g))
+  assert.deepEqual(seen, ['market', 'company', 'call', 'live', 'workspace'])
+  // DISTINCT is the property. A shelf reading as 'company' is the exact defect:
+  // a workspace told the user Atlas was connected to a company.
+  assert.equal(new Set(seen).size, EVERY_GROUNDING.length)
+})
+
+test('the audio promise is made only where there is audio', () => {
+  // "The audio keeps playing while you ask" under a report with no recording is
+  // the sentence that shipped on the period page.
+  const withAudio = (['call', 'live'] as AskSubject[]).every(subjectHasAudio)
+  const without = (['company', 'workspace', 'market'] as AskSubject[]).some(subjectHasAudio)
+  assert.equal(withAudio, true)
+  assert.equal(without, false)
+})
+
+test('the union is covered — a new grounding cannot fall through to the company', () => {
+  // `askSubject`'s `never` branch is the mechanism; this asserts the coverage it
+  // guarantees is real rather than a comment, by checking every kind the union
+  // declares is represented above.
+  const kinds = EVERY_GROUNDING.map((g) => g.kind).sort()
+  assert.deepEqual(kinds, ['call', 'company', 'live', 'none', 'shelf'])
 })

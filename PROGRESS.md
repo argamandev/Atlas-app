@@ -81,6 +81,12 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
   one input cannot disagree with itself.
   **Scope, stated plainly:** the period-label half is company-catalog work riding a workspace-chat
   branch, at the founder's explicit request, and it changes the documents tab for all 233 issuers.
+  **And the consequence a reader must not have to infer:** those 81 decks LEAVE the documents tab.
+  They were on it before, labelled wrongly. The bucket `documentCatalog` says they belong in —
+  beside announcements and webinars — is a hardcoded empty state that was never built, so today they
+  are reachable from nowhere on the company page, including the one the founder could click
+  yesterday. They remain in the corpus and on MAYA. Filed in `docs/open-findings.md`, and repeated
+  here because a permanent log that records only the count reads as though nothing was lost.
 - **Verified:** **1179/1180**, `tsc` clean. The one red is environmental and predates this work —
   `environment.test.ts` counts a second `CLAUDE.md` inside a registered git worktree under
   `.claude/worktrees/`; any registered worktree turns it red for whoever has one. Both fixes driven

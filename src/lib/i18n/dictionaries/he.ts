@@ -598,6 +598,8 @@ export const he: Dictionary = {
     askHeroCompany: 'על החברה הזאת',
     /** `{kind:'none'}` — צ'אט ריק מחפש בכל השוק, אז הכותרת לא רשאית להבטיח שיחה. */
     askHeroMarket: 'על השוק',
+    /** `{kind:'shelf'}` — סביבת העבודה. שאילת הנוסח של החברה היא איך שלושת השקרים הקודמים התחילו. */
+    askHeroWorkspace: 'על סביבת העבודה הזאת',
     askHeroSub: 'האודיו ממשיך להתנגן בזמן שאתם שואלים.',
     // composer captions (design round 2): what Atlas is connected to, per context
     askFollowLive: 'אטלס עוקב אחרי השיחה בשידור חי. שאלו על כל מה שנאמר.',
@@ -605,6 +607,8 @@ export const he: Dictionary = {
     askConnectedCompany: 'אטלס מחובר להקשר של החברה הזאת. שאלו כל מה שתרצו.',
     /** `{kind:'none'}` — מתכון אמיתי (חיפוש בכל השוק), לא היעדר שצריך לטשטש. */
     askConnectedMarket: 'אטלס מחפש בכל השוק. שאלו כל מה שתרצו.',
+    /** `{kind:'shelf'}` — הקבצים של סביבת העבודה. */
+    askConnectedWorkspace: 'אטלס מחובר לקבצים של סביבת העבודה הזאת. שאלו כל מה שתרצו.',
     voiceSoon: 'שאלה קולית — בקרוב',
     slideLabel: 'שקופית',
   },

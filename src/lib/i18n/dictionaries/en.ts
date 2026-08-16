@@ -730,6 +730,8 @@ export const en = {
     askHeroCompany: 'about this company',
     /** `{kind:'none'}` — blank chat searches the market, so the hero may not name a call. */
     askHeroMarket: 'about the market',
+    /** `{kind:'shelf'}` — the workspace. Borrowing the company's copy is how the last three lies started. */
+    askHeroWorkspace: 'about this workspace',
     askHeroSub: 'The audio keeps playing while you ask.',
     // composer captions (design round 2): what Atlas is connected to, per context
     askFollowLive: "Atlas is following this call live. Ask about anything that's been said.",
@@ -737,6 +739,8 @@ export const en = {
     askConnectedCompany: "Atlas is connected to this company's context. Ask whatever you'd like.",
     /** `{kind:'none'}` — a real recipe (market-wide search), not an absence to paper over. */
     askConnectedMarket: "Atlas is searching the whole market. Ask whatever you'd like.",
+    /** `{kind:'shelf'}` — the workspace's own files. */
+    askConnectedWorkspace: "Atlas is connected to this workspace's files. Ask whatever you'd like.",
     voiceSoon: 'Voice ask — coming soon',
     slideLabel: 'Slide',
   },
