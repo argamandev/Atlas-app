@@ -318,6 +318,7 @@ the deploy, which comes after this chapter.
 | `time/relative.ts` | Relative-time formatting ("2 hours ago") in both locales. |
 | `agents/data.ts` | Design-demo agents feed (typed stub, to be replaced by real feed). Unit-tested. |
 | `agents/budget.ts` | The one place the Managed Agents run budget is spelled: `RUN_BUDGET_CENTS` (100, founder-approved $1.00/run cap) and `runBudget()`, which builds the `max_list_cost` shape the SDK's beta sessions API expects — minor units as an integer string, `USD`. Settles spec §6: `max_list_cost` is expressible in `@anthropic-ai/sdk` 0.117.1 (`resources/beta/sessions/sessions.d.ts`), unlike the 0.102.0 that shipped before this ticket. Unit-tested. |
+| `agents/db.ts` | **THE ONE DOOR to the four live agent tables** (migration 032, plan-1 task 5). `listAgents`/`getAgent`/`createAgent` over an injectable `AgentsDb` seam (mirrors `ToolDeps` in `chat2/tools.ts`) — every query filters `user_id` in APPLICATION CODE, not only through RLS, because the run driver (spec §4, later plan) uses the service role and the service role bypasses RLS entirely; on that path this filter is the only guard. `getAgent` filters by both `id` and `user_id` — an id alone would let another fund read an agent by guessing a uuid. `createAgent` stamps `user_id` from the caller argument, never from the input payload, by listing fields explicitly rather than spreading `input`. Every read/write reads `{ data, error }` and throws on `error` — supabase never throws on its own, so a dropped `error` reads as "no agents" rather than a database outage. `AgentRow` deliberately omits `next_run_at` (exists on the live column; the schedule panel is a later plan). Unit-tested. |
 | `projects/data.ts` | Design-demo projects feed (typed stub, to be replaced by real feed). Unit-tested. |
 | `demo/DemoStateProvider.tsx` + `demo/reducer.ts` | **Session-only** state for the three surfaces — the reason nothing on them persists. Deliberate: a real store would have locked in shapes before the data model was decided. Unit-tested (`demoState.test.ts`). |
 | `demo/seedDocument.ts` | The working document's fabricated seed content, kept out of React so its DEMO markers are unit-testable. **Read the header before touching the quote block** — it invents financials and a quote from a NAMED executive of a real TASE issuer, and its marker cost three review rounds. Unit-tested. |
@@ -347,7 +348,7 @@ the deploy, which comes after this chapter.
 | `api/contextStatus.test.ts` | `sanitizeContextStatus` — the only narrowing between the `messages` jsonb and a rendered degradation notice. The server stores the field verbatim (proven by round trip), so an unrecognised value must land on `null`, never on a warning. |
 | `../data/demo/liveCall.ts` | The demo live call (built from the kept Recall fixture) — loaded by `loadCall.ts`. |
 
-### Tests (run via `npm test` — **1189 tests across 112 files** as of 2026-08-16; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
+### Tests (run via `npm test` — **1194 tests across 113 files** as of 2026-08-16; the list in `package.json` is explicit — add new test files there. The ship gate re-measures this header's pair whenever a battery run exists, so a stale edit is refused at merge)
 Both numbers regenerated from commands, never edited by hand: the file count from
 `package.json`'s test script, the test count from a real run. **`testRegistry.test.ts` now enforces
 that the list is complete in both directions** — every `*.test.ts` on disk must be registered, and
@@ -356,7 +357,7 @@ invoked directly, and never ran in the battery: `api/errorShape.test.ts` (for an
 `live/search.test.ts` + `live/syncEngine.test.ts` (10 tests, far longer). A battery that does not
 run a file cannot tell you it is missing.
 
-`agents/budget.test.ts` · `agents/data.test.ts` · `api/chat2.test.ts` · `api/errorShape.test.ts`
+`agents/budget.test.ts` · `agents/data.test.ts` · `agents/db.test.ts` · `api/chat2.test.ts` · `api/errorShape.test.ts`
 · `apiAuthBoundary.test.ts` · `apiFetchDiscipline.test.ts`
 · `auth/gate.test.ts` · `auth/verifyUser.test.ts`
 · `calendar/event-meta.test.ts` · `chat/attachments.test.ts`

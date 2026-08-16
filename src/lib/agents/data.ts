@@ -8,6 +8,10 @@
 // citations into real calls and filings. Every surface that renders them shows a
 // visible demo marker, and each finding row additionally carries an inline
 // marker — see components/ds/DemoBanner.tsx and .claude/rules/app.md.
+//
+// The real, owner-scoped data layer for the four live agent tables lives in
+// `agents/db.ts` (`.superpowers/sdd/plan-1-foundations/task-5-brief.md`, spec
+// §2). This stub is untouched — wiring the page to `db.ts` is a later plan.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Order follows the design's 2026-08-01 round (Call / Workspace / Sector /
