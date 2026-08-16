@@ -149,3 +149,35 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   **Not a law and not a blocker.** Whoever picks it up should decide whether the company is
   derived server-side from `transcriptId` (my reading of the right answer) and should render the
   mode chip in this panel either way.
+- **The model sometimes echoes the `<<<ATLAS-SOURCE>>>` fence markers into its visible answer**
+  (recorded 2026-08-16, found while verifying the period-page grounding fix). Asking דנאל's Q1 2026
+  period page "מה ההכנסות" returned a correct, well-grounded figure — and printed
+  `<<<ATLAS-SOURCE>>> ifrs-full:Revenue: 729576000 ILS [2026-01-01..2026-03-31] <<<END-ATLAS-SOURCE>>>`
+  into the answer body, twice more on the follow-up question. The fence is the prompt's
+  quoted-material boundary (`chat2/fence.ts`, `systemPrompt.ts:40`); `defang` neutralises fences
+  found in UNTRUSTED INPUT, and nothing filters them out of model OUTPUT on any surface.
+  **NOT surface-specific as far as the evidence goes.** The same question on `/app/chat` came back
+  clean, with the same facts rendered as ordinary quotes — but that is ONE sample of a model that
+  phrases each turn differently, not a structural difference: no code on either surface removes
+  these markers, so `ChatView` is unprotected too and happened not to trigger it.
+  **Not caused by the grounding fix** — that fix only changed WHICH recipe is sent. The period page
+  used to 400 on every question, so this surface had never rendered an answer before and the leak
+  had nowhere to be seen.
+  **Not a law and not a blocker**, and deliberately not fixed in the same mission: chat answer
+  quality is eval-gated (`docs/eval/retrieval-eval-set.md`) and STATUS gives a dedicated parallel
+  session the chat work. Whoever takes it should decide between a prompt clause and stripping the
+  markers at the one place an answer is rendered — and note that stripping output is the kind of
+  filter that can hide real content, so it wants a test before it wants a regex.
+- **A `מצבת התחייבויות` filing can take a period's REPORT slot away from the actual statements**
+  (recorded 2026-08-16, found while fixing the period-label defect, not fixed with it). MAYA tags
+  the liabilities schedule with the period's own event id plus `114`: דנאל filed
+  `מצבת התחייבות החברה ליום 31.12.24` as `[101, 114]` two minutes AFTER
+  `דוח תקופתי ושנתי לשנת 2024` as `[101]`. `114` carries no period code, so `docTypeFor` sees the
+  `101` and types it `report`, both land on `FY 2024`, and `pickArtifact` breaks the tie by Hebrew
+  first then NEWEST — which is the schedule. Same shape on `[106,114]` for Q3 2025 and `[104,114]`
+  for Q1 2026, so it is systematic rather than one issuer's quirk.
+  **Not fixed here on purpose:** the period fix refuses labels that cannot be true, and this is a
+  different question — WHICH of two truthfully-labelled filings is "the report". The candidate fix
+  is to treat `114` the way `113` is already treated (a filing that is not a document on a shelf),
+  which is a change to what the corpus CONTAINS and deserves its own mission and its own measurement
+  across issuers. **Not a law and not a blocker.**
