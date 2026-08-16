@@ -7,7 +7,7 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ## 2026-08-16 — Agents V1, Plan 1: foundations (`claude/new-worktree-setup-35b4ef`)
 
-- **Nothing user-visible ships; what ships is CERTAINTY.** `@anthropic-ai/sdk` 0.102.0 → 0.106.0
+- **Nothing user-visible ships; what ships is CERTAINTY.** `@anthropic-ai/sdk` 0.102.0 → 0.117.1
   with `src/lib/agents/budget.ts`, so the $1.00 per-run cap the founder set is expressible as the
   session's own native `budget` rather than as our softer after-the-fact accounting. A smoke script
   (`scripts/agents-smoke.mjs`) then MEASURED the four claims the whole design rests on against real

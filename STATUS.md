@@ -20,7 +20,7 @@ _Last rewritten: 2026-08-16 (Agents V1 Plan 1 — foundations)_
 **Tickets 10–14 are SUPERSEDED** (founder, 2026-08-16, `DECISIONS.md`): one thin Managed Agents
 wrapper finishes V1. Spec and plans in `.scratch/agents-v1/`; the old smart-layer order stops at 09.
 
-**Plan 1 (foundations) SHIPPED; nothing user-visible came with it.** SDK 0.106.0 + a run-budget
+**Plan 1 (foundations) SHIPPED; nothing user-visible came with it.** SDK 0.117.1 + a run-budget
 module, a smoke script proving the design's four load-bearing claims against real Managed Agents,
 migration `20260816_032_agents.sql` applied to production and verified, and an owner-scoped data
 layer over its four tables. **No agent can be created or run — that is Plans 2 and 3.**

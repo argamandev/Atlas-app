@@ -42,7 +42,7 @@ database — and it is now measured rather than assumed. **Spec §1 stands.**
 
 The check cannot produce a false pass on claim 4: the planted secret is PID-derived, session 1 is
 deleted before session 2 exists, and the secret reaches the system ONLY through our own
-`user_custom_tool_result` send, never through prompt text — so claim 3's host-side `memories.list`
+`user.custom_tool_result` send, never through prompt text — so claim 3's host-side `memories.list`
 hit is independent corroboration rather than the model's self-report.
 
 **`ANTHROPIC_ENVIRONMENT_ID=env_01Ryu53wpYhzBHhAKPiAV9M7`** — an id, not a secret. **OWED in two
@@ -157,11 +157,20 @@ The story: `docs/case-history/db.md#composite-child-fk`.
 
 ## 6 · A method that earned its place
 
-**Three times in Plan 1 a guard's declared reach exceeded its measured reach** — a regex that
-missed the most idiomatic form of the bug, a comment-stripper that was a no-op on CRLF files, and a
-composite-FK check that counted columns instead of looking for `user_id`. Each was found by someone
-**running the guard against variants**, never by reading it. Two were found in the commit that
-fixed the previous one.
+**FIVE times in Plan 1 a guard's declared reach exceeded its measured reach** — a regex that missed
+the most idiomatic form of the bug; a comment-stripper that was a no-op on CRLF files; a
+composite-FK check that counted columns instead of looking for `user_id`; a STATED LIMITS paragraph
+claiming both FK forms were handled while the table-level branch still required `public.`, false for
+two rounds; and a STATED LIMITS bullet claiming a quoted `"USER_ID"` was not recognised when it
+passes. Each was found by someone **running the guard against variants**, never by reading it.
+
+**Three consecutive commits each shipped the next round's declaration defect** — `99d633c` (the
+guard, born with the CRLF no-op) → `616195d` (CRLF fixed, canary added, still counting columns) →
+`8728e7a` (arity fixed, and it introduced the false `"USER_ID"` limit **in the very commit that
+fixed a false limits paragraph one bullet above it**) → `035b572`. That streak is the point of this
+section, and it is why the count matters: the first version of this passage said "three", which
+quietly omitted both defects in the DECLARATIONS rather than in the code — an understated count in a
+passage whose lesson is "state its limits truthfully" costs the lesson its force.
 
 When this feature adds a mechanism, probe it with the defect it was bought for and with its nearest
 neighbours, then state its limits truthfully. `rules/app.md`: claim the call sites, never the corpus.

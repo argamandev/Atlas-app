@@ -146,10 +146,15 @@ single-column" to "keyed through `user_id`" so the declaration measures what the
 future session that the ship gate was blocked by the 09b merge and that "every merge after it hits
 the same gate — a second consecutive override is a founder call." Untrue. `recurrenceProblems`
 reads only the CURRENT branch's `docs/evidence/<branch>/review.md`; 09b's declarations are never
-re-opened. **The claim originated with the controller**, was reported as not firing by the
-implementer, and was then generalised in the STATUS rewrite without measurement — `rules/app.md` M1.
-It blocked because it sits in the always-on set, one command in the same tree refutes it, and its
-only operative effect was to pre-authorise a second consecutive `ATLAS_SHIP_OVERRIDE`.
+re-opened. **The claim was INHERITED FROM `main`, not invented here** — `git show main:STATUS.md`
+lines 36-37 already say "09b's four recurrence declarations are unanswered, so the next merge hits
+the same gate", written at the 09b ship and therefore before this branch's merge-base (`21b0615`).
+It was then repeated in this session, and **generalised** in the STATUS rewrite from "the next
+merge" to "every merge after it", and never measured until someone ran the gate — `rules/app.md` M1.
+That origin is the sharper lesson and it is checkable from the repo: **a false sentence in the
+always-on set propagates across ships until someone runs the command.** It blocked because it sits
+in the set loaded into every turn, one command in the same tree refutes it, and its only operative
+effect was to pre-authorise a second consecutive `ATLAS_SHIP_OVERRIDE`.
 Same round: the stated limit added to `compositeChildFk.test.ts` was itself false (a quoted
 `"USER_ID"` passes, because the code strips quotes then lowercases) — a false limits paragraph
 written in the commit that fixed a false limits paragraph. And the set merged at one token of
