@@ -5,6 +5,54 @@ For the project overview, stack, and conventions, see `CLAUDE.md`.
 
 ---
 
+## 2026-08-16 — Agents V1, Plan 1: foundations (`claude/new-worktree-setup-35b4ef`)
+
+- **Nothing user-visible ships; what ships is CERTAINTY.** `@anthropic-ai/sdk` 0.102.0 → 0.106.0
+  with `src/lib/agents/budget.ts`, so the $1.00 per-run cap the founder set is expressible as the
+  session's own native `budget` rather than as our softer after-the-fact accounting. A smoke script
+  (`scripts/agents-smoke.mjs`) then MEASURED the four claims the whole design rests on against real
+  Managed Agents — environment + agent + memory store created, a custom-tool round-trip answered, a
+  write to memory, and **a second session reading that write back after the first was deleted**,
+  which is the founder's memory-at-Anthropic decision standing or falling. Evidence:
+  `docs/evidence/agents-v1/mechanism.md`. Migration `20260816_032_agents.sql` (agents · agent_runs ·
+  agent_findings · agent_run_files) was reviewed ON FILE, ruled on by the founder, applied to
+  production and verified; `src/lib/agents/db.ts` is the owner-scoped layer over it. **No agent can
+  be created or run yet — that is Plans 2 and 3.**
+- **Round 1 caught an authorization hole in the migration before it touched the database, and it is
+  the reason this plan has a law.** All four tables' child FKs were single-column
+  (`agent_id → agents(id)`), and PostgreSQL's referential-integrity checks DELIBERATELY BYPASS RLS —
+  so a row inserted with `user_id = self` and `agent_id = <a stranger's agent>` validates in the
+  database and passes the `with check` policy too. Every child FK is now composite, keyed through
+  `user_id`, with the `unique (id, user_id)` the key requires; findings take the three-column shape
+  so a finding's `agent_id` cannot disagree with its own run's. `docs/SMART-LAYER-SPEC.md:165` had
+  already said to copy 015/016 and this build did not, which is why the answer was a LAW in
+  `rules/db.md` plus a battery guard, not a fix.
+- **That guard then failed the same way twice, and each time it was caught by RUNNING it, never by
+  reading it.** Round 3: `stripComments` was a no-op on CRLF (`.` excludes `\r`, `$` without `m`
+  does not match before one) — 69 comment lines survived in the CRLF `015`, 0 in the LF `032`, so
+  the blanker worked on exactly the one file it was written against. Answered with a CANARY that
+  asserts a known-CRLF fixture is actually blanked. Final round: the guard decided on FK **ARITY**
+  (`columnCount > 1`), which is a PROXY for its law and not the law — probed in a copied migration
+  tree, `foreign key (agent_id, created_at) references public.agents (id, created_at)` ran GREEN
+  with two columns and zero ownership binding (`rules/app.md` M3 clause 2). **The fix was the
+  guard AND the law together:** `rules/db.md` now says "keyed through `user_id`" rather than "never
+  single-column", because the old wording was the same proxy the mechanism was measuring — the
+  declaration and the mechanism agreed with each other and both missed the point. Re-probed after:
+  the arity case fails, an unqualified composite FK that used to be misreported now passes, and the
+  three real composite FKs in 032 were mutation-proved to be what the guard is actually reading.
+- **`agents-smoke.mjs` walked up from cwd with no boundary**, so a run from an unexpected directory
+  would import every key from the first `.env.local` it found — an unrelated project's environment,
+  handed to a real billable API. It now only accepts a file sitting beside THIS repo's
+  `package.json`, verified both directions (climbs out of the worktree to the primary checkout;
+  refuses a decoy). Identifying the repo by package name and not by `.git` is deliberate: a
+  worktree's `.git` is a file, so `.git`-presence would stop the walk at the one directory
+  guaranteed not to hold the file.
+- **Verified: 1194/1194 tests across 113 files, `tsc --noEmit` clean, `env:health` 10,409 against
+  the 10,410 budget with the unenforced-law count unmoved at 13.** The budget is the uncomfortable
+  number: restating the FK law cost tokens the always-on set did not have, and the room came out of
+  STATUS.md's landed 08c material rather than out of a raise — **1 token of spare left, so the next
+  always-on edit has to buy its own room.**
+
 ## 2026-08-15 — The gate says don't build it (`feat/smart-layer-b3-workspace-chat`, ticket 09 — CLOSED)
 
 - **The ticket's deliverable turned out to be a MEASUREMENT, and the measurement said no.** B3 gates
