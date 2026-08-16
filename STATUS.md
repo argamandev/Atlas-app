@@ -29,15 +29,16 @@ times out, so class-G discovery is RED and only scoped works; and $0.06/answer d
 `scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on a v2 chat
 failing in production, check for a 401 first.
 
-**09 IS BUILT BUT NOT MERGED** — `feat/smart-layer-b3-workspace-chat`. Its gate says the swap does
-not beat the planner (12/8/8 vs 11/9/8 at shelf 3/6/12), so workspace chat is deliberately
-unchanged. **The founder's test hit the INTAKE, not chat:** a hand-typed company name matched no
-MAYA name, so Atlas denied holding 12 filings it could reach. **09b** fixes it — the company is
-PICKED with `@`. **A merge owes a review verdict on the tip.**
+**09 + 09b MERGED 2026-08-16** (`6447f4b`), with two founder-reported bugs. Workspace chat is
+deliberately unchanged — its gate says the swap does not beat the planner. Story in PROGRESS.
 
-**Two founder bugs also fixed there, 2026-08-16** — an impossible ANNUAL row on the documents tab,
-and Ask Atlas 400ing on every period page with no transcript. Detail:
-`founder-bugs-2026-08-16.md`. **Battery 1182/1183; the red is a stray `CLAUDE.md` in a worktree.**
+**Merged with `ATLAS_SHIP_OVERRIDE`, so three things are OPEN** (all in `docs/open-findings.md`):
+round 9's verdict was CHANGES, its BLOCKER a non-regression `main` did worse before; 09b's four
+recurrence declarations are unanswered, so the next merge hits the same gate; and **81 decks now
+leave the documents tab**, the bucket meant to hold them never having been built — founder's call,
+and the most visible.
+
+**Battery 1182/1183 on main; the red is a stray `CLAUDE.md` in a worktree, not the code.**
 
 **Next: close 09, then 10** (agent tables + create flow). **13** holds the cleanup list;
 poller/sweep deferred past V1.

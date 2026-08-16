@@ -1,6 +1,6 @@
 # 09b · The intake takes a company by `@`, not by spelling
 
-Status: BUILT 2026-08-15, NOT MERGED — battery green (1160), driven in both locales
+Status: **MERGED 2026-08-16** (`6447f4b`) — battery green, driven in both locales
 (`docs/evidence/feat-smart-layer-b3-workspace-chat/verify-app.md`, the 09b section). The founder's
 own failing case works end to end: `@בז` → בית זיקוק אשדוד → MAYA's real filings → attached.
 
