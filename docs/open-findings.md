@@ -264,8 +264,8 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   Whoever closes it should fix the evidence file's contradiction in the same motion — a drive record
   that disagrees with itself is worse than one that admits a gap. → `#choke-point-inputs`
 - **Nothing mechanical can check whether a sentence ABOUT the code is true** (recorded 2026-08-16,
-  agents-1 plan 1). **Three of this branch's last four review rounds found a false statement in a
-  document, not a defect in code:** `STATUS.md` telling every future session that a previous ship's
+  agents-1 plan 1). **Three false statements about the code, across two of this branch's last four
+  review rounds, with no defect in code among them:** `STATUS.md` telling every future session that a previous ship's
   override carried forward (it does not — the gate reads only the current branch's record); a
   `STATED LIMITS` paragraph claiming a quoted `"USER_ID"` was not recognised (it passes — the code
   strips quotes then lowercases); and `PROGRESS.md` + `STATUS.md` recording the SDK bump as
@@ -275,13 +275,22 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   of them can check a claim.** `environment.test.ts` measures how many tokens a law costs, never
   whether it is true; the gate re-measures `Verified: N/M` and ARCHITECTURE's count header and has
   no notion of a version claim at all.
-  **All three were caught the same way — a SECOND document stating the same fact independently, and
-  the two disagreeing.** The version came out because the handoff file stated it separately; the
-  limits paragraph because someone probed rather than read. That is duplication working as a
-  cross-check, which is luck rather than a mechanism, and the usual instinct — "state each fact in
-  exactly one place" — would have removed the very redundancy that caught all three.
-  **Not a law and not a blocker.** Worth deciding deliberately, because the cheap version is a
-  habit ("state load-bearing facts twice, in different files, and let a check compare them") and the
-  expensive version is a test that extracts claims and re-derives them. The two false claims that
+  **Two of the three were caught by EXECUTING the thing the sentence was about; one by redundancy.**
+  The `"USER_ID"` limit fell to probing the guard against variants; the `STATUS.md` override claim to
+  running `npm run ship:gate` and reading `ship-gate.mjs`. Only the SDK version came out through
+  duplication — the handoff file stated it separately and the two disagreed.
+  **An earlier draft of this entry generalised from the third case and got it backwards**, proposing
+  a habit of "state load-bearing facts twice in different files". That is inferred from the weakest
+  of the three and cuts against this repo's own discipline — CLAUDE.md's "never move text between
+  them to save tokens", STATUS rewritten rather than appended, and a token budget this branch spent
+  raise nine on. Recorded rather than deleted, because an entry about unchecked claims making an
+  unchecked claim is the failure in miniature; it was caught by the same method the evidence
+  supports.
+  **The generalisation the evidence carries is the one `plan-1-outcomes.md` §6 already states:
+  probe the claim, do not read it.** Execution is available on demand; a second document happening
+  to exist is not.
+  **Not a law and not a blocker.** What is worth deciding deliberately is whether anything cheaper
+  than execution exists for a claim nothing runs — a version string, a count, a "this is enforced
+  by" line. The two false claims that
   reached the always-on set are the ones with real cost: every session reads them, and one of them
   would have pre-authorised a founder decision that had no cause.
