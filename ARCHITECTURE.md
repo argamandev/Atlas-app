@@ -378,7 +378,8 @@ run a file cannot tell you it is missing.
 · `demo/demoState.test.ts` · `design/anim.test.ts`
 · `documents/extract.test.ts` · `documents/openFiling.test.ts`
 · `documents/snip.test.ts` · `environment.test.ts` · `i18n/format.test.ts`
-· `legacyBoundary.test.ts` · `live/finishLiveCall.test.ts`
+· `legacyBoundary.test.ts` · `live/askGrounding.test.ts`
+· `live/finishLiveCall.test.ts`
 · `live/ivritStitcher.test.ts` · `live/liveTiming.test.ts`
 · `live/pcmChunker.test.ts` · `live/search.test.ts`
 · `live/snipBridge.test.ts` · `live/syncEngine.test.ts`

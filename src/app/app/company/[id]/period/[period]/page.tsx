@@ -80,6 +80,12 @@ export default async function PeriodPage({
     ? await loadCompletedCall(held.id)
     : {
         id: `period:${params.id}:${period}`,
+        // THE ID ABOVE IS A ROUTING KEY, NOT A TRANSCRIPT — there is no recording
+        // for this quarter, which is the whole reason this branch exists. Saying so
+        // is what keeps Ask Atlas from offering `{kind:'call'}` for a row that does
+        // not exist; the chat route refuses that outright and every question on
+        // this screen came back "this grounding cannot be honoured".
+        storedTranscriptId: null,
         title: `${company.displayName} — ${period}`,
         companyName: company.displayName,
         companyNameEn: company.nameEn,

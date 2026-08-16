@@ -41,6 +41,7 @@ import { usePlayer, usePlayerTimeDerived, useViewingCall } from '@/lib/player/Pl
 import { flattenWords, activeWordIndex } from '@/lib/live/syncEngine'
 import { transcriptSync, playbackStarted } from '@/lib/live/syncMode'
 import { findMatches } from '@/lib/live/search'
+import { groundingForCall } from '@/lib/live/askGrounding'
 import { createQuote } from '@/lib/api/quotes'
 import type { ChatSnip } from '@/lib/chat/grounding'
 import { formatClock, formatDate } from '@/lib/i18n/format'
@@ -208,7 +209,13 @@ export function LiveTranscriptView({
   }, [chat.open, player.setChatOpen])
   // diarization edit mode (Feature 1) — finished, real transcripts only
   const [editMode, setEditMode] = useState(false)
-  const canEdit = (isAdmin ?? false) && call.companyId != null && call.id !== 'demo'
+  // THE FACT, NOT A NAME. Every site below that touches a transcript row reads
+  // this, because `call.id !== 'demo'` named one screen without a stored row and
+  // missed the other — `/app/company/[id]/period/[period]`, which fabricates a
+  // `period:<companyId>:<period>` id for a quarter that has documents but no
+  // recording. See `LiveCall.storedTranscriptId`.
+  const storedTranscriptId = call.storedTranscriptId
+  const canEdit = (isAdmin ?? false) && call.companyId != null && storedTranscriptId != null
 
   const matches = useMemo(() => findMatches(call.transcript, query), [call.transcript, query])
   const name = locale === 'en' ? (call.companyNameEn ?? call.companyName) : call.companyName
@@ -290,9 +297,9 @@ export function LiveTranscriptView({
 
   // Rename a speaker — persists an override on the transcript + updates that speaker's quotes.
   async function renameSpeaker(_segmentId: string, speakerId: string, oldName: string, newName: string) {
-    if (call.id === 'demo') return
+    if (!storedTranscriptId) return
     try {
-      const res = await fetch(`/api/transcripts/${call.id}/speakers`, {
+      const res = await fetch(`/api/transcripts/${storedTranscriptId}/speakers`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ speakerId, name: newName, oldName }),
@@ -422,7 +429,7 @@ export function LiveTranscriptView({
     const { fromWord, toWord } = selection
     setSelection(null)
     try {
-      const res = await fetch(`/api/transcripts/${call.id}/diarization`, {
+      const res = await fetch(`/api/transcripts/${storedTranscriptId}/diarization`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ fromWord, toWord, speakerId }),
@@ -449,7 +456,9 @@ export function LiveTranscriptView({
     try {
       await createQuote({
         companyId: call.companyId,
-        transcriptId: call.id === 'demo' ? null : call.id,
+        // A quote's transcript id must be a transcript. The period screen's
+        // synthetic id would have been written straight into `quotes`.
+        transcriptId: storedTranscriptId,
         text: sel.text,
         speaker: sel.speaker ?? activeSpeaker,
         quarter: call.quarter,
@@ -474,11 +483,13 @@ export function LiveTranscriptView({
   }
 
   function sharePdf() {
-    if (call.id === 'demo') {
+    // `/print/[id]` loads a stored transcript. Without one there is nothing for it
+    // to render, so the honest fallback is printing what is on screen.
+    if (!storedTranscriptId) {
       window.print()
       return
     }
-    window.open(`/print/${call.id}`, '_blank', 'noopener')
+    window.open(`/print/${storedTranscriptId}`, '_blank', 'noopener')
   }
 
   // Only facets this call HAS get a chip. A chip for a pane that can never
@@ -1000,7 +1011,11 @@ export function LiveTranscriptView({
       {/* in-transcript side chat (Feature 6) — opens beside the transcript; audio keeps playing */}
       {chat.open && (
         <TranscriptChatPanel
-          transcriptId={call.id === 'demo' ? undefined : call.id}
+          // ALSO THE FACT, and for the same reason: this prop is what the panel's
+          // caption reads to say whether Atlas is connected to the call or to the
+          // company. Passing the routing key made the period screen promise a call
+          // it does not have — the honesty law one layer above the 400.
+          transcriptId={storedTranscriptId ?? undefined}
           // ON THE NEW BACKEND (ticket 08c-3) — the last surface to move, and
           // the one that kept `/api/chat` alive. This screen displays a stored
           // call AND, in multiview, a report pane whose marked pages and snipped
@@ -1009,20 +1024,13 @@ export function LiveTranscriptView({
           // content blocks via `documentInjection.ts`), so nothing on screen is
           // left unfulfilled.
           //
-          // THE DEMO CALL HAS NO STORED ROW, so it cannot be `{kind:'call'}` —
-          // the gate would accept the id and the loader would find nothing, which
-          // ends the turn in `error` under a chip promising the call. It falls
-          // back to the COMPANY, which is a grounding this screen can honestly
-          // claim, and to `none` when there is not even that. Chosen here rather
-          // than left to the backend for the reason the union exists: a recipe a
-          // surface cannot honour must not be sent, not silently downgraded.
-          grounding={
-            call.id !== 'demo'
-              ? { kind: 'call', transcriptId: call.id }
-              : call.companyId
-                ? { kind: 'company', companyId: call.companyId }
-                : { kind: 'none' }
-          }
+          // WHICH RECIPE THIS SCREEN CAN HONESTLY CLAIM is decided by
+          // `groundingForCall` — a pure function, swept in `askGrounding.test.ts`,
+          // rather than a condition in JSX. Two screens render this view without a
+          // stored transcript (the demo fixture and a period with documents but no
+          // recording); the old condition named only the first, and the second sent
+          // a `{kind:'call'}` the chat route refuses outright.
+          grounding={groundingForCall({ storedTranscriptId, companyId: call.companyId })}
           quote={chat.seed}
           seedNonce={chat.nonce}
           docRef={chat.docRef}

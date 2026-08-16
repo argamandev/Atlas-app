@@ -9,6 +9,27 @@ import { DEMO_LIVE_CALL } from '@/data/demo/liveCall'
 
 export interface LiveCall {
   id: string
+  /**
+   * THE TRANSCRIPT ROW THIS SCREEN ACTUALLY HAS, or null when there is none.
+   *
+   * NOT a copy of `id`, and that is the whole point. `id` is what the screen is
+   * keyed and routed by, and TWO of its producers key on something that is not a
+   * transcript: the demo fixture (`'demo'`) and `/app/company/[id]/period/[period]`,
+   * which fabricates `period:<companyId>:<period>` for a quarter that holds a
+   * report and a deck but no recording.
+   *
+   * Six sites in `LiveTranscriptView` needed to know "is there a stored transcript
+   * here", and each asked it as `call.id !== 'demo'` — a PROXY that named one of
+   * the two producers and could not see the other. So the period screen offered
+   * `{kind:'call', transcriptId:'period:…:Q1 2026'}` to Ask Atlas, which the chat
+   * route refuses outright (`asTranscriptId` rejects the colons and the space):
+   * every question on that screen died as "this grounding cannot be honoured",
+   * under a caption claiming Atlas was connected to the call.
+   *
+   * REQUIRED, so `tsc` makes every producer state the fact rather than letting a
+   * new screen inherit a wrong answer by saying nothing (rules/app.md M3.3).
+   */
+  storedTranscriptId: string | null
   title: string
   companyName: string
   companyNameEn: string | null
@@ -30,6 +51,9 @@ export async function loadDemoCall(): Promise<LiveCall> {
   const company = await getCompanyByTicker(DEMO_LIVE_CALL.companyTicker).catch(() => null)
   return {
     id: 'demo',
+    // A FIXTURE ON DISK, not a row. Nothing that keys on a transcript id may act
+    // on this screen — the reason this field exists rather than an `id` compare.
+    storedTranscriptId: null,
     title: `${DEMO_LIVE_CALL.companyNameEn} — ${DEMO_LIVE_CALL.quarter}`,
     companyName: DEMO_LIVE_CALL.companyName,
     companyNameEn: DEMO_LIVE_CALL.companyNameEn,
@@ -55,7 +79,10 @@ function parseTs(ts: string | null | undefined): number {
 // Build a word-timed (karaoke) transcript from stored IVRIT word_segments. Diarized
 // segments are grouped into speaker blocks; otherwise one continuous block. Falls back
 // to a chunk-per-segment when a segment lacks per-word timings.
-export function buildFromIvrit(segs: IvritSegment[], overrides: Record<string, string> = {}): WordTimedTranscript {
+export function buildFromIvrit(
+  segs: IvritSegment[],
+  overrides: Record<string, string> = {}
+): WordTimedTranscript {
   const toWords = (s: IvritSegment) =>
     s.words.length
       ? s.words.map((w) => ({ text: w.word, start: w.start, end: w.end }))
@@ -183,6 +210,8 @@ export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
 
   const meta = {
     id,
+    // This one IS a stored transcript — the row was just read out of `transcripts`.
+    storedTranscriptId: id,
     title: `${fd.company ?? ''} — ${fd.quarter ?? ''}`.trim(),
     companyName: fd.company ?? '',
     companyNameEn: fd.company ?? '',
@@ -235,6 +264,7 @@ export async function loadCompletedCall(id: string): Promise<LiveCall | null> {
   const durationSec = parseTs(data.duration as string) || (flat.at(-1)?.start ?? 0) + 5
   return {
     id,
+    storedTranscriptId: id,
     title: `${fd.company ?? ''} — ${fd.quarter ?? ''}`.trim(),
     companyName: fd.company ?? '',
     companyNameEn: fd.company ?? '',
