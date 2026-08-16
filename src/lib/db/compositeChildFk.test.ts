@@ -117,8 +117,36 @@ const MIGRATIONS_DIR = join(ROOT, 'supabase', 'migrations')
  */
 const GRANDFATHERED: ReadonlySet<string> = new Set(['20260614_010_quote_folders.sql::quote_folders'])
 
+/**
+ * Blank `--` comments so the two scans below read SQL, not prose.
+ *
+ * FIXED 2026-08-16 (round 5): normalises CRLF to LF FIRST. Without this, a
+ * CRLF line survives `--.*$` untouched — `.` excludes `\r` and, with no `m`
+ * flag, `$` anchors only to the true end of the STRING, not to the position
+ * before a trailing `\r`. So on `"-- comment\r"`, `.*` can consume up to but
+ * not including the `\r`, and then `$` fails because the `\r` is still there
+ * unconsumed — the whole pattern never matches, `.replace()` is a no-op, and
+ * the comment survives blanking whole. Measured on this tree at round 5: 69
+ * comment lines survived in `20260802_015_projects.sql` (CRLF); 0 survived in
+ * `20260816_032_agents.sql` (LF) — this function worked on exactly the one
+ * file it was written against. Same normalisation `estimateTokens()` already
+ * does in this file, for the same reason.
+ *
+ * Two REAL consequences this let through before the fix, both reproduced
+ * against this tree rather than asserted: injecting `references
+ * public.projects(id)` into an EXISTING comment in 015 made the guard report
+ * a violation on an untouched, correct migration; and a commented-out
+ * `create policy ... on public.companies ... using (auth.uid() = user_id)`
+ * put `companies` into `ownerScoped`, red-lining its seven legitimate
+ * single-column FKs. No false NEGATIVE is reachable this way — unstripped
+ * text can only ADD candidates and ADD owner tables, never suppress a real
+ * violation — which is why this was a robustness/honesty defect and not a
+ * hole, and why it did not block the migration's own apply. The canary below
+ * is what stops it recurring silently.
+ */
 function stripComments(sql: string): string {
   return sql
+    .replace(/\r\n/g, '\n')
     .split('\n')
     .map((line) => line.replace(/--.*$/, ''))
     .join('\n')
@@ -270,4 +298,42 @@ test('the owner-scoped table scan finds every table this repo actually RLS-owns'
   ]) {
     assert.ok(ownerScoped.has(table), `expected "${table}" to be detected as owner-scoped`)
   }
+})
+
+/**
+ * CANARY — proves `stripComments` actually blanks a CRLF comment, rather than
+ * merely claiming to. Round 5's own bug (see `stripComments`'s header) passed
+ * every other test in this file while doing nothing on the one migration that
+ * happens to still be CRLF on disk; nothing here would have caught it without
+ * a test that checks the STRIPPING ITSELF, on a fixture confirmed to still
+ * need it. `api/errorShape.test.ts` earned this exact shape of test after its
+ * first version "matched the word `ApiError` inside a comment and failed to
+ * bite when the bug was reintroduced to test it" — same lesson, applied here.
+ *
+ * Verified by reverting the `\r\n` → `\n` normalisation and watching this fail
+ * before trusting the fix, the same way the FK-regex gaps above were verified
+ * by mutation rather than by reading the diff.
+ */
+test('stripComments actually blanks a comment on a CRLF migration file (canary)', () => {
+  const fixture = '20260802_015_projects.sql'
+  const raw = readFileSync(join(MIGRATIONS_DIR, fixture), 'utf8')
+
+  // Guard the guard: if this fixture is ever re-saved as LF, the canary would
+  // pass by testing nothing CRLF-specific — fail loudly and name a fixture
+  // that is still CRLF instead.
+  assert.ok(
+    raw.includes('\r\n'),
+    `${fixture} is no longer CRLF — this canary needs a fixture with real CRLF line endings to mean anything`
+  )
+
+  const stripped = stripComments(raw)
+  const survivingCommentMarkers = stripped.split('\n').filter((line) => line.includes('--')).length
+
+  assert.equal(
+    survivingCommentMarkers,
+    0,
+    `${survivingCommentMarkers} '--' comment marker(s) survived blanking a CRLF migration — ` +
+      'stripComments is not actually stripping CRLF comments, and every violation/owner-scope ' +
+      'check above this line is reading prose as SQL again.'
+  )
 })
