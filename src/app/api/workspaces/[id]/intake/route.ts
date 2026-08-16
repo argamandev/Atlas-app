@@ -5,6 +5,7 @@ import { askModel as ask } from '@/lib/workspace/askModel'
 import { resolveUser } from '@/lib/auth/verifyUser'
 import { unauthorized } from '@/lib/auth'
 import { loadCorpus } from '@/lib/workspace/intake/corpus'
+import { defang } from '@/lib/workspace/chat/context'
 import { parseModelRequest } from '@/lib/workspace/intake/parseRequest'
 import { findSources } from '@/lib/workspace/intake/findSources'
 import {
@@ -22,7 +23,7 @@ import {
 import { intakeResult } from '@/lib/workspace/intake/respond'
 import type { IntakeResponse, IntakeTurn, ProposedRemote } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
-import { resolveIssuer } from '@/lib/maya/issuers'
+import { resolveIntakeCompany, type PinnedCompany } from '@/lib/workspace/intake/companyPin'
 import { listDisclosures } from '@/lib/maya/disclosures'
 import { toRemoteSources } from '@/lib/maya/filings'
 import { describeFailure } from '@/lib/maya/types'
@@ -38,6 +39,9 @@ export const dynamic = 'force-dynamic'
  * bounded only to 1990–2100.
  */
 const MAX_QUERY_YEARS = 3
+
+/** Shape-checked before it reaches a query, like every other id from a body. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const FILTER_SYSTEM = `You turn an investor-research request into a search filter.
 Reply with ONLY a JSON object, no prose, with these optional keys:
@@ -76,8 +80,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const user = await resolveUser(supabase)
   if (!user) return unauthorized()
 
-  const body = (await req.json().catch(() => null)) as { messages?: unknown } | null
+  const body = (await req.json().catch(() => null)) as { messages?: unknown; companyId?: unknown } | null
   const messages = parseTurns(body?.messages)
+  // THE COMPANY THE ANALYST POINTED AT, as an id — never as a spelling.
+  //
+  // A `@` mention resolves in the browser against `/api/companies` and sends
+  // the row's id. Only the ID is trusted: the issuer number behind it is read
+  // from the database below, so a request body cannot claim that "this company
+  // is issuer 259" and pull the other refinery's filings under a name the
+  // analyst never saw.
+  const pinnedCompanyId =
+    typeof body?.companyId === 'string' && UUID.test(body.companyId) ? body.companyId : null
   if (messages.length === 0) {
     return NextResponse.json({ error: 'messages is required' }, { status: 400 })
   }
@@ -182,17 +195,64 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // the structured request it produces (company, years, kinds) is EXACTLY a
     // MAYA query. One model call, two jobs: narrowing a big local corpus, and
     // telling us whose filings to ask MAYA for.
-    const filterRaw = await askModel(withDates(FILTER_SYSTEM) + `\n\nRequest: ${text}`, 400)
+    // `text` is the analyst's turn, straight from the request body, glued onto a
+    // system prompt with no fence between them — door EIGHT, and the same value
+    // `selectSources.ts` was fixed to defang a hundred lines below.
+    const filterRaw = await askModel(withDates(FILTER_SYSTEM) + `\n\nRequest: ${defang(text)}`, 400)
     const request = parseModelRequest(filterRaw, text)
 
     // ── stage 1b: MAYA ──────────────────────────────────────────────────────
     //
-    // Only when a company was actually named. A question with no company has
-    // nothing to look up, and spending three sequential API calls to discover
-    // that would slow down every ordinary turn.
+    // Only when a company was actually named — by a `@` mention or by the
+    // sentence. A question with no company has nothing to look up, and spending
+    // three sequential API calls to discover that would slow down every
+    // ordinary turn.
     let remote: AttachableSource[] = []
-    let sourceError: 'maya_unreachable' | 'request_not_understood' | null = null
+    let sourceError: IntakeResponse['sourceError'] = null
     let unknownCompany: string | null = null
+    let unknownCompanyFrom: IntakeResponse['unknownCompanyFrom'] = null
+
+    // THE PINNED ROW, READ FROM THE DATABASE. `companies` is shared corpus and
+    // is read through the USER's client, so this adds no reach: an id that
+    // names no company simply yields no pin, and the turn proceeds on the
+    // sentence alone.
+    let pin: PinnedCompany | null = null
+    if (pinnedCompanyId) {
+      const { data: row, error: cErr } = await supabase
+        .from('companies')
+        .select('name, display_name, tase_issuer_id')
+        .eq('id', pinnedCompanyId)
+        .maybeSingle()
+      if (cErr) throw new Error(cErr.message)
+      if (row) {
+        pin = {
+          taseIssuerId: (row.tase_issuer_id as string) ?? null,
+          // The name the analyst is looking at on the chip, so a failure names
+          // what they saw rather than a second spelling of it.
+          name: ((row.display_name as string) || (row.name as string) || '').trim(),
+        }
+      }
+    }
+
+    // Loaded only for the NAME path — a pin needs no matching at all.
+    const issuerRows = pin
+      ? []
+      : await (async () => {
+          const { data, error: issErr } = await supabase
+            .from('maya_issuers')
+            .select('issuer_id, name_he, name_en')
+          if (issErr) throw new Error(issErr.message)
+          return (data ?? []).map((r) => ({
+            issuerId: r.issuer_id as number,
+            nameHe: (r.name_he as string) ?? null,
+            nameEn: (r.name_en as string) ?? null,
+          }))
+        })()
+
+    // ONE DECISION, MADE ONCE, from both facts — see `companyPin.ts`.
+    const company = resolveIntakeCompany(pin, request.interpreted ? request.company : null, issuerRows)
+    unknownCompany = company.unknownCompany
+    unknownCompanyFrom = company.unknownCompanyFrom
 
     // A DEGRADED INTERPRET CALL TAKES MAYA OUT OF THE SEARCH SILENTLY.
     //
@@ -204,84 +264,80 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // same untrue sentence this feature was built to stop, reached through a
     // third door — and `parseModelRequest` already sets `interpreted: false`
     // for precisely this case; the route simply never read it.
-    if (!request.interpreted) sourceError = 'request_not_understood'
+    //
+    // WHICH failure it is depends on whether the company survived (2026-08-15).
+    //
+    // That notice says "I couldn't work out which company you meant, so this
+    // covers only what Atlas already holds" — and with a pin BOTH halves are
+    // false: the company is known and MAYA was searched. Raising it there would
+    // report a green search as a coverage failure (M2).
+    //
+    // BUT SILENCE IS THE OTHER LIE, and the first cut of this shipped it: the
+    // interpret call also carries the PERIOD and the KINDS, so a pinned
+    // "@בז\"א the 2019 annual report" whose filter timed out would search
+    // 2025–2026, answer confidently, and say nothing about the years it
+    // invented. A failure with a narrower scope gets a narrower sentence — it
+    // does not get suppressed.
+    if (!request.interpreted) {
+      sourceError = company.settled ? 'request_partly_understood' : 'request_not_understood'
+    }
 
-    if (request.interpreted && request.company) {
-      const { data: issuerRows, error: issErr } = await supabase
-        .from('maya_issuers')
-        .select('issuer_id, name_he, name_en')
-      if (issErr) throw new Error(issErr.message)
+    if (company.issuerId !== null) {
+      // THE SPAN IS CLAMPED, because the years come from a model and every
+      // year is a sequential request. `parseModelRequest` bounds them only to
+      // 1990–2100, so "everything תיגבור ever filed" would fire 38 calls and a
+      // model slip at the bounds would fire 112 — a minute inside one
+      // interactive turn, spending a 10-req/2s budget that is shared by every
+      // user and all four consumers of this layer.
+      const thisYear = new Date().getFullYear()
+      const toYear = Math.min(request.toYear ?? thisYear, thisYear + 1)
+      const fromYear = Math.max(request.fromYear ?? thisYear - 1, toYear - (MAX_QUERY_YEARS - 1))
 
-      const issuer = resolveIssuer(
-        request.company,
-        (issuerRows ?? []).map((r) => ({
-          issuerId: r.issuer_id as number,
-          nameHe: (r.name_he as string) ?? null,
-          nameEn: (r.name_en as string) ?? null,
-        }))
-      )
+      const listed = await listDisclosures({ issuerId: company.issuerId, fromYear, toYear })
 
-      if (!issuer) {
-        // SAID, NOT GUESSED. Presenting local-only results after failing to
-        // resolve the company would answer a question we did not understand.
-        unknownCompany = request.company
+      if (!listed.ok) {
+        // A COVERAGE FAILURE IS NOT AN EMPTY RESULT. Without this flag the
+        // selection step would be handed local files only and would answer
+        // "I don't have that" with total confidence — the exact untrue
+        // sentence fixed on 2026-08-06, arriving through a new door.
+        console.warn(`[intake] MAYA unavailable: ${describeFailure(listed.failure)}`)
+        sourceError = 'maya_unreachable'
       } else {
-        // THE SPAN IS CLAMPED, because the years come from a model and every
-        // year is a sequential request. `parseModelRequest` bounds them only to
-        // 1990–2100, so "everything תיגבור ever filed" would fire 38 calls and a
-        // model slip at the bounds would fire 112 — a minute inside one
-        // interactive turn, spending a 10-req/2s budget that is shared by every
-        // user and all four consumers of this layer.
-        const thisYear = new Date().getFullYear()
-        const toYear = Math.min(request.toYear ?? thisYear, thisYear + 1)
-        const fromYear = Math.max(request.fromYear ?? thisYear - 1, toYear - (MAX_QUERY_YEARS - 1))
+        const sources = toRemoteSources(listed.data)
 
-        const listed = await listDisclosures({ issuerId: issuer.issuerId, fromYear, toYear })
-
-        if (!listed.ok) {
-          // A COVERAGE FAILURE IS NOT AN EMPTY RESULT. Without this flag the
-          // selection step would be handed local files only and would answer
-          // "I don't have that" with total confidence — the exact untrue
-          // sentence fixed on 2026-08-06, arriving through a new door.
-          console.warn(`[intake] MAYA unavailable: ${describeFailure(listed.failure)}`)
-          sourceError = 'maya_unreachable'
-        } else {
-          const sources = toRemoteSources(listed.data)
-
-          // ALREADY INGESTED FILINGS ARE NOT "REMOTE". Offering to fetch
-          // something Atlas already holds would make the analyst wait for a
-          // download that is not needed, and would list one file twice.
-          const ids = sources.map((s) => s.mayaReportId)
-          const held = new Map<number, string>()
-          if (ids.length > 0) {
-            const { data: haveRows, error: haveErr } = await supabase
-              .from('company_documents')
-              .select('id, maya_report_id')
-              .in('maya_report_id', ids)
-            if (haveErr) throw new Error(haveErr.message)
-            for (const r of haveRows ?? []) held.set(r.maya_report_id as number, r.id as string)
-          }
-
-          const localIds = new Set(corpus.map((s) => s.sourceId))
-          remote = sources
-            // one Atlas already holds is represented by its LOCAL row, if that
-            // row is in the corpus; otherwise it is simply not offered twice
-            .filter((s) => !held.has(s.mayaReportId) || !localIds.has(held.get(s.mayaReportId) as string))
-            .map((s) => ({
-              sourceId: s.sourceId,
-              kind: 'document' as const,
-              title: s.title,
-              company: s.issuerName,
-              when: s.publishedISO,
-              // Only the pointer travels to the browser; the attach route reads
-              // the title, issuer and file location from MAYA itself.
-              remote: {
-                mayaReportId: s.mayaReportId,
-                issuerId: s.issuerId,
-                publishedISO: s.publishedISO,
-              },
-            }))
+        // ALREADY INGESTED FILINGS ARE NOT "REMOTE". Offering to fetch
+        // something Atlas already holds would make the analyst wait for a
+        // download that is not needed, and would list one file twice.
+        const ids = sources.map((s) => s.mayaReportId)
+        const held = new Map<number, string>()
+        if (ids.length > 0) {
+          const { data: haveRows, error: haveErr } = await supabase
+            .from('company_documents')
+            .select('id, maya_report_id')
+            .in('maya_report_id', ids)
+          if (haveErr) throw new Error(haveErr.message)
+          for (const r of haveRows ?? []) held.set(r.maya_report_id as number, r.id as string)
         }
+
+        const localIds = new Set(corpus.map((s) => s.sourceId))
+        remote = sources
+          // one Atlas already holds is represented by its LOCAL row, if that
+          // row is in the corpus; otherwise it is simply not offered twice
+          .filter((s) => !held.has(s.mayaReportId) || !localIds.has(held.get(s.mayaReportId) as string))
+          .map((s) => ({
+            sourceId: s.sourceId,
+            kind: 'document' as const,
+            title: s.title,
+            company: s.issuerName,
+            when: s.publishedISO,
+            // Only the pointer travels to the browser; the attach route reads
+            // the title, issuer and file location from MAYA itself.
+            remote: {
+              mayaReportId: s.mayaReportId,
+              issuerId: s.issuerId,
+              publishedISO: s.publishedISO,
+            },
+          }))
       }
     }
 
@@ -314,6 +370,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         fallback: findSources(request, corpus),
         sourceError,
         unknownCompany,
+        unknownCompanyFrom,
       })
     }
 
@@ -392,6 +449,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         // sentence rather than leaving the gap invisible.
         sourceError,
         unknownCompany,
+        unknownCompanyFrom,
         // THE MODEL'S WORDS AND ITS IDS DISAGREED — said out loud, not settled
         // internally. The analyst asked for less, the prose agreed with them and
         // the id list did not, and nothing here can know which half was meant.
@@ -413,6 +471,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       fallback: findSources(degraded, corpus),
       sourceError,
       unknownCompany,
+      unknownCompanyFrom,
     })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })

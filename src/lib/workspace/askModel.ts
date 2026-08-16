@@ -1,6 +1,7 @@
 import 'server-only'
 import OpenAI from 'openai'
 import { geminiSnipParts, openAiSnipContent, type ChatAttachment } from '@/lib/chat/attachments'
+import type { FenceSafe } from '@/lib/workspace/chat/context'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ONE MODEL CALL, TWO PROVIDERS, whichever answers first.
@@ -69,8 +70,19 @@ export type AskOptions = {
    * answer, and indistinguishable from a good one.
    */
   attachments?: ChatAttachment[]
-  /** One caption per attachment, in the same order (see `snipCaption`). */
-  captions?: string[]
+  /**
+   * One caption per attachment, in the same order — and `FenceSafe`, not
+   * `string`, on purpose.
+   *
+   * A caption is a SECOND CHANNEL into the prompt: it carries a shelf item's
+   * title and is sent as a text part beside the image, so nothing the prompt
+   * builders do can protect it. Two review rounds found this door, and the
+   * second found it STILL OPEN in `compose/route.ts` after a fix had cited that
+   * exact line — because the route built its caption inline instead of calling
+   * `snipCaption`, and a `string` parameter cannot tell the difference. This
+   * type can: the only ways in are `fencePart` and `fenceSafeLine`.
+   */
+  captions?: FenceSafe[]
 }
 
 /**

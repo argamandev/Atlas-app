@@ -50,6 +50,12 @@ console clean + tests green.
    existed, two were driven, and the evidence file's own "not verified" list silently omitted
    the third, so the gap read as coverage. Enumerating BEFORE driving is what makes an omission
    visible, because a row with no verdict is obvious and a missing paragraph is not.
+   **A STATE A BROWSER CANNOT REACH GETS A ROW TOO** (09b): a vendor being down, a model timing
+   out, a database row nobody has. Enumerating only the drivable ones is how a matrix reads as
+   covered while its untestable half was never even listed. Mark it not-driven, say WHY it cannot
+   be forced, and name the test that holds it instead — and if nothing holds it, that is the
+   finding. 09b's five intake caveats are the worked example: two drivable and driven, three not,
+   each pointing at `intake/notice.test.ts`.
 8c. **A DRIVE EXPIRES WHEN THE CODE UNDER IT CHANGES — RE-CHECK THE TABLE AT MERGE, NOT AT THE
    DRIVE.** Added 2026-08-15 (ticket 08c-3), which failed this twice on ONE branch: five review
    rounds edited the surface after the table was written, and the table went on claiming ticks it

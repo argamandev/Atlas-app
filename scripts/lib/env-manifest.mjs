@@ -304,7 +304,85 @@ export const VOCABULARY_EXEMPT = {
  * consecutive raises is that it will not happen as a side effect of the next
  * ticket either. It needs to be scheduled.
  */
-export const TOKEN_BUDGET = 9_680
+/*
+ * RAISED 9,680 → 9,900 on 2026-08-15 (ticket 09). Mine, not the founder's, and
+ * flagged to him in the handoff.
+ *
+ * RAISE SIX — AND THE FIRST ONE THAT IS NOT THE DEGRADATION LAW EARNING ANOTHER
+ * TIER. Every raise above bought a new tier for `Degradation must be VISIBLE`.
+ * This one files a NEW law: `Every untrusted string reaching a MODEL passes a
+ * sanitiser — the fence LINE, not just the body it opens`, with a test mechanism
+ * (`workspace/chat/promptInjectionDiscipline.test.ts`).
+ *
+ * It is filed because the defect recurred SIX TIMES ON ONE BRANCH, each fix
+ * landing where the bug was noticed and each leaving the next door open: the
+ * source body, the fence marker line, the shelf listing, the `"""` blocks, the
+ * conversation turns, the clip caption — and then the SCAN bought to end the
+ * sequence, which named two builders while the defect spanned three. Two cold
+ * review rounds found doors four through six. A defect that recurs six times in
+ * one branch and has no law is precisely what ADR-0002 says to file, and prose
+ * would not have caught door six — the scan did, once it was widened.
+ *
+ * So `npm run env:health`'s mechanism count goes UP by one here (13 → 14), which
+ * is the trade ADR-0002 asks for: more enforcement per token, not more prose.
+ *
+ * The branch paid before asking, as the notes above require: STATUS.md's 08 block
+ * was cut to three lines now that 08 has landed, its two-reds block condensed, and
+ * the 09 entry written at a third of its first draft. The law itself was cut from
+ * fourteen lines to eleven, with its story sent to `case-history`. The last ~24
+ * are headroom, for the reason raise four gives.
+ *
+ * AMENDED 9,900 → 9,950 later the same day, before the branch merged. Review
+ * round 3 found doors SEVEN and EIGHT — a caption built inline in
+ * `compose/route.ts` that never called `snipCaption` (the site round 1 had named
+ * and a fix had claimed), and the intake route concatenating the analyst's turn
+ * onto a system prompt. ADR-0002 does not let a recurrence buy prose, and it had
+ * already bought the test tier, so the law gained an **impossible** tier:
+ * `askModel`'s `captions` takes `FenceSafe`, a type only the sanitisers produce,
+ * which a route cannot satisfy with a raw string in any file — named by the scan
+ * or not. That declaration is ~50 tokens and it is the difference between a
+ * mechanism that reads three files and one that holds everywhere.
+ *
+ * Shaving the law's wording to land on 9,900 was the alternative and was rejected
+ * for the reason raise five gives: trimming a law to hit a number is how a law
+ * gets quietly weakened by arithmetic. STATUS.md paid what it could first.
+ *
+ * ⚠ THE SHRINK IS SIX SLICES OVERDUE. The note above said five consecutive raises
+ * mean it will not happen as a side effect of the next ticket, and it did not.
+ * It needs to be scheduled as its own mission.
+ */
+/*
+ * RAISED 9,950 → 10,050 on 2026-08-15 (ticket 09b). Mine, not the founder's, and
+ * flagged to him in the report.
+ *
+ * RAISE SEVEN, and it is the degradation law again — the same law as raises one
+ * through five, earning not a tier this time but a LIMIT on the tier it already
+ * has. 09b moved a panel's caveat decision into one swept pure function
+ * (`intake/notice.ts`), which is exactly the shape that law's VERIFY line has
+ * demanded since 08c-3. Then the cold review found the hole that shape does not
+ * cover: the STATE can be chosen correctly and its COPY still be false of the
+ * cause. Two dead ends — a typed company name that matched nothing, and a
+ * company the analyst PICKED with `@` whose row has no MAYA issuer id — shared
+ * one sentence, and that sentence told the second to use the `@` that had just
+ * failed. So the declaration names the mechanism AND what it does not reach,
+ * because a mechanism described without its limit is the over-claim raise five
+ * was spent deleting.
+ *
+ * THE SET GOT SMALLER IN TWO PLACES FIRST, and one of those is the interesting
+ * one. Of 155 tokens, 83 were paid rather than borrowed: the new tier was folded
+ * INTO the existing "decide it in ONE function" VERIFY line instead of opening a
+ * sixth tier that would have restated it, and the enumeration law's new clause —
+ * how to record a state a browser cannot reach — moved OUT of always-on entirely
+ * into `/verify-app` step 8b, which is where a procedure belongs and is loaded
+ * only when someone is verifying. That is the shrink working at small scale: not
+ * every sentence a law learns has to live in the law.
+ *
+ * The last ~28 are headroom, for the reason raise four gives.
+ *
+ * ⚠ THE SHRINK IS SEVEN SLICES OVERDUE. Six raises predicted it would not happen
+ * as a side effect, and it did not again. It is still its own mission.
+ */
+export const TOKEN_BUDGET = 10_050
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'

@@ -803,7 +803,6 @@ export function LiveBroadcastView({
       </div>
       {chat.open && (
         <TranscriptChatPanel
-          transcriptId={undefined}
           // ON THE NEW BACKEND (ticket 08c-2). The live view displays exactly one
           // grounding — "Atlas is following this call live" — and v2 now honours
           // it: the captions on screen are injected, fenced and budgeted, and the

@@ -1,4 +1,5 @@
 import { modelObject } from '../intake/json'
+import { defang, fencePart, quoted } from './context'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE WORKSPACE CHAT — talking about the shelf, and asking for more of it.
@@ -58,13 +59,13 @@ export function buildChatPrompt(input: PromptInput): string {
   const shelf =
     input.shelf.length === 0
       ? '(nothing on the shelf yet)'
-      : input.shelf.map((f) => `- ${f.title} (${f.kind})`).join('\n')
+      : input.shelf.map((f) => `- ${fencePart(f.title)} (${fencePart(f.kind)})`).join('\n')
 
   const partial =
     input.truncated.length === 0
       ? ''
       : `\nYOU WERE GIVEN ONLY PART OF THESE, because they are long:
-${input.truncated.map((t) => `- ${t}`).join('\n')}
+${input.truncated.map((t) => `- ${fencePart(t)}`).join('\n')}
 If your answer depends on a part you cannot see, SAY SO plainly. Never imply you
 read the whole of one of these.
 `
@@ -72,10 +73,8 @@ read the whole of one of these.
   // The marked passage goes in as its own block rather than being glued onto the
   // user's question, so "what does this mean?" has an unambiguous "this".
   const marked = input.selection
-    ? `\nTHE ANALYST HAS MARKED THIS PASSAGE, from "${input.selection.title}":
-"""
-${input.selection.text}
-"""
+    ? `\nTHE ANALYST HAS MARKED THIS PASSAGE, from "${fencePart(input.selection.title)}":
+${quoted(input.selection.text)}
 Their message is about this passage unless they clearly change the subject.
 `
     : ''
@@ -93,10 +92,15 @@ Read the ${input.snipCount === 1 ? 'image' : 'images'} — ${input.snipCount ===
 `
 
   const talk = input.conversation
-    .map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${t.content}`)
+    // The turns are untrusted like everything else: a user turn is request body,
+    // and an assistant turn is whatever was stored last time — which may be a
+    // reply that quoted a document's own words back. Only ANALYST turns may
+    // instruct, and that promise is worth nothing if a turn can print the marker
+    // that decides which region is which.
+    .map((t) => `${t.role === 'user' ? 'ANALYST' : 'YOU'}: ${defang(t.content)}`)
     .join('\n')
 
-  return `You are Atlas, working alongside an equity analyst inside their research workspace "${input.workspaceName}".
+  return `You are Atlas, working alongside an equity analyst inside their research workspace "${fencePart(input.workspaceName)}".
 
 FILES ON THE SHELF:
 ${shelf}

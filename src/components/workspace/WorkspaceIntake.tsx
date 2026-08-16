@@ -7,7 +7,10 @@ import { PillComposer } from '@/components/ds/PillComposer'
 import { WordReveal } from '@/components/ds/WordReveal'
 import { ErrorLine } from '@/components/projects/ErrorLine'
 import { ChevronLeftIcon, PlusIcon, AtIcon, ArrowUpIcon } from '@/components/ds/icons'
+import { MentionDropdown } from '@/components/chat/MentionDropdown'
+import { companyDisplayName, type Company } from '@/lib/api/types'
 import { intakeSearchReq, addItemReq, addMayaItemReq } from '@/lib/workspace/client'
+import { chooseIntakeNotice } from '@/lib/workspace/intake/notice'
 import type { IntakeTurn } from '@/lib/workspace/intake/types'
 import type { AttachableSource } from '@/lib/workspace/data'
 
@@ -57,7 +60,7 @@ export function WorkspaceIntake({
   /** panel only: the files landed, so the dialog can close itself */
   onDone?: () => void
 }) {
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
   const router = useRouter()
 
   // The panel opens straight into the conversation — its dialog header already
@@ -74,6 +77,36 @@ export function WorkspaceIntake({
   const [fetchingRemote, setFetchingRemote] = useState(false)
   /** index of the one turn currently revealing itself, or null */
   const [animateAt, setAnimateAt] = useState<number | null>(null)
+
+  // ─── THE COMPANY, PICKED RATHER THAN SPELLED ──────────────────────────────
+  //
+  // Founder, 2026-08-15, after watching Atlas answer "I don't have their
+  // documents" about a company holding twelve filings: *"why not just allow the
+  // user to type @ and then we wont have any problem? it will be accurate"*.
+  //
+  // He is right, and the reason is stronger than convenience: `בז"א`,
+  // `בית הזיקוק באשדוד` and one typo all resolve to NOTHING against MAYA's
+  // registered names, and the resolver is right to refuse them — a near-match
+  // between בז"א and בז"ן is the other refinery's annual report arriving under
+  // the name the analyst typed. `@` does not make the matching better; it
+  // removes the matching. The id travels, the spelling never does.
+  //
+  // Ask Atlas has had exactly this since ticket 07 (`ChatView.tsx`), down to
+  // the dropdown component and the endpoint — the intake is the surface that
+  // never got it.
+  /** the picked company: `null` until an `@` mention resolves one */
+  const [pinned, setPinned] = useState<{ id: string; name: string } | null>(null)
+  /** the text after `@` while the dropdown is open; `null` when it is closed */
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  /** how many rows that dropdown is SHOWING — the fact `send` guards Enter on */
+  const [mentionRows, setMentionRows] = useState(0)
+  // ONE conversation, TWO composers — the tall intro box and the pill bar — and
+  // only ever one of them mounted. Focus goes back to whichever that is.
+  const introInputRef = useRef<HTMLInputElement>(null)
+  const pillInputRef = useRef<HTMLInputElement>(null)
+  const focusComposer = useCallback(() => {
+    ;(introInputRef.current ?? pillInputRef.current)?.focus()
+  }, [])
 
   const endRef = useRef<HTMLDivElement>(null)
   const stickToEnd = useCallback(() => {
@@ -100,19 +133,73 @@ export function WorkspaceIntake({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRequest])
 
-  async function send(text: string) {
+  /**
+   * Every keystroke in either composer, so the `@` affordance cannot exist in
+   * one of them and not the other — the tall intro box and the pill bar are the
+   * same conversation, and a mention that works only before the first message
+   * would be worse than none.
+   *
+   * The trigger is the LAST `@` run with no whitespace in it, which is what
+   * makes "תביא לי את הדוחות של @בז" open on `בז` rather than on the sentence.
+   */
+  function onDraftChange(v: string) {
+    setDraft(v)
+    const m = /@([^\s@]*)$/.exec(v)
+    setMentionQuery(m ? m[1] : null)
+  }
+
+  function onSelectMention(c: Company) {
+    const name = companyDisplayName(c, locale)
+    setPinned({ id: c.id, name })
+    // The typed fragment becomes the name, so the sentence still READS the way
+    // they meant it — the id is what actually travels, but a composer that
+    // swallowed their words would be its own kind of lie.
+    setDraft((v) => v.replace(/@([^\s@]*)$/, `@${name} `))
+    setMentionQuery(null)
+    focusComposer()
+  }
+
+  /**
+   * `fromKey` is the ONE thing the picker can contend with, and it is passed
+   * explicitly rather than inferred.
+   *
+   * ENTER BELONGS TO THE PICKER WHILE IT IS OPEN, and `send` is the only place
+   * that reliably knows it: `MentionDropdown` listens on window in the capture
+   * phase and calls `preventDefault`, which is NOT enough — a composer that
+   * sends from its own `onKeyDown` is a listener on the SAME element, so
+   * neither `preventDefault` nor `stopPropagation` from a capture handler stops
+   * it. Measured in the browser on 2026-08-15: one Enter both picked
+   * בית זיקוק אשדוד and sent "@בז" as a question.
+   *
+   * A CLICK ON SEND IS NOT AMBIGUOUS, and the first fix swallowed it anyway —
+   * the guard sat on every path, so tapping the arrow with the picker open did
+   * nothing at all, no send and no feedback (09b review). The button now always
+   * sends; only the key can be claimed.
+   *
+   * The key's guard asks whether the picker is SHOWING ROWS, not whether an `@`
+   * is being typed: `@zzz` matches nothing, the dropdown declines Enter, and a
+   * guard on the fragment alone would swallow that keystroke with nothing on
+   * screen to explain it (M3.2 — the fact, never a proxy for it).
+   */
+  async function send(text: string, fromKey = false) {
     const q = text.trim()
     if (!q || thinking) return
+    if (fromKey && mentionRows > 0) return
 
     const next: IntakeTurn[] = [...turns, { role: 'user', content: q }]
     setTurns(next)
     setDraft('')
+    setMentionQuery(null)
     setError(null)
     setStage('chat')
     setThinking(true)
 
     try {
-      const { result } = await intakeSearchReq(workspaceId, next)
+      // THE PIN RIDES EVERY TURN, not just the one it was picked on. That is
+      // what makes a correction a PICK rather than a re-spelling: the analyst
+      // says "actually the annual one" three turns later and the company is
+      // still the row they chose, unchanged and still on screen.
+      const { result } = await intakeSearchReq(workspaceId, next, pinned?.id ?? null)
       setThinking(false)
 
       // ATLAS COULD NOT WORK OUT WHICH FILES, AND SAYS SO IN ITS OWN WORDS.
@@ -128,23 +215,26 @@ export function WorkspaceIntake({
             ? dict.workspace.intakeSelectionUnclear
             : null
 
-      // Deterministic, from the server. `unknownCompany` first: if the company
-      // was never resolved, saying MAYA was unreachable would be a second,
-      // wrong explanation for the same missing result.
-      setNotice(
-        result.unknownCompany
-          ? dict.workspace.intakeUnknownCompany
-          : result.sourceError === 'maya_unreachable'
-            ? dict.workspace.intakeMayaUnreachable
-            : result.sourceError === 'request_not_understood'
-              ? dict.workspace.intakeRequestNotUnderstood
-              : // Only when the model's OWN sentence is being shown, so the
-                // conflict is never said twice: with `reply === null` the same
-                // line becomes the spoken turn below.
-                result.reply !== null
-                ? unresolvedLine
-                : null
-      )
+      // WHICH caveat is true is decided in `chooseIntakeNotice` and swept by its
+      // own test; only the WORDING is chosen here, where both locales live.
+      // They were one nested ternary until 09b's review, which is how a fourth
+      // case got appended in a place no test could see (`notice.ts` header).
+      const NOTICE_COPY = {
+        unknown_company: dict.workspace.intakeUnknownCompany,
+        pinned_company_unreachable: dict.workspace.intakePinnedCompanyUnreachable,
+        maya_unreachable: dict.workspace.intakeMayaUnreachable,
+        request_not_understood: dict.workspace.intakeRequestNotUnderstood,
+        request_partly_understood: dict.workspace.intakeRequestPartlyUnderstood,
+        unresolved: unresolvedLine,
+      }
+      const notice = chooseIntakeNotice({
+        unknownCompany: result.unknownCompany,
+        unknownCompanyFrom: result.unknownCompanyFrom,
+        sourceError: result.sourceError,
+        hasUnresolvedLine: unresolvedLine !== null,
+        hasReply: result.reply !== null,
+      })
+      setNotice(notice === null ? null : NOTICE_COPY[notice])
 
       const ready = result.status === 'ready' && result.selected.length > 0
 
@@ -256,18 +346,67 @@ export function WorkspaceIntake({
     onDone?.()
   }
 
+  /** The `@` tap: the same thing typing the character does, from a button. */
+  function openMention() {
+    setDraft((v) => (v.endsWith('@') || v === '' ? v + '@' : v + ' @'))
+    setMentionQuery('')
+    focusComposer()
+  }
+
+  const mentionDropdown =
+    mentionQuery !== null ? (
+      <MentionDropdown
+        query={mentionQuery}
+        onSelect={onSelectMention}
+        onClose={() => setMentionQuery(null)}
+        onRowsChange={setMentionRows}
+      />
+    ) : null
+
+  /**
+   * THE PIN, ON SCREEN, WITH A WAY OUT — and it is not decoration.
+   *
+   * The id rides every later turn, so a pin the analyst cannot see is the
+   * "confidently wrong company" defect wearing a new costume: pin one refinery,
+   * ask in words for the other's report, and the request still carries the
+   * first. `rules/app.md`'s UI-truthfulness law is the same one `ChatView`
+   * learned twice — a scope that exists must be visible and must be undoable.
+   */
+  const pinChip = pinned ? (
+    <div className="mb-2 flex flex-wrap items-center gap-2">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs text-ink-muted">
+        {/* A company name can be Hebrew, Latin or both ("אלביט Systems"), so
+            each run gets its own <bdi> and `dir` stays on the container — never
+            on this mixed line. The "@" is a bare sign and stays outside. */}
+        <span className="font-medium text-ink">
+          @<bdi>{pinned.name}</bdi>
+        </span>
+      </span>
+      <button
+        type="button"
+        onClick={() => setPinned(null)}
+        className="rounded-full px-2.5 py-1 text-xs text-ink-muted underline underline-offset-2 hover:text-ink"
+      >
+        {dict.workspace.intakeUnpinCompany}
+      </button>
+    </div>
+  ) : null
+
   const composer = (
     <div className="px-8 pb-[26px]">
-      <div className="mx-auto w-full max-w-[720px]">
+      <div className="relative mx-auto w-full max-w-[720px]">
+        {mentionDropdown}
+        {pinChip}
         <PillComposer
           value={draft}
-          onChange={setDraft}
-          onSend={() => void send(draft)}
+          onChange={onDraftChange}
+          onSend={(fromKey) => void send(draft, fromKey)}
           placeholder={dict.workspace.intakePlaceholder}
           sendLabel={dict.workspace.intakeSend}
           addLabel={dict.workspace.intakeAdd}
           micLabel={dict.workspace.intakeMic}
           disabled={thinking}
+          inputRef={pillInputRef}
         />
       </div>
     </div>
@@ -304,35 +443,53 @@ export function WorkspaceIntake({
                 {dict.workspace.intakeSub}
               </p>
               {error !== null && <ErrorBanner error={error} />}
-              <div className="w-full rounded-2xl border border-hairline bg-paper px-4 py-3.5 shadow-soft">
-                <input
-                  autoFocus
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void send(draft)}
-                  placeholder={dict.workspace.intakePlaceholder}
-                  // Hebrew must read RTL as it is typed, without the user
-                  // switching the interface language — the same behaviour
-                  // ChatComposer and PillComposer already have. This input was
-                  // the ONLY composer in the app missing it, which is why the
-                  // defect only showed on the workspace's first message.
-                  dir="auto"
-                  className="mb-3.5 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-ghost"
-                />
-                <div className="flex items-center gap-3.5 text-ink-ghost">
-                  <PlusIcon size={18} strokeWidth={1.7} />
-                  <AtIcon size={16} strokeWidth={1.7} />
-                  <span className="rounded-[5px] border border-hairline px-1.5 text-[14px] leading-[1.4]">
-                    /
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void send(draft)}
-                    aria-label={dict.workspace.intakeSend}
-                    className="ms-auto flex h-[30px] w-[30px] items-center justify-center rounded-full bg-ink text-paper"
-                  >
-                    <ArrowUpIcon size={15} strokeWidth={2} />
-                  </button>
+              <div className="relative w-full">
+                {mentionDropdown}
+                {pinChip}
+                <div className="w-full rounded-2xl border border-hairline bg-paper px-4 py-3.5 shadow-soft">
+                  <input
+                    ref={introInputRef}
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => onDraftChange(e.target.value)}
+                    // `true` = this is the KEY, which the picker may claim.
+                    // WHETHER it claims it is `send`'s decision, not this
+                    // handler's — one place answers that for both composers.
+                    onKeyDown={(e) => e.key === 'Enter' && void send(draft, true)}
+                    placeholder={dict.workspace.intakePlaceholder}
+                    // Hebrew must read RTL as it is typed, without the user
+                    // switching the interface language — the same behaviour
+                    // ChatComposer and PillComposer already have. This input was
+                    // the ONLY composer in the app missing it, which is why the
+                    // defect only showed on the workspace's first message.
+                    dir="auto"
+                    className="mb-3.5 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-ghost"
+                  />
+                  <div className="flex items-center gap-3.5 text-ink-ghost">
+                    <PlusIcon size={18} strokeWidth={1.7} />
+                    {/* THE @ WAS ALREADY DRAWN HERE AND DID NOTHING — the design
+                      taught an affordance the surface did not have. It is now
+                      the same tap as typing the character. */}
+                    <button
+                      type="button"
+                      onClick={openMention}
+                      aria-label={dict.workspace.intakeMention}
+                      className="flex text-ink-ghost transition-colors hover:text-ink"
+                    >
+                      <AtIcon size={16} strokeWidth={1.7} />
+                    </button>
+                    <span className="rounded-[5px] border border-hairline px-1.5 text-[14px] leading-[1.4]">
+                      /
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void send(draft)}
+                      aria-label={dict.workspace.intakeSend}
+                      className="ms-auto flex h-[30px] w-[30px] items-center justify-center rounded-full bg-ink text-paper"
+                    >
+                      <ArrowUpIcon size={15} strokeWidth={2} />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="mt-3 text-[12px] text-ink-ghost">{dict.workspace.intakeHint}</div>

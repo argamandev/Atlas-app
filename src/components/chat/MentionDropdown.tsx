@@ -14,10 +14,23 @@ export function MentionDropdown({
   query,
   onSelect,
   onClose,
+  onRowsChange,
 }: {
   query: string
   onSelect: (c: Company) => void
   onClose: () => void
+  /**
+   * How many rows this card is SHOWING, whenever that changes.
+   *
+   * Enter is claimed by this component only while it has rows — with none it
+   * declines the key and lets the composer send. A caller that also guards
+   * Enter therefore needs the same fact, and "an `@` fragment is being typed"
+   * is not it: `@zzz` matches nothing, renders nothing, and a caller guarding
+   * on the fragment would swallow the keystroke with no picker on screen to
+   * explain why (rules/app.md M3.2 — the choke point gets the fact, never a
+   * proxy for it).
+   */
+  onRowsChange?: (rows: number) => void
 }) {
   const { dict, locale } = useI18n()
   const [results, setResults] = useState<Company[]>([])
@@ -37,6 +50,14 @@ export function MentionDropdown({
       cancelled = true
     }
   }, [query])
+
+  // Reported from an effect on the RENDERED list, not from inside the fetch, so
+  // it cannot disagree with what is on screen — including the unmount, where a
+  // caller must stop believing rows are showing.
+  useEffect(() => {
+    onRowsChange?.(results.length)
+    return () => onRowsChange?.(0)
+  }, [results, onRowsChange])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

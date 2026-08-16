@@ -53,10 +53,22 @@ export const fetchSources = () => call<{ sources: AttachableSource[] }>('/api/wo
  * files may now be pulled; anything else means keep talking. Never returns
  * invented rows — see the route's header for why the model cannot conjure one.
  */
-export const intakeSearchReq = (workspaceId: string, messages: IntakeTurn[]) =>
+export const intakeSearchReq = (
+  workspaceId: string,
+  messages: IntakeTurn[],
+  /**
+   * The company the analyst PICKED with `@`, as a company id — never a name.
+   *
+   * An id cannot be misspelled, abbreviated or confused with the other
+   * refinery, which is the entire reason this parameter exists rather than a
+   * better matcher on the far end. The server reads the issuer number behind it
+   * itself; nothing about the company travels from here except which row.
+   */
+  companyId?: string | null
+) =>
   call<{ result: IntakeResponse }>(`/api/workspaces/${workspaceId}/intake`, {
     method: 'POST',
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, ...(companyId ? { companyId } : {}) }),
   })
 
 /**
