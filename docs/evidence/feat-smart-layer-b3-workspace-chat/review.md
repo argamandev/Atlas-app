@@ -253,9 +253,9 @@ checked the `companyId` path itself: UUID-shape-checked, read through the USER's
 row, nothing about the issuer trusted from the body. `MentionDropdown`'s new `onRowsChange` is
 optional and `ChatView` does not pass it, so its existing caller is unaffected.
 
-REVIEWED: 48bcfa8
+Round 5 read `48bcfa8` and returned CHANGES.
 
-VERDICT: CHANGES
+(Its pair is superseded by round 6 below; kept as prose so only one pair parses.)
 
 ### Pass A — at `37704cc`, all four FIXED in `48bcfa8`
 
@@ -305,3 +305,80 @@ ADR-0002: a recurrence must buy a stronger mechanism in the same commit, not a r
 **No round has yet read the tip.** This record's `REVIEWED:` is `48bcfa8`; the pass-B fixes, the law
 edit and the budget raise land after it. A round 6 must read the tip and set this pair to APPROVED —
 `npm run ship:gate` refuses the merge until it does, and it is right to.
+
+## Round 6 — the two founder bugs (`8d0560c`, `1163c2b`, `605be1a`)
+
+Cold review of the two bug-fix commits and their evidence. **It returned CHANGES with one BLOCKER,
+and the BLOCKER was right.**
+
+### The BLOCKER, and what it cost to answer
+
+`periodFor`'s new closed-period rule checked a period code against a year it had *inferred* from the
+publication date whenever the title stated none. For `FY` that comparison can never pass — an annual
+filed in 2025 asked whether 2025 had ended by 2025 — so every annual-coded filing with a year-less
+title fell to a date label, which `parsePeriod` refuses, which takes it off the documents tab.
+**100% of that class, to fix two rows.** I had reasoned the class was rare instead of counting it,
+which is the M1 shape exactly: my evidence measured one issuer on one day and I read it as the rule's
+blast radius.
+
+The answer was an instrument, not an argument. `scripts/measure-period-labels.ts` sweeps all 233
+issuers over 2022–2026 and diffs the old label against the new:
+
+| version | filings | lost their place |
+| --- | --- | --- |
+| as reviewed | 8,804 | 99 — 81 decks, 13 annual, 5 quarterly |
+| as shipped | 8,804 | **81, every one a deck, zero reports** |
+
+Reading the 18 reports one by one is what produced the shipped rule. Most were forecasts wearing the
+annual code; one was an issuer's own typo (`20f לשנת 2032`); and three were **real statements from a
+foreign-track issuer whose fiscal quarter is not a calendar one**. So the rule is asked of DECKS
+only, and only against a year the issuer STATED — which is not a narrowing for safety but the true
+statement: a deck's title year says when the deck was made, a report's says what period it covers,
+and only the first can disagree with the event code.
+
+### The other findings
+
+- **WARNING · the caption read a different input than the grounding it described.** FIXED, and at the
+  strongest tier — see the recurrence answer below.
+- **WARNING · the evidence file claimed the poisoned production row "re-derives on the next backfill
+  or poll".** FALSE, and the reviewer proved it: `syncCompanyFilings` returns `held` for any row
+  already `index_status='indexed'` (`syncFilings.ts:236`) and `quarter` is written only at
+  `ingestFiling.ts:64`. Verified against production — that row is indexed. The claim is corrected in
+  place, marked as a correction rather than edited silently.
+- **WARNING · "a quarter beats the annual code" contradicted `filingKind`.** FIXED by adopting
+  `filingKind`'s order (annual first). This reader does not get to invent a second precedence, and
+  no filing carrying both codes exists in the feed — the test now says so instead of implying the
+  fixture was real.
+- **WARNING · stale test counts in ARCHITECTURE / PROGRESS / STATUS.** FIXED, regenerated from this
+  tree: 1180 tests / 110 files, battery 1179/1180.
+- **WARNING · scope: the period-label fix has no ticket and rides a workspace-chat branch.** ACCEPTED
+  as a fact rather than fixed — the founder asked for both bugs on this branch. Now stated in STATUS,
+  in PROGRESS and in the evidence file instead of being inferable only from the diff.
+- **NIT · `assignSpeaker` lacked its sibling's null guard.** FIXED at the value, not the branch.
+- **NIT · the `filings.test.ts` comment claimed the deck was "still reachable".** FIXED — and
+  investigating it produced a finding of its own: the "later bucket" that comment relies on is a
+  hardcoded empty state, so a date-period deck is reachable from nowhere on the company page. Filed
+  in `docs/open-findings.md` rather than papered over.
+- **NIT · `askGrounding.ts` missing from ARCHITECTURE's `lib/live` table.** FIXED.
+
+### What the `RECURRENCE: yes` answers bought (ADR-0002)
+
+- **Degradation must be VISIBLE — the caption.** Tier bought: **impossible**. The panel's
+  `transcriptId` prop is DELETED, so the sentence describing the grounding now has exactly one
+  input and cannot disagree with it. `{kind:'none'}` gains its own string rather than borrowing the
+  company's. This is stronger than the test the reviewer proposed and removes the shape that invited
+  the bug, which is the same move 08c-2 made for the terminal event.
+- **Degradation must be VISIBLE — a source that leaves the tab.** Tier bought: **test**, plus a
+  measured bound. `events.test.ts` now pins that no REPORT loses its period under this rule,
+  including the three classes the sweep caught, and `scripts/measure-period-labels.ts` is committed
+  so the bound is re-derivable rather than quoted. **The limit is declared with it:** decks still
+  leave the tab, on purpose, and the fact that they land nowhere is filed as an open finding rather
+  than counted as coverage.
+
+### Still owed before merge — NOT resolved by this round
+
+- **Round 5's four recurrence declarations** (lines flagged by `npm run ship:gate`) predate these
+  commits and are not adjudicated here.
+- The battery is **1179/1180**; the red is `environment.test.ts` counting a second `CLAUDE.md`
+  inside a registered git worktree under `.claude/worktrees/`. Environmental, not the branch — any
+  registered worktree reproduces it.

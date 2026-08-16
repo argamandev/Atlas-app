@@ -194,3 +194,17 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   wants its own measurement of each code before anything is excluded — the `113` rule was bought
   with a 20-issuer/814-filing probe. **Not a law and not a blocker.**
   Command that produced the list: `node --import tsx scripts/measure-period-labels.ts`.
+- **A deck with a publication-date period is reachable from NOWHERE on the company page** (recorded
+  2026-08-16). `documentCatalog.ts` says a standalone company deck belongs "in the same later bucket
+  as announcements and webinars" and `parsePeriod` duly refuses its date label — but the Webinars tab
+  is a hardcoded empty state (`CompanyView.tsx:262-271`, `dict.company.noWebinars`), so that bucket
+  does not exist. The prose describes an intent, not a shipped surface.
+  **This predates the period-label fix and is widened by it.** Code-less `[270]` decks have been
+  dropped this way since 2026-08-14, founder-approved. The fix adds the 81 decks measured above —
+  including דנאל's `מצגת שוק ההון- מאי 2026`, which the founder could open yesterday as `שנתי 2026`
+  and cannot open today. They remain in the corpus (chat can still cite them) and on MAYA; what is
+  gone is the way to click one.
+  **Stated rather than quietly accepted**, because the alternative was leaving a deck at the top of
+  2026 calling itself the annual report, which is the defect that was reported. The real answer is
+  to build the bucket — a year's decks listed under it by publication date — and that is a founder
+  decision about a surface, not a bug fix. **Not a law and not a blocker.**
