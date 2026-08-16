@@ -231,3 +231,66 @@ Each needs a decision or a window, not a drive-by fix. Re-verified 2026-08-10.
   `askHeroSub`") rather than asserting two enum members map to `true`, which is what let this pass.
   **Not a law and not a blocker.** Merged knowingly on the founder's instruction, recorded here so
   it is not rediscovered as new.
+- **`RECURRENCE: yes` cannot name a meta-law or a TRAP, so this repo's most-repeated failure classes
+  are structurally always answered `no`** (recorded 2026-08-16, agents-1 plan 1). `scripts/ship-gate.mjs`
+  resolves a recurrence answer through `parseLaws`, which only sees `**LAW ·**` blocks — so M1-M4 and
+  every `TRAP ·` in `rules/app.md` match nothing, `hits.length !== 1` fires, and the gate refuses the
+  answer. The author's only legal move is `RECURRENCE: no`.
+  **What that costs, measured on this branch:** three findings were genuine repeats — the migration's
+  single-column child FKs repeated `docs/SMART-LAYER-SPEC.md:165`, the guard's CRLF blanker repeated
+  the "a scripted edit can silently match nothing" TRAP, and the guard deciding on FK ARITY repeated
+  M3 clause 2 — and all three were filed `no` with the reason written out. Each paid its promotion
+  anyway (a new `mechanism`-tier law in `db.md`, a canary, and the law restated to match its
+  mechanism), so nothing was skipped. But **the gate's own ledger now reads "no recurrences on this
+  branch" when three occurred**, which is the gate certifying an untrue premise about itself — M2, on
+  the mechanism whose whole job is to catch that shape.
+  **Not a law and not a blocker.** Closing it means deciding whether meta-laws and TRAPs get
+  parseable titles and `ENFORCED` declarations of their own — an always-on change, on a set with
+  ~30 tokens of headroom, that would also move `env:health`'s unenforced count by construction. Its
+  own mission, and a founder call on the budget before it starts.
+- **The `reportTruncated` founder glance is still owed, and its evidence contradicts itself**
+  (recorded 2026-08-16, agents-1 plan 1). Ticket 08c-3 left a founder glance owed on
+  `reportTruncated`'s wording, which changed in BOTH locales after that state's browser drive.
+  `STATUS.md` carried it until this branch's rewrite, where it was removed as landed — **it was not
+  landed, it evaporated**, which is the one thing "what has landed is removed" must not be used for.
+  Filed here so removing it from STATUS is honest.
+  **Its only surviving trace disagrees with itself.**
+  `docs/evidence/feat-smart-layer-b2c-doc-grounding/verify-app.md:19` marks the truncated-notice row
+  `✅ RE-driven at round 6` in both locales; `:297` of the same file says the round-4 rewrite of
+  `reportTruncated` was **NOT re-driven**, arguing the render path is byte-identical and only the
+  string differs. Both cannot be true, and the state-table tick is the one a merge-time re-check
+  reads. Do not resolve this by picking the more convenient line.
+  **Not a law and not a blocker**, and cheap: it is one person looking at one notice in two locales.
+  Whoever closes it should fix the evidence file's contradiction in the same motion — a drive record
+  that disagrees with itself is worse than one that admits a gap. → `#choke-point-inputs`
+- **Nothing mechanical can check whether a sentence ABOUT the code is true** (recorded 2026-08-16,
+  agents-1 plan 1). **Three false statements about the code, across two of this branch's last four
+  review rounds, with no defect in code among them:** `STATUS.md` telling every future session that a previous ship's
+  override carried forward (it does not — the gate reads only the current branch's record); a
+  `STATED LIMITS` paragraph claiming a quoted `"USER_ID"` was not recognised (it passes — the code
+  strips quotes then lowercases); and `PROGRESS.md` + `STATUS.md` recording the SDK bump as
+  `0.102.0 → 0.106.0`, a version never in this tree, which made the founder's recorded "SDK bump on
+  a live product" decision read four minor versions wide instead of fifteen.
+  **The battery, `tsc` and the ship gate check counts, declarations, eviction and recurrence. None
+  of them can check a claim.** `environment.test.ts` measures how many tokens a law costs, never
+  whether it is true; the gate re-measures `Verified: N/M` and ARCHITECTURE's count header and has
+  no notion of a version claim at all.
+  **Two of the three were caught by EXECUTING the thing the sentence was about; one by redundancy.**
+  The `"USER_ID"` limit fell to probing the guard against variants; the `STATUS.md` override claim to
+  running `npm run ship:gate` and reading `ship-gate.mjs`. Only the SDK version came out through
+  duplication — the handoff file stated it separately and the two disagreed.
+  **An earlier draft of this entry generalised from the third case and got it backwards**, proposing
+  a habit of "state load-bearing facts twice in different files". That is inferred from the weakest
+  of the three and cuts against this repo's own discipline — CLAUDE.md's "never move text between
+  them to save tokens", STATUS rewritten rather than appended, and a token budget this branch spent
+  raise nine on. Recorded rather than deleted, because an entry about unchecked claims making an
+  unchecked claim is the failure in miniature; it was caught by the same method the evidence
+  supports.
+  **The generalisation the evidence carries is the one `plan-1-outcomes.md` §6 already states:
+  probe the claim, do not read it.** Execution is available on demand; a second document happening
+  to exist is not.
+  **Not a law and not a blocker.** What is worth deciding deliberately is whether anything cheaper
+  than execution exists for a claim nothing runs — a version string, a count, a "this is enforced
+  by" line. The two false claims that
+  reached the always-on set are the ones with real cost: every session reads them, and one of them
+  would have pre-authorised a founder decision that had no cause.

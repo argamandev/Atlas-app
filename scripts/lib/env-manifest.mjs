@@ -382,7 +382,113 @@ export const VOCABULARY_EXEMPT = {
  * ⚠ THE SHRINK IS SEVEN SLICES OVERDUE. Six raises predicted it would not happen
  * as a side effect, and it did not again. It is still its own mission.
  */
-export const TOKEN_BUDGET = 10_050
+/*
+ * RAISED 10,050 → 10,410 on 2026-08-16 (ticket agents-1, plan 1). NOT a founder
+ * decision — mine, flagged in the handoff for him to reverse, same as four of the
+ * seven raises above.
+ *
+ * RAISE EIGHT, AND THE THIRD INDEPENDENT REASON THIS SET HAS EVER GROWN. Say that
+ * plainly, because reading eight raises as one pattern is the mistake available
+ * here: raises one through five, and seven, were all `Degradation must be VISIBLE`
+ * earning a tier or a limit on one; raise six filed the prompt-injection fence law.
+ * This one is neither. `.claude/rules/db.md` gained a law of its own — a child row's
+ * FK into an owner-scoped parent must be COMPOSITE, keyed through user_id, never
+ * single-column, because PostgreSQL's referential-integrity checks bypass RLS —
+ * after migration 032's first draft shipped exactly that hole across four new tables
+ * despite two separate documents (`docs/SMART-LAYER-SPEC.md:165-166` and the
+ * 2026-08-13 foundation review, `docs/archive/scratch/2026-08-13-smart-layer/
+ * research/03-foundation-review.md:115`) already naming these tables and saying
+ * "copy 015/016's composite child FKs" before the migration was drafted.
+ *
+ * ADR-0002's shape held exactly as designed: a lesson told twice in PROSE and broken
+ * anyway is not a lesson the codebase has learned — only a mechanism that fails a
+ * battery is, and the recurrence has to buy it IN THE COMMIT that hit it. So this
+ * one bought a `test` (`src/lib/db/compositeChildFk.test.ts`), verified by
+ * reintroducing the original single-column shape and watching it fail before it was
+ * trusted, rather than another paragraph telling the next session to remember
+ * harder. The law therefore arrives carrying a mechanism, so the count
+ * `npm run env:health` exists to drive down does not move here.
+ *
+ * The branch paid first, same discipline as every raise above: the law's full story
+ * — why RI bypasses RLS, what the stranger's-agent insert actually validates as,
+ * both prior warnings that named these tables and still weren't enough, and the
+ * test's own verification — moved to `docs/case-history/db.md` (following `app.md`'s
+ * split), leaving a tight LAW/ENFORCED/VERIFY triple in `db.md` pointing at it with
+ * `→ #composite-child-fk`. That recovered 281 of the law's first 635 estimated
+ * tokens (`db.md`: 2,011 → 1,730). The rest is this raise.
+ *
+ * THE FIGURE IS MEASURED ON THE MERGED TREE, NOT ADDED UP — and that distinction is
+ * why this block exists at all. This branch and tickets 09/09b raised the SAME base
+ * independently, to 10,060 here and 10,050 on `main`, and neither number describes
+ * the set that exists after the merge, which carries both sides' additions.
+ * `npm run env:health` on the merged tree reports 10,386. That measurement sets the
+ * figure below; summing two branches' ceilings would have been a hand-carried count,
+ * which `rules/app.md` (M1) records as wrong every time this repo has tried it.
+ * An earlier draft of this block cited "9,674/9,680 — six tokens of headroom" as the
+ * pre-existing pressure; that described a tree that no longer exists, so it is
+ * deleted rather than restated.
+ *
+ * The last 24 are HEADROOM, the same allowance raises four, six and seven each gave
+ * and for the same reason: landing exactly on the ceiling turns the budget from a
+ * drift alarm into a tripwire on the very next always-on edit of any size.
+ *
+ * ⚠ THE SHRINK IS EIGHT SLICES OVERDUE. Every note above predicted it would not
+ * happen as a side effect of the next ticket, and it has not, eight times running.
+ * `app.md` is 5,727 of these 10,386 tokens — more than half the set, measured on
+ * this tree — and shrinking it to pointers at its tests (`DECISIONS.md` 2026-08-12)
+ * is still its own mission and still unscheduled.
+ */
+/*
+ * RAISED 10,410 → 10,430 on 2026-08-16 (ticket agents-1, plan 1, final fix wave).
+ * NOT a founder decision — mine, flagged in the handoff for him to reverse, same as
+ * five of the eight raises above.
+ *
+ * RAISE NINE, AND IT BUYS NO LAW AND NO TIER. Say that first, because every raise
+ * above bought something: raises one through five and seven were `Degradation must
+ * be VISIBLE` earning a tier or a limit, six filed the fence law, eight filed the
+ * composite-child-FK law. This one buys HEADROOM and nothing else. It is 20 tokens
+ * on top of a set measured at 10,400, restoring the 24-32 the four previous raises
+ * each allowed for and each stated the reason for.
+ *
+ * WHY IT IS A RAISE AND NOT MORE SHAVING. The same branch's blocker fix — restating
+ * db.md's law from "never single-column" to "keyed through user_id", so the
+ * declaration measures what the mechanism measures — cost tokens the set did not
+ * have, and it landed the set at 10,409 against 10,410: ONE token of spare. That is
+ * not a healthy margin, it is a tripwire, and this file has already ruled on that
+ * exact state twice (raise four's reason, restated at eight): landing on the ceiling
+ * "turns the budget from a drift alarm into a tripwire on the very next always-on
+ * edit of any size."
+ *
+ * WHAT MAKES IT URGENT RATHER THAN TIDY: `STATUS.md` is in this set, and REWRITING
+ * `STATUS.md` is a MANDATORY step of the ship ritual that `scripts/ship-gate.mjs`
+ * refuses a merge without. So at one token of spare, the next session meets a red
+ * battery during a step it is not allowed to skip, and its only exit is the raise
+ * that is available right now — taken under merge pressure, unargued, by whoever is
+ * unlucky. Merging on the ceiling has to be a STATED CHOICE. This block is the
+ * statement; taking it now is what stops it being a residue someone inherits.
+ *
+ * THE BRANCH PAID FIRST, same discipline as every raise above, and paid twice.
+ * `STATUS.md` went 560 → 514 by REMOVING what had landed — 08c-3 and 09b material
+ * that "rewritten, never appended" required to come out anyway, so this is the rule
+ * working rather than a concession bought with it. And db.md's new law absorbed the
+ * lead-in sentence it subsumes rather than sitting beside it. Both were done before
+ * this raise was considered, which is the order raise five fixed and raise seven
+ * repeated: shave what is genuinely spent, then argue for what is genuinely needed.
+ * What was NOT done is trimming an unrelated law to make room — raise five's ruling,
+ * that trimming a law to hit a number is how a law loses the sentence that made it
+ * obeyable.
+ *
+ * THE FIGURE IS MEASURED, NOT ADDED UP. `npm run env:health` on this tree reports
+ * 10,400 (CLAUDE.md 1,592 · CONTEXT.md 777 · STATUS.md 514 · app.md 5,727 · db.md
+ * 1,790). 10,430 leaves 30, inside the 24-32 band. M1: the number comes from the
+ * command, never from arithmetic over two branches' ceilings.
+ *
+ * ⚠ THE SHRINK IS NINE SLICES OVERDUE, and this raise is the clearest evidence yet
+ * that it will not arrive as a side effect: this is the first raise that bought
+ * nothing but room to keep working. `app.md` is 5,727 of these 10,400 tokens, still
+ * more than half the set. Its own mission, still unscheduled.
+ */
+export const TOKEN_BUDGET = 10_430
 
 /** Status is one page describing now. A cap is how "rewritten, never appended" stops being a hope. */
 export const STATUS_FILE = 'STATUS.md'
@@ -400,9 +506,18 @@ export const LAW_FORM_EXEMPT = {
     'a glossary. It DEFINES what a law is; it states none. Its entries are definitions, and a definition cannot be violated by code.',
   'STATUS.md':
     'status, which by CONTEXT.md is the one thing that is explicitly NOT a law: it describes now, it is rewritten every merge, and nothing in it constrains how Atlas is built.',
-  '.claude/rules/db.md':
-    'states its rules as prose sections rather than LAW/ENFORCED blocks, so every rule in it is invisible to this scan and to the health metric. That is a real gap and not a claim of enforcement. Converting it is deliberate follow-up work: each prose rule has to be split into LAW plus an honest enforcement declaration, and doing it inside the retirement ticket would have raised the unenforced count while that ticket was required not to move it.',
 }
+
+// `.claude/rules/db.md` was exempted here until 2026-08-16 (ticket agents-1, round 4)
+// for "states its rules as prose sections rather than LAW/ENFORCED blocks, so every
+// rule in it is invisible to this scan" — a reason the SAME commit that added db.md's
+// first `**LAW ·` block made false, and a whole-file exemption cannot be narrowed to
+// "the prose sections that remain" because the mechanism has no per-section grain:
+// `lawBlocks()` already only extracts text starting at a `**LAW ·` marker, so db.md's
+// other prose sections were always going to stay invisible to `allLaws()` on their own
+// — that is what the marker form IS, not a gap the exemption was covering. The
+// exemption removed itself the moment it started claiming something untrue; nothing
+// replaces it, because nothing needs to.
 
 /**
  * Where a reference may legitimately resolve from — the roots a reader would try.

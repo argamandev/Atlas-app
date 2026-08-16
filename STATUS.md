@@ -3,7 +3,7 @@
 **Rewritten, never appended. Intent and next move only.** Dated entries go in `PROGRESS.md`; what
 has landed is removed, not struck through.
 
-_Last rewritten: 2026-08-16 (09b + two founder bugs)_
+_Last rewritten: 2026-08-16 (Agents V1 Plan 1 — foundations)_
 
 ## Where the product is
 
@@ -11,34 +11,29 @@ _Last rewritten: 2026-08-16 (09b + two founder bugs)_
 | --- | --- |
 | Live calls | Works. Two engines (Recall/IVRIT) share `:8788`.|
 | Companies | Works. MAYA connected; 234/234 have sector. |
-| Chat / Ask Atlas | **`/api/chat/v2`, the only route.** Every grounding works; market-wide search down. |
-| Workspace | Intake, tables, chat over docs. The founder's reported problem was the INTAKE, fixed in 09b. |
-| Agents | **Stub.** Page + `lib/agents/data.ts`; no machinery. |
+| Chat / Ask Atlas | **`/api/chat/v2` only.** Groundings work; market-wide search down. |
+| Workspace | Intake, tables, chat over docs. |
+| Agents | **Schema live, no machinery.** Tables in production; nothing can be created or run. |
 
-## Building the smart layer
+## Finishing V1 — Agents
 
-Spec: `docs/SMART-LAYER-SPEC.md`. Tickets: `.scratch/smart-layer-build/issues/`. Lowest unblocked
-one, branch per slice. **STRICT ORDER: 10 → 11 → 12 → 13 → 14** (founder, final).
+**Tickets 10–14 are SUPERSEDED** (founder, 2026-08-16, `DECISIONS.md`): one thin Managed Agents
+wrapper finishes V1. Spec and plans in `.scratch/agents-v1/`; the old smart-layer order stops at 09.
 
-**Phase A done, 08 CLOSED**; residues in `docs/open-findings.md`, plus a founder glance owed on
-`reportTruncated`'s wording.
+**Plan 1 (foundations) SHIPPED; nothing user-visible came with it.** SDK 0.117.1 + a run-budget
+module, a smoke script proving the design's four load-bearing claims against real Managed Agents,
+migration `20260816_032_agents.sql` applied to production and verified, and an owner-scoped data
+layer over its four tables. **No agent can be created or run — that is Plans 2 and 3.**
+**Next: Plan 2** — create flow and run engine, after the environment id below lands.
 
-**Two reds, filed with numbers, not re-scored** (M2; numbers in 08c's evidence): market-wide search
-times out, so class-G discovery is RED and only scoped works; and $0.06/answer did not hold
-($0.1010). Both eval-gated, **a PARALLEL SESSION owns them**; re-measure with
-`scripts/measure-chat-answer.mjs`. **Railway's `ANTHROPIC_API_KEY` is unproven** — on a v2 chat
-failing in production, check for a 401 first.
+**OWED BEFORE PLAN 2, in TWO places — the primary checkout's `.env.local` AND Railway:**
+`ANTHROPIC_ENVIRONMENT_ID=env_01Ryu53wpYhzBHhAKPiAV9M7`. An id, not a secret; Plan 2's first API
+call fails without it.
 
-**09 + 09b MERGED 2026-08-16** (`6447f4b`), with two founder-reported bugs. Workspace chat is
-deliberately unchanged — its gate says the swap does not beat the planner. Story in PROGRESS.
+**Market-wide search (RED) and the $0.06/answer miss sit with a PARALLEL SESSION** — numbers in
+08c's evidence; agents ride the scoped channel. **Railway's `ANTHROPIC_API_KEY` is unproven:
+suspect a 401** on a v2 chat failing in production.
 
-**Merged with `ATLAS_SHIP_OVERRIDE`, so three things are OPEN** (all in `docs/open-findings.md`):
-round 9's verdict was CHANGES, its BLOCKER a non-regression `main` did worse before; 09b's four
-recurrence declarations are unanswered, so the next merge hits the same gate; and **81 decks now
-leave the documents tab**, the bucket meant to hold them never having been built — founder's call,
-and the most visible.
-
-**Battery 1182/1183 on main; the red is a stray `CLAUDE.md` in a worktree, not the code.**
-
-**Next: close 09, then 10** (agent tables + create flow). **13** holds the cleanup list;
-poller/sweep deferred past V1.
+**09b's override does NOT carry forward** — measured, after this file said otherwise: the gate reads
+only the CURRENT branch's `docs/evidence/<branch>/review.md`, so no later merge inherits it. Its
+residue is in `docs/open-findings.md`, the 81 displaced decks the most visible.

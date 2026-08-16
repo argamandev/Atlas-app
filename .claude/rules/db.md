@@ -33,8 +33,28 @@ and additive-only, so retrofitting ownership means a backfill dance on a live DB
    else's id. Grant it to `authenticated`, not `public`.
 4. `CREATE INDEX ON <table>(user_id)` — every query filters on it.
 
-Child rows (a project's messages, an agent's runs) either carry their own `user_id` under the
-same rule or reach the owner through a `NOT NULL` FK to the parent. Never "the app will filter it".
+Child rows (a project's messages, an agent's runs) carry their own `user_id` under the same four
+rules, and reach the parent under the law below. Never "the app will filter it".
+
+**LAW · A child row's FK into an owner-scoped parent is KEYED THROUGH `user_id`.** PostgreSQL RI
+checks bypass RLS, so a key without `user_id` validates a row pointed at a parent the caller cannot
+see. **Composite is not the property — carrying `user_id` is:** `foreign key (agent_id, created_at)
+references agents (id, created_at)` has two columns and protects nothing. Key it
+`foreign key (child_id, user_id) references parent (id, user_id)`; the parent then needs
+`unique (id, user_id)`. A single-column FK into genuine shared corpus (no owner policy —
+`companies`, `transcripts` reads) is not this law; the line is the parent's RLS shape, not its
+column names. Copy migrations 015 and 016, and 017's three-column shape.
+**ENFORCED** `src/lib/db/compositeChildFk.test.ts` fails for any child FK into an owner-policy table
+whose REFERENCING column list lacks `user_id` — inline and table-level, `public.`-qualified or not;
+one pre-existing violation allowlisted by exact file+table.
+**VERIFY** A text scan, not a catalog walk: a policy in any shape other than this repo's two needs
+a look by eye. → #composite-child-fk (`docs/case-history/db.md`).
+**Recurrence, twice.** (1) The hole shipped in 032's first draft, all four tables single-column,
+though `SMART-LAYER-SPEC.md:165` already said to copy 015/016 — caught by cold review, not by a
+mechanism, which is why this law has one (ADR-0002). (2) That mechanism then decided on FK
+ARITY — a proxy (`rules/app.md` M3.2) matching this law's own old wording, "never single-column",
+so declaration and mechanism agreed and both missed the point. Restated above as the property
+itself, which is what the guard now measures.
 
 **Why the FK is spelled out: the existing schema is INCONSISTENT and half of it is the bad half.**
 Verified 2026-08-01 — WITH a real FK to `auth.users`: `transcripts`, `watchlist`,
