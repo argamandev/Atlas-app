@@ -1558,3 +1558,10 @@ the live hole fixed in the same session.
 - **Founder decision owed:** §5 says "stuffed FIRST turn", but the call is re-injected on every turn
   — a turn-2 question would otherwise be answered without the call its chip still names. Every
   measured turn is inside the stuffed budget; what is not true is the implied "first".
+
+## 2026-09-14 — Repository onboarding
+
+- Added a product-first README with the supplied walkthrough image, source entry points, and local review commands.
+- Documented service setup and known incomplete features; added the existing chat/formatting provider variables to `.env.example`.
+- Added GitHub Actions for the existing test suite and TypeScript check, without service credentials or deployment steps.
+- Scope is documentation and CI only; application behavior, database state, and product status are unchanged. Full product build and live-provider verification are outside this change.
