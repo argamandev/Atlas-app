@@ -402,17 +402,18 @@ test('the owner-scoped table scan finds every table this repo actually RLS-owns'
  */
 test('stripComments actually blanks a comment on a CRLF migration file (canary)', () => {
   const fixture = '20260802_015_projects.sql'
-  const raw = readFileSync(join(MIGRATIONS_DIR, fixture), 'utf8')
+  // Git normalizes checkout line endings differently on Windows and Linux.
+  // Construct the CRLF variant explicitly so this canary tests the parser on both.
+  const raw = readFileSync(join(MIGRATIONS_DIR, fixture), 'utf8').replace(/\r?\n/g, '\r\n')
 
-  // Guard the guard: if this fixture is ever re-saved as LF, the canary would
-  // pass by testing nothing CRLF-specific — fail loudly and name a fixture
-  // that is still CRLF instead.
+  // Guard the fixture: the parser must receive real CRLF on every platform.
   assert.ok(
     raw.includes('\r\n'),
     `${fixture} is no longer CRLF — this canary needs a fixture with real CRLF line endings to mean anything`
   )
 
   const stripped = stripComments(raw)
+  assert.equal(stripped, stripComments(raw.replace(/\r\n/g, '\n')), 'LF and CRLF produce the same SQL')
   const survivingCommentMarkers = stripped.split('\n').filter((line) => line.includes('--')).length
 
   assert.equal(

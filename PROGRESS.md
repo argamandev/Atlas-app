@@ -1565,3 +1565,8 @@ the live hole fixed in the same session.
 - Documented service setup and known incomplete features; added the existing chat/formatting provider variables to `.env.example`.
 - Added GitHub Actions for the existing test suite and TypeScript check, without service credentials or deployment steps.
 - Scope is documentation and CI only; application behavior, database state, and product status are unchanged. Full product build and live-provider verification are outside this change.
+
+## 2026-09-14 — Portable CI fixture
+
+- The first Linux CI run exposed a test fixture that assumed Windows CRLF checkout settings. Construct the CRLF input explicitly and compare its stripped SQL with the LF variant, preserving the canary's purpose.
+- Updated checkout/setup-node to their current v7 releases. The targeted database-boundary tests pass locally; the full suite runs in CI.
